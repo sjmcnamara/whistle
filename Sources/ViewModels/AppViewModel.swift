@@ -267,6 +267,9 @@ final class AppViewModel: ObservableObject {
     }
 
     /// Send a location update to every active MLS group.
+    ///
+    /// Also inserts the user's own location into `LocationCache` so it appears
+    /// on the map immediately — relays may not echo back our own events.
     private func broadcastLocation(_ location: CLLocation, via marmot: MarmotService) async {
         let activeGroups = marmot.groups.filter(\.isActive)
         guard !activeGroups.isEmpty else {
@@ -281,6 +284,19 @@ final class AppViewModel: ObservableObject {
             accuracy: location.horizontalAccuracy,
             timestamp: location.timestamp
         )
+
+        // Insert our own location into the cache immediately so the map
+        // shows our pin without waiting for a relay round-trip.
+        if let myKey = myPubkeyHex {
+            for group in activeGroups {
+                locationCache.update(
+                    groupId: group.mlsGroupId,
+                    memberPubkeyHex: myKey,
+                    payload: payload
+                )
+            }
+            print("[FMF-LOC] broadcastLocation: cached own location for \(activeGroups.count) group(s)")
+        }
 
         for group in activeGroups {
             do {
@@ -297,12 +313,21 @@ final class AppViewModel: ObservableObject {
     /// Note: does NOT call `requestAuthorization()` — that's triggered by the
     /// "Enable Location" button in Settings to avoid iOS silently dropping
     /// the permission prompt during early app lifecycle.
+    ///
+    /// Guards against starting location updates before `wireLocationPipeline()`
+    /// has set the `onLocationUpdate` callback. The CLLocationManager delegate
+    /// fires via Task after LocationService.init(), which can trigger this
+    /// method (via Combine observer) before `onAppear()` wires the pipeline.
+    /// Stopping is always allowed so the user can pause sharing immediately.
     private func applyLocationPauseSetting() {
-        print("[FMF-LOC] applyLocationPauseSetting: paused=\(settings.isLocationPaused)")
+        let pipelineReady = locationService.onLocationUpdate != nil
+        print("[FMF-LOC] applyLocationPauseSetting: paused=\(settings.isLocationPaused), pipelineReady=\(pipelineReady)")
         if settings.isLocationPaused {
             locationService.stopUpdating()
-        } else {
+        } else if pipelineReady {
             locationService.startUpdating()
+        } else {
+            print("[FMF-LOC] applyLocationPauseSetting: deferring start — pipeline not yet wired")
         }
     }
 

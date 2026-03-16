@@ -150,6 +150,7 @@ struct SettingsView: View {
                 get: { appViewModel.settings.locationIntervalSeconds },
                 set: { appViewModel.settings.locationIntervalSeconds = $0 }
             )) {
+                Text("10 sec").tag(10)
                 Text("5 min").tag(300)
                 Text("15 min").tag(900)
                 Text("30 min").tag(1800)
