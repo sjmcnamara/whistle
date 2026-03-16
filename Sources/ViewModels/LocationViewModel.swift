@@ -27,39 +27,70 @@ final class LocationViewModel: ObservableObject {
     /// Region that fits all current annotations (or a default).
     @Published var region: MKCoordinateRegion = LocationViewModel.defaultRegion
 
+    /// Filter to a specific group (nil = show all groups).
+    @Published var selectedGroupId: String? {
+        didSet { refresh() }
+    }
+
     // MARK: - Dependencies
 
     private let locationCache: LocationCache
+    private let nicknameStore: NicknameStore?
     private let intervalSeconds: () -> Int   // closure so it's always current
-    private var cancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
 
     /// - Parameters:
     ///   - locationCache: The shared location cache written by MarmotService.
+    ///   - nicknameStore: Optional nickname store for display name resolution.
     ///   - intervalSeconds: Closure returning the current location interval for stale detection.
-    init(locationCache: LocationCache, intervalSeconds: @escaping () -> Int) {
+    init(
+        locationCache: LocationCache,
+        nicknameStore: NicknameStore? = nil,
+        intervalSeconds: @escaping () -> Int
+    ) {
         self.locationCache = locationCache
+        self.nicknameStore = nicknameStore
         self.intervalSeconds = intervalSeconds
 
         // Re-compute annotations whenever the cache changes
-        cancellable = locationCache.$locations
+        locationCache.$locations
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refresh()
             }
+            .store(in: &cancellables)
+
+        // Re-compute annotations when nicknames change
+        if let store = nicknameStore {
+            store.$nicknames
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.refresh()
+                }
+                .store(in: &cancellables)
+        }
     }
 
     // MARK: - Refresh
 
-    /// Re-derive annotations from the cache.
+    /// Re-derive annotations from the cache, applying the group filter.
     func refresh() {
         let interval = intervalSeconds()
-        annotations = locationCache.allLocations.map { loc in
-            MemberAnnotation(
+        let source: [MemberLocation]
+        if let groupId = selectedGroupId {
+            source = locationCache.locations(forGroup: groupId)
+        } else {
+            source = locationCache.allLocations
+        }
+
+        annotations = source.map { loc in
+            let name = nicknameStore?.displayName(for: loc.memberPubkeyHex) ?? loc.displayName
+            return MemberAnnotation(
                 id: loc.id,
                 coordinate: loc.coordinate,
-                displayName: loc.displayName,
+                displayName: name,
                 isStale: loc.isStale(intervalSeconds: interval),
                 timestamp: loc.payload.date
             )

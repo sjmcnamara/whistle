@@ -6,6 +6,45 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] — 2026-03-16
+
+### Added
+- **Group chat** — end-to-end encrypted messaging via MLS
+- `GroupListView` — Chat tab root showing group list with Create / Join actions
+- `GroupChatView` — chat thread with message bubbles and send bar
+- `ChatBubbleView` — right-aligned blue (me) / left-aligned grey (others) message bubbles
+- `GroupRowView` — group list row with name, member count, last activity
+- `CreateGroupView` — sheet for creating new groups
+- `JoinGroupView` — sheet for joining groups via invite code
+- `InviteShareView` — QR code + copy/share for invite codes
+- `GroupDetailView` — member list, invite generation, admin member removal
+- `ChatViewModel` — loads messages from MDK, observes incoming, sends via MarmotService
+- `GroupListViewModel` — drives group list, create/join actions
+- `GroupDetailViewModel` — member management, invite generation
+- `ChatPayload` / `NicknamePayload` — Codable JSON schemas for chat and nickname messages
+- `NicknameStore` — UserDefaults-backed pubkey → display name mapping
+- Display Name field in Settings (broadcasts as nickname to groups)
+- "Enable Location" button in Settings (fixes iOS permission prompt issue)
+- Group picker in Map toolbar — filter pins by group
+- `FMFLogger.chat` log category
+- `NSCameraUsageDescription` for QR scanning
+- 15 new unit tests for ChatPayload, NicknamePayload, NicknameStore, and MarmotService
+
+### Changed
+- `MarmotService` — routes chat/nickname sub-types, `lastChatMessageGroupId`, `activeRelayURLs`, `sendNicknameUpdate`
+- `LocationViewModel` — `selectedGroupId` filter, NicknameStore integration for display names
+- `AppViewModel` — wires NicknameStore, observes interval changes, `myPubkeyHex`
+- `FamilyMapView` — group picker toolbar menu
+- `RootView` — `GroupListView` replaces `ChatPlaceholderView`
+- `SettingsView` — display name, location enable button, version 0.5.0
+- Version bumped to 0.5.0
+
+### Fixed
+- Location authorisation prompt never appeared (was called too early in lifecycle)
+- Update interval selector had no effect (interval changes now forwarded to LocationService)
+
+---
+
 ## [0.4.0] — 2026-03-16
 
 ### Added

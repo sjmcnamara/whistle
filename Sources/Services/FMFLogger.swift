@@ -10,4 +10,5 @@ enum FMFLogger {
     static let mls      = Logger(subsystem: subsystem, category: "mls")
     static let group    = Logger(subsystem: subsystem, category: "group")
     static let marmot   = Logger(subsystem: subsystem, category: "marmot")
+    static let chat     = Logger(subsystem: subsystem, category: "chat")
 }

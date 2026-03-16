@@ -23,10 +23,13 @@ final class MarmotService: ObservableObject {
     private let publicKeyHex: String
     private let keys: Keys
 
-    // MARK: - Location cache (v0.4)
+    // MARK: - Injected caches (v0.4+)
 
     /// Injected by AppViewModel — receives decoded location messages.
     var locationCache: LocationCache?
+
+    /// Injected by AppViewModel — receives nickname updates from incoming messages.
+    var nicknameStore: NicknameStore?
 
     // MARK: - Published state
 
@@ -35,6 +38,14 @@ final class MarmotService: ObservableObject {
 
     /// Last error for UI display (non-fatal).
     @Published private(set) var lastError: String?
+
+    /// Bumped when a chat message is received — ChatViewModel observes this.
+    @Published private(set) var lastChatMessageGroupId: String?
+
+    // MARK: - Public accessors
+
+    /// Connected relay URLs — used by GroupDetailViewModel for invite generation.
+    var activeRelayURLs: [String] { relay.connectedRelayURLs }
 
     // MARK: - Subscription tracking
 
@@ -141,6 +152,13 @@ final class MarmotService: ObservableObject {
     func sendLocationUpdate(_ payload: LocationPayload, toGroup groupId: String) async throws {
         let json = try payload.jsonString()
         try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.location)
+    }
+
+    /// Broadcast a nickname update to a group.
+    func sendNicknameUpdate(name: String, toGroup groupId: String) async throws {
+        let payload = NicknamePayload(name: name)
+        let json = try payload.jsonString()
+        try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.chat)
     }
 
     // MARK: - Kind 444 — Welcome (NIP-59 gift-wrap)
@@ -337,7 +355,31 @@ final class MarmotService: ObservableObject {
             }
 
         case MarmotKind.chat:
-            FMFLogger.marmot.debug("Received chat message in group \(message.mlsGroupId) — chat UI not yet implemented")
+            guard let content = message.plaintextContent else {
+                FMFLogger.chat.warning("Chat message missing content in group \(message.mlsGroupId)")
+                return
+            }
+            // Determine sub-type from JSON "type" field
+            if let data = content.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let type = json["type"] as? String {
+                switch type {
+                case "chat":
+                    lastChatMessageGroupId = message.mlsGroupId
+                    FMFLogger.chat.debug("Chat message in group \(message.mlsGroupId) from \(message.senderPubkey.prefix(8))")
+                case "nickname":
+                    if let payload = try? NicknamePayload.from(jsonString: content) {
+                        nicknameStore?.set(name: payload.name, for: message.senderPubkey)
+                        FMFLogger.chat.info("Nickname update: \(message.senderPubkey.prefix(8)) → \(payload.name)")
+                    }
+                default:
+                    FMFLogger.chat.debug("Unknown chat sub-type '\(type)' in group \(message.mlsGroupId)")
+                }
+            } else {
+                // Fallback: treat as plain chat text
+                lastChatMessageGroupId = message.mlsGroupId
+                FMFLogger.chat.debug("Plain chat message in group \(message.mlsGroupId)")
+            }
 
         default:
             FMFLogger.marmot.debug("Unknown application message kind \(message.kind) in group \(message.mlsGroupId)")

@@ -40,6 +40,18 @@ struct SettingsView: View {
                 Label("Generating identity…", systemImage: "key.fill")
                     .foregroundStyle(.secondary)
             }
+
+            // Display name for group chat
+            HStack {
+                Label("Display Name", systemImage: "person.text.rectangle")
+                Spacer()
+                TextField("Your Name", text: Binding(
+                    get: { appViewModel.settings.displayName },
+                    set: { appViewModel.settings.displayName = $0 }
+                ))
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(.primary)
+            }
         }
     }
 
@@ -75,6 +87,15 @@ struct SettingsView: View {
 
     private var locationSection: some View {
         Section("Location") {
+            // Enable location button — shown only when authorization not yet requested
+            if appViewModel.locationService.authorizationStatus == .notDetermined {
+                Button {
+                    appViewModel.locationService.requestAuthorization()
+                } label: {
+                    Label("Enable Location", systemImage: "location.fill")
+                }
+            }
+
             Toggle(isOn: Binding(
                 get: { appViewModel.settings.isLocationPaused },
                 set: { appViewModel.settings.isLocationPaused = $0 }
@@ -130,7 +151,7 @@ struct SettingsView: View {
             HStack {
                 Text("Version")
                 Spacer()
-                Text("0.4.0")
+                Text("0.5.0")
                     .foregroundStyle(.secondary)
             }
             HStack {

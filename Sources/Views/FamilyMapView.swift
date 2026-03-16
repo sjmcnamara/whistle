@@ -3,9 +3,10 @@ import MapKit
 
 /// Live family map showing member location pins.
 ///
-/// Replaces `MapPlaceholderView` in v0.4. Uses the iOS 17 `Map { }` content
-/// builder API with `Annotation` views for each member.
+/// Uses the iOS 17 `Map { }` content builder API with `Annotation` views
+/// for each member. A toolbar picker allows filtering by group.
 struct FamilyMapView: View {
+    @EnvironmentObject var appViewModel: AppViewModel
     @ObservedObject var viewModel: LocationViewModel
     @State private var position: MapCameraPosition = .automatic
 
@@ -23,6 +24,11 @@ struct FamilyMapView: View {
             }
             .mapStyle(.standard(elevation: .realistic))
             .navigationTitle("Map")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    groupPicker
+                }
+            }
             .overlay {
                 if viewModel.annotations.isEmpty {
                     emptyState
@@ -32,6 +38,43 @@ struct FamilyMapView: View {
                 if !viewModel.annotations.isEmpty {
                     position = .region(viewModel.region)
                 }
+            }
+        }
+    }
+
+    // MARK: - Group picker
+
+    @ViewBuilder
+    private var groupPicker: some View {
+        if let marmot = appViewModel.marmot, !marmot.groups.isEmpty {
+            Menu {
+                Button {
+                    viewModel.selectedGroupId = nil
+                } label: {
+                    HStack {
+                        Text("All Groups")
+                        if viewModel.selectedGroupId == nil {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+
+                Divider()
+
+                ForEach(marmot.groups, id: \.mlsGroupId) { group in
+                    Button {
+                        viewModel.selectedGroupId = group.mlsGroupId
+                    } label: {
+                        HStack {
+                            Text(group.name.isEmpty ? "Unnamed Group" : group.name)
+                            if viewModel.selectedGroupId == group.mlsGroupId {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease.circle")
             }
         }
     }

@@ -261,6 +261,30 @@ final class MarmotServiceTests: XCTestCase {
         XCTAssertNotNil(sut.locationCache, "locationCache should be settable")
     }
 
+    // MARK: - Kind 445 — Chat Messages (v0.5)
+
+    func testSendNicknameUpdatePublishesEvent() async throws {
+        let groupId = try await sut.createGroup(
+            name: "Nickname Test",
+            relays: ["wss://relay.damus.io"]
+        )
+
+        try await sut.sendNicknameUpdate(name: "Dad", toGroup: groupId)
+        XCTAssertEqual(mockRelay.sentEvents.count, 1,
+                       "sendNicknameUpdate should publish one event")
+    }
+
+    func testNicknameStoreInjection() {
+        let store = NicknameStore(skipLoad: true)
+        sut.nicknameStore = store
+        XCTAssertNotNil(sut.nicknameStore, "nicknameStore should be settable")
+    }
+
+    func testActiveRelayURLs() {
+        mockRelay.connectedRelayURLs = ["wss://relay.damus.io"]
+        XCTAssertEqual(sut.activeRelayURLs, ["wss://relay.damus.io"])
+    }
+
     // MARK: - Error State
 
     func testLastErrorSetOnSubscriptionFailure() async {

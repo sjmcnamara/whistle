@@ -10,7 +10,7 @@ struct RootView: View {
                     Label("Map", systemImage: "map.fill")
                 }
 
-            ChatPlaceholderView()
+            chatTab
                 .tabItem {
                     Label("Chat", systemImage: "bubble.left.and.bubble.right.fill")
                 }
@@ -19,6 +19,26 @@ struct RootView: View {
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
+        }
+    }
+
+    @ViewBuilder
+    private var chatTab: some View {
+        if let marmot = appViewModel.marmot {
+            GroupListView(
+                viewModel: GroupListViewModel(
+                    marmot: marmot,
+                    mls: appViewModel.mls
+                )
+            )
+        } else {
+            // Marmot not yet initialised — show placeholder
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Connecting…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

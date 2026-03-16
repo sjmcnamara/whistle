@@ -26,10 +26,18 @@ final class AppViewModel: ObservableObject {
     /// View-model for the family map — observes `locationCache`.
     let locationViewModel: LocationViewModel
 
+    // MARK: - Chat & Nicknames (v0.5)
+
+    /// Local nickname store — maps pubkey hex → display name.
+    let nicknameStore: NicknameStore
+
+    /// Current user's public key hex — convenience for ViewModels.
+    var myPubkeyHex: String? { identity.identity?.publicKeyHex }
+
     /// MLS initialisation error surfaced to the UI (non-fatal — app works without it).
     @Published private(set) var mlsError: String?
 
-    private var settingsCancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
         self.identity        = IdentityService()
@@ -38,11 +46,14 @@ final class AppViewModel: ObservableObject {
         self.settings        = AppSettings.shared
         self.locationService = LocationService()
         self.locationCache   = LocationCache()
+        self.nicknameStore   = NicknameStore()
 
         let cache = self.locationCache
         let settingsRef = self.settings
+        let nicknames = self.nicknameStore
         self.locationViewModel = LocationViewModel(
             locationCache: cache,
+            nicknameStore: nicknames,
             intervalSeconds: { settingsRef.locationIntervalSeconds }
         )
     }
@@ -76,6 +87,7 @@ final class AppViewModel: ObservableObject {
             keys: keys
         )
         marmotService.locationCache = locationCache
+        marmotService.nicknameStore = nicknameStore
         self.marmot = marmotService
 
         // Start Marmot subscriptions (non-fatal)
@@ -89,12 +101,23 @@ final class AppViewModel: ObservableObject {
         applyLocationPauseSetting()
 
         // React to future changes in the pause toggle
-        settingsCancellable = settings.$isLocationPaused
+        settings.$isLocationPaused
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.applyLocationPauseSetting()
             }
+            .store(in: &cancellables)
+
+        // React to future changes in the location interval
+        settings.$locationIntervalSeconds
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newInterval in
+                self?.locationService.intervalSeconds = newInterval
+                FMFLogger.location.info("Location interval updated to \(newInterval)s")
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Location Pipeline
@@ -131,12 +154,15 @@ final class AppViewModel: ObservableObject {
     }
 
     /// Start or stop location updates based on the current pause setting.
+    ///
+    /// Note: does NOT call `requestAuthorization()` — that's triggered by the
+    /// "Enable Location" button in Settings to avoid iOS silently dropping
+    /// the permission prompt during early app lifecycle.
     private func applyLocationPauseSetting() {
         if settings.isLocationPaused {
             locationService.stopUpdating()
             FMFLogger.location.info("Location paused by user setting")
         } else {
-            locationService.requestAuthorization()
             locationService.startUpdating()
             FMFLogger.location.info("Location active")
         }

@@ -26,10 +26,16 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(isLocationPaused, forKey: Keys.locationPaused) }
     }
 
+    /// User's chosen display name (broadcast to groups as nickname).
+    @Published var displayName: String {
+        didSet { UserDefaults.standard.set(displayName, forKey: Keys.displayName) }
+    }
+
     private enum Keys {
         static let relays = "fmf.relays"
         static let locationInterval = "fmf.locationInterval"
         static let locationPaused = "fmf.locationPaused"
+        static let displayName = "fmf.displayName"
     }
 
     private init() {
@@ -42,6 +48,7 @@ final class AppSettings: ObservableObject {
         self.locationIntervalSeconds = UserDefaults.standard.integer(forKey: Keys.locationInterval)
             .nonZeroOr(3600)
         self.isLocationPaused = UserDefaults.standard.bool(forKey: Keys.locationPaused)
+        self.displayName = UserDefaults.standard.string(forKey: Keys.displayName) ?? ""
     }
 
     private func save() {

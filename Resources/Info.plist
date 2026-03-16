@@ -20,6 +20,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Famstr uses the camera to scan QR invite codes.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Famstr needs background location access to keep your family updated when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

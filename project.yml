@@ -39,7 +39,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.app
         DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.4.0"
+        MARKETING_VERSION: "0.5.0"
         CURRENT_PROJECT_VERSION: "1"
         PRODUCT_NAME: FindMyFam
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -56,6 +56,7 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
         NSLocationWhenInUseUsageDescription: "Famstr needs your location to share it with your family group."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Famstr needs background location access to keep your family updated when the app is in the background."
+        NSCameraUsageDescription: "Famstr uses the camera to scan QR invite codes."
         UIBackgroundModes:
           - location
           - fetch
