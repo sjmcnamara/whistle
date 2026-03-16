@@ -1,4 +1,4 @@
-# FindMyFam Roadmap
+# Famstr Roadmap
 
 An open-source, decentralized family location app powered by Nostr.
 No accounts. No servers. No permissions needed.

@@ -1,4 +1,4 @@
-# FindMyFam
+# Famstr
 
 An open-source, decentralized family location sharing app powered by Nostr.
 

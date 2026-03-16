@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>FindMyFam</string>
+	<string>Famstr</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -21,9 +21,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>FindMyFam needs background location access to keep your family updated when the app is in the background.</string>
+	<string>Famstr needs background location access to keep your family updated when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>FindMyFam needs your location to share it with your family group.</string>
+	<string>Famstr needs your location to share it with your family group.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
