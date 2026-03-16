@@ -113,13 +113,30 @@ struct SettingsView: View {
 
     private var locationSection: some View {
         Section("Location") {
-            // Enable location button — shown only when authorization not yet requested
+            // Enable location — shown when authorization not yet requested.
+            // Requests "Always" since the app needs background location for
+            // family tracking. iOS shows "When In Use" first, then prompts
+            // to upgrade to "Always" automatically.
             if appViewModel.locationService.authorizationStatus == .notDetermined {
                 Button {
-                    appViewModel.locationService.requestAuthorization()
+                    appViewModel.locationService.requestAlwaysAuthorization()
                 } label: {
                     Label("Enable Location", systemImage: "location.fill")
                 }
+            }
+
+            // If the user only granted "When In Use", offer to upgrade to
+            // "Always" so background location sharing works when the app
+            // is not in the foreground.
+            if appViewModel.locationService.authorizationStatus == .authorizedWhenInUse {
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Label("Allow Always for Background Sharing", systemImage: "location.fill")
+                }
+                .font(.subheadline)
             }
 
             Toggle(isOn: Binding(
