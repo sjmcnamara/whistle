@@ -13,12 +13,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `NicknameStore` seeded with own display name at startup
 - `ChatViewModel` and `GroupDetailViewModel` reactively re-resolve display names when `NicknameStore` updates
 - `MarmotService.lastJoinedGroupId` publisher for post-welcome nickname broadcast
+- "Allow Always for Background Sharing" button in Settings when location is only "When In Use"
+- 10-second location interval option for live debugging
+- Own location now appears on the map immediately (self-cached before relay round-trip)
+
+### Changed
+- "Enable Location" button now requests "Always" authorization (needed for background location sharing)
+- `AppViewModel` forwards `objectWillChange` from child ObservableObjects (`settings`, `locationService`, `relay`) so SettingsView re-renders when nested @Published properties change
 
 ### Fixed
 - Display names not shown — only hex pubkey was visible because nicknames were never written to NicknameStore or broadcast to groups
 - MDK "group not found" errors flooding console — demoted to debug (kind-445 subscription is relay-wide, so unknown group events are expected)
-- **Groups lost on app relaunch** — rewrote `MLSService.initialise()` to never silently delete the database; removed the "last resort delete-and-recreate" path that was destroying group data. Now: if a local encryption key exists, open with it or fail loudly; if keyring fails on first run, clean up the partial DB file before creating a fresh encrypted DB
+- **Groups lost on app relaunch** — rewrote `MLSService.initialise()` to never silently delete the database; removed the "last resort delete-and-recreate" path that was destroying group data
 - **Groups empty on app relaunch** — moved `GroupListViewModel` ownership from inline SwiftUI construction (vulnerable to view identity resets) to `AppViewModel`; `refreshGroups()` now runs before `self.marmot` is published to the UI so groups are loaded before the chat tab renders
+- **Zero location events** — `LocationService.startUpdating()` called CLLocationManager with `.notDetermined` authorization which silently does nothing on iOS 17+; now guards on authorization status and defers via `wantsUpdating` flag
+- **Location callback nil (hasCallback=false)** — race condition where CLLocationManager delegate fires via Task after LocationService.init(), triggering `applyLocationPauseSetting()` before `onAppear()` wires the pipeline callback; now defers `startUpdating()` until pipeline is ready
+- **Own location missing from map** — `broadcastLocation()` only sent to relay; relays don't echo back own events so own pin never appeared; now inserts into `LocationCache` immediately
+- **SettingsView not reacting to changes** — nested ObservableObject problem: SwiftUI only observes AppViewModel's own @Published, not child objects; fixed by forwarding `objectWillChange` from settings, locationService, and relay
+- **Location auth delegate auto-start** — `locationManagerDidChangeAuthorization` now checks `wantsUpdating` and `isUpdating` to auto-start deferred location updates when permission is granted
 - Chat messages displayed newest-first — reversed to natural chat order (oldest top, newest bottom) with `.defaultScrollAnchor(.bottom)`
 - GroupDetailView stuck after adding a member — now auto-dismisses back to chat on success
 - Update interval observer race — Combine subscriptions moved from async `onAppear()` to `init()`
