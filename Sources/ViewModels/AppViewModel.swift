@@ -110,10 +110,14 @@ final class AppViewModel: ObservableObject {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newInterval in
-                self?.locationService.intervalSeconds = newInterval
-                // Reset throttle so a shorter interval takes effect immediately
-                self?.locationService.resetThrottle()
-                FMFLogger.location.info("Location interval updated to \(newInterval)s")
+                guard let self else {
+                    print("[FMF-LOC] ⚠️ interval observer: self is nil!")
+                    return
+                }
+                let oldInterval = self.locationService.intervalSeconds
+                self.locationService.intervalSeconds = newInterval
+                self.locationService.resetThrottle()
+                print("[FMF-LOC] Interval changed: \(oldInterval) → \(newInterval)s, throttle reset")
             }
             .store(in: &cancellables)
 
