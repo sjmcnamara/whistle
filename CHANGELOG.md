@@ -16,7 +16,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - `project.yml` — added `MDKBindings` package
+- Renamed app to **Famstr** (display name, permissions, docs)
+- Bundle ID changed from `com.findmyfam` to `org.findmyfam`
 - Version bumped to 0.2.0
+
+### Fixed
+- Asset catalog not compiled into app bundle (moved `.xcassets` to `sources` in XcodeGen)
+- Added explicit XcodeGen scheme with test action
+- Set `DEVELOPMENT_TEAM` for device builds
+- Added Famstr app icon (1024×1024)
 
 ---
 
