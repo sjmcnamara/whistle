@@ -244,21 +244,22 @@ final class AppViewModel: ObservableObject {
     /// Wire `LocationService.onLocationUpdate` to broadcast location via MarmotService.
     private func wireLocationPipeline(marmot: MarmotService) {
         locationService.intervalSeconds = settings.locationIntervalSeconds
+        print("[FMF-LOC] wireLocationPipeline: setting callback, interval=\(settings.locationIntervalSeconds)s")
 
         locationService.onLocationUpdate = { [weak self, weak marmot] location in
             guard let self else {
-                FMFLogger.location.warning("Location callback fired but AppViewModel is nil")
+                print("[FMF-LOC] ⚠️ callback: AppViewModel is nil!")
                 return
             }
             guard let marmot else {
-                FMFLogger.location.warning("Location callback fired but MarmotService is nil")
+                print("[FMF-LOC] ⚠️ callback: MarmotService is nil!")
                 return
             }
+            print("[FMF-LOC] callback: broadcasting to \(marmot.groups.count) group(s)")
             Task { @MainActor in
                 await self.broadcastLocation(location, via: marmot)
             }
         }
-        FMFLogger.location.info("Location pipeline wired — callback set, interval=\(self.locationService.intervalSeconds)s")
     }
 
     /// Send a location update to every active MLS group.
@@ -293,12 +294,11 @@ final class AppViewModel: ObservableObject {
     /// "Enable Location" button in Settings to avoid iOS silently dropping
     /// the permission prompt during early app lifecycle.
     private func applyLocationPauseSetting() {
+        print("[FMF-LOC] applyLocationPauseSetting: paused=\(settings.isLocationPaused)")
         if settings.isLocationPaused {
             locationService.stopUpdating()
-            FMFLogger.location.info("Location paused by user setting")
         } else {
             locationService.startUpdating()
-            FMFLogger.location.info("Location active")
         }
     }
 

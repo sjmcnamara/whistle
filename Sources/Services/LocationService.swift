@@ -73,24 +73,26 @@ final class LocationService: NSObject, ObservableObject {
     /// so that updates start automatically once the user grants permission.
     func startUpdating() {
         wantsUpdating = true
+        print("[FMF-LOC] startUpdating called — isUpdating=\(isUpdating), auth=\(authorizationStatus.rawValue)")
 
-        guard !isUpdating else { return }
+        guard !isUpdating else {
+            print("[FMF-LOC] startUpdating: already updating, skipping")
+            return
+        }
 
         // Only actually start CLLocationManager if we have permission.
         // Calling startUpdatingLocation() with .notDetermined silently
         // does nothing on iOS 17+ — no callbacks, no errors.
         guard authorizationStatus == .authorizedWhenInUse ||
               authorizationStatus == .authorizedAlways else {
-            FMFLogger.location.info(
-                "Location requested but auth=\(String(describing: self.authorizationStatus)) — waiting for authorization"
-            )
+            print("[FMF-LOC] startUpdating: NOT authorized (auth=\(authorizationStatus.rawValue)) — waiting")
             return
         }
 
         manager.startUpdatingLocation()
         manager.startMonitoringSignificantLocationChanges()
         isUpdating = true
-        FMFLogger.location.info("Location updates started (interval=\(self.intervalSeconds)s)")
+        print("[FMF-LOC] ✅ CLLocationManager started (interval=\(intervalSeconds)s)")
     }
 
     /// Stop all location monitoring.
@@ -101,7 +103,7 @@ final class LocationService: NSObject, ObservableObject {
         manager.stopMonitoringSignificantLocationChanges()
         isUpdating = false
         lastFireDate = nil
-        FMFLogger.location.info("Location updates stopped")
+        print("[FMF-LOC] ⏸ Location updates stopped")
     }
 
     // MARK: - Throttling
@@ -126,16 +128,17 @@ extension LocationService: CLLocationManagerDelegate {
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+        print("[FMF-LOC] authDidChange: \(status.rawValue)")
         Task { @MainActor in
             let previous = self.authorizationStatus
             self.authorizationStatus = status
-            FMFLogger.location.info("Authorization changed: \(String(describing: previous)) → \(String(describing: status))")
+            print("[FMF-LOC] auth: \(previous.rawValue) → \(status.rawValue), wantsUpdating=\(self.wantsUpdating), isUpdating=\(self.isUpdating)")
 
             // If we were waiting for authorization and it's now granted,
             // start the location updates we previously deferred.
             let isAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
             if isAuthorized && self.wantsUpdating && !self.isUpdating {
-                FMFLogger.location.info("Authorization granted — starting deferred location updates")
+                print("[FMF-LOC] ✅ Auth granted — starting deferred location updates")
                 self.manager.startUpdatingLocation()
                 self.manager.startMonitoringSignificantLocationChanges()
                 self.isUpdating = true
@@ -145,16 +148,20 @@ extension LocationService: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
+        print("[FMF-LOC] 📍 didUpdateLocations: \(location.coordinate.latitude), \(location.coordinate.longitude)")
         Task { @MainActor in
-            guard self.shouldFire() else { return }
+            let willFire = self.shouldFire()
+            print("[FMF-LOC] shouldFire=\(willFire), lastFireDate=\(String(describing: self.lastFireDate)), interval=\(self.intervalSeconds)s")
+            guard willFire else { return }
             self.lastFireDate = Date()
             let hasCallback = self.onLocationUpdate != nil
-            FMFLogger.location.info("Location update: \(location.coordinate.latitude), \(location.coordinate.longitude) acc=\(location.horizontalAccuracy)m callback=\(hasCallback)")
+            print("[FMF-LOC] 🔥 Firing callback (hasCallback=\(hasCallback))")
             self.onLocationUpdate?(location)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("[FMF-LOC] ❌ didFailWithError: \(error.localizedDescription)")
         Task { @MainActor in
             FMFLogger.location.error("Location error: \(error.localizedDescription)")
         }
