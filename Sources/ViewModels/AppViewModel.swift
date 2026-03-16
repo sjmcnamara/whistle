@@ -6,11 +6,16 @@ final class AppViewModel: ObservableObject {
 
     let identity: IdentityService
     let relay: RelayService
+    let mls: MLSService
     let settings: AppSettings
+
+    /// MLS initialisation error surfaced to the UI (non-fatal — app works without it).
+    @Published private(set) var mlsError: String?
 
     init() {
         self.identity = IdentityService()
         self.relay    = RelayService()
+        self.mls      = MLSService()
         self.settings = AppSettings.shared
     }
 
@@ -20,7 +25,18 @@ final class AppViewModel: ObservableObject {
             FMFLogger.relay.error("No identity available — cannot connect to relays")
             return
         }
+
+        // Connect to Nostr relays
         let enabled = settings.relays.filter(\.isEnabled)
         await relay.connect(keys: keys, relays: enabled)
+
+        // Initialise MLS (keyring-backed, non-fatal if it fails)
+        do {
+            try await mls.initialise()
+        } catch {
+            let msg = error.localizedDescription
+            FMFLogger.mls.error("MLSService init failed: \(msg)")
+            mlsError = msg
+        }
     }
 }
