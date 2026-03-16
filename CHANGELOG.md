@@ -31,6 +31,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Own location missing from map** — `broadcastLocation()` only sent to relay; relays don't echo back own events so own pin never appeared; now inserts into `LocationCache` immediately
 - **SettingsView not reacting to changes** — nested ObservableObject problem: SwiftUI only observes AppViewModel's own @Published, not child objects; fixed by forwarding `objectWillChange` from settings, locationService, and relay
 - **Location auth delegate auto-start** — `locationManagerDidChangeAuthorization` now checks `wantsUpdating` and `isUpdating` to auto-start deferred location updates when permission is granted
+- **Location pipeline never wired** — `startSubscriptions()` calls NostrSDK `handleNotifications()` which runs an infinite event loop; everything after it in `onAppear()` was dead code (location wiring, nickname broadcast). Moved subscriptions to last step
 - Chat messages displayed newest-first — reversed to natural chat order (oldest top, newest bottom) with `.defaultScrollAnchor(.bottom)`
 - GroupDetailView stuck after adding a member — now auto-dismisses back to chat on success
 - Update interval observer race — Combine subscriptions moved from async `onAppear()` to `init()`

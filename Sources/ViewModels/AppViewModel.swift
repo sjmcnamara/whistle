@@ -110,14 +110,10 @@ final class AppViewModel: ObservableObject {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newInterval in
-                guard let self else {
-                    print("[FMF-LOC] ⚠️ interval observer: self is nil!")
-                    return
-                }
-                let oldInterval = self.locationService.intervalSeconds
+                guard let self else { return }
                 self.locationService.intervalSeconds = newInterval
                 self.locationService.resetThrottle()
-                print("[FMF-LOC] Interval changed: \(oldInterval) → \(newInterval)s, throttle reset")
+                FMFLogger.location.info("Interval changed to \(newInterval)s, throttle reset")
             }
             .store(in: &cancellables)
 
@@ -250,22 +246,14 @@ final class AppViewModel: ObservableObject {
     /// Wire `LocationService.onLocationUpdate` to broadcast location via MarmotService.
     private func wireLocationPipeline(marmot: MarmotService) {
         locationService.intervalSeconds = settings.locationIntervalSeconds
-        print("[FMF-LOC] wireLocationPipeline: setting callback, interval=\(settings.locationIntervalSeconds)s")
 
         locationService.onLocationUpdate = { [weak self, weak marmot] location in
-            guard let self else {
-                print("[FMF-LOC] ⚠️ callback: AppViewModel is nil!")
-                return
-            }
-            guard let marmot else {
-                print("[FMF-LOC] ⚠️ callback: MarmotService is nil!")
-                return
-            }
-            print("[FMF-LOC] callback: broadcasting to \(marmot.groups.count) group(s)")
+            guard let self, let marmot else { return }
             Task { @MainActor in
                 await self.broadcastLocation(location, via: marmot)
             }
         }
+        FMFLogger.location.info("Location pipeline wired (interval=\(self.settings.locationIntervalSeconds)s)")
     }
 
     /// Send a location update to every active MLS group.
@@ -297,7 +285,6 @@ final class AppViewModel: ObservableObject {
                     payload: payload
                 )
             }
-            print("[FMF-LOC] broadcastLocation: cached own location for \(activeGroups.count) group(s)")
         }
 
         for group in activeGroups {
@@ -322,15 +309,12 @@ final class AppViewModel: ObservableObject {
     /// method (via Combine observer) before `onAppear()` wires the pipeline.
     /// Stopping is always allowed so the user can pause sharing immediately.
     private func applyLocationPauseSetting() {
-        let pipelineReady = locationService.onLocationUpdate != nil
-        print("[FMF-LOC] applyLocationPauseSetting: paused=\(settings.isLocationPaused), pipelineReady=\(pipelineReady)")
         if settings.isLocationPaused {
             locationService.stopUpdating()
-        } else if pipelineReady {
+        } else if locationService.onLocationUpdate != nil {
             locationService.startUpdating()
-        } else {
-            print("[FMF-LOC] applyLocationPauseSetting: deferring start — pipeline not yet wired")
         }
+        // If pipeline not yet wired, onAppear() will call this again after wireLocationPipeline().
     }
 
     // MARK: - Nickname Broadcasting
