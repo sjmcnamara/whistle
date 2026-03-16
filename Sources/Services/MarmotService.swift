@@ -23,6 +23,11 @@ final class MarmotService: ObservableObject {
     private let publicKeyHex: String
     private let keys: Keys
 
+    // MARK: - Location cache (v0.4)
+
+    /// Injected by AppViewModel — receives decoded location messages.
+    var locationCache: LocationCache?
+
     // MARK: - Published state
 
     /// Active MLS groups, refreshed after mutations.
@@ -115,17 +120,27 @@ final class MarmotService: ObservableObject {
         FMFLogger.marmot.debug("Published group event (kind 445)")
     }
 
-    /// Encrypt and send a chat message to a group.
-    func sendMessage(content: String, toGroup groupId: String) async throws {
+    /// Encrypt and send a message to a group.
+    /// - Parameters:
+    ///   - content: Message content string.
+    ///   - groupId: MLS group identifier.
+    ///   - kind: Inner application kind (default: chat). Use `MarmotKind.location` for location updates.
+    func sendMessage(content: String, toGroup groupId: String, kind: UInt16 = MarmotKind.chat) async throws {
         let eventJson = try await mls.createMessage(
             groupId: groupId,
             senderPublicKeyHex: publicKeyHex,
             content: content,
-            kind: MarmotKind.chat
+            kind: kind
         )
         try await publishGroupEvent(eventJson: eventJson)
 
-        FMFLogger.marmot.info("Sent chat message to group \(groupId)")
+        FMFLogger.marmot.info("Sent message (kind \(kind)) to group \(groupId)")
+    }
+
+    /// Encode a location payload and send as kind-1 application message to a group.
+    func sendLocationUpdate(_ payload: LocationPayload, toGroup groupId: String) async throws {
+        let json = try payload.jsonString()
+        try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.location)
     }
 
     // MARK: - Kind 444 — Welcome (NIP-59 gift-wrap)
@@ -264,9 +279,8 @@ final class MarmotService: ObservableObject {
 
         switch result {
         case .applicationMessage(let message):
-            FMFLogger.marmot.debug("Received application message in group")
-            // Future: notify UI / store in message list
-            _ = message
+            FMFLogger.marmot.debug("Received application message in group \(message.mlsGroupId)")
+            routeApplicationMessage(message)
 
         case .commit(let groupId):
             FMFLogger.marmot.debug("Processed commit — epoch advanced for \(groupId)")
@@ -293,6 +307,40 @@ final class MarmotService: ObservableObject {
 
         case .previouslyFailed:
             FMFLogger.marmot.debug("Skipping previously failed message")
+        }
+    }
+
+    // MARK: - Application Message Routing
+
+    /// Route a decrypted application message to the appropriate handler.
+    ///
+    /// Currently supports:
+    /// - `MarmotKind.location` (kind 1) → decode `LocationPayload` → `LocationCache`
+    /// - All other kinds → logged and ignored.
+    private func routeApplicationMessage(_ message: Message) {
+        switch message.kind {
+        case MarmotKind.location:
+            guard let content = message.plaintextContent else {
+                FMFLogger.marmot.warning("Location message missing content in group \(message.mlsGroupId)")
+                return
+            }
+            do {
+                let payload = try LocationPayload.from(jsonString: content)
+                locationCache?.update(
+                    groupId: message.mlsGroupId,
+                    memberPubkeyHex: message.senderPubkey,
+                    payload: payload
+                )
+                FMFLogger.marmot.info("Updated location for \(message.senderPubkey.prefix(8)) in group \(message.mlsGroupId)")
+            } catch {
+                FMFLogger.marmot.error("Failed to decode location payload: \(error)")
+            }
+
+        case MarmotKind.chat:
+            FMFLogger.marmot.debug("Received chat message in group \(message.mlsGroupId) — chat UI not yet implemented")
+
+        default:
+            FMFLogger.marmot.debug("Unknown application message kind \(message.kind) in group \(message.mlsGroupId)")
         }
     }
 

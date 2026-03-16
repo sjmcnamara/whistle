@@ -7,6 +7,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 identitySection
+                locationSection
                 relaysSection
                 connectionSection
                 aboutSection
@@ -72,12 +73,64 @@ struct SettingsView: View {
         }
     }
 
+    private var locationSection: some View {
+        Section("Location") {
+            Toggle(isOn: Binding(
+                get: { appViewModel.settings.isLocationPaused },
+                set: { appViewModel.settings.isLocationPaused = $0 }
+            )) {
+                Label("Pause Sharing", systemImage: "location.slash")
+            }
+
+            Picker("Update Interval", selection: Binding(
+                get: { appViewModel.settings.locationIntervalSeconds },
+                set: { appViewModel.settings.locationIntervalSeconds = $0 }
+            )) {
+                Text("5 min").tag(300)
+                Text("15 min").tag(900)
+                Text("30 min").tag(1800)
+                Text("1 hour").tag(3600)
+            }
+
+            HStack {
+                Text("Authorization")
+                Spacer()
+                authorizationLabel
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var authorizationLabel: some View {
+        let status = appViewModel.locationService.authorizationStatus
+        switch status {
+        case .notDetermined:
+            Text("Not Requested")
+                .foregroundStyle(.secondary)
+        case .restricted:
+            Text("Restricted")
+                .foregroundStyle(.orange)
+        case .denied:
+            Text("Denied")
+                .foregroundStyle(.red)
+        case .authorizedWhenInUse:
+            Text("When In Use")
+                .foregroundStyle(.green)
+        case .authorizedAlways:
+            Text("Always")
+                .foregroundStyle(.green)
+        @unknown default:
+            Text("Unknown")
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var aboutSection: some View {
         Section("About") {
             HStack {
                 Text("Version")
                 Spacer()
-                Text("0.3.0")
+                Text("0.4.0")
                     .foregroundStyle(.secondary)
             }
             HStack {

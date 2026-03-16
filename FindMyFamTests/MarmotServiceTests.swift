@@ -226,6 +226,41 @@ final class MarmotServiceTests: XCTestCase {
         _ = targetHex
     }
 
+    // MARK: - Kind 445 — Location Messages (v0.4)
+
+    func testSendMessageWithExplicitKind() async throws {
+        let groupId = try await sut.createGroup(
+            name: "Kind Test",
+            relays: ["wss://relay.damus.io"]
+        )
+
+        try await sut.sendMessage(content: "ping", toGroup: groupId, kind: MarmotKind.location)
+        XCTAssertEqual(mockRelay.sentEvents.count, 1,
+                       "sendMessage with explicit kind should still call sendEvent once")
+    }
+
+    func testSendLocationUpdatePublishesEvent() async throws {
+        let groupId = try await sut.createGroup(
+            name: "Location Test",
+            relays: ["wss://relay.damus.io"]
+        )
+
+        let payload = LocationPayload(
+            latitude: 37.77, longitude: -122.42,
+            altitude: 10, accuracy: 5, timestamp: Date()
+        )
+        try await sut.sendLocationUpdate(payload, toGroup: groupId)
+
+        XCTAssertEqual(mockRelay.sentEvents.count, 1,
+                       "sendLocationUpdate should publish one event")
+    }
+
+    func testLocationCacheInjection() {
+        let cache = LocationCache()
+        sut.locationCache = cache
+        XCTAssertNotNil(sut.locationCache, "locationCache should be settable")
+    }
+
     // MARK: - Error State
 
     func testLastErrorSetOnSubscriptionFailure() async {

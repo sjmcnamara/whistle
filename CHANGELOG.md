@@ -6,6 +6,30 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] — 2026-03-16
+
+### Added
+- **Live family map** — `FamilyMapView` with iOS 17 `Map { }` API replaces placeholder
+- `LocationService` — CoreLocation wrapper with throttling and background-mode support
+- `LocationCache` — in-memory cache of latest location per group member
+- `LocationViewModel` — transforms cache entries into map annotations with stale detection
+- `LocationPayload` — Codable model for location JSON payloads inside MLS messages
+- `MemberLocation` — per-member location model with coordinate, stale check, display name
+- `MemberPinView` — custom map annotation (blue = fresh, grey = stale)
+- `MarmotService.sendLocationUpdate` — encode and send location as kind-1 application message
+- `MarmotService.routeApplicationMessage` — decode incoming location messages to `LocationCache`
+- Location section in Settings: pause toggle, interval picker (5m/15m/30m/1h), auth status
+- 17 new unit tests for LocationPayload, LocationCache, and MarmotService location features
+
+### Changed
+- `MarmotService.sendMessage` now accepts explicit `kind` parameter (default: chat)
+- `handleGroupEvent` routes application messages through `routeApplicationMessage`
+- `AppViewModel` creates and wires `LocationService`, `LocationCache`, `LocationViewModel`
+- `RootView` uses `FamilyMapView` instead of `MapPlaceholderView`
+- Version bumped to 0.4.0
+
+---
+
 ## [0.3.0] — 2026-03-16
 
 ### Added

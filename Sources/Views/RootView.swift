@@ -5,7 +5,7 @@ struct RootView: View {
 
     var body: some View {
         TabView {
-            MapPlaceholderView()
+            FamilyMapView(viewModel: appViewModel.locationViewModel)
                 .tabItem {
                     Label("Map", systemImage: "map.fill")
                 }
