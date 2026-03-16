@@ -48,15 +48,15 @@ targets:
     info:
       path: Resources/Info.plist
       properties:
-        CFBundleDisplayName: FindMyFam
+        CFBundleDisplayName: Famstr
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
-        NSLocationWhenInUseUsageDescription: "FindMyFam needs your location to share it with your family group."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "FindMyFam needs background location access to keep your family updated when the app is in the background."
+        NSLocationWhenInUseUsageDescription: "Famstr needs your location to share it with your family group."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Famstr needs background location access to keep your family updated when the app is in the background."
         UIBackgroundModes:
           - location
           - fetch
@@ -71,3 +71,13 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.findmyfam.tests
+
+schemes:
+  FindMyFam:
+    build:
+      targets:
+        FindMyFam: all
+        FindMyFamTests: [test]
+    test:
+      targets:
+        - FindMyFamTests

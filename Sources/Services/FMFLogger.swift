@@ -1,6 +1,6 @@
 import os.log
 
-/// Centralised os.Logger channels for FindMyFam.
+/// Centralised os.Logger channels for Famstr.
 enum FMFLogger {
     private static let subsystem = "com.findmyfam"
 

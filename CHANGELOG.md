@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to FindMyFam will be documented in this file.
+All notable changes to Famstr will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# FindMyFam build script
+# Famstr build script
 # Usage:
 #   ./scripts/build.sh              # generate + build
 #   ./scripts/build.sh test         # generate + build + test
