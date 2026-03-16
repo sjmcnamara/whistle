@@ -6,6 +6,31 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.3.0] — 2026-03-16
+
+### Added
+- `MarmotService` orchestration layer bridging MLSService (MLS) ↔ RelayService (Nostr)
+- Kind 443 — Key Package publishing and fetching
+- Kind 10051 — Key Package Relay List publishing and fetching
+- Kind 444 — Welcome delivery via NIP-59 gift-wrap
+- Kind 445 — Group event publishing, message encryption/sending
+- `RelayServiceProtocol` abstraction for testable relay I/O
+- `MockRelayService` in-memory mock for unit tests
+- `NotificationHandler` — relay subscription callback bridge
+- `InviteCode` model — base64-encoded invite tokens for group sharing
+- Subscription management — auto-subscribes to group events and gift-wraps
+- Invite flow — `generateInviteCode` / `acceptInvite`
+- 19 new unit tests for MarmotService, InviteCode, and integration
+- `RelayService` extended with `sendEvent`, `fetchEvents`, `subscribe`, `handleNotifications`, `giftWrap`, `unwrapGiftWrap`
+- `FMFLogger.marmot` logger category
+- `MarmotKind.giftWrap` (1059) constant
+
+### Changed
+- `AppViewModel` now creates and wires up `MarmotService` on startup
+- Version bumped to 0.3.0
+
+---
+
 ## [0.2.0] — 2026-03-16
 
 ### Added

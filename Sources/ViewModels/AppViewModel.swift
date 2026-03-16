@@ -1,4 +1,5 @@
 import Foundation
+import NostrSDK
 
 /// Root view-model. Owns the core services and coordinates startup.
 @MainActor
@@ -8,6 +9,9 @@ final class AppViewModel: ObservableObject {
     let relay: RelayService
     let mls: MLSService
     let settings: AppSettings
+
+    /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
+    private(set) var marmot: MarmotService?
 
     /// MLS initialisation error surfaced to the UI (non-fatal — app works without it).
     @Published private(set) var mlsError: String?
@@ -38,5 +42,19 @@ final class AppViewModel: ObservableObject {
             FMFLogger.mls.error("MLSService init failed: \(msg)")
             mlsError = msg
         }
+
+        // Wire up MarmotService once MLS and relay are ready
+        let pubHex = keys.publicKey().toHex()
+        let marmotService = MarmotService(
+            relay: relay,
+            mls: mls,
+            publicKeyHex: pubHex,
+            keys: keys
+        )
+        self.marmot = marmotService
+
+        // Start Marmot subscriptions (non-fatal)
+        await marmotService.startSubscriptions()
+        FMFLogger.marmot.info("MarmotService initialised")
     }
 }

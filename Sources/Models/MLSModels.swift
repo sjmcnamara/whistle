@@ -89,6 +89,9 @@ enum MarmotKind {
     /// KeyPackage relay list.
     static let keyPackageRelayList: UInt16 = 10051
 
+    /// NIP-59 Gift Wrap outer event kind.
+    static let giftWrap:  UInt16 = 1059
+
     // Inner application message kinds (inside kind-445 payloads)
     static let chat:     UInt16 = 9
     static let location: UInt16 = 1

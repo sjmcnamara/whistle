@@ -2,11 +2,8 @@ import Foundation
 import NostrSDK
 
 /// Manages connections to Nostr relays.
-///
-/// Phase 1: connect/disconnect, expose connection state.
-/// Phase 3: publish kind 443/444/445 events for Marmot group traffic.
 @MainActor
-final class RelayService: ObservableObject {
+final class RelayService: ObservableObject, RelayServiceProtocol {
 
     // MARK: - Connection state
 
@@ -22,7 +19,7 @@ final class RelayService: ObservableObject {
 
     // MARK: - Private
 
-    private var client: Client?
+    private(set) var client: Client?
 
     // MARK: - Public API
 
@@ -77,6 +74,54 @@ final class RelayService: ObservableObject {
         }
         let output = try await client.sendEventBuilder(builder: builder)
         return try output.id.toBech32()
+    }
+
+    // MARK: - Send pre-signed event
+
+    /// Publish a pre-signed Event object to all connected relays.
+    @discardableResult
+    func sendEvent(_ event: Event) async throws -> String {
+        guard let client else { throw RelayError.notConnected }
+        let output = try await client.sendEvent(event: event)
+        return output.id.toHex()
+    }
+
+    // MARK: - Fetching
+
+    /// One-shot fetch of events matching the filter.
+    func fetchEvents(filter: Filter, timeout: TimeInterval) async throws -> [Event] {
+        guard let client else { throw RelayError.notConnected }
+        let events = try await client.fetchEvents(filter: filter, timeout: timeout)
+        return try events.toVec()
+    }
+
+    // MARK: - Subscriptions
+
+    /// Open a persistent subscription, returns the subscription ID.
+    func subscribe(filter: Filter) async throws -> String {
+        guard let client else { throw RelayError.notConnected }
+        let output = try await client.subscribe(filter: filter, opts: nil)
+        return output.id
+    }
+
+    /// Register a handler for incoming events from active subscriptions.
+    func handleNotifications(handler: HandleNotification) async throws {
+        guard let client else { throw RelayError.notConnected }
+        try await client.handleNotifications(handler: handler)
+    }
+
+    // MARK: - NIP-59 Gift Wrap
+
+    /// Gift-wrap an unsigned rumor event and publish to the receiver.
+    func giftWrap(receiver: PublicKey, rumor: UnsignedEvent, extraTags: [Tag]) async throws {
+        guard let client else { throw RelayError.notConnected }
+        _ = try await client.giftWrap(receiver: receiver, rumor: rumor, extraTags: extraTags)
+    }
+
+    /// Unwrap a received NIP-59 gift-wrap event.
+    func unwrapGiftWrap(event: Event) async throws -> UnwrappedGift {
+        guard let client else { throw RelayError.notConnected }
+        return try await client.unwrapGiftWrap(giftWrap: event)
     }
 
     // MARK: - Errors
