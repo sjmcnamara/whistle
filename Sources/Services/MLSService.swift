@@ -23,7 +23,7 @@ actor MLSService {
     ///   - serviceId: Reverse-DNS app identifier used as the Keychain service name.
     ///   - dbKeyId:   Stable key identifier (Keychain account name).
     func initialise(
-        serviceId: String = "com.findmyfam",
+        serviceId: String = "org.findmyfam",
         dbKeyId: String   = "mdk.db.key"
     ) throws {
         let path = Self.defaultDBPath()

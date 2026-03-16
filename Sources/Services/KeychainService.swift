@@ -6,7 +6,7 @@ import Security
 /// Keys used to address items in the Keychain.
 enum KeychainKey: String {
     /// The user's nsec (Nostr secret key), bech32-encoded.
-    case nsec = "com.findmyfam.nsec"
+    case nsec = "org.findmyfam.nsec"
 }
 
 // MARK: - Protocol
@@ -27,7 +27,7 @@ final class KeychainService: SecureStorage {
     static let shared = KeychainService()
     private init() {}
 
-    private static let service = "com.findmyfam"
+    private static let service = "org.findmyfam"
 
     /// Saves a string to the Keychain, overwriting any existing entry.
     @discardableResult

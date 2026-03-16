@@ -2,7 +2,7 @@ import os.log
 
 /// Centralised os.Logger channels for Famstr.
 enum FMFLogger {
-    private static let subsystem = "com.findmyfam"
+    private static let subsystem = "org.findmyfam"
 
     static let identity = Logger(subsystem: subsystem, category: "identity")
     static let relay    = Logger(subsystem: subsystem, category: "relay")

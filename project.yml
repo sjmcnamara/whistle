@@ -1,7 +1,7 @@
 name: FindMyFam
 
 options:
-  bundleIdPrefix: com.findmyfam
+  bundleIdPrefix: org.findmyfam
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16.1"
@@ -37,8 +37,8 @@ targets:
       - package: MDKBindings
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.findmyfam.app
-        DEVELOPMENT_TEAM: ""
+        PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.app
+        DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "0.2.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -70,7 +70,7 @@ targets:
       - target: FindMyFam
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.findmyfam.tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.tests
 
 schemes:
   FindMyFam:
