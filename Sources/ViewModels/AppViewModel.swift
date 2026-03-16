@@ -56,6 +56,33 @@ final class AppViewModel: ObservableObject {
             nicknameStore: nicknames,
             intervalSeconds: { settingsRef.locationIntervalSeconds }
         )
+
+        // Observe settings changes immediately — NOT in onAppear() which
+        // runs async and may not reach the subscription code in time.
+        observeSettings()
+    }
+
+    /// Subscribe to settings changes. Called from init() so the observers
+    /// are active before any async startup work.
+    private func observeSettings() {
+        settings.$isLocationPaused
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.applyLocationPauseSetting()
+            }
+            .store(in: &cancellables)
+
+        settings.$locationIntervalSeconds
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newInterval in
+                self?.locationService.intervalSeconds = newInterval
+                // Reset throttle so a shorter interval takes effect immediately
+                self?.locationService.resetThrottle()
+                FMFLogger.location.info("Location interval updated to \(newInterval)s")
+            }
+            .store(in: &cancellables)
     }
 
     /// Called once when the app becomes active.
@@ -106,25 +133,6 @@ final class AppViewModel: ObservableObject {
 
         // Start or stop location based on current pause setting
         applyLocationPauseSetting()
-
-        // React to future changes in the pause toggle
-        settings.$isLocationPaused
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.applyLocationPauseSetting()
-            }
-            .store(in: &cancellables)
-
-        // React to future changes in the location interval
-        settings.$locationIntervalSeconds
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newInterval in
-                self?.locationService.intervalSeconds = newInterval
-                FMFLogger.location.info("Location interval updated to \(newInterval)s")
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Location Pipeline

@@ -84,6 +84,13 @@ final class LocationService: NSObject, ObservableObject {
 
     // MARK: - Throttling
 
+    /// Clear the last-fire timestamp so the next location update fires
+    /// immediately. Called when the user changes the update interval so a
+    /// shorter interval takes effect without waiting for the old one to elapse.
+    func resetThrottle() {
+        lastFireDate = nil
+    }
+
     /// Returns `true` if enough time has elapsed since the last callback.
     private func shouldFire() -> Bool {
         guard let last = lastFireDate else { return true }
