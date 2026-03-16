@@ -42,6 +42,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Location authorisation prompt never appeared (was called too early in lifecycle)
 - Update interval selector had no effect (interval changes now forwarded to LocationService)
+- Update interval observer race — Combine subscriptions moved from async `onAppear()` to `init()` so they're active immediately
+- Throttle timer resets on interval change so shorter intervals take effect without waiting
+- Groups disappear on app restart — `refreshGroups()` now called on startup to reload from MDK database
+- Chat tab stuck on "Connecting…" spinner — `marmot` property marked `@Published` for SwiftUI reactivity
+- MLSService init failures on iOS 26 — 3-step recovery: keyring → local key → delete stale DB + fresh key
+- Keychain unavailable on iOS 26 — UserDefaults fallback for identity persistence
+- Noisy "MLSError.notInitialised" log spam — demoted to debug, subscriptions gated on MLS readiness
+- Invite/join flow — admins can now add members by pasting npub/hex pubkey in Group Detail
 
 ---
 
