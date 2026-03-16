@@ -13,7 +13,7 @@ final class AppViewModel: ObservableObject {
     let settings: AppSettings
 
     /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
-    private(set) var marmot: MarmotService?
+    @Published private(set) var marmot: MarmotService?
 
     // MARK: - Location (v0.4)
 
