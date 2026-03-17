@@ -57,6 +57,26 @@ final class AppViewModel: ObservableObject {
     /// Current user's public key hex — convenience for ViewModels.
     var myPubkeyHex: String? { identity.identity?.publicKeyHex }
 
+    // MARK: - Startup / Splash (v0.7.1)
+
+    enum StartupPhase: Equatable {
+        case connecting
+        case initialisingEncryption
+        case loadingGroups
+        case ready
+
+        var message: String {
+            switch self {
+            case .connecting:              return "Connecting to relays…"
+            case .initialisingEncryption:  return "Setting up encryption…"
+            case .loadingGroups:           return "Loading groups…"
+            case .ready:                   return ""
+            }
+        }
+    }
+
+    @Published private(set) var startupPhase: StartupPhase = .connecting
+
     /// MLS initialisation error surfaced to the UI (non-fatal — app works without it).
     @Published private(set) var mlsError: String?
 
@@ -241,14 +261,17 @@ final class AppViewModel: ObservableObject {
         guard let keys = identity.keys else {
             FMFLogger.relay.error("No identity available — cannot connect to relays")
             didStart = false
+            startupPhase = .ready   // dismiss splash so onboarding/empty state is visible
             return
         }
 
         // Connect to Nostr relays
+        startupPhase = .connecting
         let enabled = settings.relays.filter(\.isEnabled)
         await relay.connect(keys: keys, relays: enabled)
 
         // Initialise MLS (keyring-backed, non-fatal if it fails)
+        startupPhase = .initialisingEncryption
         do {
             try await mls.initialise()
         } catch {
@@ -273,6 +296,7 @@ final class AppViewModel: ObservableObject {
         // Load persisted groups from MDK database BEFORE publishing
         // marmotService to the UI — this avoids a flash of empty state
         // and ensures GroupListViewModel sees groups immediately.
+        startupPhase = .loadingGroups
         await marmotService.refreshGroups()
         FMFLogger.marmot.info("Loaded \(marmotService.groups.count) group(s) from MDK database")
 
@@ -303,6 +327,7 @@ final class AppViewModel: ObservableObject {
 
         // Now publish to UI — GroupListView will receive a fully loaded marmot.
         self.marmot = marmotService
+        startupPhase = .ready
 
         // Auto-broadcast display name when we join a group via welcome
         marmotService.$lastJoinedGroupId

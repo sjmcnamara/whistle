@@ -113,7 +113,8 @@
       "Bash(ls -la /Users/stephen.mcnamara/Development/findmyfam/Sources/*.swift)",
       "Bash(git pull:*)",
       "Bash(xcodebuild -scheme FindMyFam -destination 'platform=iOS Simulator,name=iPhone 16' build)",
-      "Bash(ls /Users/stephen.mcnamara/Development/findmyfam/*.md)"
+      "Bash(ls /Users/stephen.mcnamara/Development/findmyfam/*.md)",
+      "Bash(encryption…\" → \"Loading groups…\":*)"
     ]
   }
 }

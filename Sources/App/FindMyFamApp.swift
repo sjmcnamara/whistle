@@ -7,14 +7,23 @@ struct FindMyFamApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environmentObject(appViewModel)
-                .task {
-                    await appViewModel.onAppear()
+            ZStack {
+                RootView()
+                    .environmentObject(appViewModel)
+
+                if appViewModel.startupPhase != .ready {
+                    SplashView(phase: appViewModel.startupPhase)
+                        .transition(.opacity)
+                        .zIndex(1)
                 }
-                .onOpenURL { url in
-                    appViewModel.handleIncomingURL(url)
-                }
+            }
+            .animation(.easeOut(duration: 0.45), value: appViewModel.startupPhase == .ready)
+            .task {
+                await appViewModel.onAppear()
+            }
+            .onOpenURL { url in
+                appViewModel.handleIncomingURL(url)
+            }
         }
     }
 }
