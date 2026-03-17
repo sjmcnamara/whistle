@@ -6,9 +6,11 @@
 	<array>
 		<string>$(AppIdentifierPrefix)org.findmyfam.app</string>
 	</array>
+	<!-- NFC entitlement — re-enable once portal capability is approved
 	<key>com.apple.developer.nfc.readersession.formats</key>
 	<array>
 		<string>NDEF</string>
 	</array>
+	-->
 </dict>
 </plist>

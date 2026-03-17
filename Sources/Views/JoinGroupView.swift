@@ -34,7 +34,8 @@ struct JoinGroupView: View {
                         Label("Scan QR Code", systemImage: "qrcode.viewfinder")
                     }
 
-                    if NFCNDEFReaderSession.readingAvailable {
+                    // TODO: Restore to NFCNDEFReaderSession.readingAvailable once portal entitlement is approved.
+                    if false {
                         Button {
                             nfcReader.start()
                         } label: {
