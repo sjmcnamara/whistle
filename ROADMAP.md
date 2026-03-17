@@ -114,22 +114,34 @@ _Full family group experience_
 
 ---
 
-### v0.6 — Reliability & Cross-Device
+### v0.6 — Reliability & Cross-Device ✅
 _Make the app work reliably across multiple devices day-to-day_
 
-- **Cross-device location**: verify phone A sees phone B's pin and vice versa; debug the full relay→MLS decrypt→`routeApplicationMessage`→`locationCache` path for incoming location messages
-- **Offline catch-up**: on reconnect, replay missed kind 445 Commits in sequence; handle epoch gaps gracefully (request re-add if unrecoverable)
-- **Crash resilience**: MLS state corruption detection and recovery — prompt user to leave & re-join if epoch gap is unrecoverable
-- **Background location audit**: measure real-world background wake intervals, validate significant location change wakes, test app-suspended behaviour after ~3 min
-- **Nickname persistence**: `NicknameStore` currently in-memory — nicknames lost on restart until others re-broadcast; persist to UserDefaults or re-request on startup
-- **Group join pending state**: show "Waiting for admin approval" after accepting an invite, before the Welcome is received
-- **UI polish**:
-  - Fix Display Name label line-wrapping in SettingsView
-  - Add icons for interval picker (clock) and authorization status (checkmark)
+- **Cross-device location**: verified phone A sees phone B's pin and vice versa
+- **Offline catch-up**: on reconnect, replay missed events using `since` filter on last processed timestamp
+- **Crash resilience**: `GroupHealthTracker` detects consecutive MLS failures per group; "Out of sync" badge shown in group list; `clearPendingCommit()` called for all groups on launch
+- **Background location audit**: foreground/background mode logged on every location callback
+- **Nickname persistence**: `NicknameStore` backed by UserDefaults; display names re-broadcast on launch, name change, group create/join
+- **Group join pending state**: "Pending" row in group list after accepting invite, before Welcome arrives (`PendingInviteStore`, UserDefaults-backed)
+- **Subscription retry loop**: auto-reconnects and resumes subscriptions with backoff on relay disconnect
+- **Map improvements** (v0.6.1): auto-centre on own pin on first appearance; locate-me toolbar button; own pin shows countdown to next update instead of elapsed time
 
 ---
 
-### v0.7 — Security & Identity
+### v0.7 — Tap-to-Share Invites ✅
+_Frictionless group joining via AirDrop, QR scan, and NFC_
+
+- **AirDrop / deep-link invites**: invites shared as `famstr://invite/<code>` URLs; accepting an AirDrop or tapping a link opens the app and pre-fills the Join Group sheet — no copy-paste required
+- **QR code scanning**: "Scan QR Code" in Join Group opens live camera scanner; auto-populates and submits
+- **NFC read**: "Tap NFC Tag" (iPhone 7+) reads an NDEF invite URL from any NFC tag and auto-joins
+- **NFC write**: "Write to NFC Tag" in Invite sheet writes the `famstr://` URL to a blank NFC sticker; anyone can tap to join
+- **One-tap member approval**: after joining, invitee shares a `famstr://addmember/` URL with the admin; admin taps once to approve — no pubkey copy-paste required
+- `famstr://` URL scheme registered; `InviteCode.asURL()` / `from(url:)` helpers; `InviteCode.approvalURL(pubkeyHex:groupId:)`
+- `NFCReadCoordinator`, `NFCWriteCoordinator`, `QRScannerView`
+
+---
+
+### v0.8 — Security & Identity
 _Production-grade key security and identity management_
 
 - **PIN / biometric lock**: FaceID / TouchID gate on app launch; optional per-session re-auth
@@ -141,10 +153,9 @@ _Production-grade key security and identity management_
 
 ---
 
-### v0.8 — Social & Connectivity
-_Richer group experience and easier onboarding_
+### v0.9 — Social & Connectivity
+_Richer group experience and relay management_
 
-- **Tap-to-share invites**: NFC / AirDrop to share group invite + npub of invitee — like iOS contact sharing
 - **Custom relay management**: add, remove, toggle relays from Settings; validate connectivity on add
 - **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input
 - **Relay redundancy**: publish to multiple relays, subscribe to all, deduplicate by event ID
@@ -166,9 +177,10 @@ master
   └── feature/v0.4-location-layer       ✅ merged
   └── feature/v0.5-group-chat-ux        ✅ merged
   └── bugfix/v0.5.1                     ✅ merged
-  └── feature/v0.6-reliability
-  └── feature/v0.7-security-identity
-  └── feature/v0.8-social-connectivity
+  └── feature/v0.6-reliability          ✅ merged
+  └── feature/v0.7-tap-to-share
+  └── feature/v0.8-security-identity
+  └── feature/v0.9-social-connectivity
 ```
 
 ---

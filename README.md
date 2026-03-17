@@ -10,7 +10,8 @@ Family members create or join a shared encrypted group. Each member periodically
 
 All communication is end-to-end encrypted using MLS (Messaging Layer Security, RFC 9420) and transported over the Nostr protocol via the [Marmot Protocol](https://github.com/marmot-protocol/marmot) event kinds. No relay ever sees plaintext location data or group membership.
 
-- **Family groups** — create or join with a shareable invite code (QR or link)
+- **Family groups** — create or join with a shareable invite code
+- **Tap-to-join** — share invites via AirDrop, QR code scan, or NFC tap; one-tap admin approval
 - **Live map** — see all family members' locations, updated on a configurable interval (default: 1 hr)
 - **Group chat** — built-in encrypted chat for the whole family
 - **Pause/resume** — stop sharing your location anytime without leaving the group
