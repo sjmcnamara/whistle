@@ -22,9 +22,15 @@ struct MemberPinView: View {
                 .font(.caption2.bold())
                 .foregroundStyle(annotation.isStale ? .secondary : .primary)
 
-            Text(annotation.timestamp, style: .relative)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if let next = annotation.nextUpdateDate {
+                Text(next, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(annotation.timestamp, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

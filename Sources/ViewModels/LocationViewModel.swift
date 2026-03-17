@@ -10,6 +10,10 @@ struct MemberAnnotation: Identifiable {
     let displayName: String
     let isStale: Bool
     let timestamp: Date
+    /// `true` for the local user's own pin.
+    let isMe: Bool
+    /// Estimated time of next location broadcast — only set for the own pin.
+    let nextUpdateDate: Date?
 }
 
 /// Transforms `LocationCache` entries into `[MemberAnnotation]` for the map.
@@ -37,6 +41,8 @@ final class LocationViewModel: ObservableObject {
     private let locationCache: LocationCache
     private let nicknameStore: NicknameStore?
     private let intervalSeconds: () -> Int   // closure so it's always current
+    private let myPubkeyHex: () -> String?
+    private let nextFireDate: () -> Date?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
@@ -45,14 +51,20 @@ final class LocationViewModel: ObservableObject {
     ///   - locationCache: The shared location cache written by MarmotService.
     ///   - nicknameStore: Optional nickname store for display name resolution.
     ///   - intervalSeconds: Closure returning the current location interval for stale detection.
+    ///   - myPubkeyHex: Closure returning the local user's public key hex (for own-pin detection).
+    ///   - nextFireDate: Closure returning the estimated next location broadcast time (own pin only).
     init(
         locationCache: LocationCache,
         nicknameStore: NicknameStore? = nil,
-        intervalSeconds: @escaping () -> Int
+        intervalSeconds: @escaping () -> Int,
+        myPubkeyHex: @escaping () -> String? = { nil },
+        nextFireDate: @escaping () -> Date? = { nil }
     ) {
         self.locationCache = locationCache
         self.nicknameStore = nicknameStore
         self.intervalSeconds = intervalSeconds
+        self.myPubkeyHex = myPubkeyHex
+        self.nextFireDate = nextFireDate
 
         // Re-compute annotations whenever the cache changes
         locationCache.$locations
@@ -85,14 +97,19 @@ final class LocationViewModel: ObservableObject {
             source = locationCache.allLocations
         }
 
+        let selfKey = myPubkeyHex()
+        let nextUpdate = nextFireDate()
         annotations = source.map { loc in
             let name = nicknameStore?.displayName(for: loc.memberPubkeyHex) ?? loc.displayName
+            let isMe = selfKey != nil && loc.memberPubkeyHex == selfKey
             return MemberAnnotation(
                 id: loc.id,
                 coordinate: loc.coordinate,
                 displayName: name,
                 isStale: loc.isStale(intervalSeconds: interval),
-                timestamp: loc.payload.date
+                timestamp: loc.payload.date,
+                isMe: isMe,
+                nextUpdateDate: isMe ? nextUpdate : nil
             )
         }
 

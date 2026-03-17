@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.1] — 2026-03-17
+
+### Added
+- **Auto centre self on map** — map auto-centres on own pin when location first appears; "locate me" button (location arrow) in toolbar re-centres on self at any time
+- **Next-update countdown** — own location pin shows "in X min" countdown to the next scheduled broadcast instead of "X ago"; other members' pins continue to show elapsed time
+
+---
+
 ## [0.6.0] — 2026-03-17
 
 ### Added

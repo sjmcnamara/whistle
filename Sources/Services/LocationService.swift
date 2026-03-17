@@ -38,7 +38,8 @@ final class LocationService: NSObject, ObservableObject {
     private let manager = CLLocationManager()
 
     /// Timestamp of the last callback invocation — used for throttling.
-    private var lastFireDate: Date?
+    /// Internal (not private) so `AppViewModel` can derive `nextFireDate`.
+    var lastFireDate: Date?
 
     // MARK: - Init
 

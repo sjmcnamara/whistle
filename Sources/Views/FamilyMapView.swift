@@ -25,6 +25,9 @@ struct FamilyMapView: View {
             .mapStyle(.standard(elevation: .realistic))
             .navigationTitle("Map")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    locateMeButton
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     groupPicker
                 }
@@ -36,9 +39,40 @@ struct FamilyMapView: View {
             }
             .onChange(of: viewModel.annotations.count) {
                 if !viewModel.annotations.isEmpty {
-                    position = .region(viewModel.region)
+                    centreOnSelfOrAll()
                 }
             }
+        }
+    }
+
+    // MARK: - Locate me
+
+    @ViewBuilder
+    private var locateMeButton: some View {
+        Button {
+            centreOnSelf()
+        } label: {
+            Image(systemName: "location.fill")
+        }
+        .disabled(viewModel.annotations.first(where: { $0.isMe }) == nil)
+    }
+
+    private func centreOnSelf() {
+        guard let selfAnnotation = viewModel.annotations.first(where: { $0.isMe }) else { return }
+        withAnimation {
+            position = .region(MKCoordinateRegion(
+                center: selfAnnotation.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            ))
+        }
+    }
+
+    /// Auto-centre on self when annotations first appear; fall back to fitting all pins.
+    private func centreOnSelfOrAll() {
+        if viewModel.annotations.first(where: { $0.isMe }) != nil {
+            centreOnSelf()
+        } else {
+            position = .region(viewModel.region)
         }
     }
 

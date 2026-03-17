@@ -63,10 +63,17 @@ final class AppViewModel: ObservableObject {
         let cache = self.locationCache
         let settingsRef = self.settings
         let nicknames = self.nicknameStore
+        let identityRef = self.identity
+        let locationSvc = self.locationService
         self.locationViewModel = LocationViewModel(
             locationCache: cache,
             nicknameStore: nicknames,
-            intervalSeconds: { settingsRef.locationIntervalSeconds }
+            intervalSeconds: { settingsRef.locationIntervalSeconds },
+            myPubkeyHex: { identityRef.identity?.publicKeyHex },
+            nextFireDate: {
+                guard let last = locationSvc.lastFireDate else { return nil }
+                return last.addingTimeInterval(TimeInterval(settingsRef.locationIntervalSeconds))
+            }
         )
 
         // Forward objectWillChange from nested ObservableObjects so that
