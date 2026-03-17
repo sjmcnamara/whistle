@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import UIKit
 
 /// Wraps `CLLocationManager` with throttling and background-mode support.
 ///
@@ -142,8 +143,15 @@ extension LocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         Task { @MainActor in
-            guard self.shouldFire() else { return }
+            let isForeground = UIApplication.shared.applicationState == .active
+            let mode = isForeground ? "foreground" : "background"
+
+            guard self.shouldFire() else {
+                FMFLogger.location.debug("didUpdateLocations (\(mode)) throttled — count=\(locations.count)")
+                return
+            }
             self.lastFireDate = Date()
+            FMFLogger.location.info("didUpdateLocations (\(mode)) firing — count=\(locations.count) acc=\(String(format: "%.0f", location.horizontalAccuracy))m")
             self.onLocationUpdate?(location)
         }
     }

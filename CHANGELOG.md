@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] — 2026-03-17
+
+### Added
+- **Pending group join state** — after accepting an invite, a "Pending" row appears in the group list until the Welcome event arrives; state persists across app restarts (`PendingInviteStore`, UserDefaults-backed)
+- **Offline catch-up** — subscriptions now use a `since` filter based on the last processed event timestamp, so missed events are replayed when reconnecting after an offline period
+- **Subscription retry loop** — if the Nostr notification stream drops (relay disconnect, network change), automatically reconnects and resumes subscriptions with backoff
+- **MLS crash resilience** — `GroupHealthTracker` monitors consecutive processing failures per group; groups exceeding the threshold (5) show an "Out of sync" warning badge in the group list
+- **Startup epoch cleanup** — `clearPendingCommit()` called for all groups on launch to recover from mid-commit crashes
+- **Background location audit logging** — foreground/background mode logged on every location callback for debugging wake intervals
+- **File sharing enabled** — app container visible in Finder/Files for MLS database inspection (temporary, until SQLCipher encryption is restored in v0.7)
+- `GroupHealthTracker` — tracks consecutive MLS failures per group, resets on success
+- `PendingInvite` model — Codable struct for pending group invites
+- `PendingInviteStore` — UserDefaults-backed store with auto-cleanup on Welcome receipt
+- 15 new unit tests for `PendingInviteStore` (8) and `GroupHealthTracker` (7)
+
+### Changed
+- **SettingsView polish** — Display Name label no longer wraps on narrow screens (`.lineLimit(1)`), Update Interval picker has clock icon, Authorization row has shield icon
+- `MarmotService.startSubscriptions()` — refactored into retry loop with `openSubscriptionsAndListen()` inner method
+- `MarmotService.handleGroupEvent()` — records success/failure in health tracker
+- `MarmotService.handleIncomingEvent()` — updates `lastEventTimestamp` high-water mark on success
+- `GroupListViewModel` — receives `PendingInviteStore` and `GroupHealthTracker`, forwards their changes
+- `GroupRowView` — shows "Out of sync" badge for unhealthy groups
+- `AppViewModel` — owns `PendingInviteStore`, wires to MarmotService, cleans up resolved invites on startup
+- Version bumped to 0.6.0
+
+---
+
 ## [0.5.1] — 2026-03-16
 
 ### Added

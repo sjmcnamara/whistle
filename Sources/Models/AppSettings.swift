@@ -31,11 +31,18 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(displayName, forKey: Keys.displayName) }
     }
 
+    /// Timestamp (epoch seconds) of the last successfully processed Nostr event.
+    /// Used to resume subscriptions with a `since` filter after offline periods.
+    @Published var lastEventTimestamp: UInt64 {
+        didSet { UserDefaults.standard.set(Int64(bitPattern: lastEventTimestamp), forKey: Keys.lastEventTimestamp) }
+    }
+
     private enum Keys {
         static let relays = "fmf.relays"
         static let locationInterval = "fmf.locationInterval"
         static let locationPaused = "fmf.locationPaused"
         static let displayName = "fmf.displayName"
+        static let lastEventTimestamp = "fmf.lastEventTimestamp"
     }
 
     private init() {
@@ -49,6 +56,8 @@ final class AppSettings: ObservableObject {
             .nonZeroOr(3600)
         self.isLocationPaused = UserDefaults.standard.bool(forKey: Keys.locationPaused)
         self.displayName = UserDefaults.standard.string(forKey: Keys.displayName) ?? ""
+        let storedTimestamp = UserDefaults.standard.integer(forKey: Keys.lastEventTimestamp)
+        self.lastEventTimestamp = UInt64(bitPattern: Int64(storedTimestamp))
     }
 
     private func save() {

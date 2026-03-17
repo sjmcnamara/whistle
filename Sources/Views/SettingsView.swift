@@ -44,6 +44,8 @@ struct SettingsView: View {
             // Display name for group chat
             HStack {
                 Label("Display Name", systemImage: "person.text.rectangle")
+                    .lineLimit(1)
+                    .layoutPriority(1)
                 Spacer()
                 TextField("Your Name", text: Binding(
                     get: { appViewModel.settings.displayName },
@@ -146,7 +148,7 @@ struct SettingsView: View {
                 Label("Pause Sharing", systemImage: "location.slash")
             }
 
-            Picker("Update Interval", selection: Binding(
+            Picker(selection: Binding(
                 get: { appViewModel.settings.locationIntervalSeconds },
                 set: { appViewModel.settings.locationIntervalSeconds = $0 }
             )) {
@@ -155,10 +157,12 @@ struct SettingsView: View {
                 Text("15 min").tag(900)
                 Text("30 min").tag(1800)
                 Text("1 hour").tag(3600)
+            } label: {
+                Label("Update Interval", systemImage: "clock.arrow.2.circlepath")
             }
 
             HStack {
-                Text("Authorization")
+                Label("Authorization", systemImage: "checkmark.shield")
                 Spacer()
                 authorizationLabel
             }
@@ -195,7 +199,7 @@ struct SettingsView: View {
             HStack {
                 Text("Version")
                 Spacer()
-                Text("0.5.1")
+                Text("0.6.0")
                     .foregroundStyle(.secondary)
             }
             HStack {

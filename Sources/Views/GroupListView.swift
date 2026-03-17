@@ -8,7 +8,7 @@ struct GroupListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.groups.isEmpty {
+                if viewModel.groups.isEmpty && viewModel.pendingInviteStore.pendingInvites.isEmpty {
                     emptyState
                 } else {
                     groupList
@@ -48,14 +48,46 @@ struct GroupListView: View {
     // MARK: - Group list
 
     private var groupList: some View {
-        List(viewModel.groups) { group in
-            NavigationLink {
-                chatDestination(for: group)
-            } label: {
-                GroupRowView(group: group)
+        List {
+            pendingInvitesSection
+            ForEach(viewModel.groups) { group in
+                NavigationLink {
+                    chatDestination(for: group)
+                } label: {
+                    GroupRowView(
+                        group: group,
+                        isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
+                    )
+                }
             }
         }
         .listStyle(.plain)
+    }
+
+    // MARK: - Pending invites
+
+    @ViewBuilder
+    private var pendingInvitesSection: some View {
+        let pending = viewModel.pendingInviteStore.pendingInvites
+        if !pending.isEmpty {
+            Section {
+                ForEach(pending) { invite in
+                    HStack(spacing: 12) {
+                        Image(systemName: "hourglass")
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Pending Invite")
+                                .font(.body)
+                            Text("Waiting for admin to add you")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .opacity(0.7)
+                }
+            }
+        }
     }
 
     /// Build the chat view for a selected group.

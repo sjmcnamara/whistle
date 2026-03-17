@@ -17,7 +17,9 @@ final class GroupListViewModel: ObservableObject {
     private let marmot: MarmotService
     private let mls: MLSService
     private let displayName: () -> String
-    private var cancellable: AnyCancellable?
+    let pendingInviteStore: PendingInviteStore
+    let healthTracker: GroupHealthTracker
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Item model
 
@@ -31,16 +33,36 @@ final class GroupListViewModel: ObservableObject {
 
     // MARK: - Init
 
-    init(marmot: MarmotService, mls: MLSService, displayName: @escaping () -> String = { "" }) {
+    init(
+        marmot: MarmotService,
+        mls: MLSService,
+        pendingInviteStore: PendingInviteStore,
+        displayName: @escaping () -> String = { "" }
+    ) {
         self.marmot = marmot
         self.mls = mls
+        self.pendingInviteStore = pendingInviteStore
+        self.healthTracker = marmot.healthTracker
         self.displayName = displayName
 
-        cancellable = marmot.$groups
+        marmot.$groups
             .receive(on: DispatchQueue.main)
             .sink { [weak self] groups in
                 Task { await self?.refreshItems(from: groups) }
             }
+            .store(in: &cancellables)
+
+        // Forward pending invite changes so the view re-renders.
+        pendingInviteStore.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        // Forward health tracker changes so unhealthy badges update.
+        healthTracker.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Refresh
@@ -80,6 +102,15 @@ final class GroupListViewModel: ObservableObject {
     }
 
     func joinGroup(inviteCode: String) async throws {
+        // Decode first so we can extract the group hint for pending state.
+        let invite = try InviteCode.decode(from: inviteCode)
+
         try await marmot.acceptInvite(inviteCode)
+
+        // Record as pending — will be auto-removed when Welcome arrives.
+        pendingInviteStore.add(PendingInvite(
+            groupHint: invite.groupId,
+            inviterNpub: invite.inviterNpub
+        ))
     }
 }

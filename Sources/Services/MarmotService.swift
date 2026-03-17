@@ -31,6 +31,15 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — receives nickname updates from incoming messages.
     var nicknameStore: NicknameStore?
 
+    /// Injected by AppViewModel — auto-clears pending invites on Welcome receipt.
+    var pendingInviteStore: PendingInviteStore?
+
+    /// Injected by AppViewModel — used to persist/read lastEventTimestamp for `since` filter.
+    var settings: AppSettings?
+
+    /// Tracks consecutive MLS failures per group — not persisted, resets on launch.
+    let healthTracker = GroupHealthTracker()
+
     // MARK: - Published state
 
     /// Active MLS groups, refreshed after mutations.
@@ -262,6 +271,13 @@ final class MarmotService: ObservableObject {
             default:
                 FMFLogger.marmot.debug("Ignoring event kind \(kind)")
             }
+
+            // Update the high-water mark so the next subscription reconnect
+            // uses a `since` filter and only fetches newer events.
+            let eventTs = event.createdAt().asSecs()
+            if let settings, eventTs > settings.lastEventTimestamp {
+                settings.lastEventTimestamp = eventTs
+            }
         } catch let error as MLSService.MLSError {
             // MLS errors (not initialised, epoch mismatch) are expected for
             // events from groups we don't belong to — log at debug, not error.
@@ -302,6 +318,9 @@ final class MarmotService: ObservableObject {
         try await mls.acceptWelcome(welcome)
         await refreshGroups()
 
+        // Clear matching pending invite now that we've joined
+        pendingInviteStore?.remove(groupHint: welcome.mlsGroupId)
+
         // Signal to AppViewModel so it can broadcast our display name
         lastJoinedGroupId = welcome.mlsGroupId
 
@@ -316,10 +335,12 @@ final class MarmotService: ObservableObject {
         switch result {
         case .applicationMessage(let message):
             FMFLogger.marmot.debug("Received application message in group \(message.mlsGroupId)")
+            healthTracker.recordSuccess(groupId: message.mlsGroupId)
             routeApplicationMessage(message)
 
         case .commit(let groupId):
             FMFLogger.marmot.debug("Processed commit — epoch advanced for \(groupId)")
+            healthTracker.recordSuccess(groupId: groupId)
 
         case .proposal(let updateResult):
             // Auto-committed proposal — publish the evolution event
@@ -336,7 +357,9 @@ final class MarmotService: ObservableObject {
             FMFLogger.marmot.debug("External join proposal for group \(groupId)")
 
         case .unprocessable(let groupId):
-            FMFLogger.marmot.warning("Unprocessable group event for \(groupId) — epoch mismatch?")
+            self.healthTracker.recordFailure(groupId: groupId)
+            let failCount = self.healthTracker.failureCount(for: groupId)
+            FMFLogger.marmot.warning("Unprocessable group event for \(groupId) — epoch mismatch? (failures: \(failCount))")
 
         case .ignoredProposal(let groupId, let reason):
             FMFLogger.marmot.debug("Ignored proposal for \(groupId): \(reason)")
@@ -407,33 +430,68 @@ final class MarmotService: ObservableObject {
     // MARK: - Subscriptions
 
     /// Open subscriptions for group events (kind 445) and gift-wraps (kind 1059).
+    ///
+    /// Applies a `since` filter based on `settings.lastEventTimestamp` so the
+    /// device catches up on events missed while offline.
+    ///
+    /// Wraps `handleNotifications()` in a retry loop — if the notification
+    /// stream drops (relay disconnect, network change), we reconnect and resume.
     func startSubscriptions() async {
-        do {
-            let myPK = try PublicKey.parse(publicKey: publicKeyHex)
-
-            // Subscribe to kind-445 group events for all our active groups
-            let groupFilter = Filter()
-                .kind(kind: Kind(kind: MarmotKind.groupEvent))
-            groupEventSubId = try await relay.subscribe(filter: groupFilter)
-
-            // Subscribe to kind-1059 gift-wraps addressed to us
-            let giftFilter = Filter()
-                .kind(kind: Kind(kind: MarmotKind.giftWrap))
-                .pubkeys(pubkeys: [myPK])
-            giftWrapSubId = try await relay.subscribe(filter: giftFilter)
-
-            // Register notification handler
-            let handler = NotificationHandler { [weak self] subId, event in
-                Task { @MainActor [weak self] in
-                    await self?.handleIncomingEvent(event)
-                }
+        while !Task.isCancelled {
+            do {
+                try await openSubscriptionsAndListen()
+                // Clean return (e.g. mock in tests) — no retry needed.
+                break
+            } catch {
+                FMFLogger.marmot.error("Notification loop exited: \(error)")
+                lastError = error.localizedDescription
+                // Back off before retrying
+                try? await Task.sleep(for: .seconds(5))
+                await reconnectRelaysIfNeeded()
             }
-            try await relay.handleNotifications(handler: handler)
+        }
+    }
 
-            FMFLogger.marmot.info("Subscriptions started (group=\(self.groupEventSubId ?? "?"), gift=\(self.giftWrapSubId ?? "?"))")
-        } catch {
-            lastError = error.localizedDescription
-            FMFLogger.marmot.error("Failed to start subscriptions: \(error)")
+    /// Inner subscription setup + notification loop. Throws on error to
+    /// trigger the outer retry in `startSubscriptions()`.
+    private func openSubscriptionsAndListen() async throws {
+        let myPK = try PublicKey.parse(publicKey: publicKeyHex)
+
+        // Build filters — apply `since` if we have a stored timestamp
+        var groupFilter = Filter()
+            .kind(kind: Kind(kind: MarmotKind.groupEvent))
+        var giftFilter = Filter()
+            .kind(kind: Kind(kind: MarmotKind.giftWrap))
+            .pubkeys(pubkeys: [myPK])
+
+        if let ts = settings?.lastEventTimestamp, ts > 0 {
+            let since = Timestamp.fromSecs(secs: ts)
+            groupFilter = groupFilter.since(timestamp: since)
+            giftFilter = giftFilter.since(timestamp: since)
+            FMFLogger.marmot.info("Applying since=\(ts) to subscriptions")
+        }
+
+        groupEventSubId = try await relay.subscribe(filter: groupFilter)
+        giftWrapSubId = try await relay.subscribe(filter: giftFilter)
+
+        FMFLogger.marmot.info("Subscriptions started (group=\(self.groupEventSubId ?? "?"), gift=\(self.giftWrapSubId ?? "?"))")
+
+        // Register notification handler — runs until error or disconnect
+        let handler = NotificationHandler { [weak self] subId, event in
+            Task { @MainActor [weak self] in
+                await self?.handleIncomingEvent(event)
+            }
+        }
+        try await relay.handleNotifications(handler: handler)
+    }
+
+    /// Reconnect to relays if the connection has dropped.
+    private func reconnectRelaysIfNeeded() async {
+        guard relay.connectionState != .connected else { return }
+        FMFLogger.marmot.info("Reconnecting to relays…")
+        if let settings {
+            let enabled = settings.relays.filter(\.isEnabled)
+            await relay.connect(keys: keys, relays: enabled)
         }
     }
 

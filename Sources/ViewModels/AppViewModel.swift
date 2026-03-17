@@ -31,6 +31,11 @@ final class AppViewModel: ObservableObject {
     /// Local nickname store — maps pubkey hex → display name.
     let nicknameStore: NicknameStore
 
+    // MARK: - Pending Invites (v0.6)
+
+    /// Tracks invites where key package was published but Welcome not yet received.
+    let pendingInviteStore: PendingInviteStore
+
     /// GroupListViewModel — owned here so it survives SwiftUI view identity
     /// changes. Created once after MarmotService is ready.
     @Published private(set) var groupListViewModel: GroupListViewModel?
@@ -52,7 +57,8 @@ final class AppViewModel: ObservableObject {
         self.settings        = AppSettings.shared
         self.locationService = LocationService()
         self.locationCache   = LocationCache()
-        self.nicknameStore   = NicknameStore()
+        self.nicknameStore       = NicknameStore()
+        self.pendingInviteStore  = PendingInviteStore()
 
         let cache = self.locationCache
         let settingsRef = self.settings
@@ -188,6 +194,8 @@ final class AppViewModel: ObservableObject {
         )
         marmotService.locationCache = locationCache
         marmotService.nicknameStore = nicknameStore
+        marmotService.pendingInviteStore = pendingInviteStore
+        marmotService.settings = settings
 
         // Load persisted groups from MDK database BEFORE publishing
         // marmotService to the UI — this avoids a flash of empty state
@@ -195,11 +203,28 @@ final class AppViewModel: ObservableObject {
         await marmotService.refreshGroups()
         FMFLogger.marmot.info("Loaded \(marmotService.groups.count) group(s) from MDK database")
 
+        // Clean up any pending invites that were resolved while the app was closed.
+        let activeIds = Set(marmotService.groups.map(\.mlsGroupId))
+        pendingInviteStore.removeResolved(activeGroupIds: activeIds)
+
+        // Clear any dangling pending commits from a previous crash.
+        // If the app was killed mid-commit, the MLS state may have a
+        // pending commit that can never be merged — clear it so the
+        // group can process new events.
+        for group in marmotService.groups {
+            do {
+                try await mls.clearPendingCommit(groupId: group.mlsGroupId)
+            } catch {
+                // Expected to throw if there's no pending commit — that's fine.
+            }
+        }
+
         // Create GroupListViewModel (owned by AppViewModel so it survives
         // SwiftUI view identity changes in RootView's conditional branches).
         self.groupListViewModel = GroupListViewModel(
             marmot: marmotService,
             mls: mls,
+            pendingInviteStore: pendingInviteStore,
             displayName: { [weak self] in self?.settings.displayName ?? "" }
         )
 

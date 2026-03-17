@@ -3,6 +3,7 @@ import SwiftUI
 /// A row in the group list — shows group name, member count, and last activity.
 struct GroupRowView: View {
     let group: GroupListViewModel.GroupListItem
+    var isUnhealthy: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -31,7 +32,15 @@ struct GroupRowView: View {
 
             Spacer()
 
-            if !group.isActive {
+            if isUnhealthy {
+                Label("Out of sync", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(.red.opacity(0.1))
+                    .clipShape(Capsule())
+            } else if !group.isActive {
                 Text("Inactive")
                     .font(.caption)
                     .foregroundStyle(.orange)

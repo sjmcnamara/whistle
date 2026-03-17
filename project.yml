@@ -39,7 +39,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.app
         DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.5.1"
+        MARKETING_VERSION: "0.6.0"
         CURRENT_PROJECT_VERSION: "1"
         PRODUCT_NAME: FindMyFam
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -61,6 +61,10 @@ targets:
         UIBackgroundModes:
           - location
           - fetch
+        # File sharing — allows inspecting the MLS SQLite DB via Finder/Files.
+        # TODO: Remove once SQLCipher encryption is restored (v0.7).
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
 
   FindMyFamTests:
     type: bundle.unit-test
