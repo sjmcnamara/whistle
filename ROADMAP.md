@@ -41,7 +41,7 @@ No accounts. No servers. No permissions needed.
 
 ## Phases
 
-### v0.1 — Foundation
+### v0.1 — Foundation ✅
 _Project skeleton, identity, relay connectivity_
 
 - XcodeGen project (`project.yml`), `scripts/build.sh`, CI-friendly build
@@ -53,7 +53,7 @@ _Project skeleton, identity, relay connectivity_
 
 ---
 
-### v0.2 — MLS Core (mdk-swift)
+### v0.2 — MLS Core (mdk-swift) ✅
 _Integrate the official Marmot Swift package — MIP-00→03 already implemented_
 
 > **Note:** The Marmot team publishes [`mdk-swift`](https://github.com/marmot-protocol/mdk-swift) — an official Swift package backed by a precompiled UniFFI XCFramework wrapping `mdk-core` (OpenMLS). This gives us MIP-00→03 without building a Rust bridge ourselves.
@@ -68,7 +68,7 @@ _Integrate the official Marmot Swift package — MIP-00→03 already implemented
 
 ---
 
-### v0.3 — Marmot Event Kinds
+### v0.3 — Marmot Event Kinds ✅
 _Nostr event kinds 443 / 444 / 445 per Marmot MIP-00→03_
 
 - **Kind 443 — KeyPackage**: generate and publish MLS KeyPackageBundle to configured relays; subscribe to own kind 443 events for rotation
@@ -81,7 +81,7 @@ _Nostr event kinds 443 / 444 / 445 per Marmot MIP-00→03_
 
 ---
 
-### v0.4 — Location Layer
+### v0.4 — Location Layer ✅
 _CoreLocation wired into MLS group messages_
 
 - **Location payload schema** (inside kind 445 application message):
@@ -97,7 +97,7 @@ _CoreLocation wired into MLS group messages_
 
 ---
 
-### v0.5 — Group Chat & UX
+### v0.5 — Group Chat & UX ✅
 _Full family group experience_
 
 - **Chat payload schema** (inside kind 445 application message):
@@ -114,17 +114,41 @@ _Full family group experience_
 
 ---
 
-### v0.6 — Security & Hardening
-_Production-grade key security, resilience, polish_
+### v0.6 — Reliability & Cross-Device
+_Make the app work reliably across multiple devices day-to-day_
 
-- **Secure Enclave** for MLS signing keys (where hardware supports it); fallback to Keychain
-- **Offline catch-up**: on reconnect, replay missed kind 445 Commits in sequence; handle gaps gracefully (request re-add if epoch gap is unrecoverable)
+- **Cross-device location**: verify phone A sees phone B's pin and vice versa; debug the full relay→MLS decrypt→`routeApplicationMessage`→`locationCache` path for incoming location messages
+- **Offline catch-up**: on reconnect, replay missed kind 445 Commits in sequence; handle epoch gaps gracefully (request re-add if unrecoverable)
+- **Crash resilience**: MLS state corruption detection and recovery — prompt user to leave & re-join if epoch gap is unrecoverable
+- **Background location audit**: measure real-world background wake intervals, validate significant location change wakes, test app-suspended behaviour after ~3 min
+- **Nickname persistence**: `NicknameStore` currently in-memory — nicknames lost on restart until others re-broadcast; persist to UserDefaults or re-request on startup
+- **Group join pending state**: show "Waiting for admin approval" after accepting an invite, before the Welcome is received
+- **UI polish**:
+  - Fix Display Name label line-wrapping in SettingsView
+  - Add icons for interval picker (clock) and authorization status (checkmark)
+
+---
+
+### v0.7 — Security & Identity
+_Production-grade key security and identity management_
+
+- **PIN / biometric lock**: FaceID / TouchID gate on app launch; optional per-session re-auth
+- **MLS database encryption**: replace `newMdkUnencrypted()` workaround — restore SQLCipher or equivalent when MDK supports it (group keys and messages currently in plaintext SQLite)
+- **Import / export nsec**: allow users to bring an existing Nostr identity or back up their key (NIP-49 encrypted export)
 - **Key rotation**: periodic forced epoch advance (UpdateProposal + Commit) on configurable schedule — default 7 days
 - **Forward secrecy audit**: verify old epoch keys are zeroed/deleted post-rotation
+- **Secure Enclave** for MLS signing keys (where hardware supports it); fallback to Keychain
+
+---
+
+### v0.8 — Social & Connectivity
+_Richer group experience and easier onboarding_
+
+- **Tap-to-share invites**: NFC / AirDrop to share group invite + npub of invitee — like iOS contact sharing
+- **Custom relay management**: add, remove, toggle relays from Settings; validate connectivity on add
+- **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input
 - **Relay redundancy**: publish to multiple relays, subscribe to all, deduplicate by event ID
-- **Battery & background audit**: measure background wake intervals, validate low-battery mode
-- **Crash resilience**: MLS state corruption detection and recovery prompts
-- Privacy: no metadata leakage (all group traffic via kind 445, member list not on relays)
+- **Privacy audit**: verify no metadata leakage — all group traffic via kind 445, member list not on relays
 
 ---
 
@@ -132,15 +156,19 @@ _Production-grade key security, resilience, polish_
 
 Each phase = `feature/v0.x-description` branch off `master`.
 PR per phase → review → merge to `master`.
+Bug-fix releases use `bugfix/v0.x.y` branches.
 
 ```
 master
-  └── feature/v0.1-foundation
-  └── feature/v0.2-mls-bridge
-  └── feature/v0.3-marmot-event-kinds
-  └── feature/v0.4-location-layer
-  └── feature/v0.5-group-chat-ux
-  └── feature/v0.6-security-hardening
+  └── feature/v0.1-foundation           ✅ merged
+  └── feature/v0.2-mls-bridge           ✅ merged
+  └── feature/v0.3-marmot-event-kinds   ✅ merged
+  └── feature/v0.4-location-layer       ✅ merged
+  └── feature/v0.5-group-chat-ux        ✅ merged
+  └── bugfix/v0.5.1                     ✅ merged
+  └── feature/v0.6-reliability
+  └── feature/v0.7-security-identity
+  └── feature/v0.8-social-connectivity
 ```
 
 ---
