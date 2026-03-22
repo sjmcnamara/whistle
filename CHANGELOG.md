@@ -6,7 +6,41 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.1] — 2026-03-22
+
+### Fixed
+- **Member count stale after removal** — member count in group list and chat header now updates immediately when a member leaves or is removed
+- **Member list subtitle in chat** — fixed member names not displaying in group chat header subtitle; now loads on view appearance and updates when membership changes
+- **Stale member names after removal** — ChatViewModel now subscribes to membership change events and refreshes member names when members join/leave
+- **Cache cleared on failed remove** — `removeMember()` now only clears cached locations after successful group event publication, preventing cache corruption on MLS errors
+- **Overzealous cache clearing** — changed group member removal to clear only the removed member's location instead of all members in the group
+- **Missing state refresh on proposal events** — MarmotService now calls `refreshGroups()` and notifies subscribers on `proposal` and `pendingProposal` event processing, ensuring consistent UI updates across all event types
+
+### Changed
+- **Member removal fine-grained** — introduced per-member location cache removal (`LocationCache.removeLocation()`) instead of batch group clearing for better UX when admins manage members
+
+---
+
 ## [0.7.0] — 2026-03-17
+
+### Added
+- **AirDrop / deep-link invites** — invites are now shared as `famstr://invite/<code>` URLs; accepting an AirDrop or tapping a link opens the app and pre-fills the Join Group sheet — no copy-paste required
+- **QR code scanning** — "Scan QR Code" button in Join Group opens a live camera scanner; pointing at an inviter's QR code auto-populates and submits the join request
+- **NFC read** — "Tap NFC Tag" button (iPhone 7+) reads an NDEF invite URL from any NFC tag and auto-joins
+- **NFC write** — "Write to NFC Tag" button in the Invite sheet writes the `famstr://` invite URL to a blank NFC sticker; anyone can tap their phone to the sticker to join
+- `InviteCode.asURL()` — wraps the base64 code in a `famstr://invite/` deep-link URL
+- `InviteCode.from(url:)` — decodes an invite from a `famstr://` URL or raw base64 (backwards compatible)
+- `NFCReadCoordinator` — `@StateObject` helper for NDEF tag reading
+- `NFCWriteCoordinator` — `@StateObject` helper for writing NDEF URL records to NFC tags
+- `QRScannerView` — AVCaptureSession-based QR scanner with scan-frame guide
+
+### Changed
+- **InviteShareView** — "Share" button now shares the `famstr://` URL (AirDrop auto-handles it); QR now encodes the URL; legacy raw code still shown for copy
+- **JoinGroupView** — accepts `initialCode` param for deep-link/QR/NFC pre-fill; added QR scan and NFC read buttons
+
+---
+
+## [0.6.1] — 2026-03-17
 
 ### Added
 - **AirDrop / deep-link invites** — invites are now shared as `famstr://invite/<code>` URLs; accepting an AirDrop or tapping a link opens the app and pre-fills the Join Group sheet — no copy-paste required
