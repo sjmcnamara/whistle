@@ -5,6 +5,14 @@ struct GroupChatView: View {
     @ObservedObject var viewModel: ChatViewModel
     let groupName: String
     let onInfoTap: () -> Void
+    @State private var title: String
+
+    init(viewModel: ChatViewModel, groupName: String, onInfoTap: @escaping () -> Void) {
+        self.viewModel = viewModel
+        self.groupName = groupName
+        self.onInfoTap = onInfoTap
+        self._title = State(initialValue: groupName)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -12,9 +20,23 @@ struct GroupChatView: View {
             Divider()
             inputBar
         }
-        .navigationTitle(groupName)
+        .navigationTitle(" ")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 2) {
+                    Text(groupName)
+                        .font(.headline)
+                    if !viewModel.memberNames.isEmpty {
+                        Text(viewModel.memberNames)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .multilineTextAlignment(.center)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onInfoTap) {
                     Image(systemName: "info.circle")
@@ -23,6 +45,10 @@ struct GroupChatView: View {
         }
         .task {
             await viewModel.loadMessages()
+            await viewModel.loadMemberNames()
+        }
+        .onReceive(viewModel.$memberNames) { _ in
+            // React to nickname changes that might update member names
         }
     }
 

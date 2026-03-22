@@ -32,6 +32,17 @@ final class LocationCache: ObservableObject {
         Array(locations.values)
     }
 
+    /// Remove a specific member's location from a group.
+    func removeLocation(groupId: String, memberPubkeyHex: String) {
+        let key = "\(groupId):\(memberPubkeyHex)"
+        locations.removeValue(forKey: key)
+    }
+
+    /// Remove all cached locations for a specific group.
+    func clearLocations(forGroup groupId: String) {
+        locations = locations.filter { $0.value.groupId != groupId }
+    }
+
     /// Remove all cached locations.
     func clear() {
         locations.removeAll()

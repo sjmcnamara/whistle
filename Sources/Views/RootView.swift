@@ -5,14 +5,14 @@ struct RootView: View {
 
     var body: some View {
         TabView {
-            FamilyMapView(viewModel: appViewModel.locationViewModel)
-                .tabItem {
-                    Label("Map", systemImage: "map.fill")
-                }
-
             chatTab
                 .tabItem {
                     Label("Chat", systemImage: "bubble.left.and.bubble.right.fill")
+                }
+
+            FamilyMapView(viewModel: appViewModel.locationViewModel)
+                .tabItem {
+                    Label("Map", systemImage: "map.fill")
                 }
 
             SettingsView()

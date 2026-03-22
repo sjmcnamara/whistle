@@ -86,7 +86,7 @@ final class GroupListViewModel: ObservableObject {
                 isActive: group.isActive
             ))
         }
-        self.groups = items
+        self.groups = items.filter { !pendingLeaveStore.contains($0.id) }
 
         // Clean up pending leaves for groups that no longer exist
         // (admin processed the removal).

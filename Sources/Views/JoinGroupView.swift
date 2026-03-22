@@ -122,14 +122,20 @@ struct JoinGroupView: View {
                 let rawCode = extractCode(from: inviteCode)
                 guard let expectedGroupId = try? InviteCode.decode(from: rawCode).groupId else { return }
 
-                // Poll every 3 seconds for up to 90 seconds.
-                for _ in 0..<30 {
-                    try? await Task.sleep(for: .seconds(3))
+                FMFLogger.marmot.info("⏳ Polling for Welcome to group \(expectedGroupId)...")
+
+                // Poll every 2 seconds for up to 120 seconds.
+                for _ in 0..<60 {
+                    try? await Task.sleep(for: .seconds(2))
                     guard !Task.isCancelled else { return }
+                    
                     await viewModel.fetchMissedWelcomes()
+                    
                     // Check if the Welcome was processed and the group appeared.
                     if viewModel.groups.contains(where: { $0.id == expectedGroupId }) {
-                        return  // .onChange handler will auto-dismiss
+                        FMFLogger.marmot.info("🎉 Welcome received! Auto-dismissing.")
+                        dismiss()
+                        return 
                     }
                 }
             }
@@ -145,11 +151,16 @@ struct JoinGroupView: View {
                 }
             }) {
                 NearbyShareView(role: .browser, onInviteReceived: { received in
-                    inviteCode = extractCode(from: received)
+                    let extracted = extractCode(from: received)
+                    inviteCode = extracted
                     joinedViaNearby = true
-                    // Return the approval URL immediately — only needs
-                    // pubkey + groupId, no network call required.
-                    return approvalURL()
+                    
+                    // FIX: Compute URL directly using local variables to avoid @State race condition
+                    guard let pubkey = myPubkeyHex,
+                          let groupId = try? InviteCode.decode(from: extracted).groupId else {
+                        return nil
+                    }
+                    return InviteCode.approvalURL(pubkeyHex: pubkey, groupId: groupId)
                 })
             }
         }

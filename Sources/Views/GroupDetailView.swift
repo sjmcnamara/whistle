@@ -54,6 +54,25 @@ struct GroupDetailView: View {
                 }
             }
 
+            // MARK: - Add member
+            if viewModel.isAdmin {
+                Section("Add Member") {
+                    TextField("npub or hex pubkey", text: $viewModel.addMemberNpub)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    Button {
+                        Task { await viewModel.addMember() }
+                    } label: {
+                        if viewModel.isAddingMember {
+                            ProgressView()
+                        } else {
+                            Text("Add Member")
+                        }
+                    }
+                    .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
+                }
+            }
+
             // MARK: - Leave group
             Section {
                 if viewModel.pendingLeaveStore.contains(viewModel.groupId) {
@@ -144,9 +163,19 @@ struct GroupDetailView: View {
                             .foregroundStyle(.blue)
                     }
                     if viewModel.leaveRequestMembers.contains(member.pubkeyHex) {
-                        Text("Wants to leave")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+                        if viewModel.isAdmin {
+                            Button {
+                                Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
+                            } label: {
+                                Text("Confirm Leave")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        } else {
+                            Text("Wants to leave")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
             }

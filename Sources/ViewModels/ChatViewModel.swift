@@ -13,6 +13,7 @@ final class ChatViewModel: ObservableObject {
     @Published var draftText: String = ""
     @Published private(set) var isSending = false
     @Published private(set) var error: String?
+    @Published private(set) var memberNames: String = ""
 
     // MARK: - Item model
 
@@ -70,6 +71,16 @@ final class ChatViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshDisplayNames()
+                Task { await self?.loadMemberNames() }
+            }
+            .store(in: &cancellables)
+        
+        // Refresh member names when membership changes (after commit events)
+        marmot.$lastGroupMembershipChangeId
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] change in
+                guard let self, let (changeGroupId, _) = change, changeGroupId == self.groupId else { return }
+                Task { await self.loadMemberNames() }
             }
             .store(in: &cancellables)
     }
@@ -129,6 +140,21 @@ final class ChatViewModel: ObservableObject {
             hasMore = mdkMessages.count == Int(pageSize)
         } catch {
             FMFLogger.chat.error("Failed to load more messages: \(error)")
+        }
+    }
+
+    /// Load member names for display in the chat subtitle.
+    func loadMemberNames() async {
+        do {
+          FMFLogger.chat.info("Loading member names for group \(self.groupId)")
+            let pubkeys = try await mls.getMembers(groupId: groupId)
+            FMFLogger.chat.info("Got \(pubkeys.count) pubkeys: \(pubkeys)")
+            let names = pubkeys.map { nicknameStore.displayName(for: $0) }
+            memberNames = names.joined(separator: ", ")
+          FMFLogger.chat.info("Member names: \(self.memberNames)")
+        } catch {
+            memberNames = ""
+            FMFLogger.chat.error("Failed to load member names for group \(self.groupId): \(error)")
         }
     }
 

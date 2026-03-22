@@ -75,6 +75,9 @@ final class GroupDetailViewModel: ObservableObject {
             guard let self, groupId == self.groupId else { return }
             self.leaveRequestMembers.insert(pubkey)
         }
+
+        // Populate with any pending leave requests received before this view loaded
+        leaveRequestMembers = marmot.settings?.pendingLeaveRequests[groupId] ?? []
     }
 
     // MARK: - Load
@@ -194,6 +197,12 @@ final class GroupDetailViewModel: ObservableObject {
             // Reload member list
             await load()
             FMFLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
+            
+            // Clear only the removed member's location (not all members in group)
+            marmot.locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: pubkeyHex)
+
+            // Clear the leave request since it's processed
+            marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
         } catch {
             self.error = error.localizedDescription
             FMFLogger.chat.error("Failed to remove member: \(error)")

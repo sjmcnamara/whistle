@@ -129,7 +129,7 @@ extension NearbyShareCoordinator: MCSessionDelegate {
                 // Advertiser side: push the invite code to the connected peer immediately.
                 if let code = inviteCodeToSend, let data = code.data(using: .utf8) {
                     try? session.send(data, toPeers: [peerID], with: .reliable)
-                    state = .success
+                    // FIX: We do NOT set state = .success here. We wait for the invitee to reply.
                 }
             case .connecting:
                 state = .connecting
@@ -151,6 +151,8 @@ extension NearbyShareCoordinator: MCSessionDelegate {
             if str.hasPrefix("famstr://addmember/") {
                 // Admin side: invitee's npub returned after joining the group.
                 onApprovalReceived?(str)
+                // FIX: Admin session is completely successful now
+                state = .success 
             } else {
                 // Invitee side: invite code received from admin.
                 // Join the group and send the approval URL back BEFORE flagging

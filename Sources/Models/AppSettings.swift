@@ -37,12 +37,24 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(Int64(bitPattern: lastEventTimestamp), forKey: Keys.lastEventTimestamp) }
     }
 
+    /// Set of event IDs that have been processed to prevent reprocessing on restart.
+    @Published var processedEventIds: Set<String> {
+        didSet { saveProcessedEventIds() }
+    }
+
+    /// Pending leave requests per group — stored until processed by admin.
+    @Published var pendingLeaveRequests: [String: Set<String>] {
+        didSet { savePendingLeaveRequests() }
+    }
+
     private enum Keys {
         static let relays = "fmf.relays"
         static let locationInterval = "fmf.locationInterval"
         static let locationPaused = "fmf.locationPaused"
         static let displayName = "fmf.displayName"
         static let lastEventTimestamp = "fmf.lastEventTimestamp"
+        static let processedEventIds = "fmf.processedEventIds"
+        static let pendingLeaveRequests = "fmf.pendingLeaveRequests"
     }
 
     private init() {
@@ -58,11 +70,37 @@ final class AppSettings: ObservableObject {
         self.displayName = UserDefaults.standard.string(forKey: Keys.displayName) ?? ""
         let storedTimestamp = UserDefaults.standard.integer(forKey: Keys.lastEventTimestamp)
         self.lastEventTimestamp = UInt64(bitPattern: Int64(storedTimestamp))
+
+        if let data = UserDefaults.standard.data(forKey: Keys.processedEventIds),
+           let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            self.processedEventIds = decoded
+        } else {
+            self.processedEventIds = []
+        }
+
+        if let data = UserDefaults.standard.data(forKey: Keys.pendingLeaveRequests),
+           let decoded = try? JSONDecoder().decode([String: Set<String>].self, from: data) {
+            self.pendingLeaveRequests = decoded
+        } else {
+            self.pendingLeaveRequests = [:]
+        }
     }
 
     private func save() {
         if let data = try? JSONEncoder().encode(relays) {
             UserDefaults.standard.set(data, forKey: Keys.relays)
+        }
+    }
+
+    private func saveProcessedEventIds() {
+        if let data = try? JSONEncoder().encode(processedEventIds) {
+            UserDefaults.standard.set(data, forKey: Keys.processedEventIds)
+        }
+    }
+
+    private func savePendingLeaveRequests() {
+        if let data = try? JSONEncoder().encode(pendingLeaveRequests) {
+            UserDefaults.standard.set(data, forKey: Keys.pendingLeaveRequests)
         }
     }
 }

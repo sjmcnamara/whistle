@@ -15,7 +15,7 @@ struct FamilyMapView: View {
             Map(position: $position) {
                 ForEach(viewModel.annotations) { annotation in
                     Annotation(
-                        annotation.displayName,
+                        "",
                         coordinate: annotation.coordinate
                     ) {
                         MemberPinView(annotation: annotation)

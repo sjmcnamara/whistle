@@ -47,10 +47,13 @@ final class MarmotService: ObservableObject {
     /// Tracks consecutive MLS failures per group — not persisted, resets on launch.
     let healthTracker = GroupHealthTracker()
 
+    /// Subscription task for cancellation support.
+    private var subscriptionTask: Task<Void, Error>?
+
     /// Event IDs already processed — prevents expensive MLS re-processing
     /// when `fetchMissedGiftWraps()` polls without a `since` filter (NIP-59
     /// timestamp randomisation makes `since` unreliable for gift-wraps).
-    private var processedEventIds = Set<String>()
+    /// Now persisted in AppSettings to survive restarts.
 
     // MARK: - Published state
 
@@ -66,6 +69,10 @@ final class MarmotService: ObservableObject {
     /// Bumped when a welcome is accepted — AppViewModel observes this to
     /// auto-broadcast the user's display name to the newly joined group.
     @Published private(set) var lastJoinedGroupId: String?
+
+    /// Bumped when membership changes (member added/removed via commit events) — ChatViewModel observes
+    /// this to refresh memberNames in the chat header. Tuple: (groupId, timestamp).
+    @Published private(set) var lastGroupMembershipChangeId: (String, Date)?
 
     // MARK: - Public accessors
 
@@ -151,9 +158,23 @@ final class MarmotService: ObservableObject {
     /// Publish a pre-built group event (kind 445) JSON string from MLS.
     func publishGroupEvent(eventJson: String) async throws {
         let event = try Event.fromJson(json: eventJson)
-        try await relay.sendEvent(event)
-
-        FMFLogger.marmot.debug("Published group event (kind 445)")
+        var attempts = 0
+        let maxRetries = 3
+        while attempts < maxRetries {
+            do {
+                try await relay.sendEvent(event)
+                FMFLogger.marmot.debug("Published group event (kind 445)")
+                return
+            } catch {
+                attempts += 1
+                if attempts >= maxRetries {
+                    throw error
+                }
+                let delay = min(0.5 * pow(2.0, Double(attempts - 1)), 10.0)
+                FMFLogger.marmot.warning("Failed to publish group event (attempt \(attempts)) — retrying in \(delay) s: \(error)")
+                try await Task.sleep(for: .seconds(delay))
+            }
+        }
     }
 
     /// Encrypt and send a message to a group.
@@ -190,18 +211,25 @@ final class MarmotService: ObservableObject {
 
     /// Add a member to a group: fetch their key package, run MLS addMembers,
     /// gift-wrap the welcome, and publish group evolution events.
-    func addMember(publicKeyHex memberHex: String, toGroup groupId: String, maxRetries: Int = 3) async throws {
+    func addMember(publicKeyHex memberHex: String, toGroup groupId: String, maxRetries: Int = 10) async throws {
+        let startTime = Date()
+        let globalTimeout: TimeInterval = 60.0
+
         // 1. Fetch the member's key package.
-        //    Retry with delays — the invitee's key package may not have
+        //    Retry with exponential backoff — the invitee's key package may not have
         //    propagated to the relay yet (especially via NearbyShare where
         //    the key package publish is deferred until after MPC tears down).
         var kpEvents: [Event] = []
         for attempt in 1...maxRetries {
+            if Date().timeIntervalSince(startTime) > globalTimeout {
+                throw MarmotError.timeout
+            }
             kpEvents = try await fetchKeyPackage(for: memberHex)
             if !kpEvents.isEmpty { break }
             if attempt < maxRetries {
-                FMFLogger.marmot.info("Key package not found for \(memberHex) (attempt \(attempt)/\(maxRetries)) — retrying in 3 s")
-                try await Task.sleep(for: .seconds(3))
+                let delay = min(0.5 * pow(2.0, Double(attempt - 1)), 30.0)
+                FMFLogger.marmot.info("Key package not found for \(memberHex) (attempt \(attempt)/\(maxRetries)) — retrying in \(delay) s")
+                try await Task.sleep(for: .seconds(delay))
             }
         }
         guard let kpEvent = kpEvents.first else {
@@ -213,10 +241,25 @@ final class MarmotService: ObservableObject {
         let result = try await mls.addMembers(groupId: groupId, keyPackageEventsJson: [kpJson])
         try await mls.mergePendingCommit(groupId: groupId)
 
-        // 3. Publish the evolution event (kind 445)
+        // 3. Publish the evolution event (kind 445) with retry
         let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
-        for eventJson in payload.events {
-            try await publishGroupEvent(eventJson: eventJson)
+        var publishAttempts = 0
+        let maxPublishRetries = 3
+        while publishAttempts < maxPublishRetries {
+            do {
+                for eventJson in payload.events {
+                    try await publishGroupEvent(eventJson: eventJson)
+                }
+                break // success
+            } catch {
+                publishAttempts += 1
+                if publishAttempts >= maxPublishRetries {
+                    throw error
+                }
+                let delay = min(0.5 * pow(2.0, Double(publishAttempts - 1)), 10.0)
+                FMFLogger.marmot.warning("Failed to publish group events (attempt \(publishAttempts)) — retrying in \(delay) s: \(error)")
+                try await Task.sleep(for: .seconds(delay))
+            }
         }
 
         // 4. Gift-wrap and publish welcome rumors (kind 444 inside kind 1059)
@@ -311,7 +354,7 @@ final class MarmotService: ObservableObject {
 
         // Skip already-processed events — prevents expensive MLS re-work
         // during fetchMissedGiftWraps polling (which has no `since` filter).
-        guard !processedEventIds.contains(eventId) else { return }
+        guard !(settings?.processedEventIds.contains(eventId) ?? false) else { return }
 
         let kind = event.kind().asU16()
 
@@ -332,7 +375,7 @@ final class MarmotService: ObservableObject {
             }
 
             // Mark as processed so fetchMissedGiftWraps polling skips it.
-            processedEventIds.insert(eventId)
+            settings?.processedEventIds.insert(eventId)
 
             // Update the high-water mark so the next subscription reconnect
             // uses a `since` filter and only fetches newer events.
@@ -349,14 +392,14 @@ final class MarmotService: ObservableObject {
             // Gift-wraps (Welcomes) should be retryable — a transient MLS
             // error shouldn't permanently prevent joining a group.
             if kind != MarmotKind.giftWrap {
-                processedEventIds.insert(eventId)
+                settings?.processedEventIds.insert(eventId)
             }
             FMFLogger.marmot.warning("MLS error processing event kind \(kind): \(error.localizedDescription)")
         } catch {
             // MDK errors like "group not found" are expected for events from
             // groups we don't belong to (kind-445 filter is relay-wide).
             if kind != MarmotKind.giftWrap {
-                processedEventIds.insert(eventId)
+                settings?.processedEventIds.insert(eventId)
             }
             let msg = String(describing: error)
             if msg.contains("group not found") || msg.contains("not found") {
@@ -388,7 +431,16 @@ final class MarmotService: ObservableObject {
         )
 
         // Auto-accept the welcome
-        try await mls.acceptWelcome(welcome)
+        do {
+            try await mls.acceptWelcome(welcome)
+        } catch {
+            // If already accepted, check if group exists
+            if let group = try? await mls.getGroup(mlsGroupId: welcome.mlsGroupId) {
+                FMFLogger.marmot.info("Welcome already accepted for group \(welcome.mlsGroupId)")
+            } else {
+                throw error
+            }
+        }
         await refreshGroups()
 
         // Clear matching pending invite now that we've joined
@@ -414,6 +466,10 @@ final class MarmotService: ObservableObject {
         case .commit(let groupId):
             FMFLogger.marmot.debug("Processed commit — epoch advanced for \(groupId)")
             healthTracker.recordSuccess(groupId: groupId)
+            // Refresh group state so member count updates reflect any membership changes
+            await refreshGroups()
+            // Notify subscribers that membership has changed
+            lastGroupMembershipChangeId = (groupId, Date())
 
         case .proposal(let updateResult):
             // Auto-committed proposal — publish the evolution event
@@ -422,9 +478,17 @@ final class MarmotService: ObservableObject {
                 try await publishGroupEvent(eventJson: json)
             }
             FMFLogger.marmot.debug("Processed and published auto-committed proposal")
+            // Refresh groups to reflect any membership or metadata changes
+            await refreshGroups()
+            // Notify subscribers that membership/metadata may have changed
+            lastGroupMembershipChangeId = (updateResult.mlsGroupId, Date())
 
         case .pendingProposal(let groupId):
             FMFLogger.marmot.debug("Stored pending proposal for group \(groupId)")
+            // Refresh groups to reflect any membership changes
+            await refreshGroups()
+            // Notify subscribers that membership may have changed
+            lastGroupMembershipChangeId = (groupId, Date())
 
         case .externalJoinProposal(let groupId):
             FMFLogger.marmot.debug("External join proposal for group \(groupId)")
@@ -498,6 +562,7 @@ final class MarmotService: ObservableObject {
         case MarmotKind.leaveRequest:
             // A member is requesting to leave. Surface to the admin so they
             // can process the removal (which triggers key rotation).
+            settings?.pendingLeaveRequests[message.mlsGroupId, default: Set()].insert(message.senderPubkey)
             onLeaveRequestReceived?(message.mlsGroupId, message.senderPubkey)
             FMFLogger.marmot.info("Leave request from \(message.senderPubkey.prefix(8)) in group \(message.mlsGroupId)")
 
@@ -516,18 +581,26 @@ final class MarmotService: ObservableObject {
     /// Wraps `handleNotifications()` in a retry loop — if the notification
     /// stream drops (relay disconnect, network change), we reconnect and resume.
     func startSubscriptions() async {
-        while !Task.isCancelled {
-            do {
-                try await openSubscriptionsAndListen()
-                // Clean return (e.g. mock in tests) — no retry needed.
-                break
-            } catch {
-                FMFLogger.marmot.error("Notification loop exited: \(error)")
-                lastError = error.localizedDescription
-                // Back off before retrying
-                try? await Task.sleep(for: .seconds(5))
-                await reconnectRelaysIfNeeded()
+        subscriptionTask = Task {
+            while !Task.isCancelled {
+                do {
+                    try await openSubscriptionsAndListen()
+                    // Clean return (e.g. mock in tests) — no retry needed.
+                    break
+                } catch {
+                    if Task.isCancelled { break }
+                    FMFLogger.marmot.error("Notification loop exited: \(error)")
+                    lastError = error.localizedDescription
+                    // Back off before retrying
+                    try? await Task.sleep(for: .seconds(1))
+                    await reconnectRelaysIfNeeded()
+                }
             }
+        }
+        do {
+            try await subscriptionTask?.value
+        } catch {
+            // Task was cancelled or failed
         }
     }
 
@@ -589,8 +662,10 @@ final class MarmotService: ObservableObject {
         }
     }
 
-    /// Stop subscriptions (currently a no-op — subscriptions end with disconnect).
+    /// Stop subscriptions and cancel the subscription task.
     func stopSubscriptions() {
+        subscriptionTask?.cancel()
+        subscriptionTask = nil
         groupEventSubId = nil
         giftWrapSubId = nil
         FMFLogger.marmot.info("Subscriptions stopped")
@@ -666,11 +741,14 @@ final class MarmotService: ObservableObject {
 
     enum MarmotError: LocalizedError {
         case noKeyPackageFound(String)
+        case timeout
 
         var errorDescription: String? {
             switch self {
             case .noKeyPackageFound(let hex):
                 return "No key package found for \(hex)"
+            case .timeout:
+                return "Operation timed out"
             }
         }
     }
