@@ -141,6 +141,17 @@ _Frictionless group joining via AirDrop, QR scan, and NFC_
 
 ---
 
+### v0.7.1 — State Management & Reliability ✅
+_Patch: Fixed member count stale state, improved event processing consistency_
+
+- **Member count refresh**: member count now updates immediately when members join/leave or are removed
+- **Chat header member list**: fixed member names not loading in group chat header subtitle; now subscribes to membership changes
+- **Event processing consistency**: MarmotService now reliably refreshes state and notifies subscribers on all event types (commit, proposal, pendingProposal)
+- **Cache safety**: member removal now only clears locations after successful group event publication; prevents corrupting cache on MLS errors
+- **Fine-grained location cleanup**: when removing a single member, only that member's location is cleared instead of all group members
+
+---
+
 ### v0.8 — Security & Identity
 _Production-grade key security and identity management_
 
