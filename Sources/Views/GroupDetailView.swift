@@ -34,16 +34,13 @@ struct GroupDetailView: View {
 
             // MARK: - Members
             Section("Members (\(viewModel.members.count))") {
+                // Returns to standard ForEach because MemberItem is Identifiable
                 ForEach(viewModel.members) { member in
                     memberRow(member)
                 }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    if viewModel.isAdmin && !member.isMe {
-                        Button(role: .destructive) {
-                            Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
-                        } label: {
-                            Label("Remove", systemImage: "person.fill.xmark")
-                        }
+                .onDelete { offsets in
+                    Task { @MainActor in
+                        await deleteMember(at: offsets)
                     }
                 }
             }
@@ -57,25 +54,6 @@ struct GroupDetailView: View {
                     } label: {
                         Label("Invite Member", systemImage: "person.badge.plus")
                     }
-                }
-            }
-
-            // MARK: - Add member
-            if viewModel.isAdmin {
-                Section("Add Member") {
-                    TextField("npub or hex pubkey", text: $viewModel.addMemberNpub)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button {
-                        Task { await viewModel.addMember() }
-                    } label: {
-                        if viewModel.isAddingMember {
-                            ProgressView()
-                        } else {
-                            Text("Add Member")
-                        }
-                    }
-                    .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
                 }
             }
 
@@ -125,6 +103,7 @@ struct GroupDetailView: View {
                 InviteShareView(inviteCode: code)
             }
         }
+        .deleteDisabled(!viewModel.isAdmin)
         .onChange(of: viewModel.didAddMember) { _, added in
             if added { dismiss() }
         }
@@ -146,6 +125,7 @@ struct GroupDetailView: View {
 
     // MARK: - Member row
 
+    @MainActor // <--- FIX: Added isolation to access viewModel safely
     private func memberRow(_ member: GroupDetailViewModel.MemberItem) -> some View {
         HStack {
             Image(systemName: member.isMe ? "person.crop.circle.fill" : "person.circle")
@@ -168,24 +148,25 @@ struct GroupDetailView: View {
                             .foregroundStyle(.blue)
                     }
                     if viewModel.leaveRequestMembers.contains(member.pubkeyHex) {
-                        if viewModel.isAdmin {
-                            Button {
-                                Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
-                            } label: {
-                                Text("Confirm Leave")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                        } else {
-                            Text("Wants to leave")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
+                        Text("Wants to leave")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
             }
 
             Spacer()
+        }
+    }
+
+    // MARK: - Delete
+
+    @MainActor // <--- FIX: Added isolation to access viewModel.members safely
+    private func deleteMember(at offsets: IndexSet) async {
+        for index in offsets {
+            let member = viewModel.members[index]
+            guard !member.isMe else { continue }
+            await viewModel.removeMember(pubkeyHex: member.pubkeyHex)
         }
     }
 }
