@@ -70,6 +70,7 @@ struct InviteShareView: View {
             .sheet(isPresented: $showNearbyShare) {
                 NearbyShareView(
                     role: .advertiser(inviteCode: inviteURL?.absoluteString ?? inviteCode),
+                    displayName: appViewModel.settings.displayName.isEmpty ? UIDevice.current.name : appViewModel.settings.displayName,
                     onApprovalReceived: { urlString in
                         // Invitee's npub arrived through the MPC session —
                         // auto-approve since admin physically initiated the

@@ -142,9 +142,6 @@ struct JoinGroupView: View {
             .sheet(isPresented: $showNearbyShare, onDismiss: {
                 if joinedViaNearby && !didJoin {
                     Task {
-                        // Force relay reconnect — MPC (Bluetooth/WiFi)
-                        // can leave the WebSocket in a degraded state
-                        // where it silently drops incoming events.
                         await viewModel.forceReconnectRelays()
                         await joinGroup()
                     }
@@ -154,12 +151,26 @@ struct JoinGroupView: View {
                     let extracted = extractCode(from: received)
                     inviteCode = extracted
                     joinedViaNearby = true
-                    
-                    // FIX: Compute URL directly using local variables to avoid @State race condition
+
+                    do {
+                        try await viewModel.joinGroup(inviteCode: extracted)
+                        Task { @MainActor in
+                            didJoin = true
+                            error = nil
+                        }
+                    } catch {
+                        let joinError = error
+                        Task { @MainActor in
+                            self.error = joinError.localizedDescription
+                        }
+                        return nil
+                    }
+
                     guard let pubkey = myPubkeyHex,
                           let groupId = try? InviteCode.decode(from: extracted).groupId else {
                         return nil
                     }
+
                     return InviteCode.approvalURL(pubkeyHex: pubkey, groupId: groupId)
                 })
             }

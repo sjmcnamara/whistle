@@ -216,7 +216,7 @@ struct NearbyShareView: View {
                                 .foregroundStyle(Color(UIColor.tintColor))
                                 .font(.title3)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(peer.displayName)
+                                Text("Admin: \(peer.displayName)")
                                     .fontWeight(.medium)
                                 Text("Tap to connect")
                                     .font(.caption)

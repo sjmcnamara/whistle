@@ -463,6 +463,9 @@ final class MarmotService: ObservableObject {
         // Clear matching pending invite now that we've joined
         pendingInviteStore?.remove(groupHint: welcome.mlsGroupId)
 
+        // If we had requested leave earlier, clear it now that we're rejoined.
+        pendingLeaveStore?.remove(welcome.mlsGroupId)
+
         // Signal to AppViewModel so it can broadcast our display name
         lastJoinedGroupId = welcome.mlsGroupId
 
@@ -718,11 +721,22 @@ final class MarmotService: ObservableObject {
             }
 
             if let pendingIds = settings?.pendingGiftWrapEventIds, !pendingIds.isEmpty {
-                let pendingFilter = Filter().ids(ids: Array(pendingIds))
-                let pendingEvents = try await relay.fetchEvents(filter: pendingFilter, timeout: 10)
-                FMFLogger.marmot.info("fetchMissedGiftWraps: retrying pending gift-wraps (\(pendingEvents.count))")
-                for event in pendingEvents {
-                    await handleIncomingEvent(event)
+                let pendingEventIds: [EventId] = pendingIds.compactMap { pendingId in
+                    do {
+                        return try EventId.parse(id: pendingId)
+                    } catch {
+                        FMFLogger.marmot.warning("fetchMissedGiftWraps: invalid pending event id '\(pendingId)', skipping: \(error)")
+                        return nil
+                    }
+                }
+
+                if !pendingEventIds.isEmpty {
+                    let pendingFilter = Filter().ids(ids: pendingEventIds)
+                    let pendingEvents = try await relay.fetchEvents(filter: pendingFilter, timeout: 10)
+                    FMFLogger.marmot.info("fetchMissedGiftWraps: retrying pending gift-wraps (\(pendingEvents.count))")
+                    for event in pendingEvents {
+                        await handleIncomingEvent(event)
+                    }
                 }
             }
         } catch {

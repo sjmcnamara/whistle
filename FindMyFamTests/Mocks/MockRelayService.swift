@@ -32,6 +32,9 @@ final class MockRelayService: RelayServiceProtocol {
     /// Simulated unwrapped gift: set this before calling `unwrapGiftWrap`.
     var unwrappedGiftToReturn: UnwrappedGift?
 
+    /// Captured filters used in fetchEvents calls for assertions.
+    var fetchedFilters: [Filter] = []
+
     // MARK: - State
 
     var connectionState: RelayService.ConnectionState = .connected
@@ -72,6 +75,7 @@ final class MockRelayService: RelayServiceProtocol {
     }
 
     func fetchEvents(filter: Filter, timeout: TimeInterval) async throws -> [Event] {
+        fetchedFilters.append(filter)
         return eventsToReturn
     }
 

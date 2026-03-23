@@ -226,6 +226,19 @@ final class MarmotServiceTests: XCTestCase {
         _ = targetHex
     }
 
+    func testFetchMissedGiftWrapsRetriesPendingGiftWrapIds() async throws {
+        sut.settings?.pendingGiftWrapEventIds = [
+            String(repeating: "a", count: 64),
+            String(repeating: "b", count: 64)
+        ]
+        mockRelay.eventsToReturn = []
+
+        await sut.fetchMissedGiftWraps()
+
+        XCTAssertEqual(mockRelay.fetchedFilters.count, 2,
+                       "fetchMissedGiftWraps should query real-time gift-wraps and pending IDs")
+    }
+
     // MARK: - Kind 445 — Location Messages (v0.4)
 
     func testSendMessageWithExplicitKind() async throws {

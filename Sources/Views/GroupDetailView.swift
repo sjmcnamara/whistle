@@ -37,8 +37,14 @@ struct GroupDetailView: View {
                 ForEach(viewModel.members) { member in
                     memberRow(member)
                 }
-                .onDelete { offsets in
-                    Task { await deleteMember(at: offsets) }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    if viewModel.isAdmin && !member.isMe {
+                        Button(role: .destructive) {
+                            Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
+                        } label: {
+                            Label("Remove", systemImage: "person.fill.xmark")
+                        }
+                    }
                 }
             }
 
@@ -119,7 +125,6 @@ struct GroupDetailView: View {
                 InviteShareView(inviteCode: code)
             }
         }
-        .deleteDisabled(!viewModel.isAdmin)
         .onChange(of: viewModel.didAddMember) { _, added in
             if added { dismiss() }
         }
@@ -181,16 +186,6 @@ struct GroupDetailView: View {
             }
 
             Spacer()
-        }
-    }
-
-    // MARK: - Delete
-
-    private func deleteMember(at offsets: IndexSet) async {
-        for index in offsets {
-            let member = viewModel.members[index]
-            guard !member.isMe else { continue }
-            await viewModel.removeMember(pubkeyHex: member.pubkeyHex)
         }
     }
 }

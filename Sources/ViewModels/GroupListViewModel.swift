@@ -136,6 +136,10 @@ final class GroupListViewModel: ObservableObject {
 
         try await marmot.acceptInvite(inviteCode)
 
+        // If the user previously left this group, clear the stale pending leave
+        // marker so the group reappears once Welcome is accepted.
+        pendingLeaveStore.remove(invite.groupId)
+
         // Record as pending — will be auto-removed when Welcome arrives.
         pendingInviteStore.add(PendingInvite(
             groupHint: invite.groupId,
