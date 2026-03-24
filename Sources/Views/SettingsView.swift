@@ -204,14 +204,10 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             HStack {
-                Text("Projects")
+                Text("Protocol")
                 Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    Link("Nostr", destination: URL(string: "https://nostr.com/")!)
-                    Link("OpenMLS", destination: URL(string: "https://github.com/openmls/openmls")!)
-                    Link("Marmot Protocol", destination: URL(string: "https://github.com/marmot-protocol/marmot")!)
-                }
-                .font(.subheadline)
+                Text("Nostr & MLS & Marmot")
+                    .foregroundStyle(.secondary)
             }
             HStack {
                 Text("Source")
