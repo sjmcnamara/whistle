@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.3] — 2026-03-24
+
+### Fixed
+- **Group details compile regression** — fixed member removal swipe action scoping in `GroupDetailView` (`member` is now resolved correctly in row scope)
+- **Settings compile regression** — corrected `SettingsView` structure/scope and switched app-settings navigation to SwiftUI `openURL`
+- **Export compliance key** — restored `ITSAppUsesNonExemptEncryption=false` in `Info.plist`
+
+### Changed
+- **About projects links** — Settings now shows direct links to Nostr, OpenMLS, and Marmot Protocol project pages
+
+---
+
 ## [0.7.2] — 2026-03-22
 
 ### Fixed

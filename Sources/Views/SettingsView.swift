@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -132,8 +133,8 @@ struct SettingsView: View {
             // is not in the foreground.
             if appViewModel.locationService.authorizationStatus == .authorizedWhenInUse {
                 Button {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+                    if let url = URL(string: "app-settings:") {
+                        openURL(url)
                     }
                 } label: {
                     Label("Allow Always for Background Sharing", systemImage: "location.fill")
@@ -194,29 +195,31 @@ struct SettingsView: View {
         }
     }
 
-private var aboutSection: some View {
-    Section("About") {
-        HStack {
-            Text("Version")
-            Spacer()
-            Text("0.7.3")
-                .foregroundStyle(.secondary)
-        }
-        HStack {
-            Text("Protocol")
-            Spacer()
-            Text("Nostr + MLS + Marmot")
-                .foregroundStyle(.secondary)
-        }
-        HStack {
-            Text("Source")
-            Spacer()    
-            Link(destination: URL(string: "https://github.com/sjmcnamara/findmyfam")!) {
-                Label("GitHub", systemImage: "chevron.forward.circle")
+    private var aboutSection: some View {
+        Section("About") {
+            HStack {
+                Text("Version")
+                Spacer()
+                Text("0.7.3")
+                    .foregroundStyle(.secondary)
+            }
+            HStack {
+                Text("Projects")
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Link("Nostr", destination: URL(string: "https://nostr.com/")!)
+                    Link("OpenMLS", destination: URL(string: "https://github.com/openmls/openmls")!)
+                    Link("Marmot Protocol", destination: URL(string: "https://github.com/marmot-protocol/marmot")!)
+                }
+                .font(.subheadline)
+            }
+            HStack {
+                Text("Source")
+                Spacer()
+                Link("GitHub", destination: URL(string: "https://github.com/sjmcnamara/findmyfam")!)
             }
         }
     }
-}
 
     // MARK: - Helpers
 
@@ -239,4 +242,5 @@ private var aboutSection: some View {
     private func relayDotColor(for url: String) -> Color {
         appViewModel.relay.connectedRelayURLs.contains(url) ? .green : .secondary
     }
+
 }
