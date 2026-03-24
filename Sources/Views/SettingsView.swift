@@ -8,6 +8,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 identitySection
+                securitySection
                 locationSection
                 relaysSection
                 connectionSection
@@ -170,6 +171,26 @@ struct SettingsView: View {
         }
     }
 
+    private var securitySection: some View {
+        Section("Security") {
+            Toggle(isOn: Binding(
+                get: { appViewModel.settings.isAppLockEnabled },
+                set: { appViewModel.settings.isAppLockEnabled = $0 }
+            )) {
+                Label("App Lock", systemImage: "lock.shield")
+            }
+
+            if appViewModel.settings.isAppLockEnabled {
+                Toggle(isOn: Binding(
+                    get: { appViewModel.settings.isAppLockReauthOnForeground },
+                    set: { appViewModel.settings.isAppLockReauthOnForeground = $0 }
+                )) {
+                    Label("Require Unlock", systemImage: "arrow.clockwise.circle")
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var authorizationLabel: some View {
         let status = appViewModel.locationService.authorizationStatus
@@ -200,7 +221,7 @@ struct SettingsView: View {
             HStack {
                 Text("Version")
                 Spacer()
-                Text("0.7.3")
+                Text("0.8.1")
                     .foregroundStyle(.secondary)
             }
             HStack {

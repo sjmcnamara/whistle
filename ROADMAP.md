@@ -172,7 +172,10 @@ _Foundational security + identity improvements split into patch releases_
 ### v0.8.1 — App Lock
 _Device-level access protection_
 
-- **PIN / biometric lock**: FaceID / TouchID gate on app launch; optional per-session re-auth
+- **PIN / biometric lock**: FaceID / TouchID gate on app launch
+- **Re-auth on reopen**: optional setting to require unlock each time the app returns to foreground
+- **Passcode fallback path**: explicit "Use Passcode" action when biometrics are unavailable or inconvenient
+- **Auth flow stability**: scene-phase handling avoids repeated prompt cancellations during lock/unlock transitions
 
 ### v0.8.2 — Identity Import / Export
 _Bring-your-own key and backup flow_

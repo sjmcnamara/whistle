@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.1] — 2026-03-24
+
+### Added
+- **App Lock security layer** — optional lock screen shown at app launch to protect app access
+- **Security settings controls** — new Settings toggles for App Lock and "Require Unlock on Reopen" session behavior
+- **Explicit passcode path** — lock screen includes a dedicated "Use Passcode" action for reliable non-biometric unlock
+
+### Changed
+- **Authentication flow hardening** — lock lifecycle no longer repeatedly re-triggers auth around scene phase changes
+- **Version bump** — app version updated to 0.8.1 (build 4)
+
+### Fixed
+- **Face ID setup issue** — added `NSFaceIDUsageDescription` to app configuration and plist generation source
+- **"Authentication cancelled" noise** — expected cancel/system-cancel cases no longer surface as persistent lock errors
+- **Passcode fallback regression** — explicit passcode action now routes to passcode-only evaluation instead of re-triggering Face ID
+
 ## [0.7.3] — 2026-03-24
 
 ### Fixed

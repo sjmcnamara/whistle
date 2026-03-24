@@ -31,6 +31,16 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(displayName, forKey: Keys.displayName) }
     }
 
+    /// Whether app lock is enabled.
+    @Published var isAppLockEnabled: Bool {
+        didSet { UserDefaults.standard.set(isAppLockEnabled, forKey: Keys.appLockEnabled) }
+    }
+
+    /// When enabled, require unlock every time the app returns to foreground.
+    @Published var isAppLockReauthOnForeground: Bool {
+        didSet { UserDefaults.standard.set(isAppLockReauthOnForeground, forKey: Keys.appLockReauthOnForeground) }
+    }
+
     /// Timestamp (epoch seconds) of the last successfully processed Nostr event.
     /// Used to resume subscriptions with a `since` filter after offline periods.
     @Published var lastEventTimestamp: UInt64 {
@@ -58,6 +68,8 @@ final class AppSettings: ObservableObject {
         static let locationInterval = "fmf.locationInterval"
         static let locationPaused = "fmf.locationPaused"
         static let displayName = "fmf.displayName"
+        static let appLockEnabled = "fmf.appLockEnabled"
+        static let appLockReauthOnForeground = "fmf.appLockReauthOnForeground"
         static let lastEventTimestamp = "fmf.lastEventTimestamp"
         static let processedEventIds = "fmf.processedEventIds"
         static let pendingLeaveRequests = "fmf.pendingLeaveRequests"
@@ -75,6 +87,8 @@ final class AppSettings: ObservableObject {
             .nonZeroOr(3600)
         self.isLocationPaused = UserDefaults.standard.bool(forKey: Keys.locationPaused)
         self.displayName = UserDefaults.standard.string(forKey: Keys.displayName) ?? ""
+        self.isAppLockEnabled = UserDefaults.standard.bool(forKey: Keys.appLockEnabled)
+        self.isAppLockReauthOnForeground = UserDefaults.standard.bool(forKey: Keys.appLockReauthOnForeground)
         let storedTimestamp = UserDefaults.standard.integer(forKey: Keys.lastEventTimestamp)
         self.lastEventTimestamp = UInt64(bitPattern: Int64(storedTimestamp))
 

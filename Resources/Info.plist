@@ -44,6 +44,8 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Famstr uses the camera to scan QR invite codes.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Famstr uses Face ID to unlock the app and protect your family data.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Famstr uses the local network to share invites with nearby family members.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
