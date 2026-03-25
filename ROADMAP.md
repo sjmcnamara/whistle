@@ -169,7 +169,7 @@ _Patch: Compile fixes and settings/about cleanup_
 ### v0.8 — Security & Identity
 _Foundational security + identity improvements split into patch releases_
 
-### v0.8.1 — App Lock
+### v0.8.1 — App Lock ✅
 _Device-level access protection_
 
 - **PIN / biometric lock**: FaceID / TouchID gate on app launch

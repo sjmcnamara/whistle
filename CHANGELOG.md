@@ -12,6 +12,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **App Lock security layer** — optional lock screen shown at app launch to protect app access
 - **Security settings controls** — new Settings toggles for App Lock and "Require Unlock on Reopen" session behavior
 - **Explicit passcode path** — lock screen includes a dedicated "Use Passcode" action for reliable non-biometric unlock
+- **Map mode selector** — toolbar menu on the family map to switch between Default and Satellite views
 
 ### Changed
 - **Authentication flow hardening** — lock lifecycle no longer repeatedly re-triggers auth around scene phase changes

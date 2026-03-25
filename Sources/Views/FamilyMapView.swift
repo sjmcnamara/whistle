@@ -6,9 +6,15 @@ import MapKit
 /// Uses the iOS 17 `Map { }` content builder API with `Annotation` views
 /// for each member. A toolbar picker allows filtering by group.
 struct FamilyMapView: View {
+    private enum MapMode: String {
+        case standard
+        case satellite
+    }
+
     @EnvironmentObject var appViewModel: AppViewModel
     @ObservedObject var viewModel: LocationViewModel
     @State private var position: MapCameraPosition = .automatic
+    @State private var mapMode: MapMode = .standard
 
     var body: some View {
         NavigationStack {
@@ -22,11 +28,14 @@ struct FamilyMapView: View {
                     }
                 }
             }
-            .mapStyle(.standard(elevation: .realistic))
+            .mapStyle(currentMapStyle)
             .navigationTitle("Map")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    locateMeButton
+                    HStack(spacing: 10) {
+                        locateMeButton
+                        mapModeMenu
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     groupPicker
@@ -52,9 +61,41 @@ struct FamilyMapView: View {
         Button {
             centreOnSelf()
         } label: {
-            Image(systemName: "location.fill")
+            Image(systemName: "location.viewfinder")
         }
         .disabled(viewModel.annotations.first(where: { $0.isMe }) == nil)
+    }
+
+    @ViewBuilder
+    private var mapModeMenu: some View {
+        Menu {
+            mapModeButton(.standard, title: "Default", icon: "map")
+            mapModeButton(.satellite, title: "Satellite", icon: "globe.europe.africa")
+        } label: {
+            Image(systemName: "map")
+        }
+    }
+
+    private var currentMapStyle: MapStyle {
+        switch mapMode {
+        case .standard:
+            return .standard(elevation: .realistic)
+        case .satellite:
+            return .imagery(elevation: .realistic)
+        }
+    }
+
+    private func mapModeButton(_ mode: MapMode, title: String, icon: String) -> some View {
+        Button {
+            mapMode = mode
+        } label: {
+            HStack {
+                Label(title, systemImage: icon)
+                if mapMode == mode {
+                    Image(systemName: "checkmark")
+                }
+            }
+        }
     }
 
     private func centreOnSelf() {
