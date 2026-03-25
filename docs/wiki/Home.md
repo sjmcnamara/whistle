@@ -8,7 +8,6 @@ Welcome to the Famstr project wiki.
 - [Join and Invite Flow](Join-and-Invite-Flow.md)
 - [Release Checklist](Release-Checklist.md)
 - [Testing and CI](Testing-and-CI.md)
-- [Troubleshooting](Troubleshooting.md)
 
 ## Purpose
 
