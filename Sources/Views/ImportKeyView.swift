@@ -164,13 +164,21 @@ struct ImportKeyView: View {
                 let nsec: String
                 switch currentFormat {
                 case .nsec:
-                    _ = try Keys.parse(secretKey: trimmed)
+                    do {
+                        _ = try Keys.parse(secretKey: trimmed)
+                    } catch {
+                        throw ImportError.invalidNsec
+                    }
                     nsec = trimmed
 
                 case .ncryptsec:
-                    let encrypted = try EncryptedSecretKey.fromBech32(bech32: trimmed)
-                    let secretKey = try encrypted.decrypt(password: pw)
-                    nsec = try secretKey.toBech32()
+                    do {
+                        let encrypted = try EncryptedSecretKey.fromBech32(bech32: trimmed)
+                        let secretKey = try encrypted.decrypt(password: pw)
+                        nsec = try secretKey.toBech32()
+                    } catch {
+                        throw ImportError.decryptionFailed
+                    }
 
                 case .unknown:
                     throw ImportError.unrecognisedFormat
@@ -190,7 +198,7 @@ struct ImportKeyView: View {
                     showConfirmation = true
                 }
             } catch {
-                let msg = friendlyError(error)
+                let msg = error.localizedDescription
                 DispatchQueue.main.async {
                     errorMessage = msg
                     isImporting = false
@@ -216,22 +224,6 @@ struct ImportKeyView: View {
         }
     }
 
-    private func friendlyError(_ error: Error) -> String {
-        let desc = error.localizedDescription
-        if desc.contains("checksum") || desc.contains("bech32") || desc.contains("Bech32") {
-            return "Invalid key format. Please check the key and try again."
-        }
-        // NIP-49 decryption failures (wrong password, corrupt data, etc.)
-        if desc.contains("decrypt") || desc.contains("Decrypt")
-            || desc.contains("authentication") || desc.contains("aead")
-            || desc.contains("AEAD") || desc.contains("Crypto")
-            || desc.contains("crypto") || desc.contains("Wrong")
-            || desc.contains("ncryptsec") {
-            return "Wrong password. Please try again."
-        }
-        return "Validation failed: \(desc)"
-    }
-
     // MARK: - Types
 
     private enum KeyFormat {
@@ -240,6 +232,15 @@ struct ImportKeyView: View {
 
     private enum ImportError: LocalizedError {
         case unrecognisedFormat
-        var errorDescription: String? { "Unrecognised key format" }
+        case invalidNsec
+        case decryptionFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .unrecognisedFormat: return "Unrecognised key format."
+            case .invalidNsec:       return "Invalid private key. Please check and try again."
+            case .decryptionFailed:  return "Wrong password. Please try again."
+            }
+        }
     }
 }
