@@ -484,7 +484,8 @@ final class MarmotService: ObservableObject {
             routeApplicationMessage(message)
 
         case .commit(let groupId):
-            FMFLogger.marmot.debug("Processed commit — epoch advanced for \(groupId)")
+            let epoch = (try? await mls.getGroup(mlsGroupId: groupId))?.epoch ?? 0
+            FMFLogger.mls.info("Epoch advanced: group \(groupId) now at epoch \(epoch)")
             healthTracker.recordSuccess(groupId: groupId)
             // Refresh group state so member count updates reflect any membership changes
             await refreshGroups()
@@ -516,7 +517,7 @@ final class MarmotService: ObservableObject {
         case .unprocessable(let groupId):
             self.healthTracker.recordFailure(groupId: groupId)
             let failCount = self.healthTracker.failureCount(for: groupId)
-            FMFLogger.marmot.warning("Unprocessable group event for \(groupId) — epoch mismatch? (failures: \(failCount))")
+            FMFLogger.mls.warning("Unprocessable event for group \(groupId) — old epoch key likely deleted (forward secrecy). Failures: \(failCount)")
 
         case .ignoredProposal(let groupId, let reason):
             FMFLogger.marmot.debug("Ignored proposal for \(groupId): \(reason)")
@@ -589,6 +590,58 @@ final class MarmotService: ObservableObject {
         default:
             FMFLogger.marmot.debug("Unknown application message kind \(message.kind) in group \(message.mlsGroupId)")
         }
+    }
+
+    // MARK: - Key Rotation (Forward Secrecy)
+
+    /// Check all groups for stale encryption keys and perform MLS self-update
+    /// (epoch advance) on any that exceed the configured rotation interval.
+    ///
+    /// Each rotation produces a new epoch — old epoch secrets are deleted by
+    /// MDK/OpenMLS per RFC 9420 §14.1, providing forward secrecy.
+    func rotateStaleGroups() async {
+        guard let thresholdSecs = settings?.keyRotationIntervalSecs else { return }
+
+        let staleGroupIds: [String]
+        do {
+            staleGroupIds = try await mls.groupsNeedingSelfUpdate(thresholdSecs: thresholdSecs)
+        } catch {
+            FMFLogger.mls.error("Failed to query stale groups: \(error)")
+            return
+        }
+
+        guard !staleGroupIds.isEmpty else {
+            FMFLogger.mls.debug("No groups need key rotation (threshold=\(thresholdSecs)s)")
+            return
+        }
+
+        FMFLogger.mls.info("Key rotation: \(staleGroupIds.count) group(s) need self-update")
+
+        for groupId in staleGroupIds {
+            do {
+                // Snapshot epoch before rotation for audit logging
+                let oldEpoch = try await mls.getGroup(mlsGroupId: groupId)?.epoch ?? 0
+
+                let result = try await mls.selfUpdate(groupId: groupId)
+                try await mls.mergePendingCommit(groupId: groupId)
+
+                let newEpoch = try await mls.getGroup(mlsGroupId: groupId)?.epoch ?? 0
+                FMFLogger.mls.info("Key rotation: group \(groupId) epoch \(oldEpoch) → \(newEpoch)")
+
+                // Publish the evolution event so other members advance their epoch
+                let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
+                for eventJson in payload.events {
+                    try await publishGroupEvent(eventJson: eventJson)
+                }
+
+                FMFLogger.mls.info("Key rotation: published evolution event for group \(groupId)")
+            } catch {
+                // Per-group error handling — don't let one failure block others
+                FMFLogger.mls.error("Key rotation failed for group \(groupId): \(error)")
+            }
+        }
+
+        await refreshGroups()
     }
 
     // MARK: - Subscriptions

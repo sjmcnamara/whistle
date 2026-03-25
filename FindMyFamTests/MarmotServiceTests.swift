@@ -330,4 +330,94 @@ final class MarmotServiceTests: XCTestCase {
 
         XCTAssertFalse(sut.groups.isEmpty, "refreshGroups should populate the groups list")
     }
+
+    // MARK: - Key Rotation (v0.8.3)
+
+    func testRotateStaleGroupsSkipsWhenNoSettings() async throws {
+        // settings is nil by default in test setUp — rotation should no-op
+        sut.settings = nil
+        await sut.rotateStaleGroups()
+        // No crash, no published events
+        XCTAssertTrue(mockRelay.sentEvents.isEmpty)
+    }
+
+    func testRotateStaleGroupsSkipsFreshGroups() async throws {
+        let settings = AppSettings.shared
+        settings.keyRotationIntervalDays = 7
+        sut.settings = settings
+
+        // Create and merge a group — it was just created, so not stale
+        let result = try await mls.createGroup(
+            creatorPublicKeyHex: pubHex,
+            name: "Fresh Group",
+            relays: ["wss://relay.damus.io"]
+        )
+        try await mls.mergePendingCommit(groupId: result.group.mlsGroupId)
+
+        let eventsBefore = mockRelay.sentEvents.count
+        await sut.rotateStaleGroups()
+
+        // Fresh group should not trigger any rotation events
+        XCTAssertEqual(mockRelay.sentEvents.count, eventsBefore,
+                       "rotateStaleGroups should skip groups that were just created")
+    }
+
+    func testRotateStaleGroupsRotatesWithZeroThreshold() async throws {
+        let settings = AppSettings.shared
+        settings.keyRotationIntervalDays = 0  // force everything to be "stale"
+        sut.settings = settings
+
+        // Create a group
+        let result = try await mls.createGroup(
+            creatorPublicKeyHex: pubHex,
+            name: "Stale Group",
+            relays: ["wss://relay.damus.io"]
+        )
+        try await mls.mergePendingCommit(groupId: result.group.mlsGroupId)
+        await sut.refreshGroups()
+
+        let oldEpoch = try await mls.getGroup(mlsGroupId: result.group.mlsGroupId)?.epoch ?? 0
+
+        await sut.rotateStaleGroups()
+
+        let newEpoch = try await mls.getGroup(mlsGroupId: result.group.mlsGroupId)?.epoch ?? 0
+        XCTAssertGreaterThan(newEpoch, oldEpoch,
+                             "rotateStaleGroups should advance the epoch")
+        XCTAssertFalse(mockRelay.sentEvents.isEmpty,
+                       "rotateStaleGroups should publish evolution event(s)")
+    }
+
+    func testRotateStaleGroupsContinuesAfterPerGroupError() async throws {
+        let settings = AppSettings.shared
+        settings.keyRotationIntervalDays = 0
+        sut.settings = settings
+
+        // Create two groups
+        let g1 = try await mls.createGroup(
+            creatorPublicKeyHex: pubHex,
+            name: "Group 1",
+            relays: ["wss://relay.damus.io"]
+        )
+        try await mls.mergePendingCommit(groupId: g1.group.mlsGroupId)
+
+        let g2 = try await mls.createGroup(
+            creatorPublicKeyHex: pubHex,
+            name: "Group 2",
+            relays: ["wss://relay.damus.io"]
+        )
+        try await mls.mergePendingCommit(groupId: g2.group.mlsGroupId)
+        await sut.refreshGroups()
+
+        // Snapshot epochs before rotation
+        let e1Before = try await mls.getGroup(mlsGroupId: g1.group.mlsGroupId)?.epoch ?? 0
+        let e2Before = try await mls.getGroup(mlsGroupId: g2.group.mlsGroupId)?.epoch ?? 0
+
+        // Rotation should succeed for both — verifying one failure doesn't block the other
+        await sut.rotateStaleGroups()
+
+        let e1After = try await mls.getGroup(mlsGroupId: g1.group.mlsGroupId)?.epoch ?? 0
+        let e2After = try await mls.getGroup(mlsGroupId: g2.group.mlsGroupId)?.epoch ?? 0
+        XCTAssertGreaterThan(e1After, e1Before, "Group 1 should have advanced epoch")
+        XCTAssertGreaterThan(e2After, e2Before, "Group 2 should have advanced epoch")
+    }
 }

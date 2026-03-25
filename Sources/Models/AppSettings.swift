@@ -63,6 +63,17 @@ final class AppSettings: ObservableObject {
         didSet { savePendingGiftWrapEventIds() }
     }
 
+    /// How often (in days) MLS group keys are automatically rotated via self-update.
+    /// Default: 7 days. Range: 1–30.
+    @Published var keyRotationIntervalDays: Int {
+        didSet { UserDefaults.standard.set(keyRotationIntervalDays, forKey: Keys.keyRotationIntervalDays) }
+    }
+
+    /// Rotation interval converted to seconds for the MDK API.
+    var keyRotationIntervalSecs: UInt64 {
+        UInt64(keyRotationIntervalDays) * 24 * 3600
+    }
+
     private enum Keys {
         static let relays = "fmf.relays"
         static let locationInterval = "fmf.locationInterval"
@@ -74,6 +85,7 @@ final class AppSettings: ObservableObject {
         static let processedEventIds = "fmf.processedEventIds"
         static let pendingLeaveRequests = "fmf.pendingLeaveRequests"
         static let pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
+        static let keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
     }
 
     private init() {
@@ -91,6 +103,9 @@ final class AppSettings: ObservableObject {
         self.isAppLockReauthOnForeground = UserDefaults.standard.bool(forKey: Keys.appLockReauthOnForeground)
         let storedTimestamp = UserDefaults.standard.integer(forKey: Keys.lastEventTimestamp)
         self.lastEventTimestamp = UInt64(bitPattern: Int64(storedTimestamp))
+
+        self.keyRotationIntervalDays = UserDefaults.standard.integer(forKey: Keys.keyRotationIntervalDays)
+            .nonZeroOr(7)
 
         if let data = UserDefaults.standard.data(forKey: Keys.processedEventIds),
            let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {

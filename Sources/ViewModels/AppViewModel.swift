@@ -91,6 +91,7 @@ final class AppViewModel: ObservableObject {
     /// Tracks whether onAppear has completed — prevents duplicate startup.
     private var didStart = false
     private var cancellables = Set<AnyCancellable>()
+    private var keyRotationTask: Task<Void, Never>?
 
     init() {
         self.identity        = IdentityService()
@@ -437,6 +438,28 @@ final class AppViewModel: ObservableObject {
         // Deferred work — runs after UI is interactive so startup feels snappy.
         await broadcastNicknameToAllGroups()
         await refreshKeyPackageIfNeeded(marmot: marmotService)
+
+        // Rotate any groups whose encryption keys have exceeded the configured
+        // interval, then schedule periodic re-checks while the app is active.
+        await marmotService.rotateStaleGroups()
+        startKeyRotationTimer(marmot: marmotService)
+    }
+
+    // MARK: - Key Rotation Timer
+
+    /// Check every 6 hours for groups needing key rotation while the app is active.
+    /// The check itself is cheap (single MDK query); rotation only happens when
+    /// a group's last self-update exceeds the configured interval.
+    private func startKeyRotationTimer(marmot: MarmotService) {
+        keyRotationTask?.cancel()
+        keyRotationTask = Task { [weak marmot] in
+            let interval: Duration = .seconds(6 * 3600) // 6 hours
+            while !Task.isCancelled {
+                try? await Task.sleep(for: interval)
+                guard !Task.isCancelled, let marmot else { break }
+                await marmot.rotateStaleGroups()
+            }
+        }
     }
 
     // MARK: - Key Package Refresh
@@ -559,8 +582,10 @@ final class AppViewModel: ObservableObject {
         marmot = nil
         groupListViewModel = nil
 
-        // 4. Remove all Combine pipelines (will be re-wired below)
+        // 4. Remove all Combine pipelines and timers (will be re-wired below)
         cancellables.removeAll()
+        keyRotationTask?.cancel()
+        keyRotationTask = nil
 
         // 5. Clear all identity-bound stores
         nicknameStore.clearAll()

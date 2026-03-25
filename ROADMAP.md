@@ -186,19 +186,22 @@ _Bring-your-own key and backup flow — released 2026-03-25_
 - **Full identity replacement**: tears down MLS groups, relay subscriptions, caches, and nickname store; re-initialises from scratch with new key
 - **Clipboard security**: exported keys auto-expire from clipboard after 60 seconds
 
-### v0.8.3 — Key Lifecycle Hardening
-_Ongoing cryptographic hygiene for long-lived groups_
+### v0.8.3 — Key Lifecycle Hardening ✅
+_Ongoing cryptographic hygiene for long-lived groups — released 2026-03-25_
 
-- **Key rotation**: periodic forced epoch advance (UpdateProposal + Commit) on configurable schedule — default 7 days
-- **Forward secrecy audit**: verify old epoch keys are zeroed/deleted post-rotation
-- **Secure Enclave** for MLS signing keys (where hardware supports it); fallback to Keychain
+- **Key rotation**: periodic forced epoch advance (self-update + Commit) on configurable schedule — default 7 days, options 1/3/7/14/30 days
+- **Forward secrecy audit**: structured logging verifies epoch advances and confirms old epoch keys are unreachable post-rotation (RFC 9420 §14.1)
+- **Rotation scheduler**: stale groups rotated on launch; rechecked every 6 hours while app is active; timer cancelled on identity replacement
+
+> **Note:** Secure Enclave integration deferred to v0.9 — Nostr uses secp256k1, which is incompatible with Secure Enclave's P-256 constraint. Will explore SE-wrapped key encryption alongside MLS database encryption.
 
 ---
 
-### v0.9 — MLS Database Encryption
+### v0.9 — MLS Database Encryption & Secure Enclave
 _Major storage-hardening release for at-rest group key material_
 
 - **MLS database encryption**: replace `newMdkUnencrypted()` workaround — restore SQLCipher or equivalent when MDK supports it (group keys and messages currently in plaintext SQLite)
+- **Secure Enclave-wrapped nsec**: encrypt the Nostr secret key with a Secure Enclave-derived key for hardware-bound protection at rest
 
 ---
 
