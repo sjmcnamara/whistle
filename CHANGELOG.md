@@ -18,6 +18,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **IdentityCardView** — updated informational text to mention encrypted backup availability
 - **Version bump** — app version updated to 0.8.2 (build 5)
 
+### Fixed
+- **Startup UI responsiveness** — relay connect and MLS init now run in parallel (`async let`), `Task.yield()` drains the main run loop between heavy steps, and `startSubscriptions()` no longer blocks `onAppear()` with its infinite notification loop
+- **Deferred post-ready work** — nickname broadcast and key-package refresh now run after the splash dismisses so the UI becomes interactive sooner
+
 ## [0.8.1] — 2026-03-24
 
 ### Added

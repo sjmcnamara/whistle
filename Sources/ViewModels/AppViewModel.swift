@@ -315,20 +315,26 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        // Connect to Nostr relays
+        // Connect to relays and initialise MLS in parallel — they have no
+        // dependency on each other and together account for ~1-2s of startup.
         startupPhase = .connecting
         let enabled = settings.relays.filter(\.isEnabled)
-        await relay.connect(keys: keys, relays: enabled)
 
-        // Initialise MLS (keyring-backed, non-fatal if it fails)
+        async let relayConnect: Void = relay.connect(keys: keys, relays: enabled)
+        async let mlsInit: Void = mls.initialise()
+
+        await relayConnect
         startupPhase = .initialisingEncryption
         do {
-            try await mls.initialise()
+            try await mlsInit
         } catch {
             let msg = error.localizedDescription
             FMFLogger.mls.error("MLSService init failed: \(msg)")
             mlsError = msg
         }
+
+        // Let the main run loop drain so the UI stays responsive.
+        await Task.yield()
 
         // Wire up MarmotService once MLS and relay are ready
         let pubHex = keys.publicKey().toHex()
@@ -351,6 +357,8 @@ final class AppViewModel: ObservableObject {
         await marmotService.refreshGroups()
         FMFLogger.marmot.info("Loaded \(marmotService.groups.count) group(s) from MDK database")
 
+        await Task.yield()
+
         // Clean up any pending invites/leaves that were resolved while the app was closed.
         let activeIds = Set(marmotService.groups.map(\.mlsGroupId))
         pendingInviteStore.removeResolved(activeGroupIds: activeIds)
@@ -367,6 +375,8 @@ final class AppViewModel: ObservableObject {
                 // Expected to throw if there's no pending commit — that's fine.
             }
         }
+
+        await Task.yield()
 
         // Create GroupListViewModel (owned by AppViewModel so it survives
         // SwiftUI view identity changes in RootView's conditional branches).
@@ -391,6 +401,9 @@ final class AppViewModel: ObservableObject {
 
         startupPhase = .ready
 
+        // --- Everything below runs after the splash dismisses. ---
+        // The UI is now interactive; these are background housekeeping tasks.
+
         // Auto-broadcast display name when we join a group via welcome
         marmotService.$lastJoinedGroupId
             .compactMap { $0 }
@@ -412,23 +425,18 @@ final class AppViewModel: ObservableObject {
         // Start or stop location based on current pause setting
         applyLocationPauseSetting()
 
-        // Broadcast display name to all groups so other members see it
-        await broadcastNicknameToAllGroups()
-
-        // Re-publish key package if there are pending invites awaiting admin
-        // approval.  MLS key packages expire and are consumed on first use, so
-        // a fresh one must be available whenever the admin taps "Approve".
-        await refreshKeyPackageIfNeeded(marmot: marmotService)
-
-        // Start Marmot subscriptions LAST — handleNotifications() runs an
-        // infinite event loop that never returns, so everything above must
-        // complete before this call.
+        // Start subscriptions — launches the notification loop as a background
+        // Task and returns immediately (no longer blocks).
         if await mls.isInitialised {
             FMFLogger.marmot.info("Starting subscriptions, \(marmotService.groups.count) group(s) loaded")
-            await marmotService.startSubscriptions()
+            marmotService.startSubscriptions()
         } else {
             FMFLogger.marmot.warning("MarmotService created but subscriptions skipped — MLS not initialised")
         }
+
+        // Deferred work — runs after UI is interactive so startup feels snappy.
+        await broadcastNicknameToAllGroups()
+        await refreshKeyPackageIfNeeded(marmot: marmotService)
     }
 
     // MARK: - Key Package Refresh
@@ -578,13 +586,11 @@ final class AppViewModel: ObservableObject {
         }
 
         // 10. Re-wire Combine pipelines and restart.
-        //     Fire onAppear() in a separate Task because it ends with
-        //     startSubscriptions() — an infinite event loop that never returns.
         forwardChildChanges()
         observeSettings()
         didStart = false
         startupPhase = .connecting
-        Task { await onAppear() }
+        await onAppear()
     }
 
     // MARK: - Nickname Broadcasting

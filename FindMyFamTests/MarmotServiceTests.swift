@@ -151,7 +151,9 @@ final class MarmotServiceTests: XCTestCase {
     // MARK: - Subscriptions
 
     func testStartSubscriptionsRegistersFilters() async {
-        await sut.startSubscriptions()
+        sut.startSubscriptions()
+        // Give the background Task a chance to run.
+        try? await Task.sleep(for: .milliseconds(100))
 
         // Should have subscribed to group events + gift-wraps = 2 filters
         XCTAssertEqual(mockRelay.subscribeFilters.count, 2,
@@ -159,7 +161,9 @@ final class MarmotServiceTests: XCTestCase {
     }
 
     func testStartSubscriptionsRegistersNotificationHandler() async {
-        await sut.startSubscriptions()
+        sut.startSubscriptions()
+        try? await Task.sleep(for: .milliseconds(100))
+
         XCTAssertTrue(mockRelay.handleNotificationsCalled,
                       "startSubscriptions should register a notification handler")
     }
