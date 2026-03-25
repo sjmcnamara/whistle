@@ -178,7 +178,7 @@ struct SettingsView: View {
     }
 
     private var securitySection: some View {
-        Section("Security") {
+        Section {
             Toggle(isOn: Binding(
                 get: { appViewModel.settings.isAppLockEnabled },
                 set: { appViewModel.settings.isAppLockEnabled = $0 }
@@ -194,6 +194,23 @@ struct SettingsView: View {
                     Label("Require Unlock", systemImage: "arrow.clockwise.circle")
                 }
             }
+
+            Picker(selection: Binding(
+                get: { appViewModel.settings.keyRotationIntervalDays },
+                set: { appViewModel.settings.keyRotationIntervalDays = $0 }
+            )) {
+                Text("1 day").tag(1)
+                Text("3 days").tag(3)
+                Text("7 days").tag(7)
+                Text("14 days").tag(14)
+                Text("30 days").tag(30)
+            } label: {
+                Label("Key Rotation", systemImage: "arrow.triangle.2.circlepath")
+            }
+        } header: {
+            Text("Security")
+        } footer: {
+            Text("How often encryption keys are rotated for forward secrecy. Shorter intervals are more secure.")
         }
     }
 

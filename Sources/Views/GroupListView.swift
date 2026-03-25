@@ -134,7 +134,8 @@ struct GroupListView: View {
                 mls: appViewModel.mls,
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
-                pendingLeaveStore: appViewModel.pendingLeaveStore
+                pendingLeaveStore: appViewModel.pendingLeaveStore,
+                isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
             )
         } else {
             Text("Marmot service not ready")
@@ -193,6 +194,7 @@ private struct GroupChatContainer: View {
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
     let pendingLeaveStore: PendingLeaveStore
+    var isUnhealthy: Bool = false
 
     @State private var showDetail = false
 
@@ -216,7 +218,8 @@ private struct GroupChatContainer: View {
         GroupChatView(
             viewModel: chatVM,
             groupName: group.name,
-            onInfoTap: { showDetail = true }
+            onInfoTap: { showDetail = true },
+            isUnhealthy: isUnhealthy
         )
         .navigationDestination(isPresented: $showDetail) {
             GroupDetailView(viewModel: detailVM)

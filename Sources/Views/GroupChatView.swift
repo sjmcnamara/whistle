@@ -5,17 +5,22 @@ struct GroupChatView: View {
     @ObservedObject var viewModel: ChatViewModel
     let groupName: String
     let onInfoTap: () -> Void
+    var isUnhealthy: Bool = false
     @State private var title: String
 
-    init(viewModel: ChatViewModel, groupName: String, onInfoTap: @escaping () -> Void) {
+    init(viewModel: ChatViewModel, groupName: String, onInfoTap: @escaping () -> Void, isUnhealthy: Bool = false) {
         self.viewModel = viewModel
         self.groupName = groupName
         self.onInfoTap = onInfoTap
+        self.isUnhealthy = isUnhealthy
         self._title = State(initialValue: groupName)
     }
 
     var body: some View {
         VStack(spacing: 0) {
+            if isUnhealthy {
+                epochMismatchBanner
+            }
             messageList
             Divider()
             inputBar
@@ -53,6 +58,19 @@ struct GroupChatView: View {
     }
 
     // MARK: - Message list
+
+    private var epochMismatchBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.white)
+            Text("Some messages couldn't be decrypted. A member may need to be re-invited to resync.")
+                .font(.caption)
+                .foregroundStyle(.white)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.red.opacity(0.85))
+    }
 
     private var messageList: some View {
         ScrollViewReader { proxy in

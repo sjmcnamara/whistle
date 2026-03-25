@@ -42,7 +42,7 @@ struct GroupRowView: View {
                     .background(.orange.opacity(0.1))
                     .clipShape(Capsule())
             } else if isUnhealthy {
-                Label("Out of sync", systemImage: "exclamationmark.triangle.fill")
+                Label("Decryption failed", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
                     .padding(.horizontal, 8)

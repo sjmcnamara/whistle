@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.3] — 2026-03-25
+
+### Added
+- **Automatic key rotation** — MLS group encryption keys are rotated via self-update (epoch advance) on a configurable schedule (default 7 days); stale groups are rotated on launch and rechecked every 6 hours while the app is active
+- **Key Rotation Interval setting** — picker in Security settings (1 / 3 / 7 / 14 / 30 days) to control rotation frequency
+- **Forward secrecy audit logging** — structured logs track epoch transitions (old → new) on rotation and incoming commits; unprocessable events confirm old epoch keys are deleted per RFC 9420 §14.1
+- **Epoch mismatch warning** — groups with persistent decryption failures show a "Decryption failed" badge in the group list and a red banner in the chat view advising re-invite
+
+### Changed
+- **Version bump** — app version updated to 0.8.3 (build 6)
+
 ## [0.8.2] — 2026-03-25
 
 ### Added
