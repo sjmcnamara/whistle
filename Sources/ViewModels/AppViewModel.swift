@@ -534,6 +534,59 @@ final class AppViewModel: ObservableObject {
         // If pipeline not yet wired, onAppear() will call this again after wireLocationPipeline().
     }
 
+    // MARK: - Identity Replacement (v0.8.2)
+
+    /// Replace the current Nostr identity, tearing down all key-bound state
+    /// and restarting the app from scratch with the new key.
+    ///
+    /// Called from ImportKeyView after user confirms the destructive action.
+    func replaceIdentity(withNsec nsec: String) async throws {
+        // 1. Stop location updates
+        locationService.stopUpdating()
+
+        // 2. Disconnect relays
+        await relay.disconnect()
+
+        // 3. Tear down Marmot and GroupList
+        marmot = nil
+        groupListViewModel = nil
+
+        // 4. Remove all Combine pipelines (will be re-wired below)
+        cancellables.removeAll()
+
+        // 5. Clear all identity-bound stores
+        nicknameStore.clearAll()
+        pendingInviteStore.removeAll()
+        pendingLeaveStore.removeAll()
+        locationCache.clear()
+
+        // 6. Reset identity-bound settings
+        settings.lastEventTimestamp = 0
+        settings.processedEventIds = []
+        settings.pendingLeaveRequests = [:]
+        settings.pendingGiftWrapEventIds = []
+
+        // 7. Wipe MLS database — groups are cryptographically bound to the old key
+        await mls.resetDatabase()
+
+        // 8. Import the new key
+        try identity.importKey(nsec: nsec)
+
+        // 9. Seed display name for new identity
+        if let pubkey = myPubkeyHex, !settings.displayName.isEmpty {
+            nicknameStore.set(name: settings.displayName, for: pubkey)
+        }
+
+        // 10. Re-wire Combine pipelines and restart.
+        //     Fire onAppear() in a separate Task because it ends with
+        //     startSubscriptions() — an infinite event loop that never returns.
+        forwardChildChanges()
+        observeSettings()
+        didStart = false
+        startupPhase = .connecting
+        Task { await onAppear() }
+    }
+
     // MARK: - Nickname Broadcasting
 
     /// Send the user's display name to every active group so other members

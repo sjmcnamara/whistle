@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.2] — 2026-03-25
+
+### Added
+- **Identity export (NIP-49)** — encrypt your private key with a password and export as an ncryptsec string for secure backup or transfer
+- **Identity import** — import an existing Nostr identity from a plaintext nsec or encrypted ncryptsec, replacing the current keypair
+- **Import / Export Key settings page** — new sub-page under Identity in Settings with dedicated export and import flows
+- **Full identity replacement** — importing a key tears down all key-bound state (MLS groups, caches, relay subscriptions) and restarts the app with the new identity
+
+### Changed
+- **IdentityCardView** — updated informational text to mention encrypted backup availability
+- **Version bump** — app version updated to 0.8.2 (build 5)
+
 ## [0.8.1] — 2026-03-24
 
 ### Added

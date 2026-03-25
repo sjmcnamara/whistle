@@ -177,10 +177,14 @@ _Device-level access protection_
 - **Passcode fallback path**: explicit "Use Passcode" action when biometrics are unavailable or inconvenient
 - **Auth flow stability**: scene-phase handling avoids repeated prompt cancellations during lock/unlock transitions
 
-### v0.8.2 — Identity Import / Export
-_Bring-your-own key and backup flow_
+### v0.8.2 — Identity Import / Export ✅
+_Bring-your-own key and backup flow — released 2026-03-25_
 
 - **Import / export nsec**: allow users to bring an existing Nostr identity or back up their key (NIP-49 encrypted export)
+- **NIP-49 encrypted export**: password-protected ncryptsec via NostrSDK's `SecretKey.encrypt(password:)` — scrypt KDF + XChaCha20-Poly1305
+- **Import flow**: auto-detects nsec (plaintext) or ncryptsec (encrypted), validates key, destructive confirmation before replacing identity
+- **Full identity replacement**: tears down MLS groups, relay subscriptions, caches, and nickname store; re-initialises from scratch with new key
+- **Clipboard security**: exported keys auto-expire from clipboard after 60 seconds
 
 ### v0.8.3 — Key Lifecycle Hardening
 _Ongoing cryptographic hygiene for long-lived groups_

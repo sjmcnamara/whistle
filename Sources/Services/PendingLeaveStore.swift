@@ -37,6 +37,12 @@ final class PendingLeaveStore: ObservableObject {
         FMFLogger.marmot.info("PendingLeaveStore: removed leave request for group \(groupId)")
     }
 
+    /// Remove all pending leaves (used during identity replacement).
+    func removeAll() {
+        pendingLeaves.removeAll()
+        save()
+    }
+
     /// Remove any pending leaves for groups that no longer exist in the active
     /// group list — meaning the admin processed the removal successfully.
     func removeResolved(activeGroupIds: Set<String>) {

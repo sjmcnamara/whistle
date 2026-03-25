@@ -44,7 +44,7 @@ struct IdentityCardView: View {
                 }
 
                 Label {
-                    Text("Your private key (nsec) is stored in the iOS Keychain. It never leaves this device.")
+                    Text("Your private key (nsec) is stored in the iOS Keychain. You can export an encrypted backup from Settings \u{2192} Import / Export Key.")
                         .font(.footnote)
                 } icon: {
                     Image(systemName: "lock.fill")

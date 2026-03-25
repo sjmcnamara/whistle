@@ -37,6 +37,12 @@ final class NicknameStore: ObservableObject {
         save()
     }
 
+    /// Remove all nicknames (used during identity replacement).
+    func clearAll() {
+        nicknames = [:]
+        save()
+    }
+
     /// Remove a nickname for a pubkey.
     func remove(for pubkeyHex: String) {
         nicknames.removeValue(forKey: pubkeyHex)

@@ -43,6 +43,12 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            NavigationLink {
+                IdentityImportExportView()
+            } label: {
+                Label("Import / Export Key", systemImage: "arrow.left.arrow.right")
+            }
+
             // Display name for group chat
             HStack {
                 Label("Display Name", systemImage: "person.text.rectangle")
@@ -221,7 +227,7 @@ struct SettingsView: View {
             HStack {
                 Text("Version")
                 Spacer()
-                Text("0.8.1")
+                Text("0.8.2")
                     .foregroundStyle(.secondary)
             }
             HStack {

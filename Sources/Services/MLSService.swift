@@ -67,6 +67,17 @@ actor MLSService {
         FMFLogger.mls.info("MLSService initialised (unencrypted), \(groupCount) group(s) in DB")
     }
 
+    /// Tear down the MLS state entirely so a new identity can start fresh.
+    ///
+    /// Deletes the database files on disk and resets in-memory state.
+    /// The caller must call `initialise()` again before using any MLS operations.
+    func resetDatabase() {
+        isInitialised = false
+        mdk = nil
+        Self.deleteDatabase(at: Self.defaultDBPath())
+        FMFLogger.mls.info("MLS database reset for identity replacement")
+    }
+
     /// Delete the database file and any related WAL/SHM files.
     private static func deleteDatabase(at path: String) {
         let fm = FileManager.default

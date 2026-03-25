@@ -27,6 +27,32 @@ final class IdentityService: ObservableObject {
         loadOrCreate()
     }
 
+    // MARK: - Import / Export (v0.8.2)
+
+    /// Returns the raw nsec from secure storage so it can be encrypted for export.
+    func exportNsec() -> String? {
+        storage.load(key: .nsec)
+    }
+
+    /// Replace the current identity with an imported nsec.
+    ///
+    /// Validates the key, stores it, and updates the in-memory `keys` and `identity`.
+    /// The caller (AppViewModel) is responsible for tearing down and restarting
+    /// all services that depend on the identity (relays, MLS, groups, caches).
+    func importKey(nsec: String) throws {
+        let imported = try Keys.parse(secretKey: nsec)
+        let npub     = try imported.publicKey().toBech32()
+        let pubHex   = imported.publicKey().toHex()
+
+        storage.save(key: .nsec, value: nsec)
+
+        self.keys      = imported
+        self.identity  = NostrIdentity(npub: npub, publicKeyHex: pubHex)
+        self.isNewUser = false
+
+        FMFLogger.identity.info("Identity imported: \(npub)")
+    }
+
     // MARK: - Private
 
     private let storage: SecureStorage
