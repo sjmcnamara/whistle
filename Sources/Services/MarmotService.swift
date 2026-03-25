@@ -600,7 +600,7 @@ final class MarmotService: ObservableObject {
     ///
     /// Wraps `handleNotifications()` in a retry loop — if the notification
     /// stream drops (relay disconnect, network change), we reconnect and resume.
-    func startSubscriptions() async {
+    func startSubscriptions() {
         subscriptionTask = Task {
             while !Task.isCancelled {
                 do {
@@ -617,11 +617,9 @@ final class MarmotService: ObservableObject {
                 }
             }
         }
-        do {
-            try await subscriptionTask?.value
-        } catch {
-            // Task was cancelled or failed
-        }
+        // Don't await subscriptionTask?.value — the notification loop is
+        // infinite and would block the caller (onAppear) forever. The task
+        // is stored in subscriptionTask for cancellation if needed.
     }
 
     /// Inner subscription setup + notification loop. Throws on error to
