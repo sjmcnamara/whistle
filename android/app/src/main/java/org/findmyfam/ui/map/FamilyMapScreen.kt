@@ -163,7 +163,7 @@ fun FamilyMapScreen(
                         mapViewRef.value?.let { map ->
                             map.controller.animateTo(
                                 GeoPoint(myAnnotation.position.latitude, myAnnotation.position.longitude),
-                                15.0, 500L
+                                18.0, 500L
                             )
                         }
                     },
