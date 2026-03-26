@@ -109,7 +109,7 @@ fun GroupListScreen(
                             modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp)
                         )
                     }
-                    items(pendingInvites, key = { it.groupHint }) { invite ->
+                    items(pendingInvites, key = { "pending_${it.groupHint}_${it.inviterNpub}" }) { invite ->
                         ListItem(
                             headlineContent = {
                                 Text("Waiting for invite...")

@@ -6,6 +6,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.3.1] — 2026-03-26
+
+### Fixed — Android
+- **QR invite join** — scanned `famstr://invite/` deep-link URLs now correctly stripped to raw base64 before decoding; previously the prefix caused silent decode failure
+- **App lock bypass** — lock screen now has opaque background and consumes all touch events; previously the app was fully navigable behind the biometric prompt
+- **Duplicate member crash** — LazyColumn keys use index suffix to prevent crash when MDK returns duplicate leaf nodes for the same identity
+- **Keyboard dismiss on send** — chat input keyboard now dismisses after sending a message
+- **Relay list in Settings** — added missing relay section with enable/disable toggles per relay
+- **QR scan navigation** — scanned invite code now passed via shared Compose state instead of savedStateHandle which was silently failing across navigation entries
+- **Member list dedup** — `getMembers()` results deduplicated with `.distinct()` in both GroupDetailViewModel and ChatViewModel
+
+### Fixed — iOS
+- **Add Member by npub** — admin GroupDetailView now has a manual npub/hex input field to add members directly (was missing from UI despite ViewModel support)
+
+### Changed
+- **Android version bump** — 0.8.3.1 (build 2)
+
 ## [0.8.3-android] — 2026-03-26
 
 ### Added — Android

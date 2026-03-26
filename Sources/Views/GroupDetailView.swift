@@ -55,6 +55,32 @@ struct GroupDetailView: View {
                         Label("Invite Member", systemImage: "person.badge.plus")
                     }
                 }
+
+                Section("Add Member") {
+                    HStack {
+                        TextField("npub or hex pubkey", text: $viewModel.addMemberNpub)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+
+                        Button {
+                            Task { await viewModel.addMember() }
+                        } label: {
+                            if viewModel.isAddingMember {
+                                ProgressView()
+                            } else {
+                                Text("Add")
+                            }
+                        }
+                        .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
+                    }
+
+                    if viewModel.didAddMember {
+                        Label("Member added successfully", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    }
+                }
             }
 
             // MARK: - Leave group

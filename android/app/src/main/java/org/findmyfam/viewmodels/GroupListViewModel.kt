@@ -125,9 +125,10 @@ class GroupListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _error.value = null
-                val invite = InviteCode.decode(inviteCode)
+                val invite = InviteCode.fromUri(inviteCode)
+                val rawCode = invite.encode()
 
-                marmotService.acceptInvite(inviteCode)
+                marmotService.acceptInvite(rawCode)
 
                 // If the user previously left this group, clear the stale pending leave
                 pendingLeaveStore.remove(invite.groupId)

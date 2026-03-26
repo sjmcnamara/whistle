@@ -1,5 +1,8 @@
 package org.findmyfam.ui.common
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
@@ -17,8 +20,16 @@ fun AppLockScreen(
     onUnlock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Opaque background that blocks all touch events from reaching the app behind it
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {} // consume all taps
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(

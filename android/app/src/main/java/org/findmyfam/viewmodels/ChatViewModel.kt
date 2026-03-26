@@ -139,7 +139,7 @@ class ChatViewModel(
 
     suspend fun loadMemberNames() {
         try {
-            val pubkeys = mls.getMembers(groupId)
+            val pubkeys = mls.getMembers(groupId).distinct()
             val names = pubkeys.map { nicknameStore.displayName(it) }
             _memberNames.value = names.joinToString(", ")
         } catch (e: Exception) {

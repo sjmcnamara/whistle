@@ -217,6 +217,42 @@ fun SettingsScreen(
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Relays section
+            SectionHeader("Relays")
+
+            val relays = settings.relays
+            relays.forEachIndexed { index, relay ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = relay.url,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = relay.isEnabled,
+                        onCheckedChange = { enabled ->
+                            val updated = relays.toMutableList()
+                            updated[index] = relay.copy(isEnabled = enabled)
+                            settings.relays = updated
+                        }
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
             // About section
             SectionHeader("About")
 

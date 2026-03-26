@@ -97,7 +97,7 @@ class GroupDetailViewModel(
                 }
 
                 // Load member pubkeys and admin list
-                val memberPubkeys = mls.getMembers(groupId)
+                val memberPubkeys = mls.getMembers(groupId).distinct()
                 val adminPubkeys = (group?.adminPubkeys ?: emptyList()).toSet()
 
                 _members.value = memberPubkeys.map { pubkey ->

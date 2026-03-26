@@ -3,12 +3,14 @@ package org.findmyfam.ui.groups
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +36,7 @@ fun GroupChatScreen(
     val isSending by chatViewModel.isSending.collectAsState()
     val memberNames by chatViewModel.memberNames.collectAsState()
     val error by chatViewModel.error.collectAsState()
+    val focusManager = LocalFocusManager.current
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -121,7 +124,7 @@ fun GroupChatScreen(
                     }
                 }
 
-                items(messages, key = { it.id }) { message ->
+                itemsIndexed(messages, key = { index, msg -> "${msg.id}_$index" }) { _, message ->
                     ChatBubble(
                         senderDisplayName = message.senderDisplayName,
                         text = message.text,
@@ -162,7 +165,10 @@ fun GroupChatScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
-                        onClick = { chatViewModel.sendMessage() },
+                        onClick = {
+                            chatViewModel.sendMessage()
+                            focusManager.clearFocus()
+                        },
                         enabled = draftText.isNotBlank() && !isSending
                     ) {
                         if (isSending) {

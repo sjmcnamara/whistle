@@ -86,6 +86,9 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
 
+    // Shared state for QR scan results
+    var pendingInviteCode by remember { mutableStateOf<String?>(null) }
+
     // Only show bottom bar on top-level destinations
     val showBottomBar = currentRoute in listOf(Routes.GROUP_LIST, Routes.MAP, Routes.SETTINGS)
 
@@ -138,6 +141,16 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
             // Group list
             composable(Routes.GROUP_LIST) {
                 val groupListViewModel: GroupListViewModel = hiltViewModel()
+
+                // Pick up scanned invite code from QR scanner
+                LaunchedEffect(pendingInviteCode) {
+                    val code = pendingInviteCode
+                    if (!code.isNullOrBlank()) {
+                        pendingInviteCode = null
+                        groupListViewModel.joinGroup(code)
+                    }
+                }
+
                 GroupListScreen(
                     viewModel = groupListViewModel,
                     onGroupClick = { groupId ->
@@ -270,11 +283,10 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
 
             // QR scanner (navigated from Join Group)
             composable(Routes.QR_SCANNER) {
-                val groupListViewModel: GroupListViewModel = hiltViewModel()
                 QrScannerScreen(
                     onScanned = { code ->
+                        pendingInviteCode = code
                         navController.popBackStack()
-                        groupListViewModel.joinGroup(code)
                     },
                     onBack = { navController.popBackStack() },
                     modifier = Modifier.fillMaxSize()
