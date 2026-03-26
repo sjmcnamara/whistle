@@ -1,0 +1,46 @@
+package org.findmyfam.models
+
+import org.json.JSONObject
+
+/**
+ * JSON payload for location updates sent inside kind-445 MLS application messages.
+ *
+ * Schema (inner kind = MarmotKind.location / 1):
+ * { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "v": 1 }
+ */
+data class LocationPayload(
+    val type: String = "location",
+    val lat: Double,
+    val lon: Double,
+    val alt: Double,
+    val acc: Double,
+    val ts: Long,
+    val v: Int = 1
+) {
+    fun toJson(): String {
+        return JSONObject().apply {
+            put("type", type)
+            put("lat", lat)
+            put("lon", lon)
+            put("alt", alt)
+            put("acc", acc)
+            put("ts", ts)
+            put("v", v)
+        }.toString()
+    }
+
+    companion object {
+        fun fromJson(json: String): LocationPayload {
+            val obj = JSONObject(json)
+            return LocationPayload(
+                type = obj.optString("type", "location"),
+                lat = obj.getDouble("lat"),
+                lon = obj.getDouble("lon"),
+                alt = obj.getDouble("alt"),
+                acc = obj.getDouble("acc"),
+                ts = obj.getLong("ts"),
+                v = obj.optInt("v", 1)
+            )
+        }
+    }
+}

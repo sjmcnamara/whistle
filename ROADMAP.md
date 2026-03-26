@@ -197,6 +197,17 @@ _Ongoing cryptographic hygiene for long-lived groups — released 2026-03-25_
 
 ---
 
+### v0.8.3-android — Android Port ✅
+_Full native Android app with cross-platform interop — released 2026-03-26_
+
+- **Kotlin + Jetpack Compose**: native Android UI with Material 3, Hilt DI, Coroutines + Flow
+- **Cross-platform MLS**: same MDK (Rust via UniFFI) and NostrSDK (rust-nostr) as iOS — full messaging interop
+- **OpenStreetMap**: osmdroid-based family map, no Google Play Services dependency (GrapheneOS compatible)
+- **Feature parity**: groups, chat, location sharing, QR invite flow, NIP-49 key import/export, biometric lock, key rotation
+- **Monorepo**: Android lives in `android/` alongside iOS source
+
+---
+
 ### v0.9 — MLS Database Encryption & Secure Enclave
 _Major storage-hardening release for at-rest group key material_
 

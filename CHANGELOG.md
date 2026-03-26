@@ -6,6 +6,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.3-android] — 2026-03-26
+
+### Added — Android
+- **Android app** — full native port using Kotlin, Jetpack Compose, and Hilt DI
+- **Cross-platform messaging** — Android and iOS devices communicate via the same MLS-encrypted Nostr groups
+- **OpenStreetMap** — family map using osmdroid (no Google Play Services dependency, works on GrapheneOS)
+- **Location sharing** — Android LocationManager with configurable throttle, broadcasts to all groups
+- **QR code flow** — ZXing generation on invite share, CameraX + ML Kit scanner on join
+- **NIP-49 key import/export** — encrypted backup and cross-platform identity transfer
+- **Biometric app lock** — BiometricPrompt with fingerprint/face/device credentials
+- **Settings** — display name, relay config, location interval, key rotation, app lock
+- **MDK Kotlin bindings** — built from mdk-uniffi crate for arm64-v8a and x86_64
+- **NostrSDK Kotlin** — rust-nostr v0.44.2 via Maven Central
+
+### Architecture
+- Monorepo: iOS at root, Android in `android/` directory
+- Shared CHANGELOG and ROADMAP across platforms
+- Pre-built native `.so` libs checked in; rebuild instructions in `android/BUILD.md`
+
 ## [0.8.3] — 2026-03-25
 
 ### Added
