@@ -14,8 +14,13 @@ DerivedData/
 # macOS
 .DS_Store
 
-# Build
-build/
+# Build (iOS)
+DerivedData/
+
+# Build (Android)
+android/app/build/
+android/build/
+android/.gradle/
 
 # Android
 android/.gradle/
