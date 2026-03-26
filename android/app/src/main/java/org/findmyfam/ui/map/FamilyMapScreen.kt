@@ -7,6 +7,7 @@ import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MyLocation
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import org.osmdroid.config.Configuration
@@ -88,7 +90,8 @@ fun FamilyMapScreen(
             }
         } else {
             // OSM Map
-            OsmMapView(annotations = annotations)
+            val mapViewRef = remember { mutableStateOf<MapView?>(null) }
+            OsmMapView(annotations = annotations, mapViewRef = mapViewRef)
 
             // Group filter picker
             if (groups.isNotEmpty()) {
@@ -152,6 +155,31 @@ fun FamilyMapScreen(
                 }
             }
 
+            // Find me button
+            val myAnnotation = annotations.find { it.isMe }
+            if (myAnnotation != null) {
+                SmallFloatingActionButton(
+                    onClick = {
+                        mapViewRef.value?.let { map ->
+                            map.controller.animateTo(
+                                GeoPoint(myAnnotation.position.latitude, myAnnotation.position.longitude),
+                                15.0, 500L
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Icon(
+                        Icons.Default.MyLocation,
+                        contentDescription = "Find me",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
             // Empty state overlay
             if (annotations.isEmpty()) {
                 Box(
@@ -181,7 +209,10 @@ fun FamilyMapScreen(
 }
 
 @Composable
-private fun OsmMapView(annotations: List<MemberAnnotation>) {
+private fun OsmMapView(
+    annotations: List<MemberAnnotation>,
+    mapViewRef: MutableState<MapView?> = mutableStateOf(null)
+) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     // Only auto-fit camera on first annotation load, not on every update
     var hasFittedCamera by remember { mutableStateOf(false) }
@@ -193,6 +224,7 @@ private fun OsmMapView(annotations: List<MemberAnnotation>) {
                 setMultiTouchControls(true)
                 controller.setZoom(4.0)
                 controller.setCenter(GeoPoint(39.8283, -98.5795))
+                mapViewRef.value = this
             }
         },
         update = { mapView ->
