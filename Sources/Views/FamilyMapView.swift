@@ -136,7 +136,7 @@ struct FamilyMapView: View {
 
                 Divider()
 
-                ForEach(marmot.groups, id: \.mlsGroupId) { group in
+                ForEach(marmot.groups.filter(\.isActive), id: \.mlsGroupId) { group in
                     Button {
                         viewModel.selectedGroupId = group.mlsGroupId
                     } label: {

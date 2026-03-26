@@ -11,6 +11,7 @@ Family members create or join a shared encrypted group. Each member periodically
 All communication is end-to-end encrypted using MLS (Messaging Layer Security, RFC 9420) and transported over the Nostr protocol via the [Marmot Protocol](https://github.com/marmot-protocol/marmot) event kinds. No relay ever sees plaintext location data or group membership.
 
 - **Family groups** — create or join with a shareable invite code
+- **Cross-platform** — native iOS and Android apps that interop seamlessly in the same encrypted groups
 - **Tap-to-join** — share invites via AirDrop, QR code scan, or NFC tap; one-tap admin approval
 - **Live map** — see all family members' locations, updated on a configurable interval (default: 1 hr)
 - **Group chat** — built-in encrypted chat for the whole family
@@ -41,14 +42,35 @@ Group traffic is published as Marmot-compatible Nostr events:
 
 ## Requirements
 
+### iOS
 - Xcode 16.1+
 - iOS 17.0+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-- Rust toolchain (for building the MLS bridge xcframework)
+
+### Android
+- Android Studio Hedgehog+
+- Android SDK 34+
+- Java 17
+
+Pre-built native libraries (MDK, NostrSDK) are checked into `android/app/src/main/jniLibs/`. No Rust toolchain needed for development.
+
+## Project Structure
+
+```
+findmyfam/
+├── Sources/              ← iOS (Swift / SwiftUI)
+├── Resources/            ← iOS assets
+├── project.yml           ← iOS XcodeGen config
+├── android/              ← Android (Kotlin / Jetpack Compose)
+│   ├── app/
+│   └── build.gradle.kts
+├── CHANGELOG.md          ← Shared across platforms
+└── ROADMAP.md            ← Shared across platforms
+```
 
 ## Status
 
-Early development. See [ROADMAP.md](ROADMAP.md) for phases.
+Active development — iOS and Android at v0.8.3. See [ROADMAP.md](ROADMAP.md) for full history and upcoming phases.
 
 ## Wiki
 

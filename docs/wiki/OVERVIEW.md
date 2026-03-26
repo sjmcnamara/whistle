@@ -54,7 +54,7 @@ A class trip to a zoo or museum looks organised on paper. In reality, it’s a c
 FindMyFam can act as a lightweight coordination layer without turning the day into a surveillance exercise.
 
 ### 5. The pre wedding party (chaotic, ad-hoc)
-A cellebration of a friend's upcoming wedding, high-energy gatherings where not everyone knows each other (yet). FindMyFam works as a **pop-up coordination tool**:
+A celebration of a friend's upcoming wedding, high-energy gatherings where not everyone knows each other (yet). FindMyFam works as a **pop-up coordination tool**:
 * Share a link or a code; everyone joins.
 * Everyone disappears afterward.
 * No one is left in a permanent contact list they didn’t ask for.

@@ -14,5 +14,22 @@ DerivedData/
 # macOS
 .DS_Store
 
-# Build
-build/
+# Build (iOS)
+DerivedData/
+
+# Build (Android)
+android/app/build/
+android/build/
+android/.gradle/
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+*.iml
+
+# Android native libs — checked in because MDK Kotlin bindings
+# require Rust cross-compilation to rebuild. See android/BUILD.md.

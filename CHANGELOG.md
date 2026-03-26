@@ -6,6 +6,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.3-android] — 2026-03-26
+
+### Added — Android
+- **Android app** — full native port using Kotlin, Jetpack Compose, and Hilt DI
+- **Cross-platform messaging** — Android and iOS devices communicate via the same MLS-encrypted Nostr groups
+- **OpenStreetMap** — family map using osmdroid (no Google Play Services dependency, works on GrapheneOS)
+- **Location sharing** — Android LocationManager with configurable throttle, broadcasts to all groups
+- **QR code flow** — ZXing generation on invite share, CameraX + ML Kit scanner on join
+- **NIP-49 key import/export** — encrypted backup and cross-platform identity transfer
+- **Biometric app lock** — BiometricPrompt with fingerprint/face/device credentials
+- **Settings** — display name, relay config, location interval, key rotation, app lock
+- **MDK Kotlin bindings** — built from mdk-uniffi crate for arm64-v8a and x86_64
+- **NostrSDK Kotlin** — rust-nostr v0.44.2 via Maven Central
+
+### Architecture
+- Monorepo: iOS at root, Android in `android/` directory
+- Shared CHANGELOG and ROADMAP across platforms
+- Pre-built native `.so` libs checked in; rebuild instructions in `android/BUILD.md`
+
 ## [0.8.3] — 2026-03-25
 
 ### Added
@@ -13,6 +32,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Key Rotation Interval setting** — picker in Security settings (1 / 3 / 7 / 14 / 30 days) to control rotation frequency
 - **Forward secrecy audit logging** — structured logs track epoch transitions (old → new) on rotation and incoming commits; unprocessable events confirm old epoch keys are deleted per RFC 9420 §14.1
 - **Epoch mismatch warning** — groups with persistent decryption failures show a "Decryption failed" badge in the group list and a red banner in the chat view advising re-invite
+
+### Fixed
+- **Map group filter** — left/inactive groups no longer appear in the group picker on the family map
+- **Key package relay broadcast** — key packages now published to all enabled relays on invite accept, fixing race condition where admin couldn't fetch the invitee's key package
 
 ### Changed
 - **Version bump** — app version updated to 0.8.3 (build 6)

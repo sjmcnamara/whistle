@@ -809,10 +809,15 @@ final class MarmotService: ObservableObject {
     func acceptInvite(_ encoded: String) async throws {
         let invite = try InviteCode.decode(from: encoded)
 
-        // Publish our key package so the inviter can add us
-        try await publishKeyPackage(relays: [invite.relay])
+        // Publish our key package to ALL connected relays (not just the invite
+        // relay) so the admin can find it regardless of which relay they query.
+        var allRelays = relay.connectedRelayURLs
+        if !allRelays.contains(invite.relay) {
+            allRelays.append(invite.relay)
+        }
+        try await publishKeyPackage(relays: allRelays)
 
-        FMFLogger.marmot.info("Accepted invite for group \(invite.groupId) from \(invite.inviterNpub)")
+        FMFLogger.marmot.info("Accepted invite for group \(invite.groupId) from \(invite.inviterNpub) — key package published to \(allRelays.count) relay(s)")
     }
 
     // MARK: - Helpers

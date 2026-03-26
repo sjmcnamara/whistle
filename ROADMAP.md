@@ -8,23 +8,18 @@ No accounts. No servers. No permissions needed.
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  iOS App (Swift / SwiftUI)                               │
-├──────────────────────────┬──────────────────────────────┤
-│  nostr-sdk-swift         │  MLS Bridge (Swift layer)     │
-│  (relay connect,         │  UniFFI → mls-rs-uniffi       │
-│  NIP-44, NIP-59,         │  (or MDK/OpenMLS)             │
-│  event pub/sub)          │                               │
-├──────────────────────────┴──────────────────────────────┤
-│  Marmot Event Handlers (kinds 443 / 444 / 445)           │
-│  MIP-00: Credentials & KeyPackages                       │
-│  MIP-01: Group Construction                              │
-│  MIP-02: Welcome Events                                  │
-│  MIP-03: Group Messages                                  │
-├─────────────────────────────────────────────────────────┤
-│  Location Payload Schema (app-defined JSON in MLS msgs)  │
-│  Group Chat Payload Schema                               │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────┐  ┌─────────────────────────────┐
+│  iOS App (Swift / SwiftUI)  │  │  Android App (Kotlin/Compose)│
+├──────────────┬──────────────┤  ├──────────────┬──────────────┤
+│ nostr-sdk    │  MDK (Swift  │  │ nostr-sdk    │  MDK (Kotlin │
+│ -swift       │  UniFFI)     │  │ -kotlin      │  UniFFI)     │
+├──────────────┴──────────────┤  ├──────────────┴──────────────┤
+│  Marmot Event Handlers (kinds 443 / 444 / 445)               │
+│  MIP-00→03: KeyPackages, Groups, Welcomes, Messages          │
+├──────────────────────────────────────────────────────────────┤
+│  Location Payload Schema (app-defined JSON in MLS msgs)      │
+│  Group Chat / Nickname / Leave Payload Schemas               │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 **Key design decisions:**
@@ -197,6 +192,17 @@ _Ongoing cryptographic hygiene for long-lived groups — released 2026-03-25_
 
 ---
 
+### v0.8.3-android — Android Port ✅
+_Full native Android app with cross-platform interop — released 2026-03-26_
+
+- **Kotlin + Jetpack Compose**: native Android UI with Material 3, Hilt DI, Coroutines + Flow
+- **Cross-platform MLS**: same MDK (Rust via UniFFI) and NostrSDK (rust-nostr) as iOS — full messaging interop
+- **OpenStreetMap**: osmdroid-based family map, no Google Play Services dependency (GrapheneOS compatible)
+- **Feature parity**: groups, chat, location sharing, QR invite flow, NIP-49 key import/export, biometric lock, key rotation
+- **Monorepo**: Android lives in `android/` alongside iOS source
+
+---
+
 ### v0.9 — MLS Database Encryption & Secure Enclave
 _Major storage-hardening release for at-rest group key material_
 
@@ -230,10 +236,11 @@ master
   └── feature/v0.5-group-chat-ux        ✅ merged
   └── bugfix/v0.5.1                     ✅ merged
   └── feature/v0.6-reliability          ✅ merged
-  └── feature/v0.7-tap-to-share
-  └── feature/v0.8.1-app-lock
-  └── feature/v0.8.2-identity-import-export
-  └── feature/v0.8.3-key-lifecycle-hardening
+  └── feature/v0.7-tap-to-share         ✅ merged
+  └── feature/v0.8.1-app-lock           ✅ merged
+  └── feature/v0.8.2-identity-import-export  ✅ merged
+  └── feature/v0.8.3-key-lifecycle-hardening ✅ merged
+  └── feature/android-v0.8.3            ✅ merged
   └── feature/v0.9-mls-db-encryption
   └── feature/v1.0-social-connectivity
 ```
@@ -247,6 +254,7 @@ master
 - [mdk-swift](https://github.com/marmot-protocol/mdk-swift) — official Marmot Swift package, precompiled XCFramework, MIP-00→03
 - [mls-rs (awslabs)](https://github.com/awslabs/mls-rs) — alternative RFC 9420 MLS if mdk-swift is insufficient
 - [nostr-sdk-swift](https://github.com/rust-nostr/nostr-sdk-swift) — Swift Nostr SDK
+- [nostr-sdk-kotlin](https://github.com/rust-nostr/nostr-sdk-kotlin) — Kotlin Nostr SDK (same rust-nostr core)
 - [NIP-44](https://nips.nostr.com/44) — Versioned encryption (ChaCha20 + HKDF)
 - [NIP-59](https://nips.nostr.com/59) — Gift wrap (metadata-hiding envelope)
 - [RFC 9420](https://www.rfc-editor.org/rfc/rfc9420.html) — MLS specification
