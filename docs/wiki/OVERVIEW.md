@@ -38,12 +38,12 @@ FindMyFam becomes your lightweight coordination layer:
 At the end of the weekend, the group evaporates. No lingering graph of who met whom.
 
 ### 3. The “night out” group (messy, real)
-A spontaneous night: people split off, someone finds a better bar, and someone else is "5 minutes away" (narrator: they are not).
+A spontaneous night: people split off, someone finds a better bar, and someone else is "5 minutes away" (narrator: they were not).
 * Skip the "send me a pin" dance.
 * See roughly where the center of gravity is.
 * Regroup effortlessly without having to follow everyone on Instagram first.
 
-### 4. Ad-hoc events (Stags, hens, and birthdays)
+### 4. Ad-hoc events (Hen or stag parties, birthdays)
 Temporary, high-energy gatherings where not everyone knows each other. FindMyFam works as a **pop-up coordination tool**:
 * Share a link or a code; everyone joins.
 * Everyone disappears afterward.
