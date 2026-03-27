@@ -13,7 +13,7 @@ class NostrIdentityTest {
             publicKeyHex = "aabbccddeeff"
         )
         // Length > 16, so should use prefix(10)...suffix(6) format
-        assertEquals("npub1abc12...90xyz", identity.shortNpub)
+        assertEquals("npub1abc12...890xyz", identity.shortNpub)
     }
 
     @Test
