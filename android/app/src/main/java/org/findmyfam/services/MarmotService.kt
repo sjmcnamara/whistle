@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.findmyfam.models.*
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.ChatPayload
+import org.findmyfam.shared.models.InviteCode
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.shared.models.NicknamePayload
 import org.json.JSONObject
