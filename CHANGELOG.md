@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.3.2] — 2026-03-27
+
+### Fixed — Android
+- **Indoor location sharing** — removed OS-level distance filter (`0f`) and time gate (`0L`) from `LocationManager` so updates fire when stationary indoors; rate limiting is now handled solely by the app-level `intervalSeconds` throttle, matching iOS behaviour
+- **Map filter lost on navigation** — group filter selection on the family map is now preserved when switching tabs; `LocationViewModel` moved from composable `remember {}` scope into `AppViewModel` so it survives navigation
+
+### Changed
+- **Android version bump** — 0.8.3.2 (build 3)
+
+---
+
 ## [0.8.3.1] — 2026-03-26
 
 ### Fixed — Android

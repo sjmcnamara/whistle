@@ -252,7 +252,7 @@ fun SettingsScreen(
                 icon = Icons.Default.Info,
                 trailing = {
                     Text(
-                        text = "0.8.3 (Android)",
+                        text = "0.8.3.2 (Android)",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
