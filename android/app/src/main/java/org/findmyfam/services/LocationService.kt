@@ -70,7 +70,7 @@ class LocationService @Inject constructor(
                 locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
                     30_000L,  // min time between updates (ms)
-                    10f,      // min distance (meters)
+                    0f,       // min distance (meters) — rely on time throttle only
                     this
                 )
             }
@@ -83,7 +83,7 @@ class LocationService @Inject constructor(
                 locationManager.requestLocationUpdates(
                     LocationManager.NETWORK_PROVIDER,
                     30_000L,
-                    10f,
+                    0f,
                     this
                 )
             }
