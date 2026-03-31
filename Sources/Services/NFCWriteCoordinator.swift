@@ -1,7 +1,7 @@
 import Foundation
 import CoreNFC
 
-/// Writes a `famstr://` invite URL to an NDEF-writable NFC tag.
+/// Writes a `whistle://` invite URL to an NDEF-writable NFC tag.
 ///
 /// Usage: instantiate as `@StateObject`, call `write(url:)` when the
 /// user taps the "Write to NFC Tag" button.

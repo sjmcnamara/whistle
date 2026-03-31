@@ -178,7 +178,7 @@ struct JoinGroupView: View {
         }
     }
 
-    /// Build the `famstr://addmember/` URL to share with the group admin for one-tap approval.
+    /// Build the `whistle://addmember/` URL to share with the group admin for one-tap approval.
     private func approvalURL() -> URL? {
         guard let pubkey = myPubkeyHex else { return nil }
         // Decode the group ID from the accepted invite code
@@ -187,10 +187,10 @@ struct JoinGroupView: View {
         return InviteCode.approvalURL(pubkeyHex: pubkey, groupId: groupId)
     }
 
-    /// Extract the raw base64 invite code from either a `famstr://` URL or a raw string.
+        /// Extract the raw base64 invite code from either a `whistle://` URL or a raw string.
     private func extractCode(from scanned: String) -> String {
         guard let url = URL(string: scanned),
-              url.scheme == "famstr",
+                            url.scheme == "whistle",
               url.host == "invite",
               let code = url.pathComponents.dropFirst().first else {
             return scanned

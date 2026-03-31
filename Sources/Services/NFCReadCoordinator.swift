@@ -1,7 +1,7 @@
 import Foundation
 import CoreNFC
 
-/// Reads a `famstr://` invite URL from an NFC tag.
+/// Reads a `whistle://` invite URL from an NFC tag.
 ///
 /// Usage: instantiate as `@StateObject`, call `start()`, observe `onScan`.
 @MainActor

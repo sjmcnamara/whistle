@@ -78,7 +78,7 @@ fun FamilyMapScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Famstr needs location access to share your position with your family group.",
+                    text = "Whistle needs location access to share your position with your family group.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

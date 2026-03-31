@@ -29,9 +29,9 @@ public struct InviteCode: Codable, Equatable {
         return data.base64EncodedString()
     }
 
-    /// Wrap the invite in a `famstr://invite/<code>` deep-link URL.
+    /// Wrap the invite in a `whistle://invite/<code>` deep-link URL.
     public func asURL() -> URL {
-        URL(string: "famstr://invite/\(encode())")!
+        URL(string: "whistle://invite/\(encode())")!
     }
 
     /// Decode an invite from a base64-encoded string.
@@ -42,10 +42,10 @@ public struct InviteCode: Codable, Equatable {
         return try JSONDecoder().decode(InviteCode.self, from: data)
     }
 
-    /// Extract an invite from a `famstr://invite/<code>` URL.
+    /// Extract an invite from a `whistle://invite/<code>` URL.
     /// Also accepts a raw base64 string for backwards compatibility.
     public static func from(url: URL) throws -> InviteCode {
-        if url.scheme == "famstr", url.host == "invite",
+        if url.scheme == "whistle", url.host == "invite",
            let code = url.pathComponents.dropFirst().first {
             return try decode(from: code)
         }
@@ -54,14 +54,14 @@ public struct InviteCode: Codable, Equatable {
 
     // MARK: - Approval URL
 
-    /// Build a `famstr://addmember/<pubkeyHex>/<groupId>` URL that the
+    /// Build a `whistle://addmember/<pubkeyHex>/<groupId>` URL that the
     /// invitee shares back with the inviter to request group admission.
     public static func approvalURL(pubkeyHex: String, groupId: String) -> URL? {
         // groupId may contain characters that are invalid in a URL path component
         guard let encodedGroup = groupId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
             return nil
         }
-        return URL(string: "famstr://addmember/\(pubkeyHex)/\(encodedGroup)")
+        return URL(string: "whistle://addmember/\(pubkeyHex)/\(encodedGroup)")
     }
 
     // MARK: - Errors

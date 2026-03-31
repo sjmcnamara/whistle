@@ -42,8 +42,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.app
         DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.8.4"
-        CURRENT_PROJECT_VERSION: "7"
+        MARKETING_VERSION: "0.8.5"
+        CURRENT_PROJECT_VERSION: "8"
         PRODUCT_NAME: FindMyFam
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -51,7 +51,7 @@ targets:
     info:
       path: Resources/Info.plist
       properties:
-        CFBundleDisplayName: Famstr
+        CFBundleDisplayName: Whistle
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         ITSAppUsesNonExemptEncryption: false
@@ -59,18 +59,18 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
-        NSLocationWhenInUseUsageDescription: "Famstr needs your location to share it with your family group."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Famstr needs background location access to keep your family updated when the app is in the background."
-        NSFaceIDUsageDescription: "Famstr uses Face ID to unlock the app and protect your family data."
-        NSCameraUsageDescription: "Famstr uses the camera to scan QR invite codes."
-        NFCReaderUsageDescription: "Famstr uses NFC to receive invite codes by tapping phones together."
-        NSLocalNetworkUsageDescription: "Famstr uses the local network to share invites with nearby family members."
+        NSLocationWhenInUseUsageDescription: "Whistle needs your location to share it with your family group."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Whistle needs background location access to keep your family updated when the app is in the background."
+        NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your family data."
+        NSCameraUsageDescription: "Whistle uses the camera to scan QR invite codes."
+        NFCReaderUsageDescription: "Whistle uses NFC to receive invite codes by tapping phones together."
+        NSLocalNetworkUsageDescription: "Whistle uses the local network to share invites with nearby family members."
         NSBonjourServices:
-          - _famstr._tcp
-          - _famstr._udp
+          - _whistle._tcp
+          - _whistle._udp
         CFBundleURLTypes:
           - CFBundleURLSchemes:
-            - famstr
+            - whistle
             CFBundleURLName: org.findmyfam.app
         UIBackgroundModes:
           - location

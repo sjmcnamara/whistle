@@ -119,7 +119,7 @@ class AppLockService @Inject constructor(
 
         val prompt = BiometricPrompt(activity, executor, callback)
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Famstr")
+            .setTitle("Unlock Whistle")
             .setSubtitle("Use biometrics or device credentials")
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or

@@ -32,10 +32,10 @@ data class InviteCode(
     }
 
     /**
-     * Wrap the invite in a famstr://invite/<code> deep-link URI.
+     * Wrap the invite in a whistle://invite/<code> deep-link URI.
      */
     fun asUri(): String {
-        return "famstr://invite/${encode()}"
+        return "whistle://invite/${encode()}"
     }
 
     companion object {
@@ -53,11 +53,11 @@ data class InviteCode(
         }
 
         /**
-         * Extract an invite from a famstr://invite/<code> URI.
+         * Extract an invite from a whistle://invite/<code> URI.
          * Also accepts a raw base64 string for backwards compatibility.
          */
         fun fromUri(uri: String): InviteCode {
-            val prefix = "famstr://invite/"
+            val prefix = "whistle://invite/"
             val code = if (uri.startsWith(prefix)) {
                 uri.removePrefix(prefix)
             } else {
@@ -67,11 +67,11 @@ data class InviteCode(
         }
 
         /**
-         * Build a famstr://addmember/<pubkeyHex>/<groupId> URI that the
+         * Build a whistle://addmember/<pubkeyHex>/<groupId> URI that the
          * invitee shares back with the inviter to request group admission.
          */
         fun approvalUri(pubkeyHex: String, groupId: String): String {
-            return "famstr://addmember/$pubkeyHex/$groupId"
+            return "whistle://addmember/$pubkeyHex/$groupId"
         }
     }
 }

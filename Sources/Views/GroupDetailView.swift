@@ -139,7 +139,7 @@ struct GroupDetailView: View {
         .sheet(isPresented: $showNpubScanner) {
             NavigationStack {
                 QRScannerView { scanned in
-                    // Accept raw npub or famstr://addmember/ deep link
+                    // Accept raw npub or whistle://addmember/ deep link
                     if scanned.hasPrefix("npub") {
                         viewModel.addMemberNpub = scanned
                     } else if scanned.contains("addmember/") {

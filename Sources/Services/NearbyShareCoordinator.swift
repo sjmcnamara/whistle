@@ -41,7 +41,7 @@ final class NearbyShareCoordinator: NSObject, ObservableObject {
     // MARK: - Private
 
     /// MultipeerConnectivity service type — must be ≤15 chars, lowercase/numbers/hyphens.
-    private static let serviceType = "famstr"
+    private static let serviceType = "whistle"
 
     private let myPeerID: MCPeerID
     private var session: MCSession?
@@ -148,7 +148,7 @@ extension NearbyShareCoordinator: MCSessionDelegate {
                               fromPeer peerID: MCPeerID) {
         guard let str = String(data: data, encoding: .utf8) else { return }
         Task { @MainActor in
-            if str.hasPrefix("famstr://addmember/") {
+            if str.hasPrefix("whistle://addmember/") {
                 // Admin side: invitee's npub returned after joining the group.
                 onApprovalReceived?(str)
                 state = .success
