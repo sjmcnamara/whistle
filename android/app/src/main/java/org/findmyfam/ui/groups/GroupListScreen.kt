@@ -163,12 +163,26 @@ fun GroupListScreen(
 
                     ListItem(
                         headlineContent = {
-                            Text(
-                                text = group.name,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = group.name,
+                                    fontWeight = if (group.hasUnread) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                if (group.hasUnread) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = androidx.compose.foundation.shape.CircleShape
+                                            )
+                                    )
+                                }
+                            }
                         },
                         supportingContent = {
                             Text(
@@ -195,7 +209,10 @@ fun GroupListScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.clickable { onGroupClick(group.id) }
+                        modifier = Modifier.clickable {
+                            viewModel.markAsRead(group.id)
+                            onGroupClick(group.id)
+                        }
                     )
                     HorizontalDivider()
                 }

@@ -61,6 +61,7 @@ struct GroupListView: View {
             ForEach(viewModel.groups) { group in
                 NavigationLink {
                     chatDestination(for: group)
+                        .onAppear { viewModel.markAsRead(groupId: group.id) }
                 } label: {
                     GroupRowView(
                         group: group,

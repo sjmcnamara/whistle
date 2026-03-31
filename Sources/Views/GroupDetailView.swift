@@ -7,6 +7,7 @@ struct GroupDetailView: View {
     @State private var showInvite = false
     @State private var editingName = ""
     @State private var showLeaveConfirmation = false
+    @State private var showNpubScanner = false
 
     var body: some View {
         List {
@@ -62,6 +63,12 @@ struct GroupDetailView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .font(.system(.body, design: .monospaced))
+
+                        Button {
+                            showNpubScanner = true
+                        } label: {
+                            Image(systemName: "qrcode.viewfinder")
+                        }
 
                         Button {
                             Task { await viewModel.addMember() }
@@ -127,6 +134,24 @@ struct GroupDetailView: View {
         .sheet(isPresented: $showInvite) {
             if let code = viewModel.inviteCode {
                 InviteShareView(inviteCode: code)
+            }
+        }
+        .sheet(isPresented: $showNpubScanner) {
+            NavigationStack {
+                QRScannerView { scanned in
+                    // Accept raw npub or famstr://addmember/ deep link
+                    if scanned.hasPrefix("npub") {
+                        viewModel.addMemberNpub = scanned
+                    } else if scanned.contains("addmember/") {
+                        let parts = scanned.components(separatedBy: "addmember/")
+                        if let tail = parts.last {
+                            let hex = tail.components(separatedBy: "/").first ?? tail
+                            viewModel.addMemberNpub = hex
+                        }
+                    } else {
+                        viewModel.addMemberNpub = scanned
+                    }
+                }
             }
         }
         .deleteDisabled(!viewModel.isAdmin)

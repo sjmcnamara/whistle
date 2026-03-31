@@ -465,14 +465,10 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Key Package Refresh
 
-    /// Re-publish a fresh MLS key package if there are pending group invites
-    /// waiting for admin approval.  Key packages expire and are consumed on use,
-    /// so without this the admin gets "noKeyPackageFound" days after the invite
-    /// was first sent.
+    /// Publish a fresh MLS key package on every startup so this device is
+    /// always "joinable" by npub (admin can scan our QR and add us directly).
+    /// Also ensures pending invites remain resolvable after key package expiry.
     private func refreshKeyPackageIfNeeded(marmot: MarmotService) async {
-        let pending = pendingInviteStore.pendingInvites
-        guard !pending.isEmpty else { return }
-
         // Publish to all currently-enabled relays — that's where the admin's
         // fetchKeyPackage call will look.
         let relays = settings.relays.filter(\.isEnabled).map(\.url)
@@ -480,9 +476,11 @@ final class AppViewModel: ObservableObject {
 
         do {
             try await marmot.publishKeyPackage(relays: relays)
-            FMFLogger.marmot.info("Refreshed key package for \(pending.count) pending invite(s) on \(relays.count) relay(s)")
-            Task { @MainActor in
-                await marmot.fetchMissedGiftWraps()
+            FMFLogger.marmot.info("Published key package on startup to \(relays.count) relay(s)")
+            if !pendingInviteStore.pendingInvites.isEmpty {
+                Task { @MainActor in
+                    await marmot.fetchMissedGiftWraps()
+                }
             }
         } catch {
             // Non-fatal — admin will get an error and can ask the invitee to re-open

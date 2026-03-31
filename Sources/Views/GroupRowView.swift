@@ -14,9 +14,16 @@ struct GroupRowView: View {
                 .frame(width: 36)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(group.name)
-                    .font(.body.weight(.medium))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(group.name)
+                        .font(.body.weight(group.hasUnread ? .bold : .regular))
+                        .lineLimit(1)
+                    if group.hasUnread {
+                        Circle()
+                            .fill(.blue)
+                            .frame(width: 10, height: 10)
+                    }
+                }
 
                 HStack(spacing: 8) {
                     Label("\(group.memberCount)", systemImage: "person.2")

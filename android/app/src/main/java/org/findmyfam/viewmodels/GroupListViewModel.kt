@@ -35,7 +35,8 @@ class GroupListViewModel @Inject constructor(
         val name: String,
         val memberCount: Int,
         val lastActivity: Long?, // epoch seconds
-        val isActive: Boolean
+        val isActive: Boolean,
+        val hasUnread: Boolean = false
     )
 
     // --- Published state ---
@@ -60,6 +61,25 @@ class GroupListViewModel @Inject constructor(
                 refreshItems(mdkGroups)
             }
         }
+        // When a new chat message arrives, mark that group as unread immediately
+        viewModelScope.launch {
+            marmotService.lastChatMessageGroupId.collect { groupId ->
+                if (groupId != null) {
+                    _groups.value = _groups.value.map {
+                        if (it.id == groupId) it.copy(hasUnread = true) else it
+                    }
+                }
+            }
+        }
+    }
+
+    /** Mark a group as read — call when the user opens a group chat. */
+    fun markAsRead(groupId: String) {
+        settings.markGroupAsRead(groupId)
+        // Update list immediately to clear bold
+        _groups.value = _groups.value.map {
+            if (it.id == groupId) it.copy(hasUnread = false) else it
+        }
     }
 
     // --- Refresh ---
@@ -76,16 +96,26 @@ class GroupListViewModel @Inject constructor(
     }
 
     private suspend fun refreshItems(mdkGroups: List<Group>) {
-        val items = mdkGroups.map { group ->
-            val memberCount = try {
+        // Fetch member counts first — this is the only async work.
+        val memberCounts = mutableMapOf<String, Int>()
+        for (group in mdkGroups) {
+            memberCounts[group.mlsGroupId] = try {
                 mlsService.getMembers(group.mlsGroupId).size
             } catch (_: Exception) { 0 }
+        }
+        // Read timestamps AFTER all awaits so any markGroupAsRead calls that happened
+        // during suspension are reflected — avoids showing already-read groups as unread.
+        val items = mdkGroups.map { group ->
+            val lastMessageEpoch = group.lastMessageAt?.toLong()
+            val lastRead = settings.getLastRead(group.mlsGroupId)
+            val hasUnread = lastMessageEpoch != null && lastMessageEpoch > lastRead
             GroupListItem(
                 id = group.mlsGroupId,
                 name = group.name.ifEmpty { "Unnamed Group" },
-                memberCount = memberCount,
-                lastActivity = group.lastMessageAt?.toLong(),  // ULong? -> Long?
-                isActive = group.state == "active"
+                memberCount = memberCounts[group.mlsGroupId] ?: 0,
+                lastActivity = lastMessageEpoch,
+                isActive = group.state == "active",
+                hasUnread = hasUnread
             )
         }.filter { !pendingLeaveStore.contains(it.id) }
 
@@ -140,10 +170,35 @@ class GroupListViewModel @Inject constructor(
                         inviterNpub = invite.inviterNpub
                     )
                 )
+
+                // Poll for the Welcome gift-wrap — the admin may add us at any
+                // point in the next 2 minutes. Mirrors iOS JoinGroupView polling.
+                pollForWelcome(invite.groupId)
             } catch (e: Exception) {
                 _error.value = e.message
                 Timber.e("Failed to join group: $e")
             }
+        }
+    }
+
+    /**
+     * Poll fetchMissedGiftWraps every 2s for up to 2 minutes, checking
+     * whether the expected group has appeared in the groups list.
+     */
+    private fun pollForWelcome(expectedGroupId: String) {
+        viewModelScope.launch {
+            for (i in 0 until 60) {
+                kotlinx.coroutines.delay(2000)
+                try {
+                    marmotService.fetchMissedGiftWraps()
+                } catch (_: Exception) { }
+                // Check if the group appeared
+                if (_groups.value.any { it.id == expectedGroupId }) {
+                    Timber.i("Welcome received for group $expectedGroupId after ${(i + 1) * 2}s")
+                    return@launch
+                }
+            }
+            Timber.w("Welcome polling timed out for group $expectedGroupId")
         }
     }
 

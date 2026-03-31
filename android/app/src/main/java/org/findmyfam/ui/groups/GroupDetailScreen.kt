@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.findmyfam.ui.common.QrScannerScreen
 import org.findmyfam.viewmodels.GroupDetailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +41,7 @@ fun GroupDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
     var showInviteSheet by remember { mutableStateOf(false) }
+    var showNpubScanner by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
 
     // Initial load
@@ -227,7 +229,10 @@ fun GroupDetailScreen(
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(onClick = { showNpubScanner = true }) {
+                                Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan npub QR")
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
                             Button(
                                 onClick = { viewModel.addMember() },
                                 enabled = addMemberNpub.isNotBlank() && !isAddingMember
@@ -322,6 +327,25 @@ fun GroupDetailScreen(
         InviteShareSheet(
             inviteCode = inviteCode ?: "",
             onDismiss = { showInviteSheet = false }
+        )
+    }
+
+    // QR scanner for npub
+    if (showNpubScanner) {
+        QrScannerScreen(
+            onScanned = { scanned ->
+                showNpubScanner = false
+                // Accept raw npub or famstr://addmember/ deep link
+                val npub = when {
+                    scanned.startsWith("npub") -> scanned
+                    scanned.contains("addmember/") -> {
+                        scanned.substringAfter("addmember/").substringBefore("/")
+                    }
+                    else -> scanned
+                }
+                viewModel.updateAddMemberNpub(npub)
+            },
+            onBack = { showNpubScanner = false }
         )
     }
 }

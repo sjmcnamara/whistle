@@ -112,8 +112,27 @@ class AppViewModel @Inject constructor(
                 broadcastDisplayName(name)
             }
 
+            // Publish a fresh key package so this device is always "joinable"
+            // by npub (admin can scan our QR and add us directly).
+            val enabledRelayUrls = settings.relays.filter { it.isEnabled }.map { it.url }
+            if (enabledRelayUrls.isNotEmpty()) {
+                try {
+                    marmotService.publishKeyPackage(enabledRelayUrls)
+                    Timber.i("Published key package on startup to ${enabledRelayUrls.size} relay(s)")
+                } catch (e: Exception) {
+                    Timber.w(e, "Key package publish failed (non-fatal)")
+                }
+            }
+
             // Start real-time subscriptions
             marmotService.startSubscriptions()
+
+            // Fetch any gift-wraps (Welcomes) that arrived while offline
+            try {
+                marmotService.fetchMissedGiftWraps()
+            } catch (e: Exception) {
+                Timber.w(e, "fetchMissedGiftWraps failed (non-fatal)")
+            }
 
             // Broadcast display name and trigger immediate location send for newly joined groups
             viewModelScope.launch {

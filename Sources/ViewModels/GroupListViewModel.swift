@@ -25,6 +25,25 @@ final class GroupListViewModel: ObservableObject {
     let healthTracker: GroupHealthTracker
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Unread tracking
+
+    private static let lastReadKey = "groupLastReadTimestamps"
+
+    /// Per-group epoch timestamp of the last time the user viewed the chat.
+    private var lastReadTimestamps: [String: TimeInterval] {
+        get { UserDefaults.standard.dictionary(forKey: Self.lastReadKey) as? [String: TimeInterval] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: Self.lastReadKey) }
+    }
+
+    /// Call when the user opens a group chat to clear the unread indicator.
+    func markAsRead(groupId: String) {
+        lastReadTimestamps[groupId] = Date().timeIntervalSince1970
+        // Update the list to clear bold state
+        if let idx = groups.firstIndex(where: { $0.id == groupId }), groups[idx].hasUnread {
+            groups[idx].hasUnread = false
+        }
+    }
+
     // MARK: - Item model
 
     struct GroupListItem: Identifiable, Hashable {
@@ -33,6 +52,7 @@ final class GroupListViewModel: ObservableObject {
         let memberCount: Int
         let lastActivity: Date?
         let isActive: Bool
+        var hasUnread: Bool = false
     }
 
     // MARK: - Init
@@ -58,6 +78,17 @@ final class GroupListViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // When a new chat message arrives, mark that group as unread immediately
+        marmot.$lastChatMessageGroupId
+            .compactMap { $0 }
+            .sink { [weak self] groupId in
+                guard let self else { return }
+                if let idx = self.groups.firstIndex(where: { $0.id == groupId }) {
+                    self.groups[idx].hasUnread = true
+                }
+            }
+            .store(in: &cancellables)
+
         // Merge child objectWillChange and debounce to avoid cascading renders.
         Publishers.Merge3(
             pendingInviteStore.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
@@ -76,15 +107,26 @@ final class GroupListViewModel: ObservableObject {
     }
 
     private func refreshItems(from mdkGroups: [Group]) async {
+        // Fetch member counts first — this is the only async work.
+        var memberCounts: [String: Int] = [:]
+        for group in mdkGroups {
+            memberCounts[group.mlsGroupId] = (try? await mls.getMembers(groupId: group.mlsGroupId).count) ?? 0
+        }
+        // Read timestamps AFTER all awaits so any markAsRead calls that happened
+        // during suspension are reflected — avoids showing already-read groups as unread.
+        let readTimestamps = lastReadTimestamps
         var items: [GroupListItem] = []
         for group in mdkGroups {
-            let memberCount = (try? await mls.getMembers(groupId: group.mlsGroupId).count) ?? 0
+            let lastMessageEpoch = group.lastMessageAt.map { TimeInterval($0) }
+            let lastRead = readTimestamps[group.mlsGroupId] ?? 0
+            let hasUnread = lastMessageEpoch.map { $0 > lastRead } ?? false
             items.append(GroupListItem(
                 id: group.mlsGroupId,
                 name: group.name.isEmpty ? "Unnamed Group" : group.name,
-                memberCount: memberCount,
-                lastActivity: group.lastMessageAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
-                isActive: group.isActive
+                memberCount: memberCounts[group.mlsGroupId] ?? 0,
+                lastActivity: lastMessageEpoch.map { Date(timeIntervalSince1970: $0) },
+                isActive: group.isActive,
+                hasUnread: hasUnread
             ))
         }
         self.groups = items.filter { !pendingLeaveStore.contains($0.id) }

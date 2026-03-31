@@ -480,6 +480,7 @@ class MarmotService @Inject constructor(
                     val json = JSONObject(content)
                     when (json.optString("type", "chat")) {
                         "chat" -> {
+                            refreshGroups()
                             withContext(Dispatchers.Main) {
                                 _lastChatMessageGroupId.value = message.mlsGroupId
                             }
@@ -496,6 +497,7 @@ class MarmotService @Inject constructor(
                     }
                 } catch (_: Exception) {
                     // Fallback: treat as plain chat text
+                    refreshGroups()
                     withContext(Dispatchers.Main) {
                         _lastChatMessageGroupId.value = message.mlsGroupId
                     }

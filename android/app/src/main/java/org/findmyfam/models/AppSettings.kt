@@ -202,6 +202,27 @@ class AppSettings @Inject constructor(
         pendingGiftWrapEventIds = ids
     }
 
+    // --- Unread tracking ---
+
+    private val KEY_GROUP_LAST_READ = "groupLastReadTimestamps"
+
+    /** Get last-read epoch seconds for a group, or 0 if never read. */
+    fun getLastRead(groupId: String): Long {
+        val json = prefs.getString(KEY_GROUP_LAST_READ, null) ?: return 0L
+        return try {
+            JSONObject(json).optLong(groupId, 0L)
+        } catch (_: Exception) { 0L }
+    }
+
+    /** Mark a group as read right now. */
+    fun markGroupAsRead(groupId: String) {
+        val obj = try {
+            JSONObject(prefs.getString(KEY_GROUP_LAST_READ, null) ?: "{}")
+        } catch (_: Exception) { JSONObject() }
+        obj.put(groupId, System.currentTimeMillis() / 1000)
+        prefs.edit().putString(KEY_GROUP_LAST_READ, obj.toString()).apply()
+    }
+
     // --- Key rotation ---
 
     var keyRotationIntervalDays: Int
