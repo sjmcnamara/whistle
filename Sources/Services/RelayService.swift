@@ -1,4 +1,5 @@
 import Foundation
+import FindMyFamCore
 import NostrSDK
 
 /// Manages connections to Nostr relays.

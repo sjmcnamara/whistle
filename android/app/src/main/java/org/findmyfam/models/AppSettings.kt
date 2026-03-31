@@ -3,6 +3,8 @@ package org.findmyfam.models
 import android.content.Context
 import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.findmyfam.shared.models.AppDefaults
+import org.findmyfam.shared.models.RelayConfig
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
@@ -21,23 +23,19 @@ class AppSettings @Inject constructor(
         context.getSharedPreferences("fmf_settings", Context.MODE_PRIVATE)
 
     companion object {
-        val defaultRelays: List<RelayConfig> = listOf(
-            RelayConfig(url = "wss://relay.damus.io"),
-            RelayConfig(url = "wss://nos.lol"),
-            RelayConfig(url = "wss://relay.nostr.band")
-        )
+        val defaultRelays: List<RelayConfig> = AppDefaults.defaultRelays.map { RelayConfig(url = it) }
 
-        private const val KEY_RELAYS = "fmf.relays"
-        private const val KEY_DISPLAY_NAME = "fmf.displayName"
-        private const val KEY_LOCATION_INTERVAL = "fmf.locationInterval"
-        private const val KEY_LOCATION_PAUSED = "fmf.locationPaused"
-        private const val KEY_APP_LOCK_ENABLED = "fmf.appLockEnabled"
-        private const val KEY_APP_LOCK_REAUTH = "fmf.appLockReauthOnForeground"
-        private const val KEY_LAST_EVENT_TIMESTAMP = "fmf.lastEventTimestamp"
-        private const val KEY_PROCESSED_EVENT_IDS = "fmf.processedEventIds"
-        private const val KEY_PENDING_LEAVE_REQUESTS = "fmf.pendingLeaveRequests"
-        private const val KEY_PENDING_GIFT_WRAP_EVENT_IDS = "fmf.pendingGiftWrapEventIds"
-        private const val KEY_KEY_ROTATION_INTERVAL_DAYS = "fmf.keyRotationIntervalDays"
+        private val KEY_RELAYS = AppDefaults.Keys.relays
+        private val KEY_DISPLAY_NAME = AppDefaults.Keys.displayName
+        private val KEY_LOCATION_INTERVAL = AppDefaults.Keys.locationInterval
+        private val KEY_LOCATION_PAUSED = AppDefaults.Keys.locationPaused
+        private val KEY_APP_LOCK_ENABLED = AppDefaults.Keys.appLockEnabled
+        private val KEY_APP_LOCK_REAUTH = AppDefaults.Keys.appLockReauthOnForeground
+        private val KEY_LAST_EVENT_TIMESTAMP = AppDefaults.Keys.lastEventTimestamp
+        private val KEY_PROCESSED_EVENT_IDS = AppDefaults.Keys.processedEventIds
+        private val KEY_PENDING_LEAVE_REQUESTS = AppDefaults.Keys.pendingLeaveRequests
+        private val KEY_PENDING_GIFT_WRAP_EVENT_IDS = AppDefaults.Keys.pendingGiftWrapEventIds
+        private val KEY_KEY_ROTATION_INTERVAL_DAYS = AppDefaults.Keys.keyRotationIntervalDays
     }
 
     // --- Relays ---
@@ -83,7 +81,7 @@ class AppSettings @Inject constructor(
     var locationIntervalSeconds: Int
         get() {
             val v = prefs.getInt(KEY_LOCATION_INTERVAL, 0)
-            return if (v == 0) 3600 else v
+            return if (v == 0) AppDefaults.defaultLocationIntervalSeconds else v
         }
         set(value) { prefs.edit().putInt(KEY_LOCATION_INTERVAL, value).apply() }
 
@@ -209,7 +207,7 @@ class AppSettings @Inject constructor(
     var keyRotationIntervalDays: Int
         get() {
             val v = prefs.getInt(KEY_KEY_ROTATION_INTERVAL_DAYS, 0)
-            return if (v == 0) 7 else v
+            return if (v == 0) AppDefaults.defaultKeyRotationIntervalDays else v
         }
         set(value) { prefs.edit().putInt(KEY_KEY_ROTATION_INTERVAL_DAYS, value).apply() }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import FindMyFamCore
 
 /// Sheet for joining a group via invite code.
 /// Accepts a code via: paste, QR scan, nearby share, or deep link pre-fill.

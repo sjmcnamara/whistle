@@ -1,6 +1,6 @@
-package org.findmyfam.models
+package org.findmyfam.shared.models
 
-import android.util.Base64
+import java.util.Base64
 import org.json.JSONObject
 
 /**
@@ -10,8 +10,13 @@ import org.json.JSONObject
  * a compact base64-URL string that can be shared via messaging, QR code, etc.
  */
 data class InviteCode(
+    /** Relay URL the invitee should connect to (e.g. "wss://relay.damus.io"). */
     val relay: String,
+
+    /** Bech32 npub of the person who created the invite. */
     val inviterNpub: String,
+
+    /** MLS group identifier the invite is for. */
     val groupId: String
 ) {
     /**
@@ -23,7 +28,7 @@ data class InviteCode(
             put("inviterNpub", inviterNpub)
             put("groupId", groupId)
         }.toString()
-        return Base64.encodeToString(json.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        return Base64.getEncoder().encodeToString(json.toByteArray(Charsets.UTF_8))
     }
 
     /**
@@ -38,7 +43,7 @@ data class InviteCode(
          * Decode an invite from a base64-encoded string.
          */
         fun decode(encoded: String): InviteCode {
-            val jsonBytes = Base64.decode(encoded, Base64.NO_WRAP)
+            val jsonBytes = Base64.getDecoder().decode(encoded)
             val obj = JSONObject(String(jsonBytes, Charsets.UTF_8))
             return InviteCode(
                 relay = obj.getString("relay"),

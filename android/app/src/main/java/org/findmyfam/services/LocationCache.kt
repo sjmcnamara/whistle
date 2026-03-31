@@ -3,8 +3,8 @@ package org.findmyfam.services
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.findmyfam.models.LocationPayload
-import org.findmyfam.models.MemberLocation
+import org.findmyfam.shared.models.LocationPayload
+import org.findmyfam.shared.models.MemberLocation
 import javax.inject.Inject
 import javax.inject.Singleton
 

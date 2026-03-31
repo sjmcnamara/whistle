@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "FindMyFam"
 include(":app")
+include(":shared")

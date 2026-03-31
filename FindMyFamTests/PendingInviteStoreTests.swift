@@ -1,4 +1,5 @@
 import XCTest
+import FindMyFamCore
 @testable import FindMyFam
 
 @MainActor

@@ -6,33 +6,33 @@ import Foundation
 /// ```json
 /// { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "v": 1 }
 /// ```
-struct LocationPayload: Codable, Equatable {
+public struct LocationPayload: Codable, Equatable {
 
     /// Always `"location"`.
-    let type: String
+    public let type: String
 
     /// Latitude in decimal degrees.
-    let lat: Double
+    public let lat: Double
 
     /// Longitude in decimal degrees.
-    let lon: Double
+    public let lon: Double
 
     /// Altitude in metres (0 if unavailable).
-    let alt: Double
+    public let alt: Double
 
     /// Horizontal accuracy in metres.
-    let acc: Double
+    public let acc: Double
 
     /// Unix timestamp (seconds since epoch).
-    let ts: Int
+    public let ts: Int
 
     /// Schema version — always 1.
-    let v: Int
+    public let v: Int
 
-    static let currentVersion = 1
+    public static let currentVersion = 1
 
-    init(latitude: Double, longitude: Double, altitude: Double,
-         accuracy: Double, timestamp: Date) {
+    public init(latitude: Double, longitude: Double, altitude: Double,
+                accuracy: Double, timestamp: Date) {
         self.type = "location"
         self.lat  = latitude
         self.lon  = longitude
@@ -43,18 +43,18 @@ struct LocationPayload: Codable, Equatable {
     }
 
     /// Convert the Unix timestamp back to a `Date`.
-    var date: Date {
+    public var date: Date {
         Date(timeIntervalSince1970: TimeInterval(ts))
     }
 
     /// Encode to a JSON string for use as MLS message content.
-    func jsonString() throws -> String {
+    public func jsonString() throws -> String {
         let data = try JSONEncoder().encode(self)
         return String(data: data, encoding: .utf8)!
     }
 
     /// Decode from a JSON string received in an MLS message.
-    static func from(jsonString: String) throws -> LocationPayload {
+    public static func from(jsonString: String) throws -> LocationPayload {
         let data = Data(jsonString.utf8)
         return try JSONDecoder().decode(LocationPayload.self, from: data)
     }

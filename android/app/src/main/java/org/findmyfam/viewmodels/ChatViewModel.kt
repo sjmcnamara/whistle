@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.findmyfam.models.ChatPayload
+import org.findmyfam.shared.MarmotKind
+import org.findmyfam.shared.models.ChatPayload
 import org.findmyfam.services.MLSService
 import org.findmyfam.services.MarmotService
 import org.findmyfam.services.NicknameStore
@@ -162,7 +163,7 @@ class ChatViewModel(
                 marmot.sendMessage(
                     content = json,
                     groupId = groupId,
-                    kind = MarmotService.MarmotKind.CHAT
+                    kind = MarmotKind.CHAT
                 )
                 _draftText.value = ""
                 loadMessages()

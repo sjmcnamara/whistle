@@ -14,8 +14,8 @@ android {
         applicationId = "org.findmyfam"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.8.3.2"
+        versionCode = 4
+        versionName = "0.8.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -46,6 +46,9 @@ android {
 }
 
 dependencies {
+    // Shared core library
+    implementation(project(":shared"))
+
     // Compose BOM
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)

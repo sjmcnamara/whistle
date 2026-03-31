@@ -6,7 +6,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.findmyfam.models.PendingInvite
+import org.findmyfam.shared.models.PendingInvite
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber

@@ -1,5 +1,6 @@
 import XCTest
 import NostrSDK
+import FindMyFamCore
 @testable import FindMyFam
 
 /// Tests for MarmotService — the orchestration layer connecting MLS ↔ Relay.
@@ -231,6 +232,7 @@ final class MarmotServiceTests: XCTestCase {
     }
 
     func testFetchMissedGiftWrapsRetriesPendingGiftWrapIds() async throws {
+        sut.settings = AppSettings.shared
         sut.settings?.pendingGiftWrapEventIds = [
             String(repeating: "a", count: 64),
             String(repeating: "b", count: 64)

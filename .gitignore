@@ -19,8 +19,13 @@ DerivedData/
 
 # Build (Android)
 android/app/build/
+android/shared/build/
 android/build/
 android/.gradle/
+
+# Swift Package Manager build artifacts
+FindMyFamCore/.build/
+.build/
 
 # Android
 android/.gradle/

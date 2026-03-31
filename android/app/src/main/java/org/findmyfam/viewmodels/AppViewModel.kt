@@ -12,7 +12,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
-import org.findmyfam.models.LocationPayload
+import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.services.*
 import timber.log.Timber
 import javax.inject.Inject

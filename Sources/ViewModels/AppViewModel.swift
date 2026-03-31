@@ -1,4 +1,5 @@
 import Foundation
+import FindMyFamCore
 import CoreLocation
 import NostrSDK
 import Combine

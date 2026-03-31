@@ -11,6 +11,8 @@ options:
   tabWidth: 4
 
 packages:
+  FindMyFamCore:
+    path: FindMyFamCore
   NostrSDK:
     url: https://github.com/rust-nostr/nostr-sdk-swift
     from: "0.44.2"
@@ -32,6 +34,7 @@ targets:
       - path: Sources
       - path: Resources/Assets.xcassets
     dependencies:
+      - package: FindMyFamCore
       - package: NostrSDK
       - package: MDKBindings
     settings:
@@ -39,8 +42,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.app
         DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.8.3"
-        CURRENT_PROJECT_VERSION: "6"
+        MARKETING_VERSION: "0.8.4"
+        CURRENT_PROJECT_VERSION: "7"
         PRODUCT_NAME: FindMyFam
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

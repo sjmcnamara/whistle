@@ -1,5 +1,6 @@
 import Foundation
 import MDKBindings
+import FindMyFamCore
 
 // MARK: - Publish payload
 
@@ -76,24 +77,4 @@ enum MLSSortOrder {
     static let processedAtFirst = "processed_at_first"
 }
 
-// MARK: - Kind constants
-
-/// Nostr event kinds used by the Marmot protocol.
-enum MarmotKind {
-    /// MLS KeyPackage — published by each user to advertise their MLS credentials.
-    static let keyPackage:    UInt16 = 443
-    /// Welcome — gift-wrapped invitation to join an MLS group.
-    static let welcome:       UInt16 = 444
-    /// Group event — all in-group traffic: Commits, location updates, chat.
-    static let groupEvent:    UInt16 = 445
-    /// KeyPackage relay list.
-    static let keyPackageRelayList: UInt16 = 10051
-
-    /// NIP-59 Gift Wrap outer event kind.
-    static let giftWrap:  UInt16 = 1059
-
-    // Inner application message kinds (inside kind-445 payloads)
-    static let chat:         UInt16 = 9
-    static let location:     UInt16 = 1
-    static let leaveRequest: UInt16 = 2
-}
+// MarmotKind is now provided by FindMyFamCore

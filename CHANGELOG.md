@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.4] — 2026-03-27
+
+### Added
+- **Shared core libraries** — extracted models, protocol constants, and shared logic into platform-specific internal libraries (`FindMyFamCore` Swift package on iOS, `:shared` Gradle module on Android) with full test suites (44 tests each)
+- **Protocol spec** — `docs/wiki/PROTOCOL.md` documenting all Marmot event kinds, JSON payload schemas, app defaults, and deep-link URL schemes
+- **`AppDefaults`** — centralised shared constants (default relays, intervals, preference keys) referenced by both platforms
+
+### Changed
+- Default relays aligned across platforms (`relay.primal.net` replaces `relay.nostr.band` on Android)
+- Version bump — iOS 0.8.4 (build 7), Android 0.8.4 (build 4)
+
+### Fixed
+- **`testFetchMissedGiftWrapsRetriesPendingGiftWrapIds`** — test was silently no-oping due to nil `settings`; now injects `AppSettings.shared` before asserting
+
+---
+
 ## [0.8.3.2] — 2026-03-27
 
 ### Fixed — Android

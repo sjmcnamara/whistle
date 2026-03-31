@@ -11,6 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.findmyfam.models.*
+import org.findmyfam.shared.MarmotKind
+import org.findmyfam.shared.models.ChatPayload
+import org.findmyfam.shared.models.InviteCode
+import org.findmyfam.shared.models.LocationPayload
+import org.findmyfam.shared.models.NicknamePayload
 import org.json.JSONObject
 import rust.nostr.sdk.Event
 import rust.nostr.sdk.EventBuilder
@@ -52,21 +57,6 @@ class MarmotService @Inject constructor(
     private val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker
 ) {
-    // --- Marmot Kind Constants ---
-
-    object MarmotKind {
-        const val KEY_PACKAGE: UShort = 443u
-        const val WELCOME: UShort = 444u
-        const val GROUP_EVENT: UShort = 445u
-        const val KEY_PACKAGE_RELAY_LIST: UShort = 10051u
-        const val GIFT_WRAP: UShort = 1059u
-
-        // Inner application message kinds (inside kind-445 payloads)
-        const val CHAT: UShort = 9u
-        const val LOCATION: UShort = 1u
-        const val LEAVE_REQUEST: UShort = 2u
-    }
-
     // --- Published State ---
 
     private val _groups = MutableStateFlow<List<Group>>(emptyList())

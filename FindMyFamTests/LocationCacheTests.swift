@@ -1,4 +1,5 @@
 import XCTest
+import FindMyFamCore
 @testable import FindMyFam
 
 @MainActor
@@ -62,7 +63,7 @@ final class LocationCacheTests: XCTestCase {
         let oldDate = Date(timeIntervalSinceNow: -7200) // 2 hours ago
         let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: oldDate)
         let loc = MemberLocation(
-            id: "test", groupId: group1, memberPubkeyHex: alice,
+            groupId: group1, memberPubkeyHex: alice,
             payload: payload, receivedAt: Date()
         )
         // With 1-hour interval, 2× = 2 hours → stale
@@ -73,7 +74,7 @@ final class LocationCacheTests: XCTestCase {
         let recentDate = Date()
         let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: recentDate)
         let loc = MemberLocation(
-            id: "test", groupId: group1, memberPubkeyHex: alice,
+            groupId: group1, memberPubkeyHex: alice,
             payload: payload, receivedAt: Date()
         )
         XCTAssertFalse(loc.isStale(intervalSeconds: 3600))

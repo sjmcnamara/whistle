@@ -1,17 +1,19 @@
-package org.findmyfam.models
+package org.findmyfam.shared.models
 
 import org.json.JSONObject
 
 /**
  * JSON payload for chat messages sent inside kind-445 MLS application messages.
  *
- * Schema (inner kind = MarmotKind.chat / 9):
+ * Schema (inner kind = MarmotKind.CHAT / 9):
  * { "type": "chat", "text": "Hello!", "ts": 1700000000, "v": 1 }
  */
 data class ChatPayload(
     val type: String = "chat",
     val text: String,
+    /** Unix timestamp in seconds since epoch. */
     val ts: Long,
+    /** Schema version — always 1. */
     val v: Int = 1
 ) {
     constructor(text: String) : this(
@@ -21,6 +23,7 @@ data class ChatPayload(
         v = 1
     )
 
+    /** Encode to a JSON string for use as MLS message content. */
     fun toJson(): String {
         return JSONObject().apply {
             put("type", type)
@@ -30,7 +33,11 @@ data class ChatPayload(
         }.toString()
     }
 
+    /** Unix timestamp converted to milliseconds (suitable for java.util.Date). */
+    val dateMillis: Long get() = ts * 1000L
+
     companion object {
+        /** Decode from a JSON string received in an MLS message. */
         fun fromJson(json: String): ChatPayload {
             val obj = JSONObject(json)
             return ChatPayload(

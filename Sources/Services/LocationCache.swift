@@ -1,4 +1,5 @@
 import Foundation
+import FindMyFamCore
 
 /// In-memory cache of the latest location for each group member.
 ///
@@ -14,7 +15,6 @@ final class LocationCache: ObservableObject {
     func update(groupId: String, memberPubkeyHex: String, payload: LocationPayload) {
         let key = "\(groupId):\(memberPubkeyHex)"
         locations[key] = MemberLocation(
-            id: key,
             groupId: groupId,
             memberPubkeyHex: memberPubkeyHex,
             payload: payload,

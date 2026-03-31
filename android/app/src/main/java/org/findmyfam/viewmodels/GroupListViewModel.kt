@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
-import org.findmyfam.models.InviteCode
-import org.findmyfam.models.PendingInvite
+import org.findmyfam.shared.models.InviteCode
+import org.findmyfam.shared.models.PendingInvite
 import org.findmyfam.services.*
 import timber.log.Timber
 import javax.inject.Inject

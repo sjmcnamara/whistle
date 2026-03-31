@@ -1,4 +1,5 @@
 import Foundation
+import FindMyFamCore
 import Combine
 import MDKBindings
 import NostrSDK

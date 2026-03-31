@@ -1,16 +1,13 @@
 import Foundation
 import Combine
+import FindMyFamCore
 
 /// App-wide settings backed by UserDefaults.
 final class AppSettings: ObservableObject {
 
     static let shared = AppSettings()
 
-    static let defaultRelays: [RelayConfig] = [
-        RelayConfig(url: "wss://relay.damus.io"),
-        RelayConfig(url: "wss://nos.lol"),
-        RelayConfig(url: "wss://relay.primal.net")
-    ]
+    static let defaultRelays: [RelayConfig] = AppDefaults.defaultRelays.map { RelayConfig(url: $0) }
 
     @Published var relays: [RelayConfig] {
         didSet { save() }
@@ -74,19 +71,7 @@ final class AppSettings: ObservableObject {
         UInt64(keyRotationIntervalDays) * 24 * 3600
     }
 
-    private enum Keys {
-        static let relays = "fmf.relays"
-        static let locationInterval = "fmf.locationInterval"
-        static let locationPaused = "fmf.locationPaused"
-        static let displayName = "fmf.displayName"
-        static let appLockEnabled = "fmf.appLockEnabled"
-        static let appLockReauthOnForeground = "fmf.appLockReauthOnForeground"
-        static let lastEventTimestamp = "fmf.lastEventTimestamp"
-        static let processedEventIds = "fmf.processedEventIds"
-        static let pendingLeaveRequests = "fmf.pendingLeaveRequests"
-        static let pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
-        static let keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
-    }
+    private typealias Keys = AppDefaults.Keys
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: Keys.relays),
@@ -96,7 +81,7 @@ final class AppSettings: ObservableObject {
             self.relays = Self.defaultRelays
         }
         self.locationIntervalSeconds = UserDefaults.standard.integer(forKey: Keys.locationInterval)
-            .nonZeroOr(3600)
+            .nonZeroOr(AppDefaults.defaultLocationIntervalSeconds)
         self.isLocationPaused = UserDefaults.standard.bool(forKey: Keys.locationPaused)
         self.displayName = UserDefaults.standard.string(forKey: Keys.displayName) ?? ""
         self.isAppLockEnabled = UserDefaults.standard.bool(forKey: Keys.appLockEnabled)
@@ -105,7 +90,7 @@ final class AppSettings: ObservableObject {
         self.lastEventTimestamp = UInt64(bitPattern: Int64(storedTimestamp))
 
         self.keyRotationIntervalDays = UserDefaults.standard.integer(forKey: Keys.keyRotationIntervalDays)
-            .nonZeroOr(7)
+            .nonZeroOr(AppDefaults.defaultKeyRotationIntervalDays)
 
         if let data = UserDefaults.standard.data(forKey: Keys.processedEventIds),
            let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {

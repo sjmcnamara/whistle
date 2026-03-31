@@ -1,4 +1,5 @@
 import Foundation
+import FindMyFamCore
 import NostrSDK
 
 /// Abstraction over Nostr relay I/O.

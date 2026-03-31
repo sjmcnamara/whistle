@@ -1,4 +1,4 @@
-package org.findmyfam.models
+package org.findmyfam.shared.models
 
 import org.json.JSONObject
 
@@ -11,7 +11,9 @@ import org.json.JSONObject
 data class NicknamePayload(
     val type: String = "nickname",
     val name: String,
+    /** Unix timestamp in seconds since epoch. */
     val ts: Long,
+    /** Schema version — always 1. */
     val v: Int = 1
 ) {
     constructor(name: String) : this(
@@ -21,6 +23,7 @@ data class NicknamePayload(
         v = 1
     )
 
+    /** Encode to a JSON string for use as MLS message content. */
     fun toJson(): String {
         return JSONObject().apply {
             put("type", type)
@@ -31,6 +34,7 @@ data class NicknamePayload(
     }
 
     companion object {
+        /** Decode from a JSON string received in an MLS message. */
         fun fromJson(json: String): NicknamePayload {
             val obj = JSONObject(json)
             return NicknamePayload(
