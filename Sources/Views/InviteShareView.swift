@@ -9,7 +9,7 @@ struct InviteShareView: View {
     @State private var copied = false
     @State private var showNearbyShare = false
 
-    /// The `famstr://` URL for this invite (preferred share target).
+    /// The `whistle://` URL for this invite (preferred share target).
     private var inviteURL: URL? { try? InviteCode.decode(from: inviteCode).asURL() }
 
     var body: some View {
@@ -36,7 +36,7 @@ struct InviteShareView: View {
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal, 40)
 
-                // Share via AirDrop / Messages / etc. — shares the famstr:// URL
+                // Share via AirDrop / Messages / etc. — shares the whistle:// URL
                 if let url = inviteURL {
                     ShareLink(item: url) {
                         Label("Share via AirDrop / Messages…", systemImage: "square.and.arrow.up")

@@ -181,14 +181,14 @@ Example: `"npub1abc12...90xyz"`
 
 ## Deep Link URL Schemes
 
-The app registers the `famstr://` URL scheme.
+The app registers the `whistle://` URL scheme.
 
 ### Invite URL
 
 Encodes a group invite as a base64-encoded JSON blob:
 
 ```
-famstr://invite/<base64-encoded-invite-json>
+whistle://invite/<base64-encoded-invite-json>
 ```
 
 The base64 payload encodes the following JSON:
@@ -206,10 +206,10 @@ The base64 payload encodes the following JSON:
 The invitee shares this URL back with the inviter to request group admission:
 
 ```
-famstr://addmember/<pubkeyHex>/<groupId>
+whistle://addmember/<pubkeyHex>/<groupId>
 ```
 
-Example: `famstr://addmember/abcdef1234/mygroup456`
+Example: `whistle://addmember/abcdef1234/mygroup456`
 
 ---
 
@@ -217,9 +217,9 @@ Example: `famstr://addmember/abcdef1234/mygroup456`
 
 1. Serialise `{relay, inviterNpub, groupId}` as JSON
 2. Base64-encode the UTF-8 bytes (standard base64, no wrapping)
-3. Prepend `famstr://invite/` to produce the deep-link URL
+3. Prepend `whistle://invite/` to produce the deep-link URL
 
-Decoding accepts both `famstr://invite/<code>` URLs and raw base64 strings (for backward compatibility).
+Decoding accepts both `whistle://invite/<code>` URLs and raw base64 strings (for backward compatibility).
 
 ---
 

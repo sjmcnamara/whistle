@@ -24,7 +24,7 @@ struct NearbyShareView: View {
     /// Join the group inside the closure and return the approval URL to
     /// send back to the admin automatically through the same MPC session.
     var onInviteReceived: ((String) async -> URL?)?
-    /// Admin side: called with the raw `famstr://addmember/` URL string
+    /// Admin side: called with the raw `whistle://addmember/` URL string
     /// after the invitee has joined and sent their npub back.
     var onApprovalReceived: ((String) -> Void)?
 

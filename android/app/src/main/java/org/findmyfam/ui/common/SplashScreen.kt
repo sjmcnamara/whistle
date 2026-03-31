@@ -22,7 +22,7 @@ fun SplashScreen(phase: StartupPhase) {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "famstr",
+                text = "whistle",
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary

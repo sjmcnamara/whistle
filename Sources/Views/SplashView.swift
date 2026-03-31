@@ -70,7 +70,7 @@ struct SplashView: View {
             .frame(width: 220, height: 220)
             .scaleEffect(logoScale)
 
-            Text("famstr")
+            Text("whistle")
                 .font(.system(size: 44, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .scaleEffect(logoScale)

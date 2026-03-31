@@ -23,7 +23,7 @@ struct QRScannerView: View {
 
             VStack {
                 Spacer()
-                Text("Point at a Famstr QR code")
+                Text("Point at a Whistle QR code")
                     .font(.subheadline)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)

@@ -1,4 +1,4 @@
-# Famstr Roadmap
+# Whistle Roadmap
 
 An open-source, decentralized family location app powered by Nostr.
 No accounts. No servers. No permissions needed.
@@ -126,12 +126,12 @@ _Make the app work reliably across multiple devices day-to-day_
 ### v0.7 — Tap-to-Share Invites ✅
 _Frictionless group joining via AirDrop, QR scan, and NFC_
 
-- **AirDrop / deep-link invites**: invites shared as `famstr://invite/<code>` URLs; accepting an AirDrop or tapping a link opens the app and pre-fills the Join Group sheet — no copy-paste required
+- **AirDrop / deep-link invites**: invites shared as `whistle://invite/<code>` URLs; accepting an AirDrop or tapping a link opens the app and pre-fills the Join Group sheet — no copy-paste required
 - **QR code scanning**: "Scan QR Code" in Join Group opens live camera scanner; auto-populates and submits
 - **NFC read**: "Tap NFC Tag" (iPhone 7+) reads an NDEF invite URL from any NFC tag and auto-joins
-- **NFC write**: "Write to NFC Tag" in Invite sheet writes the `famstr://` URL to a blank NFC sticker; anyone can tap to join
-- **One-tap member approval**: after joining, invitee shares a `famstr://addmember/` URL with the admin; admin taps once to approve — no pubkey copy-paste required
-- `famstr://` URL scheme registered; `InviteCode.asURL()` / `from(url:)` helpers; `InviteCode.approvalURL(pubkeyHex:groupId:)`
+- **NFC write**: "Write to NFC Tag" in Invite sheet writes the `whistle://` URL to a blank NFC sticker; anyone can tap to join
+- **One-tap member approval**: after joining, invitee shares a `whistle://addmember/` URL with the admin; admin taps once to approve — no pubkey copy-paste required
+- `whistle://` URL scheme registered; `InviteCode.asURL()` / `from(url:)` helpers; `InviteCode.approvalURL(pubkeyHex:groupId:)`
 - `NFCReadCoordinator`, `NFCWriteCoordinator`, `QRScannerView`
 
 ---
@@ -200,6 +200,16 @@ _Full native Android app with cross-platform interop — released 2026-03-26_
 - **OpenStreetMap**: osmdroid-based family map, no Google Play Services dependency (GrapheneOS compatible)
 - **Feature parity**: groups, chat, location sharing, QR invite flow, NIP-49 key import/export, biometric lock, key rotation
 - **Monorepo**: Android lives in `android/` alongside iOS source
+
+---
+
+### v0.8.5 — Branding Refresh ✅
+_Cosmetic rename from Famstr to Whistle — released 2026-03-31_
+
+- **User-facing rename**: app display name updated to Whistle on iOS and Android
+- **Splash and lock UI**: startup and lock screen branding text updated to Whistle
+- **Launcher icons**: new Whistle icon pack applied on both platforms
+- **No package rename**: internal bundle/application identifiers remain `org.findmyfam`
 
 ---
 

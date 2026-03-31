@@ -17,12 +17,12 @@ final class InviteCodeTests: XCTestCase {
         XCTAssertEqual(original.groupId, decoded.groupId)
     }
 
-    func testAsURLProducesFamstrInvitePrefix() {
+    func testAsURLProducesWhistleInvitePrefix() {
         let url = makeSample().asURL()
-        XCTAssertTrue(url.absoluteString.hasPrefix("famstr://invite/"))
+        XCTAssertTrue(url.absoluteString.hasPrefix("whistle://invite/"))
     }
 
-    func testFromURLParsesFamstrInviteURLCorrectly() throws {
+    func testFromURLParsesWhistleInviteURLCorrectly() throws {
         let original = makeSample()
         let url = original.asURL()
         let decoded = try InviteCode.from(url: url)
@@ -32,15 +32,15 @@ final class InviteCodeTests: XCTestCase {
         XCTAssertEqual(original.groupId, decoded.groupId)
     }
 
-    func testApprovalURLProducesFamstrAddmember() {
+    func testApprovalURLProducesWhistleAddmember() {
         let url = InviteCode.approvalURL(pubkeyHex: "abcdef1234", groupId: "group456")
-        XCTAssertEqual(url?.absoluteString, "famstr://addmember/abcdef1234/group456")
+        XCTAssertEqual(url?.absoluteString, "whistle://addmember/abcdef1234/group456")
     }
 
     func testFromURLWithRawBase64WorksForBackwardCompat() throws {
         let original = makeSample()
         let rawBase64 = original.encode()
-        // Pass raw base64 as a URL (no famstr:// prefix)
+        // Pass raw base64 as a URL (no whistle:// prefix)
         let fakeURL = URL(string: rawBase64)!
         let decoded = try InviteCode.from(url: fakeURL)
 

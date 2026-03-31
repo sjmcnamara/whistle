@@ -25,13 +25,13 @@ class InviteCodeTest {
     }
 
     @Test
-    fun `asUri produces famstr invite prefix`() {
+    fun `asUri produces whistle invite prefix`() {
         val uri = sample().asUri()
-        assertTrue(uri.startsWith("famstr://invite/"))
+        assertTrue(uri.startsWith("whistle://invite/"))
     }
 
     @Test
-    fun `fromUri parses famstr invite URI correctly`() {
+    fun `fromUri parses whistle invite URI correctly`() {
         val original = sample()
         val uri = original.asUri()
         val decoded = InviteCode.fromUri(uri)
@@ -42,16 +42,16 @@ class InviteCodeTest {
     }
 
     @Test
-    fun `approvalUri produces famstr addmember prefix`() {
+    fun `approvalUri produces whistle addmember prefix`() {
         val uri = InviteCode.approvalUri("abcdef1234", "group456")
-        assertEquals("famstr://addmember/abcdef1234/group456", uri)
+        assertEquals("whistle://addmember/abcdef1234/group456", uri)
     }
 
     @Test
     fun `fromUri with raw base64 string works (backward compat)`() {
         val original = sample()
         val rawBase64 = original.encode()
-        // Pass raw base64 directly (no famstr:// prefix)
+        // Pass raw base64 directly (no whistle:// prefix)
         val decoded = InviteCode.fromUri(rawBase64)
 
         assertEquals(original.relay, decoded.relay)

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Famstr</string>
+	<string>Whistle</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,7 +27,7 @@
 			<string>org.findmyfam.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>famstr</string>
+				<string>whistle</string>
 			</array>
 		</dict>
 	</array>
@@ -36,22 +36,22 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NFCReaderUsageDescription</key>
-	<string>Famstr uses NFC to receive invite codes by tapping phones together.</string>
+	<string>Whistle uses NFC to receive invite codes by tapping phones together.</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_famstr._tcp</string>
-		<string>_famstr._udp</string>
+		<string>_whistle._tcp</string>
+		<string>_whistle._udp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Famstr uses the camera to scan QR invite codes.</string>
+	<string>Whistle uses the camera to scan QR invite codes.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Famstr uses Face ID to unlock the app and protect your family data.</string>
+	<string>Whistle uses Face ID to unlock the app and protect your family data.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Famstr uses the local network to share invites with nearby family members.</string>
+	<string>Whistle uses the local network to share invites with nearby family members.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Famstr needs background location access to keep your family updated when the app is in the background.</string>
+	<string>Whistle needs background location access to keep your family updated when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Famstr needs your location to share it with your family group.</string>
+	<string>Whistle needs your location to share it with your family group.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

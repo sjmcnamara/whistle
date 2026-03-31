@@ -2,7 +2,7 @@
 
 ## User Paths
 
-- Share invite via AirDrop/messages (`famstr://invite/<code>`)
+- Share invite via AirDrop/messages (`whistle://invite/<code>`)
 - Scan QR from Join Group
 - Nearby share (MultipeerConnectivity)
 - NFC read/write path
@@ -17,7 +17,7 @@
 
 ## Admin Flow
 
-1. Receive approval URL from invitee (`famstr://addmember/...`) or Nearby callback.
+1. Receive approval URL from invitee (`whistle://addmember/...`) or Nearby callback.
 2. Add member to MLS group.
 3. Publish commit and Welcome.
 

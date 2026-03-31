@@ -335,7 +335,7 @@ fun GroupDetailScreen(
         QrScannerScreen(
             onScanned = { scanned ->
                 showNpubScanner = false
-                // Accept raw npub or famstr://addmember/ deep link
+                // Accept raw npub or whistle://addmember/ deep link
                 val npub = when {
                     scanned.startsWith("npub") -> scanned
                     scanned.contains("addmember/") -> {

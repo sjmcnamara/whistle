@@ -44,7 +44,7 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Pending Approval (v0.7)
 
-    /// A member approval request received via `famstr://addmember/` deep link.
+    /// A member approval request received via `whistle://addmember/` deep link.
     struct PendingApprovalRequest {
         let pubkeyHex: String
         let groupId: String
@@ -209,9 +209,9 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Deep Link Handling (v0.7)
 
-    /// Route incoming `famstr://` URLs to the appropriate flow.
+    /// Route incoming `whistle://` URLs to the appropriate flow.
     func handleIncomingURL(_ url: URL) {
-        guard url.scheme == "famstr" else { return }
+        guard url.scheme == "whistle" else { return }
         switch url.host {
         case "invite":
             guard let code = try? InviteCode.from(url: url).encode() else {
@@ -261,7 +261,7 @@ final class AppViewModel: ObservableObject {
     /// Uses more retries than the normal path because the invitee's key package
     /// publish is deferred until after MPC tears down.
     func approveViaNearbyShare(_ url: URL) {
-        guard url.scheme == "famstr", url.host == "addmember" else { return }
+        guard url.scheme == "whistle", url.host == "addmember" else { return }
         let parts = url.pathComponents.dropFirst()
         guard parts.count >= 2 else {
             FMFLogger.marmot.warning("approveViaNearbyShare: malformed URL \(url)")

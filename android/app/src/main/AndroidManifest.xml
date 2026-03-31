@@ -14,8 +14,8 @@
     <application
         android:name=".FindMyFamApp"
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
-        android:label="Famstr"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.FindMyFam">
 
@@ -27,12 +27,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Deep link for famstr:// invite URLs -->
+            <!-- Deep link for whistle:// invite URLs -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="famstr" />
+                <data android:scheme="whistle" />
             </intent-filter>
         </activity>
     </application>

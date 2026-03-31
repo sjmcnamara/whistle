@@ -47,7 +47,7 @@ fun AppLockScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Famstr Locked",
+                text = "Whistle Locked",
                 style = MaterialTheme.typography.titleLarge
             )
 
