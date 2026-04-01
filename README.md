@@ -1,8 +1,13 @@
 # Whistle
 
-An open-source, decentralized family location sharing app powered by Nostr.
+An open-source, decentralized location sharing app powered by Nostr, MLS and the Marmot Protocol.
 
-No accounts. No central server. No permissions needed.
+Marmots form tight-knit family networks, communicating through whistling, and work together to keep their kin safe.
+
+Whistle is a private group network built on the same instinct — stay connected, share your location, and communicate securely with the people who matter most. 
+End-to-end encrypted. No accounts. No servers. No one else involved.
+
+Just your circle.
 
 ## What it does
 
