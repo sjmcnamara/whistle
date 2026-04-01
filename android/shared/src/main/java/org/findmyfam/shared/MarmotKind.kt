@@ -1,9 +1,15 @@
 package org.findmyfam.shared
 
 /**
- * Nostr event kinds used by the Marmot protocol.
+ * Nostr event kinds used by the Whistle protocol.
+ *
+ * Outer event kinds (443, 444, 445, 10051) originate from the Marmot MLS-over-Nostr
+ * specification (MIP-00→03). Inner application message kinds (CHAT, LOCATION,
+ * LEAVE_REQUEST) are Whistle-specific payloads carried inside kind-445 MLS messages.
  */
 object MarmotKind {
+    // Marmot event kinds (MIP-00→03)
+
     /** MLS KeyPackage — published by each user to advertise their MLS credentials. */
     const val KEY_PACKAGE: UShort = 443u
 
@@ -19,7 +25,7 @@ object MarmotKind {
     /** NIP-59 Gift Wrap outer event kind. */
     const val GIFT_WRAP: UShort = 1059u
 
-    // Inner application message kinds (inside kind-445 payloads)
+    // Whistle inner message kinds (inside kind-445 payloads)
 
     /** Chat message inner kind. */
     const val CHAT: UShort = 9u
