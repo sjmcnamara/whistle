@@ -58,14 +58,22 @@ Pre-built native libraries (MDK, NostrSDK) are checked into `android/app/src/mai
 
 ```
 whistle/
-├── Sources/              ← iOS (Swift / SwiftUI)
+├── Sources/              ← iOS app (Swift / SwiftUI)
+│   ├── Models/
+│   ├── Services/
+│   ├── ViewModels/
+│   └── Views/
+├── WhistleCore/          ← Shared Swift package (models, protocol constants, defaults)
+│   ├── Sources/WhistleCore/
+│   └── Tests/WhistleCoreTests/
+├── WhistleTests/         ← iOS unit tests
 ├── Resources/            ← iOS assets
 ├── project.yml           ← iOS XcodeGen config
 ├── android/              ← Android (Kotlin / Jetpack Compose)
 │   ├── app/
 │   └── build.gradle.kts
-├── CHANGELOG.md          ← Shared across platforms
-└── ROADMAP.md            ← Shared across platforms
+├── CHANGELOG.md
+└── ROADMAP.md
 ```
 
 ## Status

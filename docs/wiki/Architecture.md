@@ -1,12 +1,45 @@
 # Architecture
 
+## Project Layout
+
+```
+Sources/                  ← iOS app target (Whistle)
+├── Models/               ← Domain types (LocationPayload, InviteCode, etc.)
+├── Services/             ← Core services (MLSService, RelayService, KeychainService, etc.)
+├── ViewModels/           ← UI state (AppViewModel, GroupListViewModel, ChatViewModel, etc.)
+└── Views/                ← SwiftUI views
+
+WhistleCore/              ← Shared Swift package (imported by app + tests)
+├── Sources/WhistleCore/  ← Protocol constants (MarmotKind), defaults (AppDefaults), shared models
+└── Tests/WhistleCoreTests/
+
+WhistleTests/             ← Unit tests for the app target
+
+android/app/              ← Android app (Kotlin / Jetpack Compose)
+├── services/             ← MLSService, IdentityService, RelayService, etc.
+├── viewmodels/           ← AppViewModel, GroupListViewModel, etc.
+├── ui/                   ← Compose screens (groups, settings, map, identity)
+├── models/               ← AppSettings, shared types
+└── shared/               ← MarmotKind, AppDefaults (mirrors WhistleCore)
+```
+
 ## High-Level Components
 
 - `AppViewModel`: App orchestration and startup wiring
 - `MarmotService`: Protocol orchestration (Nostr + MLS event handling)
-- `MLSService`: MLS group and crypto operations
+- `MLSService`: MLS group and crypto operations (wraps MDK via UniFFI)
 - `RelayService`: Relay connectivity, subscriptions, and event publish/fetch
 - `GroupListViewModel`, `GroupDetailViewModel`, `ChatViewModel`: UI-facing state and actions
+
+## Shared Core (WhistleCore)
+
+Cross-cutting protocol constants and models extracted into a Swift package so both the app target and test target can import them:
+
+- `MarmotKind` — Nostr event kind constants (443, 444, 445, 1059, 10051) and inner message kinds (chat, location, leaveRequest)
+- `AppDefaults` — default relays, intervals, preference keys
+- Shared model types used across services and views
+
+Android mirrors this via the `:shared` Gradle module (`org.findmyfam.shared`).
 
 ## Core Data and State Stores
 
