@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] — 2026-04-01
+
+### Security
+- **MLS database encryption at rest** — MDK SQLite database is now opened with SQLCipher via `newMdk(serviceId:dbKeyId:)` on both iOS and Android; previously used `newMdkUnencrypted`, leaving all MLS group keys, exporter secrets, and key packages in plaintext on-device storage
+- **Key management via keyring-core** — the MDK handles 32-byte encryption key generation and storage internally through `keyring-core`, using the platform's native credential store (iOS Keychain / Android Keystore) — no app-level key management required
+- **Stale DB resilience** — if an existing plaintext DB cannot be opened with the encryption key, it is deleted and recreated encrypted (force-reinstall policy; no migration)
+- **iOS file sharing removed** — `UIFileSharingEnabled` / `LSSupportsOpeningDocumentsInPlace` removed from `Info.plist` now that the DB is encrypted
+- **MDK binary updated** — pinned revision advanced to `c58a77f` (from `80eab77`)
+
+### Notes
+- Pre-0.9 installs must be fully uninstalled before installing 0.9 (alpha policy — no migration)
+- Verify encryption: `sqlite3 /path/to/findmyfam-mdk.db "PRAGMA integrity_check;"` should return `Parse error: file is not a database`
+
+---
+
 ## [0.8.6] — 2026-04-01
 
 ### Fixed

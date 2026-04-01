@@ -5,9 +5,6 @@ import NostrSDK
 /// Tests for MLSService using an in-memory MDK instance (no Keychain, no disk I/O).
 final class MLSServiceTests: XCTestCase {
 
-    // Fixed 32-byte key for reproducible in-memory DB
-    private static let testKey = Data(repeating: 0xAB, count: 32)
-
     // Shared service — reset per test to guarantee isolation
     private var service: MLSService!
 
@@ -18,7 +15,7 @@ final class MLSServiceTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         service = MLSService()
-        try await service.initialiseInMemory(encryptionKey: Self.testKey)
+        try await service.initialiseInMemory()
     }
 
     // MARK: - Initialisation

@@ -11,9 +11,6 @@ import WhistleCore
 @MainActor
 final class MarmotServiceTests: XCTestCase {
 
-    // Fixed 32-byte key for reproducible in-memory DB
-    private static let testKey = Data(repeating: 0xCD, count: 32)
-
     private var mockRelay: MockRelayService!
     private var mls: MLSService!
     private var keys: Keys!
@@ -25,7 +22,7 @@ final class MarmotServiceTests: XCTestCase {
 
         mockRelay = MockRelayService()
         mls = MLSService()
-        try await mls.initialiseInMemory(encryptionKey: Self.testKey)
+        try await mls.initialiseInMemory()
 
         keys = Keys.generate()
         pubHex = keys.publicKey().toHex()

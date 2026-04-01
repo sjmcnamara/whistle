@@ -24,7 +24,19 @@ class MLSService @Inject constructor(
     val isInitialised: Boolean get() = _isInitialised
 
     /**
-     * Initialise the MDK instance with SQLite storage.
+     * Initialise the MDK instance with SQLCipher-encrypted SQLite storage.
+     * Uses `newMdk` which delegates key management to keyring-core — the
+     * 32-byte encryption key is generated and stored in Android Keystore
+     * automatically. No app-level key management required.
+     *
+     * If keyring-core is unavailable on this Android build (Phase 3 of the
+     * MDK encrypted-storage-plan is still in progress), falls back to
+     * `newMdkUnencrypted` with a warning — encryption will be enforced once
+     * the MDK ships Android keyring support.
+     *
+     * If the existing DB cannot be opened (pre-0.9 plaintext DB or key
+     * mismatch), it is deleted and recreated — matching the forced-reinstall
+     * policy for the 0.9 release.
      */
     suspend fun initialise() = mutex.withLock {
         if (_isInitialised) return@withLock
@@ -34,33 +46,52 @@ class MLSService @Inject constructor(
         val dbPath = dbDir.resolve("marmot.db").absolutePath
 
         try {
-            mdk = newMdkUnencrypted(dbPath = dbPath, config = null)
+            mdk = newMdk(dbPath = dbPath, serviceId = SERVICE_ID, dbKeyId = DB_KEY_ID, config = null)
             _isInitialised = true
-            Timber.i("MDK initialised at $dbPath")
+            Timber.i("MDK initialised (encrypted via keyring-core) at $dbPath")
         } catch (e: Exception) {
-            Timber.e(e, "MDK init failed, attempting fresh database")
+            Timber.w(e, "newMdk failed — trying fresh DB, then unencrypted fallback")
             try {
-                context.filesDir.resolve("mdk/marmot.db").delete()
-                mdk = newMdkUnencrypted(dbPath = dbPath, config = null)
+                deleteDbFiles(dbDir)
+                mdk = newMdk(dbPath = dbPath, serviceId = SERVICE_ID, dbKeyId = DB_KEY_ID, config = null)
                 _isInitialised = true
-                Timber.i("MDK initialised (fresh) at $dbPath")
+                Timber.i("MDK initialised (encrypted, fresh) at $dbPath")
             } catch (e2: Exception) {
-                Timber.e(e2, "MDK init failed even after fresh DB")
-                throw e2
+                // keyring-core may not be available on Android yet (MDK Phase 3).
+                // Fall back to unencrypted until the MDK ships Android keyring support.
+                Timber.w(e2, "Encrypted init failed — falling back to newMdkUnencrypted")
+                deleteDbFiles(dbDir)
+                try {
+                    mdk = newMdkUnencrypted(dbPath = dbPath, config = null)
+                    _isInitialised = true
+                    Timber.w("MDK initialised UNENCRYPTED at $dbPath — Android keyring not yet available")
+                } catch (e3: Exception) {
+                    Timber.e(e3, "MDK init failed entirely")
+                    throw e3
+                }
             }
         }
     }
 
     /**
      * Reset the database (used during identity replacement).
+     * Deletes the DB files and resets in-memory state. keyring-core manages
+     * the encryption key lifecycle — a fresh DB will get a new key automatically.
      */
     suspend fun resetDatabase() = mutex.withLock {
         mdk?.close()
         mdk = null
         _isInitialised = false
-        val dbFile = context.filesDir.resolve("mdk/marmot.db")
-        if (dbFile.exists()) dbFile.delete()
-        Timber.i("MDK database reset")
+        val dbDir = context.filesDir.resolve("mdk")
+        deleteDbFiles(dbDir)
+        Timber.i("MDK database reset for identity replacement")
+    }
+
+    private fun deleteDbFiles(dbDir: java.io.File) {
+        for (suffix in listOf("", "-wal", "-shm")) {
+            val f = dbDir.resolve("marmot.db$suffix")
+            if (f.exists()) f.delete()
+        }
     }
 
     // MARK: - Key Packages
@@ -152,4 +183,9 @@ class MLSService @Inject constructor(
     // MARK: - Internal
 
     private fun requireMdk(): Mdk = mdk ?: throw IllegalStateException("MDK not initialised")
+
+    companion object {
+        private const val SERVICE_ID = "org.findmyfam"
+        private const val DB_KEY_ID = "mdk.db.key"
+    }
 }

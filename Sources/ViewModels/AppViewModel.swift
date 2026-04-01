@@ -598,7 +598,8 @@ final class AppViewModel: ObservableObject {
         settings.pendingLeaveRequests = [:]
         settings.pendingGiftWrapEventIds = []
 
-        // 7. Wipe MLS database — groups are cryptographically bound to the old key
+        // 7. Wipe MLS database and rotate the encryption key — groups are
+        //    cryptographically bound to the old identity's key material.
         await mls.resetDatabase()
 
         // 8. Import the new key
