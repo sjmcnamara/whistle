@@ -19,23 +19,21 @@ actor MLSService {
 
     // MARK: - Initialisation
 
-    /// Production init — uses `newMdkUnencrypted()` directly.
+    /// Production init — attempts encrypted SQLCipher storage via `newMdk`,
+    /// which delegates key management to `keyring-core` (Keychain on iOS,
+    /// Keystore on Android).
     ///
-    /// `newMdkWithKey()` (SQLCipher) is broken for file-backed DBs in this
-    /// MDK build: it appears to succeed on first creation but writes an
-    /// unencrypted DB, then refuses to reopen it ("Cannot open unencrypted
-    /// database"). Confirmed on both iOS 18 and iOS 26.
+    /// **Fallback:** `keyring-core` requires `set_default_store()` to be called
+    /// from Rust before `newMdk` can work, but this function is not yet exposed
+    /// via UniFFI (MDK encrypted-storage-plan Phase 4 incomplete). If `newMdk`
+    /// fails, we fall back to `newMdkUnencrypted` and log a warning. Once the
+    /// MDK ships the store-init function via UniFFI, remove the fallback.
     ///
-    /// `newMdk()` (keyring) also fails — the Rust `keyring` crate can't
-    /// access the iOS Keychain reliably.
-    ///
-    /// `newMdkUnencrypted()` works reliably on all tested devices and OS
-    /// versions. iOS filesystem encryption (NSFileProtectionComplete)
-    /// already encrypts all app data at rest, so the MLS state is still
-    /// protected. We can revisit SQLCipher once the MDK fixes the issue.
+    /// If an existing database cannot be opened (e.g. a pre-0.9 unencrypted DB
+    /// left on device), it is deleted and recreated.
     func initialise(
         serviceId: String = "org.findmyfam",
-        dbKeyId: String   = "mdk.db.key"
+        dbKeyId: String = "mdk.db.key"
     ) throws {
         guard !isInitialised else {
             FMFLogger.mls.debug("MLSService already initialised, skipping")
@@ -43,35 +41,49 @@ actor MLSService {
         }
 
         let path = Self.defaultDBPath()
-        let fm = FileManager.default
-        let dbExists = fm.fileExists(atPath: path)
-        let dbSize = (try? fm.attributesOfItem(atPath: path)[.size] as? UInt64) ?? 0
+        let dbExists = FileManager.default.fileExists(atPath: path)
 
-        FMFLogger.mls.info("MLSService init — dbExists=\(dbExists), dbSize=\(dbSize), path=\(path)")
+        FMFLogger.mls.info("MLSService init — dbExists=\(dbExists), path=\(path)")
 
-        // If a previous version left a broken encrypted DB, the unencrypted
-        // open will fail. Detect that and delete so we get a clean start.
+        // Attempt 1: encrypted via keyring-core
         do {
-            mdk = try newMdkUnencrypted(dbPath: path, config: nil)
+            mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
+            isInitialised = true
+            let groupCount = (try? mdk?.getGroups().count) ?? -1
+            FMFLogger.mls.info("MLSService initialised (encrypted via keyring-core), \(groupCount) group(s)")
+            return
         } catch {
+            FMFLogger.mls.warning("newMdk failed: \(error)")
+            // If a stale DB blocked us, delete and retry encrypted
             if dbExists {
-                FMFLogger.mls.warning("Cannot open existing DB, deleting stale file: \(error)")
                 Self.deleteDatabase(at: path)
-                mdk = try newMdkUnencrypted(dbPath: path, config: nil)
-            } else {
-                throw error
+                do {
+                    mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
+                    isInitialised = true
+                    let groupCount = (try? mdk?.getGroups().count) ?? -1
+                    FMFLogger.mls.info("MLSService initialised (encrypted, fresh DB), \(groupCount) group(s)")
+                    return
+                } catch {
+                    FMFLogger.mls.warning("newMdk still failed after DB delete: \(error)")
+                }
             }
         }
 
+        // Fallback: keyring-core store not yet exposed via UniFFI — use unencrypted.
+        // TODO: Remove this fallback once MDK exposes set_default_store() via UniFFI.
+        FMFLogger.mls.warning("⚠️ Falling back to newMdkUnencrypted — keyring-core store init not available via UniFFI")
+        Self.deleteDatabase(at: path)  // ensure clean state
+        mdk = try newMdkUnencrypted(dbPath: path, config: nil)
         isInitialised = true
         let groupCount = (try? mdk?.getGroups().count) ?? -1
-        FMFLogger.mls.info("MLSService initialised (unencrypted), \(groupCount) group(s) in DB")
+        FMFLogger.mls.info("MLSService initialised (UNENCRYPTED fallback), \(groupCount) group(s)")
     }
 
     /// Tear down the MLS state entirely so a new identity can start fresh.
     ///
     /// Deletes the database files on disk and resets in-memory state.
-    /// The caller must call `initialise()` again before using any MLS operations.
+    /// keyring-core manages the encryption key lifecycle — when a fresh DB is
+    /// created on the next `initialise()`, keyring-core will generate a new key.
     func resetDatabase() {
         isInitialised = false
         mdk = nil
@@ -90,18 +102,9 @@ actor MLSService {
         }
     }
 
-    /// Custom-key init: caller supplies the 32-byte database encryption key.
-    /// Use when integrating with an external key management system.
-    func initialise(encryptionKey: Data) throws {
-        let path = Self.defaultDBPath()
-        mdk = try newMdkWithKey(dbPath: path, encryptionKey: encryptionKey, config: nil)
-        isInitialised = true
-        FMFLogger.mls.info("MLSService initialised (custom key) at \(path)")
-    }
-
-    /// In-memory init for unit tests only.
-    func initialiseInMemory(encryptionKey: Data) throws {
-        mdk = try newMdkWithKey(dbPath: ":memory:", encryptionKey: encryptionKey, config: nil)
+    /// In-memory init for unit tests only (unencrypted — no Keychain in test host).
+    func initialiseInMemory() throws {
+        mdk = try newMdkUnencrypted(dbPath: ":memory:", config: nil)
         isInitialised = true
         FMFLogger.mls.debug("MLSService initialised in memory (test mode)")
     }
