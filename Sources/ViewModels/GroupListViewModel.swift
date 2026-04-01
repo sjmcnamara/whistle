@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 import Combine
 import MDKBindings
 
@@ -28,11 +28,19 @@ final class GroupListViewModel: ObservableObject {
     // MARK: - Unread tracking
 
     private static let lastReadKey = "groupLastReadTimestamps"
+    private static let lastChatKey  = "groupLastChatTimestamps"
 
     /// Per-group epoch timestamp of the last time the user viewed the chat.
     private var lastReadTimestamps: [String: TimeInterval] {
         get { UserDefaults.standard.dictionary(forKey: Self.lastReadKey) as? [String: TimeInterval] ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: Self.lastReadKey) }
+    }
+
+    /// Per-group epoch timestamp of the last chat message received (chat-only — not location/nickname/etc.).
+    /// Used by refreshItems so that non-chat MLS events don't re-trigger the unread indicator.
+    private var lastChatTimestamps: [String: TimeInterval] {
+        get { UserDefaults.standard.dictionary(forKey: Self.lastChatKey) as? [String: TimeInterval] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: Self.lastChatKey) }
     }
 
     /// Call when the user opens a group chat to clear the unread indicator.
@@ -79,10 +87,15 @@ final class GroupListViewModel: ObservableObject {
             .store(in: &cancellables)
 
         // When a new chat message arrives, mark that group as unread immediately
+        // and persist the timestamp so refreshItems can use it instead of MDK's
+        // lastMessageAt (which advances for location/nickname events too).
         marmot.$lastChatMessageGroupId
             .compactMap { $0 }
             .sink { [weak self] groupId in
                 guard let self else { return }
+                var stamps = self.lastChatTimestamps
+                stamps[groupId] = Date().timeIntervalSince1970
+                self.lastChatTimestamps = stamps
                 if let idx = self.groups.firstIndex(where: { $0.id == groupId }) {
                     self.groups[idx].hasUnread = true
                 }
@@ -114,12 +127,16 @@ final class GroupListViewModel: ObservableObject {
         }
         // Read timestamps AFTER all awaits so any markAsRead calls that happened
         // during suspension are reflected — avoids showing already-read groups as unread.
+        // Use lastChatTimestamps (chat-only) rather than group.lastMessageAt, which MDK
+        // advances for every MLS event including location and nickname updates.
         let readTimestamps = lastReadTimestamps
+        let chatTimestamps = lastChatTimestamps
         var items: [GroupListItem] = []
         for group in mdkGroups {
             let lastMessageEpoch = group.lastMessageAt.map { TimeInterval($0) }
+            let lastChatEpoch = chatTimestamps[group.mlsGroupId]
             let lastRead = readTimestamps[group.mlsGroupId] ?? 0
-            let hasUnread = lastMessageEpoch.map { $0 > lastRead } ?? false
+            let hasUnread = lastChatEpoch.map { $0 > lastRead } ?? false
             items.append(GroupListItem(
                 id: group.mlsGroupId,
                 name: group.name.isEmpty ? "Unnamed Group" : group.name,

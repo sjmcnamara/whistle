@@ -1,6 +1,6 @@
 import Foundation
 import MDKBindings
-import FindMyFamCore
+import WhistleCore
 
 // MARK: - Publish payload
 
@@ -77,4 +77,4 @@ enum MLSSortOrder {
     static let processedAtFirst = "processed_at_first"
 }
 
-// MarmotKind is now provided by FindMyFamCore
+// MarmotKind is now provided by WhistleCore

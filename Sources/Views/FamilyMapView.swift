@@ -51,6 +51,13 @@ struct FamilyMapView: View {
                     centreOnSelfOrAll()
                 }
             }
+            .onChange(of: appViewModel.marmot?.groups) { _, groups in
+                guard let selectedId = viewModel.selectedGroupId else { return }
+                let activeIds = (groups ?? []).filter(\.isActive).map(\.mlsGroupId)
+                if !activeIds.contains(selectedId) {
+                    viewModel.selectedGroupId = nil
+                }
+            }
         }
     }
 

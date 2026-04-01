@@ -1,6 +1,6 @@
 import Foundation
 import NostrSDK
-import FindMyFamCore
+import WhistleCore
 @testable import FindMyFam
 
 /// In-memory relay service for unit tests.

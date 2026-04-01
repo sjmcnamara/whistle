@@ -62,6 +62,11 @@ fun FamilyMapScreen(
         }
     }
 
+    // Clear group filter if the selected group is no longer in the active list
+    LaunchedEffect(groups) {
+        locationViewModel.clearFilterIfInvalid(groups.map { it.id }.toSet())
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         if (!locationPermissions.allPermissionsGranted) {
             // Permission request

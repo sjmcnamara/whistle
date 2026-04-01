@@ -61,10 +61,13 @@ class GroupListViewModel @Inject constructor(
                 refreshItems(mdkGroups)
             }
         }
-        // When a new chat message arrives, mark that group as unread immediately
+        // When a new chat message arrives, persist the timestamp and mark unread immediately.
+        // Persisting here means refreshItems can use a chat-only timestamp rather than
+        // MDK's lastMessageAt, which advances for location/nickname events too.
         viewModelScope.launch {
             marmotService.lastChatMessageGroupId.collect { groupId ->
                 if (groupId != null) {
+                    settings.recordChatMessage(groupId)
                     _groups.value = _groups.value.map {
                         if (it.id == groupId) it.copy(hasUnread = true) else it
                     }
@@ -107,8 +110,9 @@ class GroupListViewModel @Inject constructor(
         // during suspension are reflected — avoids showing already-read groups as unread.
         val items = mdkGroups.map { group ->
             val lastMessageEpoch = group.lastMessageAt?.toLong()
+            val lastChatEpoch = settings.getLastChatTimestamp(group.mlsGroupId)
             val lastRead = settings.getLastRead(group.mlsGroupId)
-            val hasUnread = lastMessageEpoch != null && lastMessageEpoch > lastRead
+            val hasUnread = lastChatEpoch != null && lastChatEpoch > lastRead
             GroupListItem(
                 id = group.mlsGroupId,
                 name = group.name.ifEmpty { "Unnamed Group" },

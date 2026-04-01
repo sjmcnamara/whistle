@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 
 /// Persists pending group invites — invites where the user has published
 /// their key package but hasn't yet received a Welcome event.

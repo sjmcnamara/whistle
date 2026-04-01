@@ -205,6 +205,7 @@ class AppSettings @Inject constructor(
     // --- Unread tracking ---
 
     private val KEY_GROUP_LAST_READ = "groupLastReadTimestamps"
+    private val KEY_GROUP_LAST_CHAT = "groupLastChatTimestamps"
 
     /** Get last-read epoch seconds for a group, or 0 if never read. */
     fun getLastRead(groupId: String): Long {
@@ -221,6 +222,24 @@ class AppSettings @Inject constructor(
         } catch (_: Exception) { JSONObject() }
         obj.put(groupId, System.currentTimeMillis() / 1000)
         prefs.edit().putString(KEY_GROUP_LAST_READ, obj.toString()).apply()
+    }
+
+    /** Get last chat-message epoch seconds for a group, or null if no chat received. */
+    fun getLastChatTimestamp(groupId: String): Long? {
+        val json = prefs.getString(KEY_GROUP_LAST_CHAT, null) ?: return null
+        return try {
+            val v = JSONObject(json).optLong(groupId, -1L)
+            if (v == -1L) null else v
+        } catch (_: Exception) { null }
+    }
+
+    /** Record that a chat message was received for a group right now. */
+    fun recordChatMessage(groupId: String) {
+        val obj = try {
+            JSONObject(prefs.getString(KEY_GROUP_LAST_CHAT, null) ?: "{}")
+        } catch (_: Exception) { JSONObject() }
+        obj.put(groupId, System.currentTimeMillis() / 1000)
+        prefs.edit().putString(KEY_GROUP_LAST_CHAT, obj.toString()).apply()
     }
 
     // --- Key rotation ---

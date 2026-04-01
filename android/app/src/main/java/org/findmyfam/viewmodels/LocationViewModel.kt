@@ -55,6 +55,14 @@ class LocationViewModel(
         _selectedGroupId.value = groupId
     }
 
+    /** Clear the filter if the selected group is no longer in the active set. */
+    fun clearFilterIfInvalid(activeGroupIds: Set<String>) {
+        val current = _selectedGroupId.value ?: return
+        if (current !in activeGroupIds) {
+            _selectedGroupId.value = null
+        }
+    }
+
     private fun refresh() {
         val interval = intervalSeconds()
         val locs = locationCache.locations.value

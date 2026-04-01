@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 import NostrSDK
 
 /// Manages the user's Nostr identity.

@@ -1,4 +1,4 @@
-name: FindMyFam
+name: Whistle
 
 options:
   bundleIdPrefix: org.findmyfam
@@ -11,8 +11,8 @@ options:
   tabWidth: 4
 
 packages:
-  FindMyFamCore:
-    path: FindMyFamCore
+  WhistleCore:
+    path: WhistleCore
   NostrSDK:
     url: https://github.com/rust-nostr/nostr-sdk-swift
     from: "0.44.2"
@@ -27,14 +27,14 @@ settings:
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 
 targets:
-  FindMyFam:
+  Whistle:
     type: application
     platform: iOS
     sources:
       - path: Sources
       - path: Resources/Assets.xcassets
     dependencies:
-      - package: FindMyFamCore
+      - package: WhistleCore
       - package: NostrSDK
       - package: MDKBindings
     settings:
@@ -42,12 +42,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.app
         DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.8.5"
-        CURRENT_PROJECT_VERSION: "8"
-        PRODUCT_NAME: FindMyFam
+        MARKETING_VERSION: "0.8.6"
+        CURRENT_PROJECT_VERSION: "9"
+        PRODUCT_NAME: Whistle
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        CODE_SIGN_ENTITLEMENTS: Resources/FindMyFam.entitlements
+        CODE_SIGN_ENTITLEMENTS: Resources/Whistle.entitlements
     info:
       path: Resources/Info.plist
       properties:
@@ -80,24 +80,24 @@ targets:
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
 
-  FindMyFamTests:
+  WhistleTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: FindMyFamTests
+      - path: WhistleTests
     dependencies:
-      - target: FindMyFam
+      - target: Whistle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.findmyfam.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  FindMyFam:
+  Whistle:
     build:
       targets:
-        FindMyFam: all
-        FindMyFamTests: [test]
+        Whistle: all
+        WhistleTests: [test]
     test:
       targets:
-        - FindMyFamTests
+        - WhistleTests
