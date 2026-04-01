@@ -9,7 +9,7 @@
 Alternative direct command:
 
 ```bash
-xcodebuild test -scheme FindMyFam -destination "platform=iOS Simulator,name=iPhone 16"
+xcodebuild test -scheme Whistle -destination "platform=iOS Simulator,name=iPhone 16"
 ```
 
 ## Common Local Issues

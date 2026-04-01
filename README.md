@@ -1,4 +1,4 @@
-# Famstr
+# Whistle
 
 An open-source, decentralized family location sharing app powered by Nostr.
 
@@ -57,7 +57,7 @@ Pre-built native libraries (MDK, NostrSDK) are checked into `android/app/src/mai
 ## Project Structure
 
 ```
-findmyfam/
+whistle/
 ├── Sources/              ← iOS (Swift / SwiftUI)
 ├── Resources/            ← iOS assets
 ├── project.yml           ← iOS XcodeGen config
@@ -70,7 +70,7 @@ findmyfam/
 
 ## Status
 
-Active development — iOS and Android at v0.8.3. See [ROADMAP.md](ROADMAP.md) for full history and upcoming phases.
+Active development — iOS and Android at v0.9.1. See [ROADMAP.md](ROADMAP.md) for full history and upcoming phases.
 
 ## Wiki
 

@@ -1,8 +1,8 @@
-# Privacy Policy for FindMyFam
+# Privacy Policy for Whistle
 
 **Last Updated:** March 2026
 
-At FindMyFam, we believe your location and personal relationships are strictly your business. Our privacy philosophy is simple: **we do not collect, store, or monetize your personal information.** This policy explains how our app handles your data to keep you connected with the people you choose, without compromising your privacy.
+At Whistle, we believe your location and personal relationships are strictly your business. Our privacy philosophy is simple: **we do not collect, store, or monetize your personal information.** This policy explains how our app handles your data to keep you connected with the people you choose, without compromising your privacy.
 
 ## 1. Information We Do Not Collect
 We do not require you to create an account with us, nor do we ask for your email address, phone number, or real name to operate the core service. 
@@ -11,11 +11,11 @@ We do not require you to create an account with us, nor do we ask for your email
 * **No Analytics or Tracking:** We do not use third-party tracking SDKs to monitor your behavior within the app.
 
 ## 2. How Your Location Data is Handled
-FindMyFam’s core feature is sharing your location with your family or friends. Because of how the app is built, you remain in complete control of this data:
+Whistle’s core feature is sharing your location with your family or friends. Because of how the app is built, you remain in complete control of this data:
 
 * **Explicit Consent Only:** Your real-time location is only shared with specific groups that you have explicitly joined or invited others to join. 
 * **End-to-End Encryption:** When you share your location, the data is cryptographically encrypted on your device (using the Messaging Layer Security protocol). 
-* **Zero Developer Access:** We (the developers of FindMyFam) cannot see, intercept, or track your location. Your location data flows securely to your trusted contacts, not to us.
+* **Zero Developer Access:** We (the developers of Whistle) cannot see, intercept, or track your location. Your location data flows securely to your trusted contacts, not to us.
 
 ## 3. Local On-Device Storage
 The data required to make the app work—such as your cryptographic keys, group configurations, and saved nicknames—is stored securely and locally on your own device.
@@ -34,4 +34,4 @@ You have ultimate control over your device's data. At any time, you can:
 If we ever change the way this app operates (for example, if we introduce a feature that requires us to temporarily process data), we will update this policy and request your explicit permission before any changes take effect.
 
 ## 7. Contact Us
-If you have any questions about this privacy policy or how FindMyFam protects your data, please contact us at: **[Insert Contact Email / Website Support URL]**
+If you have any questions about this privacy policy or how Whistle protects your data, please contact us at: **[Insert Contact Email / Website Support URL]**

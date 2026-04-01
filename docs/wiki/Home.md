@@ -1,10 +1,12 @@
-# Famstr Wiki
+# Whistle Wiki
 
-Welcome to the Famstr project wiki.
+Welcome to the Whistle project wiki.
 
 ## Quick Links
 
 - [Architecture](Architecture.md)
+- [Overview](OVERVIEW.md)
+- [Protocol Specification](PROTOCOL.md)
 - [Join and Invite Flow](Join-and-Invite-Flow.md)
 - [Release Checklist](Release-Checklist.md)
 - [Testing and CI](Testing-and-CI.md)

@@ -1,12 +1,12 @@
-# Marmot Protocol Specification
+# Whistle Protocol Specification
 
-This document describes the wire protocol used by FindMyFam (codename Marmot). It covers Nostr event kinds, JSON payload schemas, application defaults, and URL schemes.
+This document describes the wire protocol used by Whistle. It covers Nostr event kinds, JSON payload schemas, application defaults, and URL schemes. The protocol is built on top of the [Marmot Protocol](https://github.com/marmot-protocol/marmot) (MIP-00→03) for MLS-over-Nostr.
 
 ---
 
 ## MarmotKind — Nostr Event Kinds
 
-All event kinds are defined in `MarmotKind` (iOS: `FindMyFamCore`, Android: `org.findmyfam.shared`).
+All event kinds are defined in `MarmotKind` (iOS: `WhistleCore`, Android: `org.findmyfam.shared`).
 
 | Constant             | Value | Description                                              |
 |----------------------|-------|----------------------------------------------------------|
@@ -102,7 +102,7 @@ Inner kind: `9` (`MarmotKind.chat`), distinguished by `type` field value.
 
 ## AppDefaults
 
-Defined in `AppDefaults` (iOS: `FindMyFamCore`, Android: `org.findmyfam.shared.models`).
+Defined in `AppDefaults` (iOS: `WhistleCore`, Android: `org.findmyfam.shared.models`).
 
 ### Default Relays
 

@@ -1,4 +1,4 @@
-# Famstr Android — Build Guide
+# Whistle Android — Build Guide
 
 ## Prerequisites
 
