@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 import CoreLocation
 import NostrSDK
 import Combine

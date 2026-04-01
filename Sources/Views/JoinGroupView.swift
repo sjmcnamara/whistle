@@ -1,5 +1,5 @@
 import SwiftUI
-import FindMyFamCore
+import WhistleCore
 
 /// Sheet for joining a group via invite code.
 /// Accepts a code via: paste, QR scan, nearby share, or deep link pre-fill.
@@ -49,19 +49,8 @@ struct JoinGroupView: View {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
-                            Text("Key package published. Now share your key with the group admin so they can approve you.")
+                            Text("Key package published. Ask the group admin to scan your public key QR or enter your npub to add you.")
                                 .font(.caption)
-                        }
-                    }
-
-                    if !joinedViaNearby, let approvalURL = approvalURL() {
-                        Section {
-                            ShareLink(item: approvalURL) {
-                                Label("Share my key with the admin", systemImage: "person.badge.key.fill")
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        } footer: {
-                            Text("Send this to the group admin via AirDrop, Messages, etc. They tap it once to approve you — no copy-paste needed.")
                         }
                     }
                 }

@@ -1,5 +1,5 @@
 import SwiftUI
-import FindMyFamCore
+import WhistleCore
 
 /// Sheet showing sharing options for a group invite.
 struct InviteShareView: View {
@@ -21,8 +21,8 @@ struct InviteShareView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
-                // QR encodes the deep-link URL so scanning opens the app directly
-                QRCodeView(content: inviteURL?.absoluteString ?? inviteCode)
+                // QR encodes the raw base64 invite code for cross-platform compatibility
+                QRCodeView(content: inviteCode)
                     .frame(width: 200, height: 200)
                     .padding()
 

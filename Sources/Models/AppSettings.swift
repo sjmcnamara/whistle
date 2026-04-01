@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-import FindMyFamCore
+import WhistleCore
 
 /// App-wide settings backed by UserDefaults.
 final class AppSettings: ObservableObject {

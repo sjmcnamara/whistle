@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 import MDKBindings
 
 /// Actor-isolated wrapper around the Marmot Development Kit (MDK).

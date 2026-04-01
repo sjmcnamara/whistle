@@ -1,5 +1,5 @@
 import SwiftUI
-import FindMyFamCore
+import WhistleCore
 
 /// Shows the user's npub as a QR code + copyable text.
 struct IdentityCardView: View {

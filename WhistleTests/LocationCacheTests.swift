@@ -1,5 +1,5 @@
 import XCTest
-import FindMyFamCore
+import WhistleCore
 @testable import FindMyFam
 
 @MainActor

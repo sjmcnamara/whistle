@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 
 /// In-memory cache of the latest location for each group member.
 ///

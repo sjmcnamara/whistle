@@ -1,6 +1,6 @@
 import XCTest
 import CoreLocation
-@testable import FindMyFamCore
+@testable import WhistleCore
 
 final class MemberLocationTests: XCTestCase {
 

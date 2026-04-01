@@ -1,5 +1,5 @@
 import XCTest
-import FindMyFamCore
+import WhistleCore
 @testable import FindMyFam
 
 final class LocationPayloadTests: XCTestCase {

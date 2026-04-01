@@ -1,6 +1,6 @@
 import XCTest
 import NostrSDK
-import FindMyFamCore
+import WhistleCore
 @testable import FindMyFam
 
 /// Tests for MarmotService — the orchestration layer connecting MLS ↔ Relay.

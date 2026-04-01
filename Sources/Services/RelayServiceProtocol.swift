@@ -1,5 +1,5 @@
 import Foundation
-import FindMyFamCore
+import WhistleCore
 import NostrSDK
 
 /// Abstraction over Nostr relay I/O.

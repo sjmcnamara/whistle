@@ -1,5 +1,5 @@
 import XCTest
-@testable import FindMyFamCore
+@testable import WhistleCore
 
 final class AppDefaultsTests: XCTestCase {
 
