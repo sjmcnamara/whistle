@@ -6,6 +6,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.6] — 2026-04-01
+
+### Fixed
+- **QR invite code** — iOS invite share sheet now encodes the raw base64 invite code in the QR, matching Android; previously encoded the full `whistle://invite/` deep link URL
+- **Remove "Share my key with admin"** — dropped the post-join `ShareLink` from `JoinGroupView`; the admin can scan the invitee's npub QR directly via the Scan QR action in Group Details
+- **Map group filter stale after leave/evict** — group filter now auto-clears on both platforms when the selected group is left or evicted (iOS `onChange`, Android `LaunchedEffect` + `clearFilterIfInvalid`)
+- **Unread indicator reappears after pull-to-refresh** — MDK's `lastMessageAt` advances for every MLS event including location updates and nickname changes, not just chat messages; introduced a dedicated `lastChatTimestamps` store (iOS UserDefaults / Android SharedPreferences) updated only when a chat message arrives, so pull-to-refresh no longer re-triggers the unread dot for non-chat activity
+- **Version string in Settings** — iOS and Android Settings screens now read the version dynamically from the build config (`CFBundleShortVersionString` / `PackageManager.versionName`) instead of a hardcoded string
+
+### Changed
+- **Xcode project rename** — project, app target, scheme, `PRODUCT_NAME`, and entitlements file renamed from `FindMyFam` → `Whistle` in `project.yml`
+- **`FindMyFamCore` → `WhistleCore`** — Swift package directory, `Package.swift`, source/test dirs, and all imports renamed
+- **`FindMyFamTests` → `WhistleTests`** — test source directory and `project.yml` path updated
+- **Version bump** — iOS 0.8.6 (build 9), Android 0.8.6 (versionCode 6)
+
+### Notes
+- Bundle identifiers (`org.findmyfam`) and Android package name unchanged
+- Run `xcodegen generate` after pulling to regenerate the `.xcodeproj` with the new target/scheme names
+
+---
+
 ## [0.8.5] — 2026-03-31
 
 ### Changed
