@@ -211,13 +211,33 @@ _Cosmetic rename from Famstr to Whistle — released 2026-03-31_
 - **Launcher icons**: new Whistle icon pack applied on both platforms
 - **No package rename**: internal bundle/application identifiers remain `org.findmyfam`
 
+### v0.8.6 — Bug Fixes & Rename Cleanup ✅
+_QR fix, unread fix, project rename — released 2026-04-01_
+
+- **QR invite code**: iOS invite share now encodes raw base64 in the QR, matching Android (was encoding full deep link URL)
+- **Remove "Share my key with admin"**: dropped post-join ShareLink; admin scans invitee's npub QR directly
+- **Map group filter stale after leave/evict**: auto-clears on both platforms when selected group is no longer active
+- **Unread indicator fix**: dedicated `lastChatTimestamps` store tracks chat-only messages; pull-to-refresh no longer re-triggers unread dot for location/nickname MLS events
+- **Dynamic version string**: iOS and Android Settings read version from build config instead of hardcoded string
+- **Project rename**: `FindMyFam` → `Whistle` (project, targets, schemes); `FindMyFamCore` → `WhistleCore`; `FindMyFamTests` → `WhistleTests`
+
 ---
 
-### v0.9 — MLS Database Encryption & Secure Enclave
-_Major storage-hardening release for at-rest group key material_
+### v0.9 — MLS Database Encryption ✅
+_Storage-hardening release — wired for at-rest encryption, blocked on MDK UniFFI binding — released 2026-04-01_
 
-- **MLS database encryption**: replace `newMdkUnencrypted()` workaround — restore SQLCipher or equivalent when MDK supports it (group keys and messages currently in plaintext SQLite)
-- **Secure Enclave-wrapped nsec**: encrypt the Nostr secret key with a Secure Enclave-derived key for hardware-bound protection at rest
+- **MLS database encryption**: both platforms now call `newMdk(serviceId:dbKeyId:)` which delegates key management to MDK's `keyring-core` (iOS Keychain / Android Keystore); SQLCipher PRAGMA sequence handled internally by MDK
+- **Graceful fallback**: `keyring-core` requires `set_default_store()` which is not yet exposed via UniFFI; falls back to `newMdkUnencrypted` with warning log until [marmot-protocol/mdk#243](https://github.com/marmot-protocol/mdk/issues/243) is resolved
+- **Stale DB resilience**: pre-0.9 plaintext DB detected and deleted on first launch (force-reinstall policy, no migration)
+- **iOS file sharing removed**: `UIFileSharingEnabled` / `LSSupportsOpeningDocumentsInPlace` removed from Info.plist
+- **MDK binary updated**: pinned revision advanced to `c58a77f`
+
+### v0.9.1 — Settings Reorganisation ✅
+_Cleaner Settings UX — released 2026-04-01_
+
+- **Settings / Advanced split**: main Settings keeps Identity (Nostr key + display name), Location, and About; Import/Export Key, Security, Relays, and Connection moved to new Advanced Settings screen
+- **Android identity card**: inline QR replaced with tappable row navigating to full-screen IdentityCardScreen (matching iOS pattern)
+- **Android About parity**: added missing Protocol and GitHub source link to match iOS
 
 ---
 
@@ -228,6 +248,8 @@ _Richer group experience and relay management_
 - **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input
 - **Relay redundancy**: publish to multiple relays, subscribe to all, deduplicate by event ID
 - **Privacy audit**: verify no metadata leakage — all group traffic via kind 445, member list not on relays
+- **Secure Enclave-wrapped nsec**: encrypt the Nostr secret key with a Secure Enclave-derived key for hardware-bound protection at rest (secp256k1 incompatible with SE P-256; requires SE-wrapped key encryption approach)
+- **Full SQLCipher activation**: remove `newMdkUnencrypted` fallback once MDK ships `set_default_store()` via UniFFI ([marmot-protocol/mdk#243](https://github.com/marmot-protocol/mdk/issues/243))
 
 ---
 
@@ -251,7 +273,9 @@ master
   └── feature/v0.8.2-identity-import-export  ✅ merged
   └── feature/v0.8.3-key-lifecycle-hardening ✅ merged
   └── feature/android-v0.8.3            ✅ merged
-  └── feature/v0.9-mls-db-encryption
+  └── release/0.8.6                     ✅ merged
+  └── feature/v0.9-mls-db-encryption   ✅ merged
+  └── feature/v0.9.1-settings-split    ✅ merged
   └── feature/v1.0-social-connectivity
 ```
 
