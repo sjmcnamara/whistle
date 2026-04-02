@@ -178,6 +178,25 @@ final class MarmotService: ObservableObject {
         }
     }
 
+    /// Verify that an event is retrievable from the relay after publishing.
+    /// Retries with short backoff to allow relay indexing.
+    /// Required by MIP-02: Commit must be queryable before Welcome is sent.
+    private func verifyEventOnRelay(eventId: String, maxAttempts: Int = 3) async throws {
+        let parsedId = try EventId.parse(id: eventId)
+        let filter = Filter().ids(ids: [parsedId])
+
+        for attempt in 1...maxAttempts {
+            let events = try await relay.fetchEvents(filter: filter, timeout: 5)
+            if !events.isEmpty { return }
+            if attempt < maxAttempts {
+                let delay = 0.5 * pow(2.0, Double(attempt - 1))
+                FMFLogger.marmot.info("Commit \(eventId.prefix(8))… not yet on relay (attempt \(attempt)/\(maxAttempts)) — retrying in \(delay)s")
+                try await Task.sleep(for: .seconds(delay))
+            }
+        }
+        throw MarmotError.commitVerificationFailed
+    }
+
     /// Encrypt and send a message to a group.
     /// - Parameters:
     ///   - content: Message content string.
@@ -261,6 +280,13 @@ final class MarmotService: ObservableObject {
                 FMFLogger.marmot.warning("Failed to publish group events (attempt \(publishAttempts)) — retrying in \(delay) s: \(error)")
                 try await Task.sleep(for: .seconds(delay))
             }
+        }
+
+        // 3b. Verify the commit is retrievable from the relay before
+        //     sending the Welcome — prevents state forks (MIP-02).
+        for eventJson in payload.events {
+            let event = try Event.fromJson(json: eventJson)
+            try await verifyEventOnRelay(eventId: event.id().toHex())
         }
 
         // 4. Gift-wrap and publish welcome rumors (kind 444 inside kind 1059)
@@ -460,6 +486,21 @@ final class MarmotService: ObservableObject {
             }
         }
         await refreshGroups()
+
+        // Post-join self-update: immediately rotate key material so we
+        // are not relying on the Welcome's initial key package (MIP-02).
+        do {
+            let updateResult = try await mls.selfUpdate(groupId: welcome.mlsGroupId)
+            try await mls.mergePendingCommit(groupId: welcome.mlsGroupId)
+            let updatePayload = updateResult.publishPayload(relayURLs: relay.connectedRelayURLs)
+            for eventJson in updatePayload.events {
+                try await publishGroupEvent(eventJson: eventJson)
+            }
+            FMFLogger.marmot.info("Post-join self-update completed for group \(welcome.mlsGroupId)")
+        } catch {
+            // Non-fatal: the join succeeded. rotateStaleGroups() will retry later.
+            FMFLogger.marmot.warning("Post-join self-update failed: \(error)")
+        }
 
         // Clear matching pending invite now that we've joined
         pendingInviteStore?.remove(groupHint: welcome.mlsGroupId)
@@ -855,6 +896,7 @@ final class MarmotService: ObservableObject {
     enum MarmotError: LocalizedError {
         case noKeyPackageFound(String)
         case timeout
+        case commitVerificationFailed
 
         var errorDescription: String? {
             switch self {
@@ -862,6 +904,8 @@ final class MarmotService: ObservableObject {
                 return "No key package found for \(hex)"
             case .timeout:
                 return "Operation timed out"
+            case .commitVerificationFailed:
+                return "Could not verify commit on relay — Welcome not sent to avoid state fork"
             }
         }
     }

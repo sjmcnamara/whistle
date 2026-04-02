@@ -149,6 +149,27 @@ class MarmotService @Inject constructor(
     }
 
     /**
+     * Verify that an event is retrievable from the relay after publishing.
+     * Retries with short backoff to allow relay indexing.
+     * Required by MIP-02: Commit must be queryable before Welcome is sent.
+     */
+    private suspend fun verifyEventOnRelay(eventId: String, maxAttempts: Int = 3) {
+        val parsedId = rust.nostr.sdk.EventId.parse(eventId)
+        val filter = Filter().ids(ids = listOf(parsedId))
+
+        for (attempt in 1..maxAttempts) {
+            val events = relay.fetchEvents(filter = filter, timeout = java.time.Duration.ofSeconds(5))
+            if (events.isNotEmpty()) return
+            if (attempt < maxAttempts) {
+                val backoff = (0.5 * 2.0.pow((attempt - 1).toDouble()) * 1000).toLong()
+                Timber.i("Commit ${eventId.take(8)}… not yet on relay (attempt $attempt/$maxAttempts) — retrying")
+                delay(backoff)
+            }
+        }
+        throw MarmotException("Could not verify commit on relay — Welcome not sent to avoid state fork")
+    }
+
+    /**
      * Encrypt and send a message to a group.
      */
     suspend fun sendMessage(content: String, groupId: String, kind: UShort = MarmotKind.CHAT) {
@@ -215,6 +236,11 @@ class MarmotService @Inject constructor(
         // 3. Publish the evolution event (kind 445)
         val evolutionEventJson = result.evolutionEventJson
         publishGroupEvent(evolutionEventJson)
+
+        // 3b. Verify the commit is retrievable from the relay before
+        //     sending the Welcome — prevents state forks (MIP-02).
+        val commitEvent = Event.fromJson(json = evolutionEventJson)
+        verifyEventOnRelay(commitEvent.id().toHex())
 
         // 4. Gift-wrap and publish welcome rumors (kind 444 inside kind 1059)
         val welcomeRumors = result.welcomeRumorsJson ?: emptyList()
@@ -376,6 +402,18 @@ class MarmotService @Inject constructor(
             Timber.i("Welcome already accepted for group ${welcome.mlsGroupId}")
         }
         refreshGroups()
+
+        // Post-join self-update: immediately rotate key material so we
+        // are not relying on the Welcome's initial key package (MIP-02).
+        try {
+            val updateResult = mls.selfUpdate(mlsGroupId = welcome.mlsGroupId)
+            mls.mergePendingCommit(mlsGroupId = welcome.mlsGroupId)
+            publishGroupEvent(updateResult.evolutionEventJson)
+            Timber.i("Post-join self-update completed for group ${welcome.mlsGroupId}")
+        } catch (e: Exception) {
+            // Non-fatal: the join succeeded. rotateStaleGroups() will retry later.
+            Timber.w("Post-join self-update failed: ${e.message}")
+        }
 
         // Clear matching pending invite now that we've joined
         pendingInviteStore.remove(groupHint = welcome.mlsGroupId)
