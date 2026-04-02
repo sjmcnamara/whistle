@@ -605,19 +605,30 @@ final class AppViewModel: ObservableObject {
         settings.pendingLeaveRequests = [:]
         settings.pendingGiftWrapEventIds = []
 
-        // 7. Wipe MLS database and rotate the encryption key — groups are
-        //    cryptographically bound to the old identity's key material.
+        // 7. Clear residual UserDefaults data — chat/read timestamps used by
+        //    GroupListViewModel, and any Keychain fallback data.
+        UserDefaults.standard.removeObject(forKey: "groupLastReadTimestamps")
+        UserDefaults.standard.removeObject(forKey: "groupLastChatTimestamps")
+        UserDefaults.standard.removeObject(forKey: "fmf.keychain.fallback.org.findmyfam.nsec")
+        UserDefaults.standard.removeObject(forKey: "fmf.pendingWelcomes")
+
+        // 8. Wipe MLS database — overwrites files with zeros before deletion
+        //    to prevent recovery of MLS key material from disk.
         await mls.resetDatabase()
 
-        // 8. Import the new key
+        // 9. Destroy old key from Keychain before importing new one.
+        //    This ensures the old nsec is explicitly deleted, not just overwritten.
+        identity.destroyCurrentKey()
+
+        // 10. Import the new key
         try identity.importKey(nsec: nsec)
 
-        // 9. Seed display name for new identity
+        // 11. Seed display name for new identity
         if let pubkey = myPubkeyHex, !settings.displayName.isEmpty {
             nicknameStore.set(name: settings.displayName, for: pubkey)
         }
 
-        // 10. Re-wire Combine pipelines and restart.
+        // 12. Re-wire Combine pipelines and restart.
         forwardChildChanges()
         observeSettings()
         didStart = false

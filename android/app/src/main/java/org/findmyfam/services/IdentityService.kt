@@ -70,6 +70,17 @@ class IdentityService @Inject constructor(
     }
 
     /**
+     * Explicitly destroy the current key from encrypted storage.
+     * Called during burn identity to ensure old key material is deleted
+     * before the new key is written. Nil's in-memory reference too.
+     */
+    fun destroyCurrentKey() {
+        prefs.edit().remove(KEY_NSEC).commit()
+        _keys.value = null
+        Timber.i("Current key destroyed from secure storage")
+    }
+
+    /**
      * Import a key from nsec bech32 string, replacing the current identity.
      */
     fun importKey(nsec: String) {

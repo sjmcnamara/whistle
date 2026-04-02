@@ -91,15 +91,40 @@ actor MLSService {
         FMFLogger.mls.info("MLS database reset for identity replacement")
     }
 
-    /// Delete the database file and any related WAL/SHM files.
+    /// Securely delete the database file and any related WAL/SHM files.
+    ///
+    /// Overwrites each file with zeros before deletion to prevent recovery
+    /// of MLS key material from disk. This is best-effort — APFS copy-on-write
+    /// means the original blocks may persist, but overwriting raises the bar
+    /// significantly vs. a simple `removeItem`.
     private static func deleteDatabase(at path: String) {
         let fm = FileManager.default
         for suffix in ["", "-wal", "-shm"] {
             let file = path + suffix
-            if fm.fileExists(atPath: file) {
-                try? fm.removeItem(atPath: file)
-            }
+            guard fm.fileExists(atPath: file) else { continue }
+            // Overwrite with zeros before unlinking
+            secureOverwrite(atPath: file)
+            try? fm.removeItem(atPath: file)
         }
+    }
+
+    /// Overwrite a file's contents with zeros. Best-effort — errors are logged but non-fatal.
+    private static func secureOverwrite(atPath path: String) {
+        guard let handle = FileHandle(forWritingAtPath: path) else { return }
+        defer { handle.closeFile() }
+        let size = handle.seekToEndOfFile()
+        guard size > 0 else { return }
+        handle.seek(toFileOffset: 0)
+        // Write in 64KB chunks to avoid allocating huge buffers
+        let chunkSize = 64 * 1024
+        let zeroChunk = Data(count: chunkSize)
+        var remaining = Int(size)
+        while remaining > 0 {
+            let toWrite = min(remaining, chunkSize)
+            handle.write(toWrite == chunkSize ? zeroChunk : Data(count: toWrite))
+            remaining -= toWrite
+        }
+        handle.synchronizeFile()
     }
 
     /// In-memory init for unit tests only (unencrypted — no Keychain in test host).

@@ -244,6 +244,14 @@ class AppSettings @Inject constructor(
         prefs.edit().putString(KEY_GROUP_LAST_CHAT, obj.toString()).apply()
     }
 
+    /** Clear all per-group chat and read timestamps. Called during identity burn. */
+    fun clearChatTimestamps() {
+        prefs.edit()
+            .remove(KEY_GROUP_LAST_READ)
+            .remove(KEY_GROUP_LAST_CHAT)
+            .apply()
+    }
+
     // --- Appearance ---
 
     private val _appearanceFlow = MutableStateFlow(

@@ -35,6 +35,18 @@ final class IdentityService: ObservableObject {
         storage.load(key: .nsec)
     }
 
+    /// Explicitly destroy the current key from secure storage.
+    ///
+    /// Called during burn identity to ensure old key material is deleted from
+    /// the Keychain (and UserDefaults fallback) before the new key is written.
+    /// The in-memory `keys` reference is also nil'd so no stale reference remains.
+    func destroyCurrentKey() {
+        storage.delete(key: .nsec)
+        self.keys = nil
+        self.identity = nil
+        FMFLogger.identity.info("Current key destroyed from secure storage")
+    }
+
     /// Replace the current identity with an imported nsec.
     ///
     /// Validates the key, stores it, and updates the in-memory `keys` and `identity`.

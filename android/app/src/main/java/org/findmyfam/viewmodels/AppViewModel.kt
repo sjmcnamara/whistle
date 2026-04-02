@@ -267,13 +267,18 @@ class AppViewModel @Inject constructor(
         pendingWelcomeStore.removeAll()
         locationCache.clear()
 
-        // Clear settings
+        // Clear settings — including pendingLeaveRequests and chat timestamps
         settings.lastEventTimestamp = 0u
         settings.processedEventIds.clear()
         settings.pendingGiftWrapEventIds.clear()
+        settings.pendingLeaveRequests = mutableMapOf()
+        settings.clearChatTimestamps()
 
-        // Reset MLS database
+        // Reset MLS database — overwrites files with zeros before deletion
         mls.resetDatabase()
+
+        // Destroy old key from encrypted storage before importing new one
+        identity.destroyCurrentKey()
 
         // Import the new key
         identity.importKey(nsec)

@@ -5,7 +5,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -14,6 +17,12 @@ fun CreateGroupSheet(
     onCreate: (String) -> Unit
 ) {
     var groupName by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(300) // wait for sheet animation
+        focusRequester.requestFocus()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss
@@ -37,7 +46,9 @@ fun CreateGroupSheet(
                 label = { Text("Group Name") },
                 placeholder = { Text("e.g. Family") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
             )
 
             Spacer(modifier = Modifier.height(24.dp))

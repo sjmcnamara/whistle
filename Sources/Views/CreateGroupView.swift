@@ -7,12 +7,14 @@ struct CreateGroupView: View {
     @State private var groupName = ""
     @State private var isCreating = false
     @State private var error: String?
+    @FocusState private var isNameFocused: Bool
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     TextField("Group Name", text: $groupName)
+                        .focused($isNameFocused)
                         .textInputAutocapitalization(.words)
                 } footer: {
                     Text("Choose a name for your family group.")
@@ -39,6 +41,7 @@ struct CreateGroupView: View {
                     .disabled(groupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreating)
                 }
             }
+            .onAppear { isNameFocused = true }
         }
     }
 

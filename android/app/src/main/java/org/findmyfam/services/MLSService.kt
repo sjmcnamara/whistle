@@ -87,10 +87,39 @@ class MLSService @Inject constructor(
         Timber.i("MDK database reset for identity replacement")
     }
 
+    /**
+     * Securely delete database files — overwrites each file with zeros before
+     * deletion to prevent recovery of MLS key material from disk.
+     */
     private fun deleteDbFiles(dbDir: java.io.File) {
         for (suffix in listOf("", "-wal", "-shm")) {
             val f = dbDir.resolve("marmot.db$suffix")
-            if (f.exists()) f.delete()
+            if (f.exists()) {
+                secureOverwrite(f)
+                f.delete()
+            }
+        }
+    }
+
+    /** Overwrite a file's contents with zeros. Best-effort — errors are logged but non-fatal. */
+    private fun secureOverwrite(file: java.io.File) {
+        try {
+            java.io.RandomAccessFile(file, "rw").use { raf ->
+                val size = raf.length()
+                if (size <= 0) return
+                raf.seek(0)
+                val chunkSize = 64 * 1024
+                val zeros = ByteArray(chunkSize)
+                var remaining = size
+                while (remaining > 0) {
+                    val toWrite = minOf(remaining, chunkSize.toLong()).toInt()
+                    raf.write(zeros, 0, toWrite)
+                    remaining -= toWrite
+                }
+                raf.fd.sync()
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "secureOverwrite failed for ${file.name}")
         }
     }
 
