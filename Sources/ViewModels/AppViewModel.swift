@@ -42,6 +42,9 @@ final class AppViewModel: ObservableObject {
     /// Tracks groups where the user requested to leave but admin hasn't processed removal yet.
     let pendingLeaveStore: PendingLeaveStore
 
+    /// Unsolicited Welcomes awaiting user consent before joining.
+    let pendingWelcomeStore: PendingWelcomeStore
+
     // MARK: - Pending Approval (v0.7)
 
     /// A member approval request received via `whistle://addmember/` deep link.
@@ -104,6 +107,7 @@ final class AppViewModel: ObservableObject {
         self.nicknameStore       = NicknameStore()
         self.pendingInviteStore  = PendingInviteStore()
         self.pendingLeaveStore   = PendingLeaveStore()
+        self.pendingWelcomeStore = PendingWelcomeStore()
 
         let cache = self.locationCache
         let settingsRef = self.settings
@@ -350,6 +354,7 @@ final class AppViewModel: ObservableObject {
         marmotService.nicknameStore = nicknameStore
         marmotService.pendingInviteStore = pendingInviteStore
         marmotService.pendingLeaveStore = pendingLeaveStore
+        marmotService.pendingWelcomeStore = pendingWelcomeStore
         marmotService.settings = settings
 
         // Load persisted groups from MDK database BEFORE publishing
@@ -590,6 +595,7 @@ final class AppViewModel: ObservableObject {
         nicknameStore.clearAll()
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
+        pendingWelcomeStore.removeAll()
         locationCache.clear()
 
         // 6. Reset identity-bound settings

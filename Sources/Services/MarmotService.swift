@@ -41,6 +41,9 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — tracks groups with pending leave requests.
     var pendingLeaveStore: PendingLeaveStore?
 
+    /// Injected by AppViewModel — queues unsolicited Welcomes for user approval.
+    var pendingWelcomeStore: PendingWelcomeStore?
+
     /// Called when an MLS-encrypted leave request (kind 2) arrives from a group member.
     /// Parameters: (groupId, memberPubkeyHex).
     var onLeaveRequestReceived: ((String, String) -> Void)?
@@ -448,12 +451,36 @@ final class MarmotService: ObservableObject {
             rumorEventJson: rumorJson
         )
 
-        // Auto-accept the welcome
+        // Check if user consented via an invite code
+        let hasPendingInvite = pendingInviteStore?.pendingInvites.contains(where: {
+            $0.groupHint == welcome.mlsGroupId
+        }) ?? false
+
+        if hasPendingInvite {
+            // User explicitly accepted an invite — auto-join
+            try await acceptWelcomeAndJoin(welcome)
+        } else {
+            // Unsolicited — queue for user approval
+            let senderHex = event.author().toHex()
+            let pending = PendingWelcome(
+                mlsGroupId: welcome.mlsGroupId,
+                senderPubkeyHex: senderHex,
+                wrapperEventId: wrapperEventId
+            )
+            await MainActor.run {
+                pendingWelcomeStore?.add(pending)
+            }
+            FMFLogger.marmot.info("Queued unsolicited welcome for group \(welcome.mlsGroupId) from \(senderHex.prefix(8)) — awaiting user approval")
+        }
+    }
+
+    /// Accept a processed Welcome and complete the join flow.
+    func acceptWelcomeAndJoin(_ welcome: Welcome) async throws {
         do {
             try await mls.acceptWelcome(welcome)
         } catch {
             // If already accepted, check if group exists
-            if let group = try? await mls.getGroup(mlsGroupId: welcome.mlsGroupId) {
+            if (try? await mls.getGroup(mlsGroupId: welcome.mlsGroupId)) != nil {
                 FMFLogger.marmot.info("Welcome already accepted for group \(welcome.mlsGroupId)")
             } else {
                 throw error
@@ -471,6 +498,31 @@ final class MarmotService: ObservableObject {
         lastJoinedGroupId = welcome.mlsGroupId
 
         FMFLogger.marmot.info("Accepted welcome for group \(welcome.mlsGroupId)")
+    }
+
+    /// Accept a pending welcome that the user approved from the UI.
+    func approvePendingWelcome(mlsGroupId: String) async throws {
+        let welcomes = try await mls.getPendingWelcomes()
+        guard let welcome = welcomes.first(where: { $0.mlsGroupId == mlsGroupId }) else {
+            FMFLogger.marmot.warning("No pending MLS welcome found for group \(mlsGroupId)")
+            return
+        }
+        try await acceptWelcomeAndJoin(welcome)
+        await MainActor.run {
+            pendingWelcomeStore?.remove(mlsGroupId: mlsGroupId)
+        }
+    }
+
+    /// Decline a pending welcome — discard it without joining.
+    func declinePendingWelcome(mlsGroupId: String) async throws {
+        let welcomes = try await mls.getPendingWelcomes()
+        if let welcome = welcomes.first(where: { $0.mlsGroupId == mlsGroupId }) {
+            try await mls.declineWelcome(welcome)
+        }
+        await MainActor.run {
+            pendingWelcomeStore?.remove(mlsGroupId: mlsGroupId)
+        }
+        FMFLogger.marmot.info("Declined welcome for group \(mlsGroupId)")
     }
 
     /// Process an incoming kind-445 group event through MLS.

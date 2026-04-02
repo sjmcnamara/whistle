@@ -31,6 +31,7 @@ class AppViewModel @Inject constructor(
     val nicknameStore: NicknameStore,
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
+    val pendingWelcomeStore: PendingWelcomeStore,
     val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
@@ -263,6 +264,7 @@ class AppViewModel @Inject constructor(
         nicknameStore.clearAll()
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
+        pendingWelcomeStore.removeAll()
         locationCache.clear()
 
         // Clear settings

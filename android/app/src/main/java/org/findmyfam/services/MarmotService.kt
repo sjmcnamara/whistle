@@ -54,6 +54,7 @@ class MarmotService @Inject constructor(
     private val nicknameStore: NicknameStore,
     private val pendingInviteStore: PendingInviteStore,
     private val pendingLeaveStore: PendingLeaveStore,
+    private val pendingWelcomeStore: PendingWelcomeStore,
     private val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker
 ) {
@@ -348,6 +349,7 @@ class MarmotService @Inject constructor(
 
     /**
      * Unwrap a NIP-59 gift-wrap and process the inner welcome (kind 444).
+     * If a matching pending invite exists, auto-accept. Otherwise queue for user approval.
      */
     private suspend fun handleGiftWrap(event: Event) {
         val gift = relay.unwrapGiftWrap(event = event)
@@ -367,7 +369,32 @@ class MarmotService @Inject constructor(
             rumorEventJson = rumorJson
         )
 
-        // Auto-accept the welcome
+        // Check if user consented via an invite code
+        val hasPendingInvite = pendingInviteStore.pendingInvites.value.any {
+            it.groupHint == welcome.mlsGroupId
+        }
+
+        if (hasPendingInvite) {
+            // User explicitly accepted an invite -- auto-join
+            acceptWelcomeAndJoin(welcome)
+        } else {
+            // Unsolicited -- queue for user approval
+            val senderHex = event.author().toHex()
+            val pending = PendingWelcomeItem(
+                mlsGroupId = welcome.mlsGroupId,
+                senderPubkeyHex = senderHex,
+                wrapperEventId = wrapperEventId,
+                receivedAt = System.currentTimeMillis() / 1000
+            )
+            pendingWelcomeStore.add(pending)
+            Timber.i("Queued unsolicited welcome for group ${welcome.mlsGroupId} from ${senderHex.take(8)} -- awaiting user approval")
+        }
+    }
+
+    /**
+     * Accept a processed Welcome and complete the join flow.
+     */
+    private suspend fun acceptWelcomeAndJoin(welcome: build.marmot.mdk.Welcome) {
         try {
             mls.acceptWelcome(welcome)
         } catch (e: Exception) {
@@ -389,6 +416,33 @@ class MarmotService @Inject constructor(
         }
 
         Timber.i("Accepted welcome for group ${welcome.mlsGroupId}")
+    }
+
+    /**
+     * Accept a pending welcome that the user approved from the UI.
+     */
+    suspend fun approvePendingWelcome(mlsGroupId: String) {
+        val welcomes = mls.getPendingWelcomes()
+        val welcome = welcomes.firstOrNull { it.mlsGroupId == mlsGroupId }
+        if (welcome == null) {
+            Timber.w("No pending MLS welcome found for group $mlsGroupId")
+            return
+        }
+        acceptWelcomeAndJoin(welcome)
+        pendingWelcomeStore.remove(mlsGroupId)
+    }
+
+    /**
+     * Decline a pending welcome -- discard it without joining.
+     */
+    suspend fun declinePendingWelcome(mlsGroupId: String) {
+        val welcomes = mls.getPendingWelcomes()
+        val welcome = welcomes.firstOrNull { it.mlsGroupId == mlsGroupId }
+        if (welcome != null) {
+            mls.declineWelcome(welcome)
+        }
+        pendingWelcomeStore.remove(mlsGroupId)
+        Timber.i("Declined welcome for group $mlsGroupId")
     }
 
     /**
