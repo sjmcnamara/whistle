@@ -5,8 +5,12 @@ import Security
 
 /// Keys used to address items in the Keychain.
 enum KeychainKey: String {
-    /// The user's nsec (Nostr secret key), bech32-encoded.
+    /// The user's nsec (Nostr secret key) — SE-encrypted or bech32.
     case nsec = "org.findmyfam.nsec"
+    /// Secure Enclave P-256 private key (opaque dataRepresentation).
+    case sePrivateKey = "org.findmyfam.se.privatekey"
+    /// Ephemeral P-256 public key used in ECDH for nsec encryption.
+    case seEphemeralPublicKey = "org.findmyfam.se.ephemeral-pubkey"
 }
 
 // MARK: - Protocol
@@ -17,6 +21,8 @@ protocol SecureStorage {
     @discardableResult func save(key: KeychainKey, value: String) -> Bool
     func load(key: KeychainKey) -> String?
     @discardableResult func delete(key: KeychainKey) -> Bool
+    @discardableResult func saveData(key: KeychainKey, value: Data, thisDeviceOnly: Bool) -> Bool
+    func loadData(key: KeychainKey) -> Data?
 }
 
 // MARK: - Keychain implementation
@@ -105,6 +111,49 @@ final class KeychainService: SecureStorage {
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
+    // MARK: - Data-based storage (for SE keys)
+
+    @discardableResult
+    func saveData(key: KeychainKey, value: Data, thisDeviceOnly: Bool = false) -> Bool {
+        let accessibility = thisDeviceOnly
+            ? kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            : kSecAttrAccessibleWhenUnlocked
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: key.rawValue,
+            kSecValueData as String: value,
+            kSecAttrAccessible as String: accessibility
+        ]
+
+        SecItemDelete(query as CFDictionary)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status != errSecSuccess {
+            FMFLogger.identity.error("Keychain saveData failed [\(key.rawValue)]: OSStatus \(status)")
+            return false
+        }
+        return true
+    }
+
+    func loadData(key: KeychainKey) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: key.rawValue,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecSuccess, let data = result as? Data {
+            return data
+        }
+        return nil
+    }
+
     // MARK: - Legacy migration
 
     /// Remove any nsec that was previously stored in UserDefaults by the old fallback path.
@@ -118,6 +167,7 @@ final class KeychainService: SecureStorage {
 /// Thread-unsafe in-memory storage for use in unit tests.
 final class InMemorySecureStorage: SecureStorage {
     private var store: [String: String] = [:]
+    private var dataStore: [String: Data] = [:]
 
     @discardableResult
     func save(key: KeychainKey, value: String) -> Bool {
@@ -132,6 +182,17 @@ final class InMemorySecureStorage: SecureStorage {
     @discardableResult
     func delete(key: KeychainKey) -> Bool {
         store.removeValue(forKey: key.rawValue)
+        dataStore.removeValue(forKey: key.rawValue)
         return true
+    }
+
+    @discardableResult
+    func saveData(key: KeychainKey, value: Data, thisDeviceOnly: Bool = false) -> Bool {
+        dataStore[key.rawValue] = value
+        return true
+    }
+
+    func loadData(key: KeychainKey) -> Data? {
+        dataStore[key.rawValue]
     }
 }

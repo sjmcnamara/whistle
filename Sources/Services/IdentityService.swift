@@ -23,7 +23,7 @@ final class IdentityService: ObservableObject {
     // MARK: - Init
 
     /// - Parameter storage: Injected key storage (defaults to Keychain for production).
-    init(storage: SecureStorage = KeychainService.shared) {
+    init(storage: SecureStorage = EncryptedSecureStorage.shared) {
         self.storage = storage
         loadOrCreate()
     }

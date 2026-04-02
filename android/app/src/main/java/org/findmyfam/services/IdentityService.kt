@@ -23,6 +23,7 @@ class IdentityService @Inject constructor(
 ) {
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .setRequestStrongBoxBacked(true)
         .build()
 
     private val prefs = EncryptedSharedPreferences.create(
@@ -43,6 +44,8 @@ class IdentityService @Inject constructor(
         get() = try { _keys.value?.publicKey()?.toBech32() } catch (_: Exception) { null }
 
     init {
+        val isStrongBox = masterKey.isStrongBoxBacked
+        Timber.i("Identity storage: EncryptedSharedPreferences (StrongBox=${isStrongBox})")
         loadOrCreate()
     }
 
