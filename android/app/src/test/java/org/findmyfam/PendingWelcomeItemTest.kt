@@ -1,15 +1,14 @@
 package org.findmyfam
 
 import org.findmyfam.services.PendingWelcomeItem
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
  * JVM unit tests for the PendingWelcomeItem data class.
- * Store-level tests (add/remove/persistence) require Android instrumentation
- * due to SharedPreferences dependency.
+ * Store-level and JSON tests require Android instrumentation
+ * due to SharedPreferences / org.json dependency.
  */
 class PendingWelcomeItemTest {
 
@@ -38,33 +37,26 @@ class PendingWelcomeItemTest {
     }
 
     @Test
-    fun `json round-trip`() {
-        val original = PendingWelcomeItem(
-            mlsGroupId = "group-abc",
-            senderPubkeyHex = "deadbeef",
-            wrapperEventId = "event-42",
-            receivedAt = 1700000000L
-        )
-        val json = JSONObject().apply {
-            put("mlsGroupId", original.mlsGroupId)
-            put("senderPubkeyHex", original.senderPubkeyHex)
-            put("wrapperEventId", original.wrapperEventId)
-            put("receivedAt", original.receivedAt)
-        }
-        val decoded = PendingWelcomeItem(
-            mlsGroupId = json.getString("mlsGroupId"),
-            senderPubkeyHex = json.getString("senderPubkeyHex"),
-            wrapperEventId = json.getString("wrapperEventId"),
-            receivedAt = json.getLong("receivedAt")
-        )
-        assertEquals(original, decoded)
+    fun `data class inequality on different sender`() {
+        val a = PendingWelcomeItem("g1", "aa", "e1", 1000L)
+        val b = PendingWelcomeItem("g1", "bb", "e1", 1000L)
+        assertNotEquals(a, b)
     }
 
     @Test
-    fun `copy with different sender`() {
+    fun `copy preserves unchanged fields`() {
         val original = PendingWelcomeItem("g1", "aa", "e1", 1000L)
         val modified = original.copy(senderPubkeyHex = "bb")
         assertEquals("bb", modified.senderPubkeyHex)
         assertEquals("g1", modified.mlsGroupId)
+        assertEquals("e1", modified.wrapperEventId)
+        assertEquals(1000L, modified.receivedAt)
+    }
+
+    @Test
+    fun `hashCode consistent with equals`() {
+        val a = PendingWelcomeItem("g1", "aa", "e1", 1000L)
+        val b = PendingWelcomeItem("g1", "aa", "e1", 1000L)
+        assertEquals(a.hashCode(), b.hashCode())
     }
 }
