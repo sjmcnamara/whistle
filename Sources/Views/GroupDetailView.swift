@@ -151,6 +151,7 @@ struct GroupDetailView: View {
                     } else {
                         viewModel.addMemberNpub = scanned
                     }
+                    showNpubScanner = false
                 }
             }
         }
