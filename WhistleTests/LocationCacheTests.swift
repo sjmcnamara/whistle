@@ -1,6 +1,6 @@
 import XCTest
 import WhistleCore
-@testable import FindMyFam
+@testable import Whistle
 
 @MainActor
 final class LocationCacheTests: XCTestCase {

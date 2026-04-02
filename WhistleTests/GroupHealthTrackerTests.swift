@@ -1,5 +1,5 @@
 import XCTest
-@testable import FindMyFam
+@testable import Whistle
 
 @MainActor
 final class GroupHealthTrackerTests: XCTestCase {

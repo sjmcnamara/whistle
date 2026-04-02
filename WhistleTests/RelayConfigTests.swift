@@ -1,6 +1,6 @@
 import XCTest
 import WhistleCore
-@testable import FindMyFam
+@testable import Whistle
 
 final class RelayConfigTests: XCTestCase {
 

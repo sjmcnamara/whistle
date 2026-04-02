@@ -1,6 +1,6 @@
 import XCTest
 import NostrSDK
-@testable import FindMyFam
+@testable import Whistle
 
 /// Tests for MLSService using an in-memory MDK instance (no Keychain, no disk I/O).
 final class MLSServiceTests: XCTestCase {

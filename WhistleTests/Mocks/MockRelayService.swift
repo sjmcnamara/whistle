@@ -1,7 +1,7 @@
 import Foundation
 import NostrSDK
 import WhistleCore
-@testable import FindMyFam
+@testable import Whistle
 
 /// In-memory relay service for unit tests.
 ///
