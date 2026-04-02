@@ -252,13 +252,17 @@ _MIP-02 compliance — released 2026-04-02_
 - **Post-join self-update** (MIP-02): new members immediately rotate key material after joining, limiting KeyPackage exposure window
 - **Gift-wrap retry expiry**: stale/unrecoverable gift-wrap event IDs purged after one retry pass
 
-### v0.9.4 — UX Fixes ✅
-_Quality-of-life fixes — released 2026-04-02_
+### v0.9.4 — UX & Consent Fixes ✅
+_Quality-of-life fixes + welcome consent — released 2026-04-02_
 
-- **QR scanner auto-dismiss**: camera dismisses immediately after scanning an npub
-- **Add Member layout**: split text field + QR from Add button to prevent mis-taps
-- **Map filter**: pending-leave groups hidden from picker; selection auto-clears
-- **Admin leave approval**: explicit green "Approve" action replaces generic swipe-to-delete for leave requests
+- **Welcome consent**: unsolicited group adds require user approval; only invite-matched Welcomes auto-accept
+- **Burn Identity**: Advanced Settings action to nuke identity, groups, and MLS state and start fresh
+- **Admin action badge**: orange dot on group icon when leave approval is pending
+- **Cancel stale invites**: dismiss stuck pending invites from the group list
+- **QR scanner auto-dismiss**: camera closes after scanning an npub
+- **Add Member tap targets**: `.buttonStyle(.borderless)` + 44pt min frames prevent mis-taps
+- **Map filter**: pending-leave groups hidden from picker; auto-clears on leave request
+- **Admin leave approval**: green "Approve" action replaces generic swipe-to-delete
 
 ---
 

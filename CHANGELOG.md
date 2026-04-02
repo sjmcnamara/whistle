@@ -8,9 +8,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.9.4] — 2026-04-02
 
+### Security
+- **Welcome consent**: unsolicited group additions now require user approval; only Welcomes matching a pending invite are auto-accepted. Prevents forced group membership via direct addMember-by-npub
+
+### Added
+- **Burn Identity**: new "Danger Zone" action in Advanced Settings generates a fresh Nostr keypair, tearing down all groups, messages, and cryptographic state
+- **Admin action badge**: small orange dot on the group icon when the admin has pending actions (e.g. leave request approval); clears automatically after processing
+- **Cancel stale invites**: users can now swipe-to-dismiss (iOS) or tap X (Android) on pending invites that were never accepted
+
 ### Fixed
 - **QR scanner auto-dismiss**: scanning an npub QR in Add Member now dismisses the camera immediately instead of lingering
-- **Add Member tap target**: split the npub text field + QR button from the Add button into separate rows to prevent accidental camera launches on iOS
+- **Add Member tap targets**: fixed `.buttonStyle(.borderless)` and 44pt minimum touch targets so the QR and Add buttons don't steal each other's taps
 - **Map group filter**: groups with a pending leave request are now hidden from the map filter picker; selection auto-clears when a leave is requested
 - **Admin leave approval UX**: members requesting to leave now show a green "Approve" swipe action (iOS) or "Approve" button (Android) instead of the generic destructive remove gesture
 
