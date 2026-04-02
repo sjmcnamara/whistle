@@ -80,22 +80,24 @@ struct GroupDetailView: View {
                             showNpubScanner = true
                         } label: {
                             Image(systemName: "qrcode.viewfinder")
+                                .frame(minWidth: 44, minHeight: 44)
                         }
-                    }
+                        .buttonStyle(.borderless)
 
-                    Button {
-                        Task { await viewModel.addMember() }
-                    } label: {
-                        if viewModel.isAddingMember {
-                            HStack(spacing: 8) {
+                        Button {
+                            Task { await viewModel.addMember() }
+                        } label: {
+                            if viewModel.isAddingMember {
                                 ProgressView()
-                                Text("Adding…")
+                                    .frame(minWidth: 44, minHeight: 44)
+                            } else {
+                                Image(systemName: "person.badge.plus")
+                                    .frame(minWidth: 44, minHeight: 44)
                             }
-                        } else {
-                            Label("Add Member", systemImage: "person.badge.plus")
                         }
+                        .buttonStyle(.borderless)
+                        .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
                     }
-                    .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
 
                     if viewModel.didAddMember {
                         Label("Member added successfully", systemImage: "checkmark.circle.fill")
