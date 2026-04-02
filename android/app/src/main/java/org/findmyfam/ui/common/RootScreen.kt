@@ -265,6 +265,10 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     identity = viewModel.identity,
                     onExportKey = { navController.navigate(Routes.EXPORT_KEY) },
                     onImportKey = { navController.navigate(Routes.IMPORT_KEY) },
+                    onBurnIdentity = {
+                        viewModel.burnIdentity()
+                        navController.popBackStack(Routes.GROUP_LIST, inclusive = false)
+                    },
                     onBack = { navController.popBackStack() },
                     modifier = Modifier.fillMaxSize()
                 )

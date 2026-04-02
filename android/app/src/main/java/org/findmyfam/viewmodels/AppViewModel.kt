@@ -236,33 +236,50 @@ class AppViewModel @Inject constructor(
      */
     fun replaceIdentity(nsec: String) {
         viewModelScope.launch {
-            // Stop everything
-            locationService.stopUpdating()
-            marmotService.stopSubscriptions()
-            relay.disconnect()
-
-            // Clear stores
-            nicknameStore.clearAll()
-            pendingInviteStore.removeAll()
-            pendingLeaveStore.removeAll()
-            locationCache.clear()
-
-            // Clear settings
-            settings.lastEventTimestamp = 0u
-            settings.processedEventIds.clear()
-            settings.pendingGiftWrapEventIds.clear()
-
-            // Reset MLS database
-            mls.resetDatabase()
-
-            // Import the new key
-            identity.importKey(nsec)
-
-            // Restart
-            didStart = false
-            _startupPhase.value = StartupPhase.SPLASH
-            onAppear()
+            replaceIdentityInternal(nsec)
         }
+    }
+
+    /**
+     * Destroy the current identity and all associated state, generate a
+     * fresh keypair, and restart. One-way operation.
+     */
+    fun burnIdentity() {
+        viewModelScope.launch {
+            val freshKeys = rust.nostr.sdk.Keys.generate()
+            val freshNsec = freshKeys.secretKey().toBech32()
+            settings.displayName = ""
+            replaceIdentityInternal(freshNsec)
+        }
+    }
+
+    private suspend fun replaceIdentityInternal(nsec: String) {
+        // Stop everything
+        locationService.stopUpdating()
+        marmotService.stopSubscriptions()
+        relay.disconnect()
+
+        // Clear stores
+        nicknameStore.clearAll()
+        pendingInviteStore.removeAll()
+        pendingLeaveStore.removeAll()
+        locationCache.clear()
+
+        // Clear settings
+        settings.lastEventTimestamp = 0u
+        settings.processedEventIds.clear()
+        settings.pendingGiftWrapEventIds.clear()
+
+        // Reset MLS database
+        mls.resetDatabase()
+
+        // Import the new key
+        identity.importKey(nsec)
+
+        // Restart
+        didStart = false
+        _startupPhase.value = StartupPhase.SPLASH
+        onAppear()
     }
 
     override fun onCleared() {

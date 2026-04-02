@@ -22,11 +22,13 @@ fun AdvancedSettingsScreen(
     identity: IdentityService,
     onExportKey: () -> Unit = {},
     onImportKey: () -> Unit = {},
+    onBurnIdentity: () -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var appLockEnabled by remember { mutableStateOf(settings.isAppLockEnabled) }
     var rotationDays by remember { mutableIntStateOf(settings.keyRotationIntervalDays) }
+    var showBurnConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -165,7 +167,58 @@ fun AdvancedSettingsScreen(
                 }
             )
 
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Danger zone
+            SectionHeader("Danger Zone")
+
+            Button(
+                onClick = { showBurnConfirm = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Icon(Icons.Default.LocalFireDepartment, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Burn Identity")
+            }
+
+            Text(
+                text = "Generate a fresh identity. All groups, messages, and cryptographic state will be permanently erased.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    if (showBurnConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBurnConfirm = false },
+            title = { Text("Burn Identity?") },
+            text = {
+                Text("This will permanently destroy your current identity, leave all groups, and erase all messages. A new identity will be generated. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBurnConfirm = false
+                        onBurnIdentity()
+                    }
+                ) {
+                    Text("Burn Everything", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBurnConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

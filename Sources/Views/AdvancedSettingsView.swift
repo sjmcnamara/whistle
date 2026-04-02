@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AdvancedSettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @State private var showBurnConfirmation = false
 
     var body: some View {
         List {
@@ -9,8 +10,17 @@ struct AdvancedSettingsView: View {
             securitySection
             relaysSection
             connectionSection
+            dangerSection
         }
         .navigationTitle("Advanced")
+        .alert("Burn Identity?", isPresented: $showBurnConfirmation) {
+            Button("Burn Everything", role: .destructive) {
+                Task { try? await appViewModel.burnIdentity() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently destroy your current identity, leave all groups, and erase all messages. A new identity will be generated. This cannot be undone.")
+        }
     }
 
     // MARK: - Sections
@@ -95,6 +105,22 @@ struct AdvancedSettingsView: View {
                 Spacer()
                 mlsStatusLabel
             }
+        }
+    }
+
+    // MARK: - Danger zone
+
+    private var dangerSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showBurnConfirmation = true
+            } label: {
+                Label("Burn Identity", systemImage: "flame.fill")
+            }
+        } header: {
+            Text("Danger Zone")
+        } footer: {
+            Text("Generate a fresh identity. All groups, messages, and cryptographic state will be permanently erased.")
         }
     }
 

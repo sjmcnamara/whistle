@@ -618,6 +618,22 @@ final class AppViewModel: ObservableObject {
         await onAppear()
     }
 
+    // MARK: - Burn Identity
+
+    /// Destroy the current identity and all associated state, then generate
+    /// a fresh keypair and restart. This is a one-way operation.
+    func burnIdentity() async throws {
+        // Generate a new key first so we have the nsec ready
+        let freshKeys = Keys.generate()
+        let freshNsec = try freshKeys.secretKey().toBech32()
+
+        // Clear the display name — this is a brand-new identity
+        settings.displayName = ""
+
+        // Reuse the full teardown + restart pipeline
+        try await replaceIdentity(withNsec: freshNsec)
+    }
+
     // MARK: - Nickname Broadcasting
 
     /// Send the user's display name to every active group so other members
