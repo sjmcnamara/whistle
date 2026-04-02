@@ -21,21 +21,22 @@ protocol SecureStorage {
 
 // MARK: - Keychain implementation
 
-/// Keychain-backed secure storage with UserDefaults fallback.
+/// Keychain-backed secure storage.
 ///
-/// Tries iOS Keychain first. If Keychain is unavailable (Simulator quirks,
-/// entitlement issues), falls back to UserDefaults so the identity is stable
-/// across launches. This avoids regenerating a new identity every launch.
+/// Uses iOS Keychain with `kSecAttrAccessibleWhenUnlocked` protection.
+/// No UserDefaults fallback — the nsec must never be stored in plaintext
+/// storage (UserDefaults is included in unencrypted backups).
 final class KeychainService: SecureStorage {
 
     static let shared = KeychainService()
     private init() {}
 
     private static let service = "org.findmyfam"
-    private static let fallbackPrefix = "fmf.keychain.fallback."
+
+    // Legacy fallback key prefix — used only for one-time migration.
+    private static let legacyFallbackPrefix = "fmf.keychain.fallback."
 
     /// Saves a string to the Keychain, overwriting any existing entry.
-    /// Falls back to UserDefaults if Keychain write fails.
     @discardableResult
     func save(key: KeychainKey, value: String) -> Bool {
         guard let data = value.data(using: .utf8) else { return false }
@@ -51,16 +52,18 @@ final class KeychainService: SecureStorage {
         SecItemDelete(query as CFDictionary)
         let status = SecItemAdd(query as CFDictionary, nil)
 
-        if status == errSecSuccess {
-            return true
+        if status != errSecSuccess {
+            FMFLogger.identity.error("Keychain save failed [\(key.rawValue)]: OSStatus \(status)")
+            return false
         }
 
-        FMFLogger.identity.warning("Keychain save failed [\(key.rawValue)]: OSStatus \(status), using UserDefaults fallback")
-        saveFallback(key: key, value: value)
+        // If we successfully saved to Keychain, remove any legacy fallback
+        removeLegacyFallback(key: key)
         return true
     }
 
-    /// Returns the stored string from Keychain, falling back to UserDefaults.
+    /// Returns the stored string from Keychain.
+    /// On first load, migrates any legacy UserDefaults fallback into Keychain.
     func load(key: KeychainKey) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -77,10 +80,13 @@ final class KeychainService: SecureStorage {
             return value
         }
 
-        // Try UserDefaults fallback
-        if let fallback = loadFallback(key: key) {
-            FMFLogger.identity.debug("Loaded \(key.rawValue) from UserDefaults fallback")
-            return fallback
+        // One-time migration: move legacy UserDefaults fallback into Keychain
+        if let legacy = UserDefaults.standard.string(forKey: Self.legacyFallbackPrefix + key.rawValue) {
+            FMFLogger.identity.warning("Migrating \(key.rawValue) from UserDefaults fallback to Keychain")
+            if save(key: key, value: legacy) {
+                removeLegacyFallback(key: key)
+                return legacy
+            }
         }
 
         return nil
@@ -95,22 +101,15 @@ final class KeychainService: SecureStorage {
             kSecAttrAccount as String: key.rawValue
         ]
         let status = SecItemDelete(query as CFDictionary)
-        deleteFallback(key: key)
+        removeLegacyFallback(key: key)
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
-    // MARK: - UserDefaults fallback
+    // MARK: - Legacy migration
 
-    private func saveFallback(key: KeychainKey, value: String) {
-        UserDefaults.standard.set(value, forKey: Self.fallbackPrefix + key.rawValue)
-    }
-
-    private func loadFallback(key: KeychainKey) -> String? {
-        UserDefaults.standard.string(forKey: Self.fallbackPrefix + key.rawValue)
-    }
-
-    private func deleteFallback(key: KeychainKey) {
-        UserDefaults.standard.removeObject(forKey: Self.fallbackPrefix + key.rawValue)
+    /// Remove any nsec that was previously stored in UserDefaults by the old fallback path.
+    private func removeLegacyFallback(key: KeychainKey) {
+        UserDefaults.standard.removeObject(forKey: Self.legacyFallbackPrefix + key.rawValue)
     }
 }
 
