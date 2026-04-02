@@ -69,18 +69,21 @@ struct GroupDetailView: View {
                         } label: {
                             Image(systemName: "qrcode.viewfinder")
                         }
-
-                        Button {
-                            Task { await viewModel.addMember() }
-                        } label: {
-                            if viewModel.isAddingMember {
-                                ProgressView()
-                            } else {
-                                Text("Add")
-                            }
-                        }
-                        .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
                     }
+
+                    Button {
+                        Task { await viewModel.addMember() }
+                    } label: {
+                        if viewModel.isAddingMember {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Adding…")
+                            }
+                        } else {
+                            Label("Add Member", systemImage: "person.badge.plus")
+                        }
+                    }
+                    .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
 
                     if viewModel.didAddMember {
                         Label("Member added successfully", systemImage: "checkmark.circle.fill")
