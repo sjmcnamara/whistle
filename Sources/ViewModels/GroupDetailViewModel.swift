@@ -198,7 +198,7 @@ final class GroupDetailViewModel: ObservableObject {
             // Reload member list
             await load()
             FMFLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
-            
+
             // Clear only the removed member's location (not all members in group)
             marmot.locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: pubkeyHex)
 

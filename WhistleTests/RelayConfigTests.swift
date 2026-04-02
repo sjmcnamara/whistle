@@ -35,8 +35,8 @@ final class RelayConfigTests: XCTestCase {
         let data     = try JSONEncoder().encode(original)
         let decoded  = try JSONDecoder().decode(RelayConfig.self, from: data)
 
-        XCTAssertEqual(original.id,        decoded.id)
-        XCTAssertEqual(original.url,       decoded.url)
+        XCTAssertEqual(original.id, decoded.id)
+        XCTAssertEqual(original.url, decoded.url)
         XCTAssertEqual(original.isEnabled, decoded.isEnabled)
     }
 

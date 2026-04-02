@@ -107,7 +107,7 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
       - name: Lint
-        run: swiftlint lint --reporter github-actions-logging
+        run: swiftlint lint --strict --reporter github-actions-logging
 
   # ──────────────────────────────────────────────
   # Dependency Review (PR only)

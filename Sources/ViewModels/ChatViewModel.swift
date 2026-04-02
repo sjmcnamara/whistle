@@ -75,7 +75,7 @@ final class ChatViewModel: ObservableObject {
                 Task { await self?.loadMemberNames() }
             }
             .store(in: &cancellables)
-        
+
         // Refresh member names when membership changes (after commit events)
         marmot.$lastGroupMembershipChangeId
             .receive(on: DispatchQueue.main)

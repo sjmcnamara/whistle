@@ -54,10 +54,10 @@ final class MarmotService: ObservableObject {
     /// Subscription task for cancellation support.
     private var subscriptionTask: Task<Void, Error>?
 
-    /// Event IDs already processed — prevents expensive MLS re-processing
-    /// when `fetchMissedGiftWraps()` polls without a `since` filter (NIP-59
-    /// timestamp randomisation makes `since` unreliable for gift-wraps).
-    /// Now persisted in AppSettings to survive restarts.
+    // Event IDs already processed — prevents expensive MLS re-processing
+    // when `fetchMissedGiftWraps()` polls without a `since` filter (NIP-59
+    // timestamp randomisation makes `since` unreliable for gift-wraps).
+    // Now persisted in AppSettings to survive restarts.
 
     // MARK: - Published state
 
@@ -797,7 +797,7 @@ final class MarmotService: ObservableObject {
         FMFLogger.marmot.info("Subscriptions started (group=\(self.groupEventSubId ?? "?"), gift=\(self.giftWrapSubId ?? "?"))")
 
         // Register notification handler — runs until error or disconnect
-        let handler = NotificationHandler { [weak self] subId, event in
+        let handler = NotificationHandler { [weak self] _, event in
             Task { @MainActor [weak self] in
                 await self?.handleIncomingEvent(event)
             }

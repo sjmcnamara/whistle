@@ -38,7 +38,7 @@ final class MLSServiceTests: XCTestCase {
             relays: ["wss://relay.damus.io"]
         )
         XCTAssertFalse(result.keyPackage.isEmpty, "keyPackage hex should be non-empty")
-        XCTAssertFalse(result.tags.isEmpty,       "tags array should be non-empty")
+        XCTAssertFalse(result.tags.isEmpty, "tags array should be non-empty")
     }
 
     func testCreateKeyPackageTagsContainRelayHint() async throws {
@@ -199,8 +199,8 @@ final class MLSServiceTests: XCTestCase {
         let messages = try await service.getMessages(groupId: gid, limit: 1)
         if let first = messages.first {
             // plaintextContent parses eventJson — verify it doesn't crash
-            let _ = first.plaintextContent
-            let _ = first.innerKind
+            _ = first.plaintextContent
+            _ = first.innerKind
         }
     }
 

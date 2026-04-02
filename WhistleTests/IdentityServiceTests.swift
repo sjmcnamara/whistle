@@ -60,7 +60,7 @@ final class IdentityServiceTests: XCTestCase {
     }
 
     func testIsNewUserFalseOnRestore() {
-        let _ = IdentityService(storage: store) // first launch — populates store
+        _ = IdentityService(storage: store) // first launch — populates store
         let restored = IdentityService(storage: store)
         XCTAssertFalse(restored.isNewUser)
     }

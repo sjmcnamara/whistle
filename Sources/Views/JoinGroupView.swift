@@ -118,14 +118,14 @@ struct JoinGroupView: View {
                 for _ in 0..<60 {
                     try? await Task.sleep(for: .seconds(2))
                     guard !Task.isCancelled else { return }
-                    
+
                     await viewModel.fetchMissedWelcomes()
-                    
+
                     // Check if the Welcome was processed and the group appeared.
                     if viewModel.groups.contains(where: { $0.id == expectedGroupId }) {
                         FMFLogger.marmot.info("🎉 Welcome received! Auto-dismissing.")
                         dismiss()
-                        return 
+                        return
                     }
                 }
             }

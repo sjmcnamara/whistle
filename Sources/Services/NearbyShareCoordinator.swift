@@ -121,8 +121,8 @@ final class NearbyShareCoordinator: NSObject, ObservableObject {
 extension NearbyShareCoordinator: MCSessionDelegate {
 
     nonisolated func session(_ session: MCSession,
-                              peer peerID: MCPeerID,
-                              didChange peerState: MCSessionState) {
+                             peer peerID: MCPeerID,
+                             didChange peerState: MCSessionState) {
         Task { @MainActor in
             switch peerState {
             case .connected:
@@ -144,8 +144,8 @@ extension NearbyShareCoordinator: MCSessionDelegate {
     }
 
     nonisolated func session(_ session: MCSession,
-                              didReceive data: Data,
-                              fromPeer peerID: MCPeerID) {
+                             didReceive data: Data,
+                             fromPeer peerID: MCPeerID) {
         guard let str = String(data: data, encoding: .utf8) else { return }
         Task { @MainActor in
             if str.hasPrefix("whistle://addmember/") {
@@ -169,20 +169,20 @@ extension NearbyShareCoordinator: MCSessionDelegate {
     }
 
     nonisolated func session(_ session: MCSession,
-                              didReceive stream: InputStream,
-                              withName streamName: String,
-                              fromPeer peerID: MCPeerID) {}
+                             didReceive stream: InputStream,
+                             withName streamName: String,
+                             fromPeer peerID: MCPeerID) {}
 
     nonisolated func session(_ session: MCSession,
-                              didStartReceivingResourceWithName resourceName: String,
-                              fromPeer peerID: MCPeerID,
-                              with progress: Progress) {}
+                             didStartReceivingResourceWithName resourceName: String,
+                             fromPeer peerID: MCPeerID,
+                             with progress: Progress) {}
 
     nonisolated func session(_ session: MCSession,
-                              didFinishReceivingResourceWithName resourceName: String,
-                              fromPeer peerID: MCPeerID,
-                              at localURL: URL?,
-                              withError error: Error?) {}
+                             didFinishReceivingResourceWithName resourceName: String,
+                             fromPeer peerID: MCPeerID,
+                             at localURL: URL?,
+                             withError error: Error?) {}
 }
 
 // MARK: - MCNearbyServiceAdvertiserDelegate
@@ -190,9 +190,9 @@ extension NearbyShareCoordinator: MCSessionDelegate {
 extension NearbyShareCoordinator: MCNearbyServiceAdvertiserDelegate {
 
     nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser,
-                                 didReceiveInvitationFromPeer peerID: MCPeerID,
-                                 withContext context: Data?,
-                                 invitationHandler: @escaping (Bool, MCSession?) -> Void) {
+                                didReceiveInvitationFromPeer peerID: MCPeerID,
+                                withContext context: Data?,
+                                invitationHandler: @escaping (Bool, MCSession?) -> Void) {
         Task { @MainActor in
             // Auto-accept: the inviter doesn't manually approve each connection.
             invitationHandler(true, session)
@@ -201,7 +201,7 @@ extension NearbyShareCoordinator: MCNearbyServiceAdvertiserDelegate {
     }
 
     nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser,
-                                 didNotStartAdvertisingPeer error: Error) {
+                                didNotStartAdvertisingPeer error: Error) {
         Task { @MainActor in
             state = .failed(error.localizedDescription)
         }
@@ -213,8 +213,8 @@ extension NearbyShareCoordinator: MCNearbyServiceAdvertiserDelegate {
 extension NearbyShareCoordinator: MCNearbyServiceBrowserDelegate {
 
     nonisolated func browser(_ browser: MCNearbyServiceBrowser,
-                              foundPeer peerID: MCPeerID,
-                              withDiscoveryInfo info: [String: String]?) {
+                             foundPeer peerID: MCPeerID,
+                             withDiscoveryInfo info: [String: String]?) {
         Task { @MainActor in
             if !nearbyPeers.contains(peerID) {
                 nearbyPeers.append(peerID)
@@ -224,7 +224,7 @@ extension NearbyShareCoordinator: MCNearbyServiceBrowserDelegate {
     }
 
     nonisolated func browser(_ browser: MCNearbyServiceBrowser,
-                              lostPeer peerID: MCPeerID) {
+                             lostPeer peerID: MCPeerID) {
         Task { @MainActor in
             nearbyPeers.removeAll { $0 == peerID }
             if nearbyPeers.isEmpty, case .found = state { state = .scanning }
@@ -232,7 +232,7 @@ extension NearbyShareCoordinator: MCNearbyServiceBrowserDelegate {
     }
 
     nonisolated func browser(_ browser: MCNearbyServiceBrowser,
-                              didNotStartBrowsingForPeers error: Error) {
+                             didNotStartBrowsingForPeers error: Error) {
         Task { @MainActor in
             state = .failed(error.localizedDescription)
         }

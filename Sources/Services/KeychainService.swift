@@ -41,10 +41,10 @@ final class KeychainService: SecureStorage {
         guard let data = value.data(using: .utf8) else { return false }
 
         let query: [String: Any] = [
-            kSecClass as String:          kSecClassGenericPassword,
-            kSecAttrService as String:    Self.service,
-            kSecAttrAccount as String:    key.rawValue,
-            kSecValueData as String:      data,
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: key.rawValue,
+            kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
         ]
 
@@ -63,11 +63,11 @@ final class KeychainService: SecureStorage {
     /// Returns the stored string from Keychain, falling back to UserDefaults.
     func load(key: KeychainKey) -> String? {
         let query: [String: Any] = [
-            kSecClass as String:        kSecClassGenericPassword,
-            kSecAttrService as String:  Self.service,
-            kSecAttrAccount as String:  key.rawValue,
-            kSecReturnData as String:   true,
-            kSecMatchLimit as String:   kSecMatchLimitOne
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: key.rawValue,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
         ]
 
         var result: AnyObject?
@@ -90,7 +90,7 @@ final class KeychainService: SecureStorage {
     @discardableResult
     func delete(key: KeychainKey) -> Bool {
         let query: [String: Any] = [
-            kSecClass as String:       kSecClassGenericPassword,
+            kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: key.rawValue
         ]
