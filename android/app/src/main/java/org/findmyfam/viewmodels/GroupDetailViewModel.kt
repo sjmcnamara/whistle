@@ -22,7 +22,8 @@ class GroupDetailViewModel(
     private val mls: MLSService,
     private val nicknameStore: NicknameStore,
     private val myPubkeyHex: String,
-    private val pendingLeaveStore: PendingLeaveStore
+    private val pendingLeaveStore: PendingLeaveStore,
+    private val settings: org.findmyfam.models.AppSettings? = null
 ) {
     // --- Item model ---
 
@@ -69,6 +70,9 @@ class GroupDetailViewModel(
     private val _isRenaming = MutableStateFlow(false)
     val isRenaming: StateFlow<Boolean> = _isRenaming.asStateFlow()
 
+    private val _leaveRequestMembers = MutableStateFlow<Set<String>>(emptySet())
+    val leaveRequestMembers: StateFlow<Set<String>> = _leaveRequestMembers.asStateFlow()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
@@ -111,6 +115,9 @@ class GroupDetailViewModel(
                 }.sortedWith(compareByDescending<MemberItem> { it.isMe }
                     .thenByDescending { it.isAdmin }
                     .thenBy { it.displayName })
+
+                // Populate leave request members from stored settings
+                _leaveRequestMembers.value = settings?.pendingLeaveRequests?.get(groupId) ?: emptySet()
 
                 _error.value = null
             } catch (e: Exception) {
@@ -188,6 +195,10 @@ class GroupDetailViewModel(
                 // Publish the evolution event
                 val evolutionEventJson = result.evolutionEventJson
                 marmot.publishGroupEvent(evolutionEventJson)
+
+                // Clear the leave request since it's processed
+                settings?.removePendingLeaveRequest(groupId, pubkeyHex)
+                _leaveRequestMembers.value = _leaveRequestMembers.value - pubkeyHex
 
                 load()
                 Timber.i("Removed member ${pubkeyHex.take(8)} from group $groupId")

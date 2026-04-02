@@ -211,7 +211,8 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                         mls = viewModel.mls,
                         nicknameStore = viewModel.nicknameStore,
                         myPubkeyHex = viewModel.identity.publicKeyHex ?: "",
-                        pendingLeaveStore = viewModel.pendingLeaveStore
+                        pendingLeaveStore = viewModel.pendingLeaveStore,
+                        settings = viewModel.settings
                     )
                 }
 

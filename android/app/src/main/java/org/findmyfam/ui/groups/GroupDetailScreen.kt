@@ -37,6 +37,7 @@ fun GroupDetailScreen(
     val isLeaving by viewModel.isLeaving.collectAsState()
     val didRequestLeave by viewModel.didRequestLeave.collectAsState()
     val isRenaming by viewModel.isRenaming.collectAsState()
+    val leaveRequestMembers by viewModel.leaveRequestMembers.collectAsState()
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
@@ -167,6 +168,7 @@ fun GroupDetailScreen(
                 }
 
                 itemsIndexed(members, key = { index, member -> "${member.id}_$index" }) { _, member ->
+                    val wantsToLeave = member.pubkeyHex in leaveRequestMembers
                     ListItem(
                         headlineContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -181,24 +183,50 @@ fun GroupDetailScreen(
                             }
                         },
                         supportingContent = {
-                            if (member.isAdmin) {
-                                Text(
-                                    "Admin",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            Column {
+                                if (member.isAdmin) {
+                                    Text(
+                                        "Admin",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (wantsToLeave) {
+                                    Text(
+                                        "Wants to leave",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
                             }
                         },
                         trailingContent = {
                             if (viewModel.isAdmin && !member.isMe) {
-                                IconButton(onClick = {
-                                    viewModel.removeMember(member.pubkeyHex)
-                                }) {
-                                    Icon(
-                                        Icons.Default.PersonRemove,
-                                        contentDescription = "Remove",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                if (wantsToLeave) {
+                                    TextButton(
+                                        onClick = { viewModel.removeMember(member.pubkeyHex) },
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Icon(
+                                            Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Approve")
+                                    }
+                                } else {
+                                    IconButton(onClick = {
+                                        viewModel.removeMember(member.pubkeyHex)
+                                    }) {
+                                        Icon(
+                                            Icons.Default.PersonRemove,
+                                            contentDescription = "Remove",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
