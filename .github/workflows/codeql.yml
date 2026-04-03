@@ -52,7 +52,7 @@ jobs:
           xcodebuild build \
             -project Whistle.xcodeproj \
             -scheme Whistle \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             CODE_SIGNING_ALLOWED=NO
 
       # ── Kotlin ───────────────────────────────────
