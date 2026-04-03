@@ -509,30 +509,6 @@ final class AppViewModel: ObservableObject {
         FMFLogger.location.info("Location pipeline wired (interval=\(self.settings.locationIntervalSeconds)s)")
     }
 
-    /// Apply a random offset to a coordinate within `radiusMeters`.
-    /// Uses uniform random bearing + uniform random distance for a circular distribution.
-    private func fuzzedCoordinate(
-        latitude: Double,
-        longitude: Double,
-        radiusMeters: Double
-    ) -> (lat: Double, lon: Double) {
-        let bearing = Double.random(in: 0..<2 * .pi)
-        let distance = Double.random(in: 0...radiusMeters)
-        let earthRadius = 6_371_000.0 // metres
-        let latRad = latitude * .pi / 180
-        let lonRad = longitude * .pi / 180
-
-        let newLatRad = asin(
-            sin(latRad) * cos(distance / earthRadius) +
-            cos(latRad) * sin(distance / earthRadius) * cos(bearing)
-        )
-        let newLonRad = lonRad + atan2(
-            sin(bearing) * sin(distance / earthRadius) * cos(latRad),
-            cos(distance / earthRadius) - sin(latRad) * sin(newLatRad)
-        )
-        return (newLatRad * 180 / .pi, newLonRad * 180 / .pi)
-    }
-
     /// Send a location update to every active MLS group.
     ///
     /// Also inserts the user's own location into `LocationCache` so it appears
