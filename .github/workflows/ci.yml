@@ -20,7 +20,26 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run SPM tests
-        run: cd WhistleCore && swift test
+        run: cd WhistleCore && swift test --enable-code-coverage
+
+      - name: Generate coverage report
+        run: |
+          BINARY=$(find WhistleCore/.build/debug -name "WhistleCorePackageTests.xctest" | head -1)/Contents/MacOS/WhistleCorePackageTests
+          PROFDATA=$(find WhistleCore/.build/debug/codecov -name "*.profdata" | head -1)
+          if [ -n "$BINARY" ] && [ -n "$PROFDATA" ]; then
+            xcrun llvm-cov export "$BINARY" \
+              -instr-profile="$PROFDATA" \
+              -format=lcov \
+              --ignore-filename-regex="\.build|Tests" \
+              > WhistleCore/coverage.lcov
+          fi
+
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: WhistleCore/coverage.lcov
+          flags: whistlecore
+          fail_ci_if_error: false
 
   # ──────────────────────────────────────────────
   # iOS — Full app build + test
@@ -49,6 +68,17 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             -enableCodeCoverage YES \
             | xcpretty --color || true
+
+      - name: Generate coverage report
+        run: |
+          xcrun xccov view --report --json TestResults.xcresult > coverage.json
+
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.json
+          flags: ios
+          fail_ci_if_error: false
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
