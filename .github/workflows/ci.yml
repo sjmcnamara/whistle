@@ -165,4 +165,4 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/dependency-review-action@v5
+      - uses: actions/dependency-review-action@v4
