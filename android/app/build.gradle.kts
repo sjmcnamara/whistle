@@ -23,6 +23,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Required for Jacoco to instrument unit tests and produce .exec data
+            enableUnitTestCoverage = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -78,6 +82,9 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
     executionData.setFrom(
         fileTree(layout.buildDirectory.get()) {
+            // AGP 8.x with enableUnitTestCoverage writes here
+            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+            // Fallback for standalone Jacoco plugin path
             include("jacoco/testDebugUnitTest.exec")
         }
     )
