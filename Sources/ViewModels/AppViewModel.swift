@@ -541,7 +541,7 @@ final class AppViewModel: ObservableObject {
             latitude: lat,
             longitude: lon,
             altitude: location.altitude,
-            accuracy: fuzzRadius > 0 ? Double(fuzzRadius) : location.horizontalAccuracy,
+            accuracy: fuzzRadius > 0 ? max(location.horizontalAccuracy, Double(fuzzRadius)) : location.horizontalAccuracy,
             timestamp: Date() // broadcast time, not acquisition time — avoids stale-pin false positives with imprecise location
         )
 
