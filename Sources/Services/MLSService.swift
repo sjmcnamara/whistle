@@ -53,26 +53,16 @@ actor MLSService {
             FMFLogger.mls.info("MLSService initialised (encrypted via keyring-core), \(groupCount) group(s)")
             return
         } catch {
-            FMFLogger.mls.warning("newMdk failed: \(error)")
-            // If a stale DB blocked us, delete and retry encrypted
-            if dbExists {
-                Self.deleteDatabase(at: path)
-                do {
-                    mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
-                    isInitialised = true
-                    let groupCount = (try? mdk?.getGroups().count) ?? -1
-                    FMFLogger.mls.info("MLSService initialised (encrypted, fresh DB), \(groupCount) group(s)")
-                    return
-                } catch {
-                    FMFLogger.mls.warning("newMdk still failed after DB delete: \(error)")
-                }
-            }
+            // newMdk fails while keyring-core set_default_store() is not yet exposed via UniFFI
+            // (MDK #243). Do NOT delete the database here — falling through to newMdkUnencrypted
+            // will open the existing data. Deleting would silently wipe all groups on every launch.
+            // TODO: Add delete-and-retry migration path when MDK #243 ships and newMdk can succeed.
+            FMFLogger.mls.warning("newMdk failed (expected until MDK #243): \(error)")
         }
 
-        // Fallback: keyring-core store not yet exposed via UniFFI — use unencrypted.
-        // TODO: Remove this fallback once MDK exposes set_default_store() via UniFFI.
-        FMFLogger.mls.warning("⚠️ Falling back to newMdkUnencrypted — keyring-core store init not available via UniFFI")
-        Self.deleteDatabase(at: path)  // ensure clean state
+        // Fallback: open existing DB (or create fresh) with no encryption.
+        // TODO: Remove this fallback once MDK exposes set_default_store() via UniFFI (MDK #243).
+        FMFLogger.mls.warning("⚠️ Falling back to newMdkUnencrypted — keyring-core not yet available via UniFFI")
         mdk = try newMdkUnencrypted(dbPath: path, config: nil)
         isInitialised = true
         let groupCount = (try? mdk?.getGroups().count) ?? -1
