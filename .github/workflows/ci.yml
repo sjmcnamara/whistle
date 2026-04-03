@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Default to read-only. Jobs that need write access declare it explicitly.
+permissions: read-all
+
 jobs:
   # ──────────────────────────────────────────────
   # iOS — WhistleCore SPM Tests (pure Swift, fast)
@@ -17,6 +20,8 @@ jobs:
   ios-core-tests:
     name: WhistleCore Tests
     runs-on: macos-15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Run SPM tests
@@ -53,6 +58,9 @@ jobs:
   ios-tests:
     name: iOS Build & Test
     runs-on: macos-15
+    permissions:
+      contents: read
+      actions: write  # upload-artifact
     steps:
       - uses: actions/checkout@v6
 
@@ -99,6 +107,9 @@ jobs:
   android-tests:
     name: Android Build & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # upload-artifact
     steps:
       - uses: actions/checkout@v6
 
@@ -149,6 +160,8 @@ jobs:
   swiftlint:
     name: SwiftLint
     runs-on: macos-15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Install SwiftLint
@@ -163,6 +176,9 @@ jobs:
     name: Dependency Review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write  # post review comments
     steps:
       - uses: actions/checkout@v6
       - uses: actions/dependency-review-action@v4
