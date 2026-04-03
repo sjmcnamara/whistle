@@ -177,11 +177,12 @@ class AppViewModel @Inject constructor(
 
     /**
      * Apply a random offset to a coordinate within [radiusMeters].
-     * Uses uniform random bearing + uniform random distance for a circular distribution.
+     * Uses uniform random bearing and area-uniform distance for a circular (not biased) distribution.
      */
     private fun fuzzedCoordinate(lat: Double, lon: Double, radiusMeters: Double): Pair<Double, Double> {
         val bearing = Random.nextDouble(0.0, 2 * PI)
-        val distance = Random.nextDouble(0.0, radiusMeters)
+        val u = Random.nextDouble(0.0, 1.0)
+        val distance = sqrt(u) * radiusMeters
         val earthRadius = 6_371_000.0
         val latRad = Math.toRadians(lat)
         val lonRad = Math.toRadians(lon)
