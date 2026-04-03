@@ -252,6 +252,12 @@ class AppSettings @Inject constructor(
             .apply()
     }
 
+    // --- Location Fuzzing ---
+
+    var locationFuzzMeters: Int
+        get() = prefs.getInt(AppDefaults.Keys.locationFuzzMeters, 0)
+        set(value) { prefs.edit().putInt(AppDefaults.Keys.locationFuzzMeters, value).apply() }
+
     // --- Appearance ---
 
     private val _appearanceFlow = MutableStateFlow(

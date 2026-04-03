@@ -36,5 +36,6 @@ object AppDefaults {
         const val pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
         const val keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
         const val appearance = "fmf.appearance"
+        const val locationFuzzMeters = "fmf.locationFuzzMeters"
     }
 }

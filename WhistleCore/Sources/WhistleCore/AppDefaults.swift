@@ -30,5 +30,6 @@ public enum AppDefaults {
         public static let pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
         public static let keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
         public static let appearance = "fmf.appearance"
+        public static let locationFuzzMeters = "fmf.locationFuzzMeters"
     }
 }

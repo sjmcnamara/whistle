@@ -129,6 +129,51 @@ fun AdvancedSettingsScreen(
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Location Privacy
+            SectionHeader("Location Privacy")
+
+            var fuzzExpanded by remember { mutableStateOf(false) }
+            var fuzzMeters by remember { mutableIntStateOf(settings.locationFuzzMeters) }
+
+            SettingsRow(
+                label = "Location Fuzzing",
+                icon = Icons.Default.LocationOff,
+                trailing = {
+                    TextButton(onClick = { fuzzExpanded = true }) {
+                        Text(
+                            when (fuzzMeters) {
+                                0 -> "Off"
+                                else -> "$fuzzMeters m"
+                            }
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = fuzzExpanded,
+                        onDismissRequest = { fuzzExpanded = false }
+                    ) {
+                        listOf(0 to "Off — exact location", 10 to "10 m", 50 to "50 m", 200 to "200 m").forEach { (meters, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    fuzzMeters = meters
+                                    settings.locationFuzzMeters = meters
+                                    fuzzExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            )
+
+            Text(
+                text = "Randomly adjusts your shared location by up to this distance. Others see an approximate position instead of your exact coordinates.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
             // Relays
             SectionHeader("Relays")
 

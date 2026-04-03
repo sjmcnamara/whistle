@@ -23,15 +23,21 @@ jobs:
         run: cd WhistleCore && swift test --enable-code-coverage
 
       - name: Generate coverage report
+        continue-on-error: true
+        working-directory: WhistleCore
         run: |
-          BINARY=$(find WhistleCore/.build/debug -name "WhistleCorePackageTests.xctest" | head -1)/Contents/MacOS/WhistleCorePackageTests
-          PROFDATA=$(find WhistleCore/.build/debug/codecov -name "*.profdata" | head -1)
-          if [ -n "$BINARY" ] && [ -n "$PROFDATA" ]; then
-            xcrun llvm-cov export "$BINARY" \
+          BIN_PATH=$(swift build --show-bin-path 2>/dev/null)
+          PROFDATA="${BIN_PATH}/codecov/default.profdata"
+          BUNDLE=$(find "${BIN_PATH}" -name "*.xctest" -maxdepth 1 2>/dev/null | head -1)
+          if [ -f "$PROFDATA" ] && [ -n "$BUNDLE" ]; then
+            EXEC="${BUNDLE}/Contents/MacOS/$(basename "${BUNDLE}" .xctest)"
+            xcrun llvm-cov export "$EXEC" \
               -instr-profile="$PROFDATA" \
               -format=lcov \
               --ignore-filename-regex="\.build|Tests" \
-              > WhistleCore/coverage.lcov
+              > coverage.lcov
+          else
+            echo "Coverage data not found — skipping"
           fi
 
       - uses: codecov/codecov-action@v4

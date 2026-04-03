@@ -6,6 +6,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.1] — 2026-04-03
+
+### Fixed
+- **Chat timestamps** (iOS): message timestamps now display wall-clock time ("2:30 PM") instead of relative age ("5 minutes ago"), matching Android, Signal, and WhatsApp conventions
+- **"Load earlier messages" button** (iOS): button was always visible but did nothing — `hasMore` was not `@Published` so SwiftUI never re-rendered when pagination state changed; now correctly hidden when all messages are loaded
+- **Imprecise location grey pin** (iOS): when "Precise Location" is disabled in iOS Settings, the location payload timestamp is now stamped with the broadcast time rather than the OS acquisition time — prevents false stale-pin detection from cached location objects
+- **Invalid location fix filtering** (iOS): locations with `horizontalAccuracy < 0` (CoreLocation's signal for no valid fix) are now dropped before entering the broadcast pipeline
+- **Pin label truncation** (iOS): relative timestamp labels on map pins now scale down to fit rather than clipping to "2mins,..."
+
+### Added
+- **Location fuzzing** (iOS & Android): new "Location Privacy" section in Advanced Settings with Off / 10 m / 50 m / 200 m options; applies a random offset within the chosen radius before broadcasting — shared coordinates are approximate, not exact
+- **Codecov integration**: coverage reports uploaded to Codecov on every CI run; separate flags for `ios` (WhistleTests) and `whistlecore` (WhistleCore SPM) for per-layer visibility; informational only, not a PR gate
+
+### Changed
+- **Version bump** — iOS 1.0.1 (build 16), Android 1.0.1 (versionCode 13)
+
+---
+
 ## [1.0.0] — 2026-04-02
 
 ### Security

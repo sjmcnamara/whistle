@@ -509,6 +509,30 @@ final class AppViewModel: ObservableObject {
         FMFLogger.location.info("Location pipeline wired (interval=\(self.settings.locationIntervalSeconds)s)")
     }
 
+    /// Apply a random offset to a coordinate within `radiusMeters`.
+    /// Uses uniform random bearing + uniform random distance for a circular distribution.
+    private func fuzzedCoordinate(
+        latitude: Double,
+        longitude: Double,
+        radiusMeters: Double
+    ) -> (lat: Double, lon: Double) {
+        let bearing = Double.random(in: 0..<2 * .pi)
+        let distance = Double.random(in: 0...radiusMeters)
+        let earthRadius = 6_371_000.0 // metres
+        let latRad = latitude * .pi / 180
+        let lonRad = longitude * .pi / 180
+
+        let newLatRad = asin(
+            sin(latRad) * cos(distance / earthRadius) +
+            cos(latRad) * sin(distance / earthRadius) * cos(bearing)
+        )
+        let newLonRad = lonRad + atan2(
+            sin(bearing) * sin(distance / earthRadius) * cos(latRad),
+            cos(distance / earthRadius) - sin(latRad) * sin(newLatRad)
+        )
+        return (newLatRad * 180 / .pi, newLonRad * 180 / .pi)
+    }
+
     /// Send a location update to every active MLS group.
     ///
     /// Also inserts the user's own location into `LocationCache` so it appears
@@ -520,12 +544,29 @@ final class AppViewModel: ObservableObject {
             return
         }
 
+        let fuzzRadius = settings.locationFuzzMeters
+        let lat: Double
+        let lon: Double
+        if fuzzRadius > 0 {
+            let fuzzed = fuzzedCoordinate(
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude,
+                radiusMeters: Double(fuzzRadius)
+            )
+            lat = fuzzed.lat
+            lon = fuzzed.lon
+            FMFLogger.location.debug("Location fuzzed by up to \(fuzzRadius)m")
+        } else {
+            lat = location.coordinate.latitude
+            lon = location.coordinate.longitude
+        }
+
         let payload = LocationPayload(
-            latitude: location.coordinate.latitude,
-            longitude: location.coordinate.longitude,
+            latitude: lat,
+            longitude: lon,
             altitude: location.altitude,
-            accuracy: location.horizontalAccuracy,
-            timestamp: location.timestamp
+            accuracy: fuzzRadius > 0 ? Double(fuzzRadius) : location.horizontalAccuracy,
+            timestamp: Date() // broadcast time, not acquisition time — avoids stale-pin false positives with imprecise location
         )
 
         // Insert our own location into the cache immediately so the map

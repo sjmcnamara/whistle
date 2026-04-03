@@ -40,7 +40,7 @@ final class ChatViewModel: ObservableObject {
 
     private let pageSize: UInt32 = 50
     private var currentOffset: UInt32 = 0
-    private(set) var hasMore = true
+    @Published private(set) var hasMore = false
 
     // MARK: - Init
 

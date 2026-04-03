@@ -12,6 +12,7 @@ struct AdvancedSettingsView: View {
         List {
             identitySection
             securitySection
+            locationPrivacySection
             relaysSection
             connectionSection
             dangerSection
@@ -73,6 +74,26 @@ struct AdvancedSettingsView: View {
             Text("Security")
         } footer: {
             Text("How often encryption keys are rotated for forward secrecy. Shorter intervals are more secure.")
+        }
+    }
+
+    private var locationPrivacySection: some View {
+        Section {
+            Picker(selection: Binding(
+                get: { appViewModel.settings.locationFuzzMeters },
+                set: { appViewModel.settings.locationFuzzMeters = $0 }
+            )) {
+                Text("Off — exact location").tag(0)
+                Text("10 m").tag(10)
+                Text("50 m").tag(50)
+                Text("200 m").tag(200)
+            } label: {
+                Label("Location Fuzzing", systemImage: "location.slash")
+            }
+        } header: {
+            Text("Location Privacy")
+        } footer: {
+            Text("Randomly adjusts your shared location by up to this distance. Others see an approximate position instead of your exact coordinates.")
         }
     }
 

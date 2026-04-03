@@ -280,6 +280,15 @@ _Relay polish, security hardening, code quality gates_
 - **CI merge gate** ✅: required status checks enabled on master — all CI jobs must pass before merge
 - **SwiftLint strict mode** ✅: all 336 files clean, 0 violations; `--strict` flag enabled in CI
 
+### v1.0.1 — UX Polish & Coverage
+_In progress_
+
+- **Chat timestamps** (iOS): wall-clock time ("2:30 PM") instead of relative age — matches Android, Signal, WhatsApp
+- **"Load earlier messages" fix** (iOS): `hasMore` was not `@Published`; button now hidden correctly when all messages loaded
+- **Imprecise location fix** (iOS): payload stamped with broadcast time, not OS acquisition time; `horizontalAccuracy < 0` filtered before pipeline; pin label truncation fixed with `minimumScaleFactor`
+- **Location fuzzing** (iOS & Android): Off / 10 m / 50 m / 200 m random offset in Advanced Settings → Location Privacy
+- **Codecov coverage reporting**: informational-only upload on every CI run; `ios` and `whistlecore` flags for per-layer breakdown
+
 ### Deferred
 - **Full SQLCipher activation**: remove `newMdkUnencrypted` fallback once MDK ships `set_default_store()` via UniFFI ([marmot-protocol/mdk#243](https://github.com/marmot-protocol/mdk/issues/243))
 - **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input (post-v1.0)
@@ -312,7 +321,8 @@ master
   └── feature/v0.9.2-splash-appearance ✅ merged
   └── security/v0.9.3-mip02-commit-ordering ✅ merged
   └── feature/v0.9.4-ux-fixes            ✅ merged (PR #34)
-  └── feature/v1.0-production-readiness
+  └── feature/v1.0-production-readiness  ✅ merged (PR #44)
+  └── feature/v1.0.1-ux-fixes
 ```
 
 ---

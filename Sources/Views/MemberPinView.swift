@@ -26,10 +26,14 @@ struct MemberPinView: View {
                 Text(next, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             } else {
                 Text(annotation.timestamp, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
     }

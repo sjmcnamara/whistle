@@ -16,6 +16,8 @@ import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.services.*
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.math.*
+import kotlin.random.Random
 
 /**
  * Root application ViewModel -- coordinates startup, owns service references.
@@ -174,17 +176,52 @@ class AppViewModel @Inject constructor(
     }
 
     /**
+     * Apply a random offset to a coordinate within [radiusMeters].
+     * Uses uniform random bearing + uniform random distance for a circular distribution.
+     */
+    private fun fuzzedCoordinate(lat: Double, lon: Double, radiusMeters: Double): Pair<Double, Double> {
+        val bearing = Random.nextDouble(0.0, 2 * PI)
+        val distance = Random.nextDouble(0.0, radiusMeters)
+        val earthRadius = 6_371_000.0
+        val latRad = Math.toRadians(lat)
+        val lonRad = Math.toRadians(lon)
+
+        val newLatRad = asin(
+            sin(latRad) * cos(distance / earthRadius) +
+            cos(latRad) * sin(distance / earthRadius) * cos(bearing)
+        )
+        val newLonRad = lonRad + atan2(
+            sin(bearing) * sin(distance / earthRadius) * cos(latRad),
+            cos(distance / earthRadius) - sin(latRad) * sin(newLatRad)
+        )
+        return Pair(Math.toDegrees(newLatRad), Math.toDegrees(newLonRad))
+    }
+
+    /**
      * Wire LocationService updates to broadcast location to all groups
      * and cache locally so the map shows the local user's pin.
      */
     private fun wireLocationPipeline() {
         locationService.intervalSeconds = settings.locationIntervalSeconds
         locationService.onLocationUpdate = fun(location) {
+            val fuzzRadius = settings.locationFuzzMeters
+            val lat: Double
+            val lon: Double
+            if (fuzzRadius > 0) {
+                val fuzzed = fuzzedCoordinate(location.latitude, location.longitude, fuzzRadius.toDouble())
+                lat = fuzzed.first
+                lon = fuzzed.second
+                Timber.d("Location fuzzed by up to ${fuzzRadius}m")
+            } else {
+                lat = location.latitude
+                lon = location.longitude
+            }
+
             val payload = LocationPayload(
-                lat = location.latitude,
-                lon = location.longitude,
+                lat = lat,
+                lon = lon,
                 alt = location.altitude,
-                acc = location.accuracy.toDouble(),
+                acc = if (fuzzRadius > 0) fuzzRadius.toDouble() else location.accuracy.toDouble(),
                 ts = System.currentTimeMillis() / 1000
             )
             val myPubkey = identity.publicKeyHex ?: return

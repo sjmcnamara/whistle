@@ -22,7 +22,7 @@ struct ChatBubbleView: View {
                     .foregroundStyle(message.isMe ? .white : .primary)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                Text(message.timestamp, style: .relative)
+                Text(message.timestamp, format: .dateTime.hour().minute())
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

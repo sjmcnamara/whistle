@@ -147,6 +147,11 @@ extension LocationService: CLLocationManagerDelegate {
             let isForeground = UIApplication.shared.applicationState == .active
             let mode = isForeground ? "foreground" : "background"
 
+            // Negative accuracy means CoreLocation has no valid fix — skip.
+            guard location.horizontalAccuracy >= 0 else {
+                FMFLogger.location.debug("didUpdateLocations: invalid fix (acc=\(location.horizontalAccuracy)) — skipping")
+                return
+            }
             guard self.shouldFire() else {
                 FMFLogger.location.debug("didUpdateLocations (\(mode)) throttled — count=\(locations.count)")
                 return

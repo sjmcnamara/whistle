@@ -86,6 +86,12 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(keyRotationIntervalDays, forKey: Keys.keyRotationIntervalDays) }
     }
 
+    /// Location fuzzing radius in metres. 0 = off (exact location shared).
+    /// When non-zero, a random offset within this radius is applied before broadcasting.
+    @Published var locationFuzzMeters: Int {
+        didSet { UserDefaults.standard.set(locationFuzzMeters, forKey: Keys.locationFuzzMeters) }
+    }
+
     /// SwiftUI color scheme derived from the appearance preference.
     /// Returns `nil` for `.system` so the OS default is used.
     var colorScheme: ColorScheme? {
@@ -122,6 +128,7 @@ final class AppSettings: ObservableObject {
 
         self.keyRotationIntervalDays = UserDefaults.standard.integer(forKey: Keys.keyRotationIntervalDays)
             .nonZeroOr(AppDefaults.defaultKeyRotationIntervalDays)
+        self.locationFuzzMeters = UserDefaults.standard.integer(forKey: Keys.locationFuzzMeters)
 
         if let data = UserDefaults.standard.data(forKey: Keys.processedEventIds),
            let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {
