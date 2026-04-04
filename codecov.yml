@@ -34,6 +34,12 @@ ignore:
   - "**/*.generated.swift"
   - "WhistleCore/.build/"
   - "*.xcresult"
+  # Android — Compose UI screens/components (require instrumentation tests, not JUnit)
+  - "android/app/src/main/java/org/findmyfam/ui/**"
+  - "android/app/src/main/java/org/findmyfam/MainActivity.kt"
+  - "android/app/src/main/java/org/findmyfam/FindMyFamApp.kt"
+  - "android/app/src/main/java/org/findmyfam/di/**"
+  # Android — Hilt generated code
   - "android/**/hilt_aggregated_deps/**"
   - "android/**/*_HiltComponents*"
   - "android/**/*_Factory*"

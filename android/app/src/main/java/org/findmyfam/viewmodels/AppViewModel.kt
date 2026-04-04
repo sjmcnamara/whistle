@@ -177,25 +177,10 @@ class AppViewModel @Inject constructor(
 
     /**
      * Apply a random offset to a coordinate within [radiusMeters].
-     * Uses uniform random bearing and area-uniform distance for a circular (not biased) distribution.
+     * Delegates to the top-level pure function for testability.
      */
     private fun fuzzedCoordinate(lat: Double, lon: Double, radiusMeters: Double): Pair<Double, Double> {
-        val bearing = Random.nextDouble(0.0, 2 * PI)
-        val u = Random.nextDouble(0.0, 1.0)
-        val distance = sqrt(u) * radiusMeters
-        val earthRadius = 6_371_000.0
-        val latRad = Math.toRadians(lat)
-        val lonRad = Math.toRadians(lon)
-
-        val newLatRad = asin(
-            sin(latRad) * cos(distance / earthRadius) +
-            cos(latRad) * sin(distance / earthRadius) * cos(bearing)
-        )
-        val newLonRad = lonRad + atan2(
-            sin(bearing) * sin(distance / earthRadius) * cos(latRad),
-            cos(distance / earthRadius) - sin(latRad) * sin(newLatRad)
-        )
-        return Pair(Math.toDegrees(newLatRad), Math.toDegrees(newLonRad))
+        return fuzzCoordinate(lat, lon, radiusMeters)
     }
 
     /**
@@ -348,4 +333,34 @@ class AppViewModel @Inject constructor(
         marmotService.stopSubscriptions()
         locationService.stopUpdating()
     }
+}
+
+/**
+ * Apply a random offset to a coordinate within [radiusMeters].
+ * Uses uniform random bearing and area-uniform distance for a circular (not biased) distribution.
+ *
+ * Extracted as a top-level function for unit-test access.
+ */
+internal fun fuzzCoordinate(
+    lat: Double,
+    lon: Double,
+    radiusMeters: Double,
+    random: Random = Random
+): Pair<Double, Double> {
+    val bearing = random.nextDouble(0.0, 2 * PI)
+    val u = random.nextDouble(0.0, 1.0)
+    val distance = sqrt(u) * radiusMeters
+    val earthRadius = 6_371_000.0
+    val latRad = Math.toRadians(lat)
+    val lonRad = Math.toRadians(lon)
+
+    val newLatRad = asin(
+        sin(latRad) * cos(distance / earthRadius) +
+        cos(latRad) * sin(distance / earthRadius) * cos(bearing)
+    )
+    val newLonRad = lonRad + atan2(
+        sin(bearing) * sin(distance / earthRadius) * cos(latRad),
+        cos(distance / earthRadius) - sin(latRad) * sin(newLatRad)
+    )
+    return Pair(Math.toDegrees(newLatRad), Math.toDegrees(newLonRad))
 }
