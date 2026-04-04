@@ -15,11 +15,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **Android unit tests**: 6 new test suites (LocationFuzz, LocationViewModel, MemberSort, GroupListItem, ChatMessageItem, MemberAnnotation) — 60 new tests covering location fuzzing math, map annotation staleness, group filtering, member sort order, unread logic, and chat message type filtering; total Android tests now 90
 - **MockK + coroutines-test**: added test dependencies for mocking Android services and testing coroutine-based ViewModels
+- **Protocol round-trip tests — Tier 1** (iOS): 27 tests covering group lifecycle (create, rename, relays), member add/remove via Welcome, message delivery (chat, location, nickname payloads), key rotation (epoch advancement, post-rotation messaging), leave requests, invite code round-trip, and subscription setup
+- **Failure & recovery tests — Tier 2** (iOS): 40 tests covering uninitialised MLS errors, health tracker threshold/recovery, invalid/corrupt event handling, message ordering and pagination, concurrent group and message operations, identity lifecycle (generate/restore/destroy/import), MLS reset, store deduplication (PendingInvite, PendingLeave, PendingWelcome), and Welcome decline
 
 ### Changed
 - **Codecov: exclude Compose UI from coverage**: `ui/`, `MainActivity`, `FindMyFamApp`, and `di/` excluded from Codecov metrics — these require instrumentation tests and were dragging overall coverage to 3%
 - **`fuzzCoordinate` extracted for testability**: location fuzzing algorithm extracted from `AppViewModel` to an `internal` top-level function with injectable `Random` for deterministic testing
-
 ---
 
 ## [1.0.1] — 2026-04-03
