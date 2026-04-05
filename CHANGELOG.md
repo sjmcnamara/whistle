@@ -6,7 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.0.2] — 2026-04-05
 
 ### Fixed
 - **Groups lost after force quit** (iOS): MLS database was deleted on every launch because `MLSService.initialise()` unconditionally called `deleteDatabase()` in the `newMdk` failure path — which always fails while MDK #243 (keyring-core UniFFI exposure) is unresolved. The delete calls have been removed; the unencrypted fallback now opens the existing database directly, preserving all groups and messages across relaunches
@@ -21,6 +21,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **Codecov: exclude Compose UI from coverage**: `ui/`, `MainActivity`, `FindMyFamApp`, and `di/` excluded from Codecov metrics — these require instrumentation tests and were dragging overall coverage to 3%
 - **`fuzzCoordinate` extracted for testability**: location fuzzing algorithm extracted from `AppViewModel` to an `internal` top-level function with injectable `Random` for deterministic testing
+- **Version bump** — iOS 1.0.2 (build 17), Android 1.0.2 (versionCode 14)
+
 ---
 
 ## [1.0.1] — 2026-04-03
