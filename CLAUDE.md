@@ -123,7 +123,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Next planned: **v1.1.3 — Smart Location Intervals** (parked). See ROADMAP.md.
-
-Deferred (external blocker resolved as of v1.1.3):
-- ~~Full SQLCipher activation~~ — done; `newMdkUnencrypted` fallback removed.
+Next planned: **v1.1.4 — Smart Location Intervals** (parked). See ROADMAP.md.
