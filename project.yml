@@ -17,10 +17,9 @@ packages:
     url: https://github.com/rust-nostr/nostr-sdk-swift
     from: "0.44.2"
   MDKBindings:
-    # url: https://github.com/marmot-protocol/mdk-swift
-    # Pinned commit — no tags exist yet. Update when a release is tagged.
-    # revision: c58a77f
-    path: ../mdk-swift/crates/mdk-uniffi/src/swift
+    url: https://github.com/marmot-protocol/mdk-swift
+    # MDK 0.8.0 — includes PR#252 keyring auto-init, kind:30443 key packages, MIP-05 primitives.
+    revision: f40174590f0949d7f5d4debc4814ba23af846ea9
 
 settings:
   base:

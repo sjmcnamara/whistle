@@ -44,57 +44,26 @@ android/         Kotlin/Compose parity implementation
 
 `MDKBindings` is the UniFFI-generated Swift wrapper around the Rust MDK library.
 
-**Normal state (CI / other devs)**: `project.yml` references the remote mdk-swift repo at a pinned commit:
+**Normal state**: `project.yml` references the remote mdk-swift repo at a pinned commit:
 ```yaml
 MDKBindings:
   url: https://github.com/marmot-protocol/mdk-swift
   revision: <commit>
 ```
 
-**Local development state** (current working state): pointing at a local clone to test unreleased changes:
+Currently pinned to MDK 0.8.0 (`f40174590f0949d7f5d4debc4814ba23af846ea9`).
+
+**Local development state** (only when testing unreleased MDK changes): point at a local clone:
 ```yaml
 MDKBindings:
   path: ../mdk-swift/crates/mdk-uniffi/src/swift
 ```
 
-The local clone lives at `../mdk-swift` (sibling directory). Branch `testing-hardening` tracks `maintainer/codex/sqlcipher-pr252-hardening`.
-
 **When switching back to remote**: restore the `url`/`revision` form and delete the `path` line. Commit `project.yml` only when pointing to a published remote revision.
-
-### Building the xcframework locally (Intel Mac)
-
-The upstream mdk-swift xcframework only ships arm64 slices. On Intel Mac, build x86_64-sim and create a fat library:
-
-```bash
-cd ../mdk-swift
-IPHONEOS_DEPLOYMENT_TARGET=15.0 cargo build --release --lib -p mdk-uniffi --target x86_64-apple-ios
-
-XFWK=crates/mdk-uniffi/src/swift/Binary/mdk_uniffi.xcframework
-lipo -create \
-  "$XFWK/ios-arm64-simulator/libmdk_uniffi.a" \
-  target/x86_64-apple-ios/release/libmdk_uniffi.a \
-  -output /tmp/libmdk_uniffi_sim_fat.a
-
-rm -rf "$XFWK"
-xcodebuild -create-xcframework \
-  -library "$XFWK/../../../../../../../MDK.xcframework/ios-arm64/libmdk_uniffi.a" \  # or existing arm64 slice
-  -headers <headers-dir> \
-  -library /tmp/libmdk_uniffi_sim_fat.a -headers <headers-dir> \
-  -output "$XFWK"
-```
-
-Simpler: use the recipe in `../mdk-swift/justfile` (`just gen-binding-swift`) — but it only builds arm64 targets; the x86_64-apple-ios target must be added manually for Intel Mac.
 
 ## Known test failures (pre-existing, not ours)
 
-`SecureEnclaveServiceTests` — 3 tests fail on iOS 26 simulator because Apple added Secure Enclave availability to the simulator. Tests assert `isAvailable == false`; simulator now returns `true`. Affects:
-- `testSecureEnclaveIsAvailableReturnsBool`
-- `testEncryptThrowsWhenSEUnavailable`
-- `testDecryptThrowsWhenSEUnavailable`
-
-Cascade: `IdentityServiceTests` and `EncryptedSecureStorageTests` also fail (20 additional failures) because `EncryptedSecureStorage` takes the SE path on a simulator that reports SE available, but SE operations aren't fully functional there.
-
-**Total pre-existing failures on simulator: 23 out of 242.** All MLS/protocol suites pass.
+None currently known. All suites should pass on simulator.
 
 ## MLS database
 
@@ -111,7 +80,7 @@ sqlite3 /path/to/whistle.db "PRAGMA integrity_check;"
 
 ## Marmot Protocol PRs we've opened
 
-- **marmot-protocol/mdk#252** — `feat(uniffi): auto-init platform keyring store in new_mdk()`. Still open; a contributor's improvement was merged on the `codex/sqlcipher-pr252-hardening` branch in mdk-swift instead. Our PR can be closed when the upstream mdk-swift publishes a new release incorporating this.
+- **marmot-protocol/mdk#252** — `feat(uniffi): auto-init platform keyring store in new_mdk()`. **Merged in MDK 0.8.0.** ✓
 
 ## Branch strategy
 
