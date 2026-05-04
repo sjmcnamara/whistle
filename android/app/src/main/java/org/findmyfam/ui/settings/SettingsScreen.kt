@@ -1,7 +1,10 @@
 package org.findmyfam.ui.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -119,6 +122,25 @@ fun SettingsScreen(
 
             // Location section
             SectionHeader("Location")
+
+            val hasLocationPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!hasLocationPermission) {
+                SettingsRow(
+                    label = "Location Denied — Open Settings",
+                    icon = Icons.Default.LocationOff,
+                    trailing = {
+                        TextButton(onClick = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                            )
+                        }) { Text("Open") }
+                    }
+                )
+            }
 
             SettingsToggle(
                 label = "Pause Location Sharing",

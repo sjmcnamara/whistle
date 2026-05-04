@@ -43,7 +43,20 @@ class MLSService @Inject constructor(
 
         val dbDir = context.filesDir.resolve("mdk")
         if (!dbDir.exists()) dbDir.mkdirs()
-        val dbPath = dbDir.resolve("marmot.db").absolutePath
+
+        // Migrate legacy filename from pre-1.1.2 installs.
+        val oldFile = dbDir.resolve("marmot.db")
+        val newFile = dbDir.resolve("whistle.db")
+        if (oldFile.exists() && !newFile.exists()) {
+            oldFile.renameTo(newFile)
+            for (suffix in listOf("-wal", "-shm")) {
+                val old = dbDir.resolve("marmot.db$suffix")
+                if (old.exists()) old.renameTo(dbDir.resolve("whistle.db$suffix"))
+            }
+            Timber.i("Migrated MLS database: marmot.db → whistle.db")
+        }
+
+        val dbPath = newFile.absolutePath
 
         try {
             mdk = newMdk(dbPath = dbPath, serviceId = SERVICE_ID, dbKeyId = DB_KEY_ID, config = null)

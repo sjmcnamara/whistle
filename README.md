@@ -3,9 +3,9 @@
 [![CI](https://github.com/sjmcnamara/whistle/actions/workflows/ci.yml/badge.svg)](https://github.com/sjmcnamara/whistle/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/sjmcnamara/whistle/actions/workflows/codeql.yml/badge.svg)](https://github.com/sjmcnamara/whistle/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sjmcnamara/whistle/badge)](https://scorecard.dev/viewer/?uri=github.com/sjmcnamara/whistle)
-[![iOS](https://img.shields.io/codecov/c/github/sjmcnamara/whistle/master?flag=ios&label=iOS)](https://app.codecov.io/gh/sjmcnamara/whistle?flags%5B0%5D=ios)
-[![WhistleCore](https://img.shields.io/codecov/c/github/sjmcnamara/whistle/master?flag=whistlecore&label=WhistleCore)](https://app.codecov.io/gh/sjmcnamara/whistle?flags%5B0%5D=whistlecore)
-[![Android](https://img.shields.io/codecov/c/github/sjmcnamara/whistle/master?flag=android&label=Android)](https://app.codecov.io/gh/sjmcnamara/whistle?flags%5B0%5D=android)
+[![iOS](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcodecov.io%2Fapi%2Fv2%2Fgithub%2Fsjmcnamara%2Frepos%2Fwhistle%2Freport%3Fflag%3Dios&query=%24.totals.coverage&suffix=%25&label=iOS&color=brightgreen)](https://app.codecov.io/gh/sjmcnamara/whistle?flags%5B0%5D=ios)
+[![WhistleCore](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcodecov.io%2Fapi%2Fv2%2Fgithub%2Fsjmcnamara%2Frepos%2Fwhistle%2Freport%3Fflag%3Dwhistlecore&query=%24.totals.coverage&suffix=%25&label=WhistleCore&color=brightgreen)](https://app.codecov.io/gh/sjmcnamara/whistle?flags%5B0%5D=whistlecore)
+[![Android](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcodecov.io%2Fapi%2Fv2%2Fgithub%2Fsjmcnamara%2Frepos%2Fwhistle%2Freport%3Fflag%3Dandroid&query=%24.totals.coverage&suffix=%25&label=Android&color=brightgreen)](https://app.codecov.io/gh/sjmcnamara/whistle?flags%5B0%5D=android)
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey)
 [![License: Unlicense](https://img.shields.io/badge/License-Unlicense-blue.svg)](LICENSE)
 
@@ -99,7 +99,7 @@ whistle/
 
 ## Status
 
-v1.0 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
+v1.1.3 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Wiki
 

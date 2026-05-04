@@ -210,6 +210,17 @@ final class GroupDetailViewModel: ObservableObject {
         }
     }
 
+    func promoteToAdmin(pubkeyHex: String) async {
+        do {
+            try await marmot.promoteToAdmin(pubkeyHex: pubkeyHex, inGroup: groupId)
+            await load()
+            FMFLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
+        } catch {
+            self.error = error.localizedDescription
+            FMFLogger.chat.error("Failed to promote member: \(error)")
+        }
+    }
+
     /// Whether the current user is an admin of this group.
     var isAdmin: Bool {
         members.first(where: \.isMe)?.isAdmin ?? false

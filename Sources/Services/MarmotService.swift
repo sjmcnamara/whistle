@@ -379,6 +379,30 @@ final class MarmotService: ObservableObject {
         FMFLogger.marmot.info("Sent leave request for group \(groupId)")
     }
 
+    /// Promote a member to admin: update the group's admin list via MLS metadata.
+    func promoteToAdmin(pubkeyHex: String, inGroup groupId: String) async throws {
+        guard let group = groups.first(where: { $0.mlsGroupId == groupId }) else { return }
+        var admins = group.adminPubkeys
+        guard !admins.contains(pubkeyHex) else { return }
+        admins.append(pubkeyHex)
+
+        let update = GroupDataUpdate(
+            name: nil, description: nil, imageHash: nil,
+            imageKey: nil, imageNonce: nil, relays: nil,
+            admins: admins
+        )
+        let result = try await mls.updateGroupData(groupId: groupId, update: update)
+        try await mls.mergePendingCommit(groupId: groupId)
+
+        let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
+        for eventJson in payload.events {
+            try await publishGroupEvent(eventJson: eventJson)
+        }
+
+        await refreshGroups()
+        FMFLogger.marmot.info("Promoted \(pubkeyHex) to admin in group \(groupId)")
+    }
+
     /// Rename a group: update MLS metadata, merge, publish the evolution event.
     func renameGroup(_ groupId: String, to newName: String) async throws {
         let update = GroupDataUpdate(
