@@ -5,6 +5,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/marmot-protocol/mdk-swift",
       "state" : {
+        "branch" : "main",
         "revision" : "f40174590f0949d7f5d4debc4814ba23af846ea9"
       }
     },

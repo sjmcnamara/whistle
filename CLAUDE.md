@@ -51,7 +51,7 @@ MDKBindings:
   revision: <commit>
 ```
 
-Currently pinned to MDK 0.8.0 (`f40174590f0949d7f5d4debc4814ba23af846ea9`).
+Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tags yet; switch to `revision:` once a tag is published.
 
 **Local development state** (only when testing unreleased MDK changes): point at a local clone:
 ```yaml

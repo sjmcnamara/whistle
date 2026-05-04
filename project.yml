@@ -18,8 +18,7 @@ packages:
     from: "0.44.2"
   MDKBindings:
     url: https://github.com/marmot-protocol/mdk-swift
-    # MDK 0.8.0 — includes PR#252 keyring auto-init, kind:30443 key packages, MIP-05 primitives.
-    revision: f40174590f0949d7f5d4debc4814ba23af846ea9
+    branch: main
 
 settings:
   base:
