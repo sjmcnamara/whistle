@@ -325,7 +325,14 @@ _Surface settings shortcuts where the app hits permission walls + DB rename_
 
 ---
 
-### v1.1.3 — Smart Location Intervals
+### v1.1.3 — SQLCipher Activation & Promote to Admin ✅
+_Completed the deferred SQLCipher encryption story; new admin management action — released 2026-04-23_
+
+- **MLS database encryption activated** (iOS): `MLSService.initialise()` now calls `newMdk()` directly — SQLCipher-encrypted database on first launch. Blocked since v0.9 on MDK #243 (`set_default_store()` not UniFFI-exposed); resolved via contributor improvement of [marmot-protocol/mdk#252](https://github.com/marmot-protocol/mdk/pull/252). Stale unencrypted databases from pre-v0.9 detected and replaced.
+- **Promote to admin** (iOS): swipe right on a member in Group Detail to promote them; admin-only action, hidden for self and existing admins; uses MDK `updateGroupData()` to append to `admin_pubkeys`
+- **CLAUDE.md**: process notes for build, versioning, MDK local/remote setup, and known test failures
+
+### v1.1.4 — Smart Location Intervals
 _Per-group intervals + motion-adaptive battery mode_
 
 - **Per-group update intervals**: each group stores its own interval in group metadata (kind 445 control message); slider in Group Detail UI replaces the global setting
@@ -334,7 +341,6 @@ _Per-group intervals + motion-adaptive battery mode_
 - Motion state feeds into the existing low-battery decision tree; per-group last-sent timestamps track independent publish cadence
 
 ### Deferred
-- **Full SQLCipher activation**: remove `newMdkUnencrypted` fallback once MDK ships `set_default_store()` via UniFFI ([marmot-protocol/mdk#243](https://github.com/marmot-protocol/mdk/issues/243))
 - **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input (post-v1.0)
 
 ---
@@ -369,8 +375,9 @@ master
   └── feature/v1.0.1-ux-fixes           ✅ merged
   └── feature/v1.0.2-test-coverage      ✅ merged
   └── feature/v1.1.1-onboarding         ✅ merged
-  └── feature/v1.1.2-settings-deep-links
-  └── feature/v1.1.3-smart-location
+  └── feature/v1.1.2-settings-deep-links ✅ merged
+  └── feature/v1.1.3-sqlcipher-activation ✅ merged (direct to master — skipped branch)
+  └── feature/v1.1.4-smart-location
 ```
 
 ---
