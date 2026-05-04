@@ -72,6 +72,9 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
+      - name: Enable git LFS
+        run: git lfs install
+
       - name: Build & Test
         run: |
           xcodebuild test \
