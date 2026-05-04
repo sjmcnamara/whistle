@@ -67,26 +67,8 @@ struct SettingsView: View {
 
     private var locationSection: some View {
         Section("Location") {
-            // Enable location — shown when authorization not yet requested.
-            if appViewModel.locationService.authorizationStatus == .notDetermined {
-                Button {
-                    appViewModel.locationService.requestAlwaysAuthorization()
-                } label: {
-                    Label("Enable Location", systemImage: "location.fill")
-                }
-            }
-
-            // If the user only granted "When In Use", offer to upgrade to "Always".
-            if appViewModel.locationService.authorizationStatus == .authorizedWhenInUse {
-                Button {
-                    if let url = URL(string: "app-settings:") {
-                        openURL(url)
-                    }
-                } label: {
-                    Label("Allow Always for Background Sharing", systemImage: "location.fill")
-                }
-                .font(.subheadline)
-            }
+            // Authorization row — tappable when the status can be changed in Settings.
+            authorizationRow
 
             Toggle(isOn: Binding(
                 get: { appViewModel.settings.isLocationPaused },
@@ -107,37 +89,67 @@ struct SettingsView: View {
             } label: {
                 Label("Update Interval", systemImage: "clock.arrow.2.circlepath")
             }
-
-            HStack {
-                Label("Authorization", systemImage: "checkmark.shield")
-                Spacer()
-                authorizationLabel
-            }
         }
     }
 
     @ViewBuilder
-    private var authorizationLabel: some View {
+    private var authorizationRow: some View {
         let status = appViewModel.locationService.authorizationStatus
         switch status {
         case .notDetermined:
-            Text("Not Requested")
-                .foregroundStyle(.secondary)
+            Button {
+                appViewModel.locationService.requestAlwaysAuthorization()
+            } label: {
+                HStack {
+                    Label("Authorization", systemImage: "checkmark.shield")
+                    Spacer()
+                    Text("Not Requested")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
         case .restricted:
-            Text("Restricted")
-                .foregroundStyle(.orange)
+            HStack {
+                Label("Authorization", systemImage: "checkmark.shield")
+                Spacer()
+                Text("Restricted")
+                    .foregroundStyle(.orange)
+            }
         case .denied:
-            Text("Denied")
-                .foregroundStyle(.red)
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            } label: {
+                HStack {
+                    Label("Authorization", systemImage: "checkmark.shield")
+                    Spacer()
+                    Text("Denied")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
         case .authorizedWhenInUse:
-            Text("When In Use")
-                .foregroundStyle(.green)
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            } label: {
+                HStack {
+                    Label("Authorization", systemImage: "checkmark.shield")
+                    Spacer()
+                    Text("When In Use")
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
         case .authorizedAlways:
-            Text("Always")
-                .foregroundStyle(.green)
+            HStack {
+                Label("Authorization", systemImage: "checkmark.shield")
+                Spacer()
+                Text("Always")
+                    .foregroundStyle(.green)
+            }
         @unknown default:
-            Text("Unknown")
-                .foregroundStyle(.secondary)
+            HStack {
+                Label("Authorization", systemImage: "checkmark.shield")
+                Spacer()
+                Text("Unknown")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

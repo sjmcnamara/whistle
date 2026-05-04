@@ -55,6 +55,16 @@ struct GroupDetailView: View {
                                 }
                             }
                         }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            if viewModel.isAdmin && !member.isMe && !member.isAdmin {
+                                Button {
+                                    Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
+                                } label: {
+                                    Label("Make Admin", systemImage: "shield.checkered")
+                                }
+                                .tint(.orange)
+                            }
+                        }
                 }
             }
 

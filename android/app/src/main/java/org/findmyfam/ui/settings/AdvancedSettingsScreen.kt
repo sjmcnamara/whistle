@@ -1,5 +1,7 @@
 package org.findmyfam.ui.settings
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +37,7 @@ fun AdvancedSettingsScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var appLockEnabled by remember { mutableStateOf(settings.isAppLockEnabled) }
     var rotationDays by remember { mutableIntStateOf(settings.keyRotationIntervalDays) }
     var showBurnConfirm by remember { mutableStateOf(false) }
@@ -102,6 +105,18 @@ fun AdvancedSettingsScreen(
                 checked = appLockEnabled,
                 onCheckedChange = { appLockEnabled = it; settings.isAppLockEnabled = it }
             )
+
+            if (appLockEnabled) {
+                SettingsRow(
+                    label = "Biometric Settings",
+                    icon = Icons.Default.Fingerprint,
+                    trailing = {
+                        TextButton(onClick = {
+                            context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                        }) { Text("Open") }
+                    }
+                )
+            }
 
             var rotationExpanded by remember { mutableStateOf(false) }
             SettingsRow(
