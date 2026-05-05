@@ -91,7 +91,7 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     // Accompanist (permissions)
-    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     // Security / Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
