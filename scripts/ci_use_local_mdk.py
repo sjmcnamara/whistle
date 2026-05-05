@@ -4,7 +4,8 @@ mdk-swift stores its xcframework .a files in Git LFS. Xcode's embedded git
 does not reliably smudge LFS objects during SPM package resolution, causing
 "Couldn't check out revision" failures. As a workaround CI clones mdk-swift
 with explicit `git lfs pull` and this script patches project.yml to reference
-the local clone, bypassing SPM resolution entirely.
+the local clone (the Swift package root is the repo root), bypassing SPM
+resolution entirely.
 """
 import re
 import pathlib
@@ -13,10 +14,10 @@ p = pathlib.Path("project.yml")
 original = p.read_text()
 patched = re.sub(
     r"  MDKBindings:\n    url: [^\n]+\n    branch: [^\n]+",
-    "  MDKBindings:\n    path: ../mdk-swift/crates/mdk-uniffi/src/swift",
+    "  MDKBindings:\n    path: ../mdk-swift",
     original,
 )
 if patched == original:
     raise SystemExit("ERROR: MDKBindings remote reference not found in project.yml — pattern mismatch")
 p.write_text(patched)
-print("project.yml patched: MDKBindings -> local mdk-swift clone")
+print("project.yml patched: MDKBindings -> ../mdk-swift (local clone)")
