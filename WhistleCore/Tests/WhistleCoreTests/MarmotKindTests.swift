@@ -3,8 +3,8 @@ import XCTest
 
 final class MarmotKindTests: XCTestCase {
 
-    func testKeyPackageIs443() {
-        XCTAssertEqual(MarmotKind.keyPackage, 443)
+    func testKeyPackageIs30443() {
+        XCTAssertEqual(MarmotKind.keyPackage, 30443)
     }
 
     func testWelcomeIs444() {
