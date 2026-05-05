@@ -64,7 +64,7 @@ final class ProtocolRoundTripTests: XCTestCase {
             publicKeyHex: pub2Hex,
             relays: ["wss://mock.relay"]
         )
-        // Build a signed kind-443 event with the key package as content
+        // Build a signed kind-30443 event with the key package as content
         var builder = EventBuilder(kind: Kind(kind: MarmotKind.keyPackage), content: kp.keyPackage)
         var tags: [Tag] = []
         for tag in kp.tags {

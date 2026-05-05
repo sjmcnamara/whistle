@@ -19,18 +19,12 @@ actor MLSService {
 
     // MARK: - Initialisation
 
-    /// Production init — attempts encrypted SQLCipher storage via `newMdk`,
-    /// which delegates key management to `keyring-core` (Keychain on iOS,
-    /// Keystore on Android).
-    ///
-    /// **Fallback:** `keyring-core` requires `set_default_store()` to be called
-    /// from Rust before `newMdk` can work, but this function is not yet exposed
-    /// via UniFFI (MDK encrypted-storage-plan Phase 4 incomplete). If `newMdk`
-    /// fails, we fall back to `newMdkUnencrypted` and log a warning. Once the
-    /// MDK ships the store-init function via UniFFI, remove the fallback.
+    /// Production init — opens an encrypted SQLCipher database via `newMdk`,
+    /// which auto-initialises the platform keyring store (iOS Keychain) and
+    /// delegates DB key management to `keyring-core`.
     ///
     /// If an existing database cannot be opened (e.g. a pre-0.9 unencrypted DB
-    /// left on device), it is deleted and recreated.
+    /// left on device), it is deleted and a fresh encrypted DB is created.
     func initialise(
         serviceId: String = "org.findmyfam",
         dbKeyId: String = "mdk.db.key"
@@ -45,15 +39,18 @@ actor MLSService {
 
         FMFLogger.mls.info("MLSService init — dbExists=\(dbExists), path=\(path)")
 
-        // Skip newMdk() (encrypted via keyring-core) — it always fails until MDK #243
-        // (set_default_store() not yet exposed via UniFFI) and the failure path may involve
-        // an IPC/keyring timeout that stalls startup by 10-20s. Go straight to the fallback.
-        // TODO: Restore the newMdk() attempt (with a migration path) once MDK #243 ships.
-        FMFLogger.mls.warning("⚠️ Using newMdkUnencrypted — encrypted init skipped until MDK #243")
-        mdk = try newMdkUnencrypted(dbPath: path, config: nil)
+        do {
+            mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
+        } catch {
+            // Existing DB is unencrypted (pre-v0.9) or corrupt — delete and recreate.
+            FMFLogger.mls.warning("newMdk failed (\(error)) — deleting stale DB and retrying")
+            Self.deleteDatabase(at: path)
+            mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
+        }
+
         isInitialised = true
         let groupCount = (try? mdk?.getGroups().count) ?? -1
-        FMFLogger.mls.info("MLSService initialised (UNENCRYPTED fallback), \(groupCount) group(s)")
+        FMFLogger.mls.info("MLSService initialised (encrypted), \(groupCount) group(s)")
     }
 
     /// Tear down the MLS state entirely so a new identity can start fresh.
@@ -104,19 +101,20 @@ actor MLSService {
         handle.synchronizeFile()
     }
 
-    /// In-memory init for unit tests only (unencrypted — no Keychain in test host).
+    /// In-memory init for unit tests only.
+    /// Uses a fixed 32-byte key via `newMdkWithKey` — no Keychain required in the test host.
     func initialiseInMemory() throws {
-        mdk = try newMdkUnencrypted(dbPath: ":memory:", config: nil)
+        mdk = try newMdkWithKey(dbPath: ":memory:", encryptionKey: Data(count: 32), config: nil)
         isInitialised = true
         FMFLogger.mls.debug("MLSService initialised in memory (test mode)")
     }
 
-    // MARK: - Key Packages (kind 443)
+    // MARK: - Key Packages (kind 30443)
 
-    /// Produce a KeyPackage payload for publishing as a kind-443 Nostr event.
+    /// Produce a KeyPackage payload for publishing as a kind-30443 Nostr event.
     ///
     /// The caller must:
-    /// 1. Build a kind-443 event: `content = result.keyPackage`, `tags = result.tags`
+    /// 1. Build a kind-30443 event: `content = result.keyPackage`, `tags = result.tags`
     /// 2. Sign the event with the user's Nostr nsec
     /// 3. Publish to relays
     func createKeyPackage(
@@ -135,7 +133,7 @@ actor MLSService {
     ///
     /// - Parameters:
     ///   - creatorPublicKeyHex:       Hex pubkey of the group creator.
-    ///   - memberKeyPackageEventsJson: Fully signed kind-443 event JSON strings for
+    ///   - memberKeyPackageEventsJson: Fully signed kind-30443 event JSON strings for
     ///                                 any members to add at creation time. Pass `[]`
     ///                                 to create a solo group.
     ///   - name:        Human-readable group name.
@@ -174,7 +172,7 @@ actor MLSService {
     }
 
     /// Add members to a group. Caller must `mergePendingCommit` and publish the result.
-    /// - Parameter keyPackageEventsJson: Signed kind-443 event JSON for each new member.
+    /// - Parameter keyPackageEventsJson: Signed kind-30443 event JSON for each new member.
     func addMembers(
         groupId: String,
         keyPackageEventsJson: [String]
@@ -244,7 +242,8 @@ actor MLSService {
             senderPublicKey: senderPublicKeyHex,
             content: content,
             kind: kind,
-            tags: tags
+            tags: tags,
+            eventTags: nil
         )
     }
 

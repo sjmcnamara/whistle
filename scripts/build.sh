@@ -8,8 +8,8 @@ set -euo pipefail
 #   ./scripts/build.sh clean        # clean build artifacts
 
 COMMAND=${1:-build}
-PROJECT="FindMyFam.xcodeproj"
-SCHEME="FindMyFam"
+PROJECT="Whistle.xcodeproj"
+SCHEME="Whistle"
 
 detect_simulator() {
     # Prefer the newest available iPhone simulator
@@ -76,7 +76,7 @@ case "$COMMAND" in
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -quiet 2>/dev/null || true
-        rm -rf ~/Library/Developer/Xcode/DerivedData/FindMyFam-* 2>/dev/null || true
+        rm -rf ~/Library/Developer/Xcode/DerivedData/Whistle-* 2>/dev/null || true
         echo "✓ Clean complete"
         ;;
 

@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **MDK 0.8.0** (iOS): bumped MDK dependency from 0.7.1 to 0.8.0. Includes our merged PR #252 (keyring auto-init in `newMdk()`), MIP-05 notification primitives, MIP-00 key package migration to addressable kind:30443 events, and several security hardening fixes (admin pruning, ciphertext dedup, replay rejection). `MarmotKind.keyPackage` updated from 443 to 30443.
+
+### Fixed
+- **SE test assertions** (iOS): `SecureEnclaveServiceTests` now uses runtime `SecureEnclaveService.isAvailable` checks instead of compile-time `#if targetEnvironment(simulator)`, fixing 3 test failures on iOS 26 simulator where Apple enabled SE availability.
+
+---
+
+## [1.1.3] — 2026-04-23
+
+### Security
+- **MLS database encryption activated** (iOS): `MLSService.initialise()` now calls `newMdk()` directly — the MLS database is SQLCipher-encrypted on first launch. Blocked since v0.9 on MDK #243 (`set_default_store()` not UniFFI-exposed); resolved via `marmot-protocol/mdk` merging a contributor improvement of PR #252 that auto-initialises the platform keyring store inside `newMdk()`. Stale unencrypted databases from pre-v0.9 are detected and replaced on first launch.
+
+### Added
+- **Promote to admin** (iOS): swipe right on any non-admin member in Group Detail to promote them to admin; action is visible only to existing admins and hidden for self. Uses MDK `updateGroupData()` to append to `admin_pubkeys` — groups support multiple admins.
+
+### Fixed
+- **`scripts/build.sh clean`**: DerivedData glob corrected from `FindMyFam-*` to `Whistle-*` (leftover from v0.8.6 rename)
+- **`createMessage` API update**: added `eventTags: nil` for new outer-event-tags parameter added in MDK v0.7.1
+
+### Changed
+- **Version bump** — iOS 1.1.3 (build 20)
+
+---
+
 ## [1.1.2] — 2026-04-09
 
 ### Added
@@ -362,25 +389,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `InviteCode.asURL()` — wraps the base64 code in a `whistle://invite/` deep-link URL
 - `InviteCode.from(url:)` — decodes an invite from a `whistle://` URL or raw base64 (backwards compatible)
 - `InviteCode.approvalURL(pubkeyHex:groupId:)` — builds a `whistle://addmember/` approval deep link for admin confirmation flow
-- `NFCReadCoordinator` — `@StateObject` helper for NDEF tag reading
-- `NFCWriteCoordinator` — `@StateObject` helper for writing NDEF URL records to NFC tags
-- `QRScannerView` — AVCaptureSession-based QR scanner with scan-frame guide
-
-### Changed
-- **InviteShareView** — "Share" button now shares the `whistle://` URL (AirDrop auto-handles it); QR now encodes the URL; legacy raw code still shown for copy
-- **JoinGroupView** — accepts `initialCode` param for deep-link/QR/NFC pre-fill; added QR scan and NFC read buttons
-
----
-
-## [0.6.1] — 2026-03-17
-
-### Added
-- **AirDrop / deep-link invites** — invites are now shared as `whistle://invite/<code>` URLs; accepting an AirDrop or tapping a link opens the app and pre-fills the Join Group sheet — no copy-paste required
-- **QR code scanning** — "Scan QR Code" button in Join Group opens a live camera scanner; pointing at an inviter's QR code auto-populates and submits the join request
-- **NFC read** — "Tap NFC Tag" button (iPhone 7+) reads an NDEF invite URL from any NFC tag and auto-joins
-- **NFC write** — "Write to NFC Tag" button in the Invite sheet writes the `whistle://` invite URL to a blank NFC sticker; anyone can tap their phone to the sticker to join
-- `InviteCode.asURL()` — wraps the base64 code in a `whistle://invite/` deep-link URL
-- `InviteCode.from(url:)` — decodes an invite from a `whistle://` URL or raw base64 (backwards compatible)
 - `NFCReadCoordinator` — `@StateObject` helper for NDEF tag reading
 - `NFCWriteCoordinator` — `@StateObject` helper for writing NDEF URL records to NFC tags
 - `QRScannerView` — AVCaptureSession-based QR scanner with scan-frame guide
