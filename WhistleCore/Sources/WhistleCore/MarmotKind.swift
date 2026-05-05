@@ -1,13 +1,13 @@
 /// Nostr event kinds used by the Whistle protocol.
 ///
-/// Outer event kinds (443, 444, 445, 10051) originate from the Marmot MLS-over-Nostr
+/// Outer event kinds (30443, 444, 445, 10051) originate from the Marmot MLS-over-Nostr
 /// specification (MIP-00→03). Inner application message kinds (chat, location,
 /// leaveRequest) are Whistle-specific payloads carried inside kind-445 MLS messages.
 public enum MarmotKind {
     // MARK: - Marmot event kinds (MIP-00→03)
 
-    /// MLS KeyPackage — published by each user to advertise their MLS credentials.
-    public static let keyPackage: UInt16 = 443
+    /// MLS KeyPackage — addressable event (MIP-00, MDK 0.8.0+).
+    public static let keyPackage: UInt16 = 30443
     /// Welcome — gift-wrapped invitation to join an MLS group.
     public static let welcome: UInt16 = 444
     /// Group event — all in-group traffic: Commits, location updates, chat.

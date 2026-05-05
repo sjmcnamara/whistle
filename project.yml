@@ -17,10 +17,8 @@ packages:
     url: https://github.com/rust-nostr/nostr-sdk-swift
     from: "0.44.2"
   MDKBindings:
-    # url: https://github.com/marmot-protocol/mdk-swift
-    # Pinned commit — no tags exist yet. Update when a release is tagged.
-    # revision: c58a77f
-    path: ../mdk-swift/crates/mdk-uniffi/src/swift
+    url: https://github.com/marmot-protocol/mdk-swift
+    branch: main
 
 settings:
   base:
