@@ -69,8 +69,8 @@ jobs:
 
       - name: Clone mdk-swift with LFS
         run: |
-          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git ../mdk-swift
-          cd ../mdk-swift && git lfs pull
+          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+          cd vendor/mdk-swift && git lfs pull
 
       - name: Generate Xcode project
         run: |

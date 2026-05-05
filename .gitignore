@@ -10,6 +10,9 @@ DerivedData/
 *.mode2v3
 *.perspectivev3
 
+# CI-only vendor clones
+vendor/
+
 # macOS
 .DS_Store
 
