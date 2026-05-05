@@ -47,6 +47,12 @@ android {
     buildFeatures {
         compose = true
     }
+
+    lint {
+        // androidx.lifecycle lint detector crashes on MDK-generated mdk_uniffi.kt
+        // (KaCallableMemberCall class/interface mismatch in NullSafeMutableLiveDataDetector)
+        disable += "NullSafeMutableLiveData"
+    }
 }
 
 
