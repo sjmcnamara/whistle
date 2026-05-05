@@ -151,26 +151,21 @@ final class SecureEnclaveServiceTests: XCTestCase {
     // MARK: - SE availability check
 
     func testSecureEnclaveIsAvailableReturnsBool() {
-        // On simulator this returns false; on device true.
-        // Just verify it doesn't crash and returns a Bool.
+        // Verify it doesn't crash and returns a Bool. iOS 26 simulator reports SE as
+        // available; earlier simulators report unavailable. Both are valid outcomes.
         let available = SecureEnclaveService.isAvailable
         XCTAssertNotNil(available)
-        // On CI/simulator, SE is unavailable
-        #if targetEnvironment(simulator)
-        XCTAssertFalse(available, "SE should not be available on simulator")
-        #endif
     }
 
     func testEncryptThrowsWhenSEUnavailable() {
-        #if targetEnvironment(simulator)
+        guard !SecureEnclaveService.isAvailable else { return }
         XCTAssertThrowsError(try SecureEnclaveService.encrypt(nsec: "nsec1test")) { error in
             XCTAssertTrue(error is SecureEnclaveService.SEError)
         }
-        #endif
     }
 
     func testDecryptThrowsWhenSEUnavailable() {
-        #if targetEnvironment(simulator)
+        guard !SecureEnclaveService.isAvailable else { return }
         XCTAssertThrowsError(
             try SecureEnclaveService.decrypt(
                 sePrivateKeyData: Data(),
@@ -180,7 +175,6 @@ final class SecureEnclaveServiceTests: XCTestCase {
         ) { error in
             XCTAssertTrue(error is SecureEnclaveService.SEError)
         }
-        #endif
     }
 
     // MARK: - P-256 key serialization
