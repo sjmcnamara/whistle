@@ -45,7 +45,7 @@ jobs:
             echo "Coverage data not found — skipping"
           fi
 
-      - uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5
+      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: WhistleCore/coverage.lcov
@@ -67,9 +67,15 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Clone mdk-swift with LFS
+        run: |
+          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+          cd vendor/mdk-swift && git lfs pull
+
       - name: Generate Xcode project
         run: |
           brew install xcodegen
+          python3 scripts/ci_use_local_mdk.py
           xcodegen generate
 
       - name: Build & Test
@@ -87,7 +93,7 @@ jobs:
         run: |
           xcrun xccov view --report --json TestResults.xcresult > coverage.json
 
-      - uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5
+      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.json
@@ -140,7 +146,7 @@ jobs:
         working-directory: android
         run: ./gradlew :app:createDebugUnitTestCoverageReport
 
-      - uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5
+      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: android/app/build/reports/coverage/test/debug/report.xml
