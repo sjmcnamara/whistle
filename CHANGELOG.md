@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **MDK 0.8.0** (iOS): bumped MDK dependency from 0.7.1 to 0.8.0. Includes our merged PR #252 (keyring auto-init in `newMdk()`), MIP-05 notification primitives, MIP-00 key package migration to addressable kind:30443 events, and several security hardening fixes (admin pruning, ciphertext dedup, replay rejection). `MarmotKind.keyPackage` updated from 443 to 30443.
+
+### Fixed
+- **SE test assertions** (iOS): `SecureEnclaveServiceTests` now uses runtime `SecureEnclaveService.isAvailable` checks instead of compile-time `#if targetEnvironment(simulator)`, fixing 3 test failures on iOS 26 simulator where Apple enabled SE availability.
+
+---
+
 ## [1.1.3] — 2026-04-23
 
 ### Security
