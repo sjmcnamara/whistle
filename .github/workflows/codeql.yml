@@ -3,8 +3,6 @@ name: CodeQL
 on:
   push:
     branches: [master]
-  pull_request:
-    branches: [master]
   schedule:
     - cron: '0 8 * * 1'  # Every Monday 08:00 UTC
 
@@ -31,15 +29,24 @@ jobs:
 
       # ── Swift: install tooling BEFORE CodeQL init ─
       # brew install fails under Rosetta after CodeQL modifies the shell
-      # environment for Swift tracing, so xcodegen must be installed first.
+      # environment for Swift tracing, so xcodegen + mdk-swift must be
+      # set up before CodeQL initialises.
       - name: Install xcodegen (Swift)
         if: matrix.language == 'swift'
         run: brew install xcodegen
+
+      - name: Clone mdk-swift with LFS (Swift)
+        if: matrix.language == 'swift'
+        run: |
+          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+          cd vendor/mdk-swift && git lfs pull
+          python3 scripts/ci_use_local_mdk.py
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225  # v4
         with:
           languages: ${{ matrix.language }}
+          db-location: ~/.codeql/databases
 
       # ── Swift ────────────────────────────────────
       - name: Generate Xcode project (Swift)
@@ -69,7 +76,15 @@ jobs:
         run: ./gradlew assembleDebug
 
       # ── Analysis ─────────────────────────────────
+      - name: Cache CodeQL database
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: ~/.codeql/databases
+          key: codeql-${{ matrix.language }}-${{ github.sha }}
+          restore-keys: codeql-${{ matrix.language }}-
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225  # v4
         with:
           category: "/language:${{ matrix.language }}"
+          db-location: ~/.codeql/databases
