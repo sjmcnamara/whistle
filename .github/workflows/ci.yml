@@ -67,13 +67,26 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Clone mdk-swift with LFS
+        run: |
+          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git ../mdk-swift
+          cd ../mdk-swift && git lfs pull
+
       - name: Generate Xcode project
         run: |
           brew install xcodegen
+          # Swap remote MDK reference for the local clone so xcodebuild
+          # doesn't need SPM to resolve the LFS-heavy xcframework.
+          python3 - <<'EOF'
+import re, pathlib
+p = pathlib.Path("project.yml")
+p.write_text(re.sub(
+    r"  MDKBindings:\n    url: https://github\.com/marmot-protocol/mdk-swift\n    branch: main",
+    "  MDKBindings:\n    path: ../mdk-swift/crates/mdk-uniffi/src/swift",
+    p.read_text()
+))
+EOF
           xcodegen generate
-
-      - name: Enable git LFS
-        run: git lfs install
 
       - name: Build & Test
         run: |
