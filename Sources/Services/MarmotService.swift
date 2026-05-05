@@ -7,7 +7,7 @@ import MDKBindings
 /// `RelayService` (Nostr relay I/O) via the four Marmot event kinds.
 ///
 /// MarmotService is the single entry point for all Marmot protocol operations:
-/// - **Kind 443** — Key Package publishing & fetching
+/// - **Kind 30443** — Key Package publishing & fetching
 /// - **Kind 10051** — Key Package Relay List
 /// - **Kind 444** — Welcome (NIP-59 gift-wrapped)
 /// - **Kind 445** — Group events (commits, proposals, application messages)
@@ -102,9 +102,9 @@ final class MarmotService: ObservableObject {
         self.keys = keys
     }
 
-    // MARK: - Kind 443 — Key Packages
+    // MARK: - Kind 30443 — Key Packages
 
-    /// Create and publish a new MLS key package as a kind-443 event.
+    /// Create and publish a new MLS key package as a kind-30443 event.
     func publishKeyPackage(relays: [String]) async throws {
         let kp = try await mls.createKeyPackage(publicKeyHex: publicKeyHex, relays: relays)
 
@@ -118,7 +118,7 @@ final class MarmotService: ObservableObject {
         let taggedBuilder = builder.tags(tags: tags)
         try await relay.publish(builder: taggedBuilder)
 
-        FMFLogger.marmot.info("Published key package (kind 443)")
+        FMFLogger.marmot.info("Published key package (kind 30443)")
     }
 
     /// Fetch the latest key package for a given public key.
@@ -451,7 +451,7 @@ final class MarmotService: ObservableObject {
 
             case MarmotKind.keyPackage:
                 // Key package rotation — log for now, fetch on demand.
-                FMFLogger.marmot.debug("Received key package update (kind 443)")
+                FMFLogger.marmot.debug("Received key package update (kind 30443)")
 
             default:
                 FMFLogger.marmot.debug("Ignoring event kind \(kind)")

@@ -76,13 +76,13 @@ dependencies {
     // Hilt DI
     implementation("com.google.dagger:hilt-android:2.54")
     ksp("com.google.dagger:hilt-compiler:2.54")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     // DataStore (replaces SharedPreferences)
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
 
     // Biometric
     implementation("androidx.biometric:biometric:1.1.0")
@@ -91,7 +91,7 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     // Accompanist (permissions)
-    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     // Security / Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
