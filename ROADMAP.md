@@ -14,7 +14,7 @@ No accounts. No servers. No permissions needed.
 │ nostr-sdk    │  MDK (Swift  │  │ nostr-sdk    │  MDK (Kotlin │
 │ -swift       │  UniFFI)     │  │ -kotlin      │  UniFFI)     │
 ├──────────────┴──────────────┤  ├──────────────┴──────────────┤
-│  Marmot Event Handlers (kinds 443 / 444 / 445)               │
+│  Marmot Event Handlers (kinds 30443 / 444 / 445)             │
 │  MIP-00→03: KeyPackages, Groups, Welcomes, Messages          │
 ├──────────────────────────────────────────────────────────────┤
 │  Location Payload Schema (app-defined JSON in MLS msgs)      │
@@ -25,7 +25,7 @@ No accounts. No servers. No permissions needed.
 **Key design decisions:**
 
 - **MLS (RFC 9420)** for group key management — epoch-based key rotation, forward secrecy, post-compromise security
-- **Marmot Protocol (MIP-00→03)** for MLS-over-Nostr event kinds (443/444/445)
+- **Marmot Protocol (MIP-00→03)** for MLS-over-Nostr event kinds (30443/444/445)
 - **`mdk-swift` (Marmot Protocol)** — official Swift package, precompiled XCFramework, MIP-00→03 already implemented
 - **`nostr-sdk-swift` (rust-nostr)** for relay connectivity, NIP-44 encryption, NIP-59 gift-wrap
 - **No NIP-29** (relay-enforced groups) — all group membership is cryptographic, not relay-enforced
@@ -322,6 +322,15 @@ _Surface settings shortcuts where the app hits permission walls + DB rename_
 - **Location restricted** (iOS): informational label when device policy prevents location access
 - **Biometric settings link** (iOS & Android): shown below App Lock toggle when enabled — opens Face ID & Passcode / Security settings
 - **MLS database renamed**: `findmyfam-mdk.db` → `whistle.db` (iOS), `marmot.db` → `whistle.db` (Android) with automatic migration
+
+---
+
+### chore — MDK 0.8.0 upgrade ✅
+_Dependency upgrade, no version bump — merged 2026-05-05_
+
+- **MDK 0.8.0**: keyring auto-init in `newMdk()` (our PR #252 shipped), kind:30443 addressable KeyPackage events (MIP-00 migration), MIP-05 notification primitives, security hardening (admin pruning, ciphertext dedup, replay rejection)
+- **CI**: resolved mdk-swift SPM/LFS checkout failure — CI now clones mdk-swift with explicit `git lfs pull` via `scripts/ci_use_local_mdk.py`; `Package.resolved` tracked in git for reproducible builds
+- **SE simulator tests**: fixed 3 `SecureEnclaveServiceTests` failures — runtime `isAvailable` check replaces compile-time `#if targetEnvironment(simulator)` guard (iOS 26 simulator now reports SE available)
 
 ---
 

@@ -56,7 +56,7 @@ Group traffic is published as Marmot-compatible Nostr events:
 
 | Kind | Purpose |
 |------|---------|
-| 443 | MLS KeyPackage — used to add members to the group |
+| 30443 | MLS KeyPackage — used to add members to the group (addressable, MDK 0.8.0+) |
 | 444 | Welcome — bootstraps a new member's group state (gift-wrapped) |
 | 445 | Group Event — all in-group traffic: Commits, location updates, chat |
 | 10051 | KeyPackage relay list |
