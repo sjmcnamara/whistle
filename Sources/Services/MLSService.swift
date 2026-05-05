@@ -109,12 +109,12 @@ actor MLSService {
         FMFLogger.mls.debug("MLSService initialised in memory (test mode)")
     }
 
-    // MARK: - Key Packages (kind 443)
+    // MARK: - Key Packages (kind 30443)
 
-    /// Produce a KeyPackage payload for publishing as a kind-443 Nostr event.
+    /// Produce a KeyPackage payload for publishing as a kind-30443 Nostr event.
     ///
     /// The caller must:
-    /// 1. Build a kind-443 event: `content = result.keyPackage`, `tags = result.tags`
+    /// 1. Build a kind-30443 event: `content = result.keyPackage`, `tags = result.tags`
     /// 2. Sign the event with the user's Nostr nsec
     /// 3. Publish to relays
     func createKeyPackage(
@@ -133,7 +133,7 @@ actor MLSService {
     ///
     /// - Parameters:
     ///   - creatorPublicKeyHex:       Hex pubkey of the group creator.
-    ///   - memberKeyPackageEventsJson: Fully signed kind-443 event JSON strings for
+    ///   - memberKeyPackageEventsJson: Fully signed kind-30443 event JSON strings for
     ///                                 any members to add at creation time. Pass `[]`
     ///                                 to create a solo group.
     ///   - name:        Human-readable group name.
@@ -172,7 +172,7 @@ actor MLSService {
     }
 
     /// Add members to a group. Caller must `mergePendingCommit` and publish the result.
-    /// - Parameter keyPackageEventsJson: Signed kind-443 event JSON for each new member.
+    /// - Parameter keyPackageEventsJson: Signed kind-30443 event JSON for each new member.
     func addMembers(
         groupId: String,
         keyPackageEventsJson: [String]
