@@ -84,7 +84,9 @@ sqlite3 /path/to/whistle.db "PRAGMA integrity_check;"
 
 ## Branch strategy
 
-`feature/vX.Y-description` off master. PR per feature → merge to master. Patch releases use `bugfix/vX.Y.Z`. ROADMAP.md tracks branch history. Update ROADMAP.md when a feature branch merges.
+**All changes must go via a branch and PR — no direct commits to master, no exceptions.** This includes housekeeping, roadmap updates, changelog entries, and version bumps.
+
+Branch naming: `feature/vX.Y-description`, `bugfix/vX.Y.Z`, `chore/description`. PR per branch → review → merge to master. ROADMAP.md tracks branch history; update it when a branch merges.
 
 ## CHANGELOG format
 
