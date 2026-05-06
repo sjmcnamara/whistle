@@ -642,13 +642,15 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_mdk_uniffi_checksum_func_derive_upload_keypair(
     ): Short
-    external fun uniffi_mdk_uniffi_checksum_func_new_mdk(
+    external fun uniffi_mdk_uniffi_checksum_func_init_keyring_store(
     ): Short
-    external fun uniffi_mdk_uniffi_checksum_func_new_mdk_unencrypted(
+    external fun uniffi_mdk_uniffi_checksum_func_new_mdk(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_func_new_mdk_with_key(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_func_prepare_group_image_for_upload(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_func_prepare_group_image_for_upload_with_options(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_accept_welcome(
     ): Short
@@ -674,6 +676,14 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_decrypt_media_from_download(
     ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_delete_group(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_delete_key_package_from_storage(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_delete_key_package_from_storage_by_hash_ref(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_delete_messages_for_group(
+    ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_encrypt_media_for_upload(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_encrypt_media_for_upload_with_options(
@@ -692,9 +702,15 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_get_pending_welcomes(
     ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_get_ratchet_tree_info(
+    ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_get_relays(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_get_welcome(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_group_leaf_map(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_group_required_proposals(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_groups_needing_self_update(
     ): Short
@@ -702,15 +718,27 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_merge_pending_commit(
     ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_own_leaf_index(
+    ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_parse_key_package(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_parse_media_imeta_tag(
     ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_pending_added_members_pubkeys(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_pending_member_changes(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_pending_removed_members_pubkeys(
+    ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_process_message(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_process_message_with_context(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_process_welcome(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_remove_members(
+    ): Short
+    external fun uniffi_mdk_uniffi_checksum_method_mdk_self_demote(
     ): Short
     external fun uniffi_mdk_uniffi_checksum_method_mdk_self_update(
     ): Short
@@ -756,7 +784,7 @@ external fun uniffi_mdk_uniffi_fn_method_mdk_create_key_package_for_event_with_o
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_create_media_imeta_tag(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`upload`: RustBuffer.ByValue,`uploadedUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
-external fun uniffi_mdk_uniffi_fn_method_mdk_create_message(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`senderPublicKey`: RustBuffer.ByValue,`content`: RustBuffer.ByValue,`kind`: Short,`tags`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_mdk_uniffi_fn_method_mdk_create_message(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`senderPublicKey`: RustBuffer.ByValue,`content`: RustBuffer.ByValue,`kind`: Short,`tags`: RustBuffer.ByValue,`eventTags`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_decline_welcome(`ptr`: Long,`welcome`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
@@ -764,6 +792,14 @@ external fun uniffi_mdk_uniffi_fn_method_mdk_decline_welcome_json(`ptr`: Long,`w
 ): Unit
 external fun uniffi_mdk_uniffi_fn_method_mdk_decrypt_media_from_download(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`encryptedData`: RustBuffer.ByValue,`reference`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_delete_group(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_mdk_uniffi_fn_method_mdk_delete_key_package_from_storage(`ptr`: Long,`keyPackageEventJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_mdk_uniffi_fn_method_mdk_delete_key_package_from_storage_by_hash_ref(`ptr`: Long,`hashRef`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_mdk_uniffi_fn_method_mdk_delete_messages_for_group(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Int
 external fun uniffi_mdk_uniffi_fn_method_mdk_encrypt_media_for_upload(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`data`: RustBuffer.ByValue,`mimeType`: RustBuffer.ByValue,`filename`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_encrypt_media_for_upload_with_options(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`data`: RustBuffer.ByValue,`mimeType`: RustBuffer.ByValue,`filename`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -782,9 +818,15 @@ external fun uniffi_mdk_uniffi_fn_method_mdk_get_messages(`ptr`: Long,`mlsGroupI
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_get_pending_welcomes(`ptr`: Long,`limit`: RustBuffer.ByValue,`offset`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_get_ratchet_tree_info(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_get_relays(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_get_welcome(`ptr`: Long,`eventId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_group_leaf_map(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_group_required_proposals(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_groups_needing_self_update(`ptr`: Long,`thresholdSecs`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -792,15 +834,27 @@ external fun uniffi_mdk_uniffi_fn_method_mdk_leave_group(`ptr`: Long,`mlsGroupId
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_merge_pending_commit(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
+external fun uniffi_mdk_uniffi_fn_method_mdk_own_leaf_index(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Int
 external fun uniffi_mdk_uniffi_fn_method_mdk_parse_key_package(`ptr`: Long,`eventJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_parse_media_imeta_tag(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`imetaTag`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_pending_added_members_pubkeys(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_pending_member_changes(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_pending_removed_members_pubkeys(`ptr`: Long,`groupIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_process_message(`ptr`: Long,`eventJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_process_message_with_context(`ptr`: Long,`eventJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_process_welcome(`ptr`: Long,`wrapperEventId`: RustBuffer.ByValue,`rumorEventJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_remove_members(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,`memberPublicKeys`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_method_mdk_self_demote(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_method_mdk_self_update(`ptr`: Long,`mlsGroupId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -812,13 +866,15 @@ external fun uniffi_mdk_uniffi_fn_func_decrypt_group_image(`encryptedData`: Rust
 ): RustBuffer.ByValue
 external fun uniffi_mdk_uniffi_fn_func_derive_upload_keypair(`imageKey`: RustBuffer.ByValue,`version`: Short,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_func_init_keyring_store(uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 external fun uniffi_mdk_uniffi_fn_func_new_mdk(`dbPath`: RustBuffer.ByValue,`serviceId`: RustBuffer.ByValue,`dbKeyId`: RustBuffer.ByValue,`config`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-): Long
-external fun uniffi_mdk_uniffi_fn_func_new_mdk_unencrypted(`dbPath`: RustBuffer.ByValue,`config`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Long
 external fun uniffi_mdk_uniffi_fn_func_new_mdk_with_key(`dbPath`: RustBuffer.ByValue,`encryptionKey`: RustBuffer.ByValue,`config`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Long
 external fun uniffi_mdk_uniffi_fn_func_prepare_group_image_for_upload(`imageData`: RustBuffer.ByValue,`mimeType`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_mdk_uniffi_fn_func_prepare_group_image_for_upload_with_options(`imageData`: RustBuffer.ByValue,`mimeType`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun ffi_mdk_uniffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -945,16 +1001,19 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_mdk_uniffi_checksum_func_derive_upload_keypair() != 45595.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_mdk_uniffi_checksum_func_new_mdk() != 40772.toShort()) {
+    if (lib.uniffi_mdk_uniffi_checksum_func_init_keyring_store() != 38301.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_mdk_uniffi_checksum_func_new_mdk_unencrypted() != 29834.toShort()) {
+    if (lib.uniffi_mdk_uniffi_checksum_func_new_mdk() != 44062.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_func_new_mdk_with_key() != 29974.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_func_prepare_group_image_for_upload() != 65092.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_func_prepare_group_image_for_upload_with_options() != 40601.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_accept_welcome() != 3695.toShort()) {
@@ -981,7 +1040,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_create_media_imeta_tag() != 4917.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_create_message() != 58601.toShort()) {
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_create_message() != 39471.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_decline_welcome() != 57917.toShort()) {
@@ -993,10 +1052,22 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_decrypt_media_from_download() != 48593.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_encrypt_media_for_upload() != 41485.toShort()) {
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_delete_group() != 342.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_encrypt_media_for_upload_with_options() != 55124.toShort()) {
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_delete_key_package_from_storage() != 20843.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_delete_key_package_from_storage_by_hash_ref() != 10415.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_delete_messages_for_group() != 26935.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_encrypt_media_for_upload() != 37329.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_encrypt_media_for_upload_with_options() != 6450.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_get_group() != 1495.toShort()) {
@@ -1020,10 +1091,19 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_get_pending_welcomes() != 31211.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_get_ratchet_tree_info() != 6330.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_get_relays() != 55523.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_get_welcome() != 25012.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_group_leaf_map() != 58304.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_group_required_proposals() != 24118.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_groups_needing_self_update() != 16699.toShort()) {
@@ -1035,19 +1115,37 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_merge_pending_commit() != 22201.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_own_leaf_index() != 8924.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_parse_key_package() != 41870.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_parse_media_imeta_tag() != 60768.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_pending_added_members_pubkeys() != 10922.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_pending_member_changes() != 41921.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_pending_removed_members_pubkeys() != 34652.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_process_message() != 15589.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_process_message_with_context() != 28259.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_process_welcome() != 34932.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_remove_members() != 31926.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_mdk_uniffi_checksum_method_mdk_self_demote() != 56879.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_mdk_uniffi_checksum_method_mdk_self_update() != 48999.toShort()) {
@@ -1560,9 +1658,14 @@ public interface MdkInterface {
     fun `createMediaImetaTag`(`mlsGroupId`: kotlin.String, `upload`: EncryptedMediaUploadResult, `uploadedUrl`: kotlin.String): List<List<kotlin.String>>
     
     /**
-     * Create a message in a group
+     * Create a message in a group.
+     *
+     * `tags` are appended to the rumor and therefore are encrypted.
+     *
+     * `event_tags` are appended to the outer kind:445 wrapper event. Only a subset
+     * of tags are allowed; see [`EventTag`] for the full list.
      */
-    fun `createMessage`(`mlsGroupId`: kotlin.String, `senderPublicKey`: kotlin.String, `content`: kotlin.String, `kind`: kotlin.UShort, `tags`: List<List<kotlin.String>>?): kotlin.String
+    fun `createMessage`(`mlsGroupId`: kotlin.String, `senderPublicKey`: kotlin.String, `content`: kotlin.String, `kind`: kotlin.UShort, `tags`: List<List<kotlin.String>>?, `eventTags`: List<List<kotlin.String>>?): kotlin.String
     
     /**
      * Decline a welcome message
@@ -1594,11 +1697,46 @@ public interface MdkInterface {
     fun `decryptMediaFromDownload`(`mlsGroupId`: kotlin.String, `encryptedData`: kotlin.ByteArray, `reference`: MediaReferenceRecord): kotlin.ByteArray
     
     /**
+     * Delete all local state for a group.
+     */
+    fun `deleteGroup`(`mlsGroupId`: kotlin.String)
+    
+    /**
+     * Delete a key package from MLS storage using a key package Nostr event
+     *
+     * Parses the key package from the given kind-443 event and removes it
+     * from the MLS provider's storage.
+     *
+     * # Arguments
+     *
+     * * `key_package_event_json` - JSON-encoded Nostr key package event (kind 443)
+     */
+    fun `deleteKeyPackageFromStorage`(`keyPackageEventJson`: kotlin.String)
+    
+    /**
+     * Delete a key package from storage using previously serialized hash_ref bytes
+     *
+     * The `hash_ref` should be the bytes returned as the third element of
+     * `create_key_package_for_event`.
+     *
+     * # Arguments
+     *
+     * * `hash_ref` - Serialized hash reference bytes from key package creation
+     */
+    fun `deleteKeyPackageFromStorageByHashRef`(`hashRef`: kotlin.ByteArray)
+    
+    /**
+     * Delete all locally stored messages for a group.
+     */
+    fun `deleteMessagesForGroup`(`mlsGroupId`: kotlin.String): kotlin.UInt
+    
+    /**
      * Encrypt media for upload using default processing options
      *
      * Encrypts the supplied media file with the group's current MLS epoch key,
      * producing ciphertext ready to upload to a Blossom server. Images are
-     * automatically EXIF-sanitized and a blurhash preview is generated.
+     * automatically EXIF-sanitized and blurhash/thumbhash preview hashes are
+     * generated.
      *
      * After uploading the encrypted bytes, call `create_media_imeta_tag` with
      * the returned result and the Blossom URL to build the IMETA tag to attach
@@ -1616,8 +1754,8 @@ public interface MdkInterface {
     /**
      * Encrypt media for upload with custom processing options
      *
-     * Same as `encrypt_media_for_upload` but lets you override EXIF sanitization,
-     * blurhash generation, and size/dimension limits.
+     * Same as `encrypt_media_for_upload` but lets you override EXIF
+     * sanitization, preview hash generation, and size/dimension limits.
      *
      * # Arguments
      *
@@ -1707,6 +1845,19 @@ public interface MdkInterface {
     fun `getPendingWelcomes`(`limit`: kotlin.UInt?, `offset`: kotlin.UInt?): List<Welcome>
     
     /**
+     * Get public information about the ratchet tree of an MLS group
+     *
+     * This includes a SHA-256 fingerprint of the TLS-serialized ratchet tree,
+     * the full serialized tree as hex, and a list of leaf nodes with their
+     * indices and public keys.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `getRatchetTreeInfo`(`groupIdHex`: kotlin.String): UniffiRatchetTreeInfo
+    
+    /**
      * Get relays for a group
      */
     fun `getRelays`(`mlsGroupId`: kotlin.String): List<kotlin.String>
@@ -1715,6 +1866,36 @@ public interface MdkInterface {
      * Get a welcome by event ID
      */
     fun `getWelcome`(`eventId`: kotlin.String): Welcome?
+    
+    /**
+     * Returns the current active MLS leaf positions and their bound Nostr public keys
+     *
+     * Returns a list of (leaf_index, public_key_hex) pairs. Removed-member tree
+     * holes are omitted.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `groupLeafMap`(`groupIdHex`: kotlin.String): List<LeafMapEntry>
+    
+    /**
+     * Returns the proposal types required of every member of this group.
+     *
+     * Branch UI on this set — e.g. when `SelfRemove` is present, a
+     * non-admin member can leave the group without an admin commit.
+     * An empty vector means the group has no required proposals
+     * (the LCD outcome for mixed or empty-invitee groups); a missing
+     * group is reported as an error instead.
+     *
+     * Result order is deterministic (sorted by the underlying
+     * `BTreeSet` iteration order) so diffing across calls is stable.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `groupRequiredProposals`(`groupIdHex`: kotlin.String): List<MdkProposalType>
     
     /**
      * Get group IDs that need a self-update (post-join or stale rotation).
@@ -1730,6 +1911,15 @@ public interface MdkInterface {
      * Merge pending commit for a group
      */
     fun `mergePendingCommit`(`mlsGroupId`: kotlin.String)
+    
+    /**
+     * Returns the local member's current MLS leaf index for a group
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `ownLeafIndex`(`groupIdHex`: kotlin.String): kotlin.UInt
     
     /**
      * Parse a key package from a Nostr event
@@ -1755,9 +1945,55 @@ public interface MdkInterface {
     fun `parseMediaImetaTag`(`mlsGroupId`: kotlin.String, `imetaTag`: List<List<kotlin.String>>): MediaReferenceRecord
     
     /**
+     * Gets the public keys of members that will be added from pending proposals
+     *
+     * Returns hex-encoded public keys of members in pending Add proposals.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `pendingAddedMembersPubkeys`(`groupIdHex`: kotlin.String): List<kotlin.String>
+    
+    /**
+     * Gets all pending member changes (additions and removals) from pending proposals
+     *
+     * Returns a combined view of all pending member changes in a group.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `pendingMemberChanges`(`groupIdHex`: kotlin.String): UniffiPendingMemberChanges
+    
+    /**
+     * Gets the public keys of members that will be removed from pending proposals
+     *
+     * Returns hex-encoded public keys of members in pending Remove proposals.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    fun `pendingRemovedMembersPubkeys`(`groupIdHex`: kotlin.String): List<kotlin.String>
+    
+    /**
      * Process an incoming MLS message
      */
     fun `processMessage`(`eventJson`: kotlin.String): ProcessMessageResult
+    
+    /**
+     * Process an incoming MLS message and return the result with additional MLS context
+     *
+     * Unlike `process_message`, this method also returns transient MLS context
+     * such as the sender's leaf index, which is useful for UI display or
+     * verification purposes.
+     *
+     * # Arguments
+     *
+     * * `event_json` - JSON-encoded Nostr event containing the MLS message
+     */
+    fun `processMessageWithContext`(`eventJson`: kotlin.String): ProcessMessageWithContextResult
     
     /**
      * Process a welcome message
@@ -1768,6 +2004,14 @@ public interface MdkInterface {
      * Remove members from a group
      */
     fun `removeMembers`(`mlsGroupId`: kotlin.String, `memberPublicKeys`: List<kotlin.String>): UpdateGroupResult
+    
+    /**
+     * Self-demote from admin status before leaving a group.
+     *
+     * Per MIP-03, admins must call this before leave_group(). If the caller is
+     * the last admin, they must designate a successor via update_group_data first.
+     */
+    fun `selfDemote`(`mlsGroupId`: kotlin.String): UpdateGroupResult
     
     /**
      * Update the current member's leaf node in an MLS group
@@ -2055,15 +2299,20 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
 
     
     /**
-     * Create a message in a group
+     * Create a message in a group.
+     *
+     * `tags` are appended to the rumor and therefore are encrypted.
+     *
+     * `event_tags` are appended to the outer kind:445 wrapper event. Only a subset
+     * of tags are allowed; see [`EventTag`] for the full list.
      */
-    @Throws(MdkUniffiException::class)override fun `createMessage`(`mlsGroupId`: kotlin.String, `senderPublicKey`: kotlin.String, `content`: kotlin.String, `kind`: kotlin.UShort, `tags`: List<List<kotlin.String>>?): kotlin.String {
+    @Throws(MdkUniffiException::class)override fun `createMessage`(`mlsGroupId`: kotlin.String, `senderPublicKey`: kotlin.String, `content`: kotlin.String, `kind`: kotlin.UShort, `tags`: List<List<kotlin.String>>?, `eventTags`: List<List<kotlin.String>>?): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
     uniffiRustCallWithError(MdkUniffiException) { _status ->
     UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_create_message(
         it,
-        FfiConverterString.lower(`mlsGroupId`),FfiConverterString.lower(`senderPublicKey`),FfiConverterString.lower(`content`),FfiConverterUShort.lower(`kind`),FfiConverterOptionalSequenceSequenceString.lower(`tags`),_status)
+        FfiConverterString.lower(`mlsGroupId`),FfiConverterString.lower(`senderPublicKey`),FfiConverterString.lower(`content`),FfiConverterUShort.lower(`kind`),FfiConverterOptionalSequenceSequenceString.lower(`tags`),FfiConverterOptionalSequenceSequenceString.lower(`eventTags`),_status)
 }
     }
     )
@@ -2135,11 +2384,91 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
 
     
     /**
+     * Delete all local state for a group.
+     */
+    @Throws(MdkUniffiException::class)override fun `deleteGroup`(`mlsGroupId`: kotlin.String)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_delete_group(
+        it,
+        FfiConverterString.lower(`mlsGroupId`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Delete a key package from MLS storage using a key package Nostr event
+     *
+     * Parses the key package from the given kind-443 event and removes it
+     * from the MLS provider's storage.
+     *
+     * # Arguments
+     *
+     * * `key_package_event_json` - JSON-encoded Nostr key package event (kind 443)
+     */
+    @Throws(MdkUniffiException::class)override fun `deleteKeyPackageFromStorage`(`keyPackageEventJson`: kotlin.String)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_delete_key_package_from_storage(
+        it,
+        FfiConverterString.lower(`keyPackageEventJson`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Delete a key package from storage using previously serialized hash_ref bytes
+     *
+     * The `hash_ref` should be the bytes returned as the third element of
+     * `create_key_package_for_event`.
+     *
+     * # Arguments
+     *
+     * * `hash_ref` - Serialized hash reference bytes from key package creation
+     */
+    @Throws(MdkUniffiException::class)override fun `deleteKeyPackageFromStorageByHashRef`(`hashRef`: kotlin.ByteArray)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_delete_key_package_from_storage_by_hash_ref(
+        it,
+        FfiConverterByteArray.lower(`hashRef`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Delete all locally stored messages for a group.
+     */
+    @Throws(MdkUniffiException::class)override fun `deleteMessagesForGroup`(`mlsGroupId`: kotlin.String): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_delete_messages_for_group(
+        it,
+        FfiConverterString.lower(`mlsGroupId`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Encrypt media for upload using default processing options
      *
      * Encrypts the supplied media file with the group's current MLS epoch key,
      * producing ciphertext ready to upload to a Blossom server. Images are
-     * automatically EXIF-sanitized and a blurhash preview is generated.
+     * automatically EXIF-sanitized and blurhash/thumbhash preview hashes are
+     * generated.
      *
      * After uploading the encrypted bytes, call `create_media_imeta_tag` with
      * the returned result and the Blossom URL to build the IMETA tag to attach
@@ -2169,8 +2498,8 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
     /**
      * Encrypt media for upload with custom processing options
      *
-     * Same as `encrypt_media_for_upload` but lets you override EXIF sanitization,
-     * blurhash generation, and size/dimension limits.
+     * Same as `encrypt_media_for_upload` but lets you override EXIF
+     * sanitization, preview hash generation, and size/dimension limits.
      *
      * # Arguments
      *
@@ -2356,6 +2685,31 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
 
     
     /**
+     * Get public information about the ratchet tree of an MLS group
+     *
+     * This includes a SHA-256 fingerprint of the TLS-serialized ratchet tree,
+     * the full serialized tree as hex, and a list of leaf nodes with their
+     * indices and public keys.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `getRatchetTreeInfo`(`groupIdHex`: kotlin.String): UniffiRatchetTreeInfo {
+            return FfiConverterTypeUniffiRatchetTreeInfo.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_get_ratchet_tree_info(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Get relays for a group
      */
     @Throws(MdkUniffiException::class)override fun `getRelays`(`mlsGroupId`: kotlin.String): List<kotlin.String> {
@@ -2382,6 +2736,60 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
     UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_get_welcome(
         it,
         FfiConverterString.lower(`eventId`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Returns the current active MLS leaf positions and their bound Nostr public keys
+     *
+     * Returns a list of (leaf_index, public_key_hex) pairs. Removed-member tree
+     * holes are omitted.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `groupLeafMap`(`groupIdHex`: kotlin.String): List<LeafMapEntry> {
+            return FfiConverterSequenceTypeLeafMapEntry.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_group_leaf_map(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Returns the proposal types required of every member of this group.
+     *
+     * Branch UI on this set — e.g. when `SelfRemove` is present, a
+     * non-admin member can leave the group without an admin commit.
+     * An empty vector means the group has no required proposals
+     * (the LCD outcome for mixed or empty-invitee groups); a missing
+     * group is reported as an error instead.
+     *
+     * Result order is deterministic (sorted by the underlying
+     * `BTreeSet` iteration order) so diffing across calls is stable.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `groupRequiredProposals`(`groupIdHex`: kotlin.String): List<MdkProposalType> {
+            return FfiConverterSequenceTypeMdkProposalType.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_group_required_proposals(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
 }
     }
     )
@@ -2440,6 +2848,27 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
 
     
     /**
+     * Returns the local member's current MLS leaf index for a group
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `ownLeafIndex`(`groupIdHex`: kotlin.String): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_own_leaf_index(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Parse a key package from a Nostr event
      */
     @Throws(MdkUniffiException::class)override fun `parseKeyPackage`(`eventJson`: kotlin.String): kotlin.String {
@@ -2487,6 +2916,75 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
 
     
     /**
+     * Gets the public keys of members that will be added from pending proposals
+     *
+     * Returns hex-encoded public keys of members in pending Add proposals.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `pendingAddedMembersPubkeys`(`groupIdHex`: kotlin.String): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_pending_added_members_pubkeys(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Gets all pending member changes (additions and removals) from pending proposals
+     *
+     * Returns a combined view of all pending member changes in a group.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `pendingMemberChanges`(`groupIdHex`: kotlin.String): UniffiPendingMemberChanges {
+            return FfiConverterTypeUniffiPendingMemberChanges.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_pending_member_changes(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Gets the public keys of members that will be removed from pending proposals
+     *
+     * Returns hex-encoded public keys of members in pending Remove proposals.
+     *
+     * # Arguments
+     *
+     * * `group_id_hex` - Hex-encoded MLS group ID
+     */
+    @Throws(MdkUniffiException::class)override fun `pendingRemovedMembersPubkeys`(`groupIdHex`: kotlin.String): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_pending_removed_members_pubkeys(
+        it,
+        FfiConverterString.lower(`groupIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Process an incoming MLS message
      */
     @Throws(MdkUniffiException::class)override fun `processMessage`(`eventJson`: kotlin.String): ProcessMessageResult {
@@ -2494,6 +2992,31 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
     callWithHandle {
     uniffiRustCallWithError(MdkUniffiException) { _status ->
     UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_process_message(
+        it,
+        FfiConverterString.lower(`eventJson`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Process an incoming MLS message and return the result with additional MLS context
+     *
+     * Unlike `process_message`, this method also returns transient MLS context
+     * such as the sender's leaf index, which is useful for UI display or
+     * verification purposes.
+     *
+     * # Arguments
+     *
+     * * `event_json` - JSON-encoded Nostr event containing the MLS message
+     */
+    @Throws(MdkUniffiException::class)override fun `processMessageWithContext`(`eventJson`: kotlin.String): ProcessMessageWithContextResult {
+            return FfiConverterTypeProcessMessageWithContextResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_process_message_with_context(
         it,
         FfiConverterString.lower(`eventJson`),_status)
 }
@@ -2530,6 +3053,26 @@ open class Mdk: Disposable, AutoCloseable, MdkInterface
     UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_remove_members(
         it,
         FfiConverterString.lower(`mlsGroupId`),FfiConverterSequenceString.lower(`memberPublicKeys`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Self-demote from admin status before leaving a group.
+     *
+     * Per MIP-03, admins must call this before leave_group(). If the caller is
+     * the last admin, they must designate a successor via update_group_data first.
+     */
+    @Throws(MdkUniffiException::class)override fun `selfDemote`(`mlsGroupId`: kotlin.String): UpdateGroupResult {
+            return FfiConverterTypeUpdateGroupResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_method_mdk_self_demote(
+        it,
+        FfiConverterString.lower(`mlsGroupId`),_status)
 }
     }
     )
@@ -2726,6 +3269,11 @@ data class EncryptedMediaUploadResult (
     var `blurhash`: kotlin.String?
     , 
     /**
+     * Thumbhash preview string if generated, otherwise `None`
+     */
+    var `thumbhash`: kotlin.String?
+    , 
+    /**
      * 12-byte ChaCha20-Poly1305 nonce used for encryption
      */
     var `nonce`: kotlin.ByteArray
@@ -2754,6 +3302,7 @@ public object FfiConverterTypeEncryptedMediaUploadResult: FfiConverterRustBuffer
             FfiConverterULong.read(buf),
             FfiConverterOptionalSequenceUInt.read(buf),
             FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
             FfiConverterByteArray.read(buf),
         )
     }
@@ -2768,6 +3317,7 @@ public object FfiConverterTypeEncryptedMediaUploadResult: FfiConverterRustBuffer
             FfiConverterULong.allocationSize(value.`encryptedSize`) +
             FfiConverterOptionalSequenceUInt.allocationSize(value.`dimensions`) +
             FfiConverterOptionalString.allocationSize(value.`blurhash`) +
+            FfiConverterOptionalString.allocationSize(value.`thumbhash`) +
             FfiConverterByteArray.allocationSize(value.`nonce`)
     )
 
@@ -2781,6 +3331,7 @@ public object FfiConverterTypeEncryptedMediaUploadResult: FfiConverterRustBuffer
             FfiConverterULong.write(value.`encryptedSize`, buf)
             FfiConverterOptionalSequenceUInt.write(value.`dimensions`, buf)
             FfiConverterOptionalString.write(value.`blurhash`, buf)
+            FfiConverterOptionalString.write(value.`thumbhash`, buf)
             FfiConverterByteArray.write(value.`nonce`, buf)
     }
 }
@@ -3076,6 +3627,11 @@ data class GroupImageUpload (
      * Blurhash for preview if generated
      */
     var `blurhash`: kotlin.String?
+    , 
+    /**
+     * Thumbhash for preview if generated
+     */
+    var `thumbhash`: kotlin.String?
     
 ){
     
@@ -3102,6 +3658,7 @@ public object FfiConverterTypeGroupImageUpload: FfiConverterRustBuffer<GroupImag
             FfiConverterString.read(buf),
             FfiConverterOptionalTypeImageDimensions.read(buf),
             FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
         )
     }
 
@@ -3115,7 +3672,8 @@ public object FfiConverterTypeGroupImageUpload: FfiConverterRustBuffer<GroupImag
             FfiConverterULong.allocationSize(value.`encryptedSize`) +
             FfiConverterString.allocationSize(value.`mimeType`) +
             FfiConverterOptionalTypeImageDimensions.allocationSize(value.`dimensions`) +
-            FfiConverterOptionalString.allocationSize(value.`blurhash`)
+            FfiConverterOptionalString.allocationSize(value.`blurhash`) +
+            FfiConverterOptionalString.allocationSize(value.`thumbhash`)
     )
 
     override fun write(value: GroupImageUpload, buf: ByteBuffer) {
@@ -3129,6 +3687,7 @@ public object FfiConverterTypeGroupImageUpload: FfiConverterRustBuffer<GroupImag
             FfiConverterString.write(value.`mimeType`, buf)
             FfiConverterOptionalTypeImageDimensions.write(value.`dimensions`, buf)
             FfiConverterOptionalString.write(value.`blurhash`, buf)
+            FfiConverterOptionalString.write(value.`thumbhash`, buf)
     }
 }
 
@@ -3186,19 +3745,32 @@ public object FfiConverterTypeImageDimensions: FfiConverterRustBuffer<ImageDimen
  */
 data class KeyPackageResult (
     /**
-     * Hex-encoded key package
+     * Base64-encoded key package content
      */
     var `keyPackage`: kotlin.String
     , 
     /**
-     * JSON-encoded tags for the key package event
+     * Tags for the kind:30443 key package event in UniFFI wire format (includes the `d` tag)
      */
     var `tags`: List<List<kotlin.String>>
+    , 
+    /**
+     * Tags for the legacy kind:443 event (omits the `d` tag)
+     */
+    var `tagsLegacy`: List<List<kotlin.String>>
     , 
     /**
      * Serialized hash_ref bytes for the key package (for lifecycle tracking)
      */
     var `hashRef`: kotlin.ByteArray
+    , 
+    /**
+     * The `d` tag value (32-byte hex string) for this KeyPackage slot.
+     * Callers SHOULD store this and, when rotating, replace the generated
+     * `["d", ...]` entry in `tags` with the stored value before signing.
+     * Reusing the same `(kind, pubkey, d)` tuple lets relays replace the old event.
+     */
+    var `dTag`: kotlin.String
     
 ){
     
@@ -3217,20 +3789,73 @@ public object FfiConverterTypeKeyPackageResult: FfiConverterRustBuffer<KeyPackag
         return KeyPackageResult(
             FfiConverterString.read(buf),
             FfiConverterSequenceSequenceString.read(buf),
+            FfiConverterSequenceSequenceString.read(buf),
             FfiConverterByteArray.read(buf),
+            FfiConverterString.read(buf),
         )
     }
 
     override fun allocationSize(value: KeyPackageResult) = (
             FfiConverterString.allocationSize(value.`keyPackage`) +
             FfiConverterSequenceSequenceString.allocationSize(value.`tags`) +
-            FfiConverterByteArray.allocationSize(value.`hashRef`)
+            FfiConverterSequenceSequenceString.allocationSize(value.`tagsLegacy`) +
+            FfiConverterByteArray.allocationSize(value.`hashRef`) +
+            FfiConverterString.allocationSize(value.`dTag`)
     )
 
     override fun write(value: KeyPackageResult, buf: ByteBuffer) {
             FfiConverterString.write(value.`keyPackage`, buf)
             FfiConverterSequenceSequenceString.write(value.`tags`, buf)
+            FfiConverterSequenceSequenceString.write(value.`tagsLegacy`, buf)
             FfiConverterByteArray.write(value.`hashRef`, buf)
+            FfiConverterString.write(value.`dTag`, buf)
+    }
+}
+
+
+
+/**
+ * An entry in the group leaf map
+ */
+data class LeafMapEntry (
+    /**
+     * The leaf index in the ratchet tree
+     */
+    var `leafIndex`: kotlin.UInt
+    , 
+    /**
+     * Hex-encoded Nostr public key bound to this leaf
+     */
+    var `publicKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeLeafMapEntry: FfiConverterRustBuffer<LeafMapEntry> {
+    override fun read(buf: ByteBuffer): LeafMapEntry {
+        return LeafMapEntry(
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: LeafMapEntry) = (
+            FfiConverterUInt.allocationSize(value.`leafIndex`) +
+            FfiConverterString.allocationSize(value.`publicKey`)
+    )
+
+    override fun write(value: LeafMapEntry, buf: ByteBuffer) {
+            FfiConverterUInt.write(value.`leafIndex`, buf)
+            FfiConverterString.write(value.`publicKey`, buf)
     }
 }
 
@@ -3343,8 +3968,9 @@ public object FfiConverterTypeMdkConfig: FfiConverterRustBuffer<MdkConfig> {
  *
  * `max_dimension`, `max_file_size`, and `max_filename_length` are optional and
  * fall back to sensible, privacy-first defaults when `None`.
- * `sanitize_exif` and `generate_blurhash` are explicit toggles; pass `None` to
- * accept the privacy-first defaults (`true` for both).
+ * `sanitize_exif`, `generate_blurhash`, and `generate_thumbhash` are explicit
+ * toggles; pass `None` to accept the privacy-first defaults (`true` for all
+ * preview hashes).
  * To use all defaults without constructing this struct, call
  * `encrypt_media_for_upload`.
  */
@@ -3358,6 +3984,11 @@ data class MediaProcessingOptionsInput (
      * Generate a blurhash preview string for images (default: `true`)
      */
     var `generateBlurhash`: kotlin.Boolean?
+    , 
+    /**
+     * Generate a thumbhash preview string for images (default: `true`)
+     */
+    var `generateThumbhash`: kotlin.Boolean?
     , 
     /**
      * Maximum allowed image dimension in pixels (default: 16384)
@@ -3391,6 +4022,7 @@ public object FfiConverterTypeMediaProcessingOptionsInput: FfiConverterRustBuffe
         return MediaProcessingOptionsInput(
             FfiConverterOptionalBoolean.read(buf),
             FfiConverterOptionalBoolean.read(buf),
+            FfiConverterOptionalBoolean.read(buf),
             FfiConverterOptionalUInt.read(buf),
             FfiConverterOptionalULong.read(buf),
             FfiConverterOptionalULong.read(buf),
@@ -3400,6 +4032,7 @@ public object FfiConverterTypeMediaProcessingOptionsInput: FfiConverterRustBuffe
     override fun allocationSize(value: MediaProcessingOptionsInput) = (
             FfiConverterOptionalBoolean.allocationSize(value.`sanitizeExif`) +
             FfiConverterOptionalBoolean.allocationSize(value.`generateBlurhash`) +
+            FfiConverterOptionalBoolean.allocationSize(value.`generateThumbhash`) +
             FfiConverterOptionalUInt.allocationSize(value.`maxDimension`) +
             FfiConverterOptionalULong.allocationSize(value.`maxFileSize`) +
             FfiConverterOptionalULong.allocationSize(value.`maxFilenameLength`)
@@ -3408,6 +4041,7 @@ public object FfiConverterTypeMediaProcessingOptionsInput: FfiConverterRustBuffe
     override fun write(value: MediaProcessingOptionsInput, buf: ByteBuffer) {
             FfiConverterOptionalBoolean.write(value.`sanitizeExif`, buf)
             FfiConverterOptionalBoolean.write(value.`generateBlurhash`, buf)
+            FfiConverterOptionalBoolean.write(value.`generateThumbhash`, buf)
             FfiConverterOptionalUInt.write(value.`maxDimension`, buf)
             FfiConverterOptionalULong.write(value.`maxFileSize`, buf)
             FfiConverterOptionalULong.write(value.`maxFilenameLength`, buf)
@@ -3622,6 +4256,218 @@ public object FfiConverterTypeMessage: FfiConverterRustBuffer<Message> {
 
 
 /**
+ * Result of processing a message with additional MLS context
+ */
+data class ProcessMessageWithContextResult (
+    /**
+     * The primary processing result
+     */
+    var `result`: ProcessMessageResult
+    , 
+    /**
+     * The MLS sender leaf index, if the sender is a group member
+     */
+    var `senderLeafIndex`: kotlin.UInt?
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeProcessMessageWithContextResult: FfiConverterRustBuffer<ProcessMessageWithContextResult> {
+    override fun read(buf: ByteBuffer): ProcessMessageWithContextResult {
+        return ProcessMessageWithContextResult(
+            FfiConverterTypeProcessMessageResult.read(buf),
+            FfiConverterOptionalUInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ProcessMessageWithContextResult) = (
+            FfiConverterTypeProcessMessageResult.allocationSize(value.`result`) +
+            FfiConverterOptionalUInt.allocationSize(value.`senderLeafIndex`)
+    )
+
+    override fun write(value: ProcessMessageWithContextResult, buf: ByteBuffer) {
+            FfiConverterTypeProcessMessageResult.write(value.`result`, buf)
+            FfiConverterOptionalUInt.write(value.`senderLeafIndex`, buf)
+    }
+}
+
+
+
+/**
+ * Public information about a leaf node in the ratchet tree
+ */
+data class UniffiLeafNodeInfo (
+    /**
+     * The leaf index in the ratchet tree
+     */
+    var `index`: kotlin.UInt
+    , 
+    /**
+     * The member's public HPKE encryption key (hex-encoded)
+     */
+    var `encryptionKey`: kotlin.String
+    , 
+    /**
+     * The member's public signature key (hex-encoded)
+     */
+    var `signatureKey`: kotlin.String
+    , 
+    /**
+     * The member's credential identity (hex-encoded, typically a Nostr public key)
+     */
+    var `credentialIdentity`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeUniffiLeafNodeInfo: FfiConverterRustBuffer<UniffiLeafNodeInfo> {
+    override fun read(buf: ByteBuffer): UniffiLeafNodeInfo {
+        return UniffiLeafNodeInfo(
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: UniffiLeafNodeInfo) = (
+            FfiConverterUInt.allocationSize(value.`index`) +
+            FfiConverterString.allocationSize(value.`encryptionKey`) +
+            FfiConverterString.allocationSize(value.`signatureKey`) +
+            FfiConverterString.allocationSize(value.`credentialIdentity`)
+    )
+
+    override fun write(value: UniffiLeafNodeInfo, buf: ByteBuffer) {
+            FfiConverterUInt.write(value.`index`, buf)
+            FfiConverterString.write(value.`encryptionKey`, buf)
+            FfiConverterString.write(value.`signatureKey`, buf)
+            FfiConverterString.write(value.`credentialIdentity`, buf)
+    }
+}
+
+
+
+/**
+ * Pending member changes from proposals that need admin approval
+ */
+data class UniffiPendingMemberChanges (
+    /**
+     * Hex-encoded public keys of members that will be added when proposals are committed
+     */
+    var `additions`: List<kotlin.String>
+    , 
+    /**
+     * Hex-encoded public keys of members that will be removed when proposals are committed
+     */
+    var `removals`: List<kotlin.String>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeUniffiPendingMemberChanges: FfiConverterRustBuffer<UniffiPendingMemberChanges> {
+    override fun read(buf: ByteBuffer): UniffiPendingMemberChanges {
+        return UniffiPendingMemberChanges(
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: UniffiPendingMemberChanges) = (
+            FfiConverterSequenceString.allocationSize(value.`additions`) +
+            FfiConverterSequenceString.allocationSize(value.`removals`)
+    )
+
+    override fun write(value: UniffiPendingMemberChanges, buf: ByteBuffer) {
+            FfiConverterSequenceString.write(value.`additions`, buf)
+            FfiConverterSequenceString.write(value.`removals`, buf)
+    }
+}
+
+
+
+/**
+ * Public information about the ratchet tree of an MLS group
+ */
+data class UniffiRatchetTreeInfo (
+    /**
+     * SHA-256 fingerprint of the TLS-serialized ratchet tree (hex-encoded)
+     */
+    var `treeHash`: kotlin.String
+    , 
+    /**
+     * The full ratchet tree serialized via TLS encoding (hex-encoded)
+     */
+    var `serializedTree`: kotlin.String
+    , 
+    /**
+     * Leaf nodes with their indices and public keys
+     */
+    var `leafNodes`: List<UniffiLeafNodeInfo>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeUniffiRatchetTreeInfo: FfiConverterRustBuffer<UniffiRatchetTreeInfo> {
+    override fun read(buf: ByteBuffer): UniffiRatchetTreeInfo {
+        return UniffiRatchetTreeInfo(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceTypeUniffiLeafNodeInfo.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: UniffiRatchetTreeInfo) = (
+            FfiConverterString.allocationSize(value.`treeHash`) +
+            FfiConverterString.allocationSize(value.`serializedTree`) +
+            FfiConverterSequenceTypeUniffiLeafNodeInfo.allocationSize(value.`leafNodes`)
+    )
+
+    override fun write(value: UniffiRatchetTreeInfo, buf: ByteBuffer) {
+            FfiConverterString.write(value.`treeHash`, buf)
+            FfiConverterString.write(value.`serializedTree`, buf)
+            FfiConverterSequenceTypeUniffiLeafNodeInfo.write(value.`leafNodes`, buf)
+    }
+}
+
+
+
+/**
  * Result of updating a group
  */
 data class UpdateGroupResult (
@@ -3824,6 +4670,58 @@ public object FfiConverterTypeWelcome: FfiConverterRustBuffer<Welcome> {
             FfiConverterString.write(value.`wrapperEventId`, buf)
     }
 }
+
+
+
+/**
+ * Uniffi-friendly mirror of `openmls::prelude::ProposalType`.
+ *
+ * Exists because uniffi cannot express a foreign-crate enum directly.
+ * Kept minimal: mobile consumers today only branch on whether
+ * `SelfRemove` is present; anything else collapses to `Unknown`.
+ * If that changes — e.g. a future MIP makes another proposal type
+ * observable to UIs — add a variant here and a matching arm in the
+ * `From` impl below.
+ */
+
+enum class MdkProposalType {
+    
+    /**
+     * Member-initiated voluntary departure (MLS Extensions draft,
+     * `0x000a`). When a group's required-capabilities set contains
+     * `SelfRemove`, non-admin members can leave without an admin commit.
+     */
+    SELF_REMOVE,
+    /**
+     * Any proposal type the mobile API does not distinguish today.
+     */
+    UNKNOWN;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMdkProposalType: FfiConverterRustBuffer<MdkProposalType> {
+    override fun read(buf: ByteBuffer) = try {
+        MdkProposalType.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: MdkProposalType) = 4UL
+
+    override fun write(value: MdkProposalType, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
 
 
 
@@ -4755,6 +5653,34 @@ public object FfiConverterSequenceTypeGroup: FfiConverterRustBuffer<List<Group>>
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeLeafMapEntry: FfiConverterRustBuffer<List<LeafMapEntry>> {
+    override fun read(buf: ByteBuffer): List<LeafMapEntry> {
+        val len = buf.getInt()
+        return List<LeafMapEntry>(len) {
+            FfiConverterTypeLeafMapEntry.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<LeafMapEntry>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeLeafMapEntry.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<LeafMapEntry>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeLeafMapEntry.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeMessage: FfiConverterRustBuffer<List<Message>> {
     override fun read(buf: ByteBuffer): List<Message> {
         val len = buf.getInt()
@@ -4783,6 +5709,34 @@ public object FfiConverterSequenceTypeMessage: FfiConverterRustBuffer<List<Messa
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeUniffiLeafNodeInfo: FfiConverterRustBuffer<List<UniffiLeafNodeInfo>> {
+    override fun read(buf: ByteBuffer): List<UniffiLeafNodeInfo> {
+        val len = buf.getInt()
+        return List<UniffiLeafNodeInfo>(len) {
+            FfiConverterTypeUniffiLeafNodeInfo.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<UniffiLeafNodeInfo>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeUniffiLeafNodeInfo.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<UniffiLeafNodeInfo>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeUniffiLeafNodeInfo.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeWelcome: FfiConverterRustBuffer<List<Welcome>> {
     override fun read(buf: ByteBuffer): List<Welcome> {
         val len = buf.getInt()
@@ -4801,6 +5755,34 @@ public object FfiConverterSequenceTypeWelcome: FfiConverterRustBuffer<List<Welco
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeWelcome.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeMdkProposalType: FfiConverterRustBuffer<List<MdkProposalType>> {
+    override fun read(buf: ByteBuffer): List<MdkProposalType> {
+        val len = buf.getInt()
+        return List<MdkProposalType>(len) {
+            FfiConverterTypeMdkProposalType.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<MdkProposalType>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeMdkProposalType.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<MdkProposalType>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeMdkProposalType.write(it, buf)
         }
     }
 }
@@ -4861,21 +5843,35 @@ public object FfiConverterSequenceSequenceString: FfiConverterRustBuffer<List<Li
     
 
         /**
+         * Explicitly initialize the platform keyring store.
+         *
+         * Most consumers do not need this — [`new_mdk`] calls it automatically.
+         * Use this if you need the keyring store initialized before constructing
+         * an MDK instance (e.g. for direct `keyring_core::Entry` access).
+         *
+         * Safe to call multiple times; successful initialization is cached.
+         * If the host application has already called `keyring_core::set_default_store()`
+         * before this function, this is a no-op — the caller's store is preserved.
+         */
+    @Throws(MdkUniffiException::class) fun `initKeyringStore`()
+        = 
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_func_init_keyring_store(
+    
+        _status)
+}
+    
+    
+
+        /**
          * Create a new MDK instance with encrypted SQLite storage using automatic key management.
          *
          * This is the recommended constructor for production use. The database encryption key
          * is automatically retrieved from (or generated and stored in) the platform's native
          * keyring (Keychain on macOS/iOS, Keystore on Android, etc.).
          *
-         * # Prerequisites
-         *
-         * The host application must initialize a platform-specific keyring store before calling
-         * this function:
-         *
-         * - **macOS/iOS**: `keyring_core::set_default_store(AppleStore::new())`
-         * - **Android**: Initialize from Kotlin (see Android documentation)
-         * - **Windows**: `keyring_core::set_default_store(WindowsStore::new())`
-         * - **Linux**: `keyring_core::set_default_store(KeyutilsStore::new())`
+         * The platform keyring store is initialized automatically on the first call.
+         * Callers no longer need to call `keyring_core::set_default_store()` manually.
          *
          * # Arguments
          *
@@ -4887,7 +5883,7 @@ public object FfiConverterSequenceSequenceString: FfiConverterRustBuffer<List<Li
          * # Errors
          *
          * Returns an error if:
-         * - No keyring store has been initialized
+         * - The platform keyring store cannot be initialized
          * - The keyring is unavailable or inaccessible
          * - The database cannot be opened or created
          */
@@ -4897,31 +5893,6 @@ public object FfiConverterSequenceSequenceString: FfiConverterRustBuffer<List<Li
     UniffiLib.uniffi_mdk_uniffi_fn_func_new_mdk(
     
         FfiConverterString.lower(`dbPath`),FfiConverterString.lower(`serviceId`),FfiConverterString.lower(`dbKeyId`),FfiConverterOptionalTypeMdkConfig.lower(`config`),_status)
-}
-    )
-    }
-    
-
-        /**
-         * Create a new MDK instance with unencrypted SQLite storage.
-         *
-         * ⚠️ **WARNING**: This creates an unencrypted database. Sensitive MLS state
-         * including exporter secrets will be stored in plaintext.
-         *
-         * Only use this for development or testing. For production use, use `new_mdk`
-         * with an encryption key.
-         *
-         * # Arguments
-         *
-         * * `db_path` - Path to the SQLite database file
-         * * `config` - Optional MDK configuration. If None, uses default configuration.
-         */
-    @Throws(MdkUniffiException::class) fun `newMdkUnencrypted`(`dbPath`: kotlin.String, `config`: MdkConfig?): Mdk {
-            return FfiConverterTypeMdk.lift(
-    uniffiRustCallWithError(MdkUniffiException) { _status ->
-    UniffiLib.uniffi_mdk_uniffi_fn_func_new_mdk_unencrypted(
-    
-        FfiConverterString.lower(`dbPath`),FfiConverterOptionalTypeMdkConfig.lower(`config`),_status)
 }
     )
     }
@@ -4964,6 +5935,24 @@ public object FfiConverterSequenceSequenceString: FfiConverterRustBuffer<List<Li
     UniffiLib.uniffi_mdk_uniffi_fn_func_prepare_group_image_for_upload(
     
         FfiConverterByteArray.lower(`imageData`),FfiConverterString.lower(`mimeType`),_status)
+}
+    )
+    }
+    
+
+        /**
+         * Prepare group image for upload with custom processing options
+         *
+         * Like `prepare_group_image_for_upload`, but allows customizing validation
+         * and processing behavior such as EXIF stripping, blurhash generation,
+         * and size limits.
+         */
+    @Throws(MdkUniffiException::class) fun `prepareGroupImageForUploadWithOptions`(`imageData`: kotlin.ByteArray, `mimeType`: kotlin.String, `options`: MediaProcessingOptionsInput): GroupImageUpload {
+            return FfiConverterTypeGroupImageUpload.lift(
+    uniffiRustCallWithError(MdkUniffiException) { _status ->
+    UniffiLib.uniffi_mdk_uniffi_fn_func_prepare_group_image_for_upload_with_options(
+    
+        FfiConverterByteArray.lower(`imageData`),FfiConverterString.lower(`mimeType`),FfiConverterTypeMediaProcessingOptionsInput.lower(`options`),_status)
 }
     )
     }

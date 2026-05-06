@@ -55,13 +55,9 @@ MDKBindings:
 
 Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tags yet; switch to `revision:` once a tag is published.
 
-**Local development state** (only when testing unreleased MDK changes): point at a local clone:
-```yaml
-MDKBindings:
-  path: ../mdk-swift/crates/mdk-uniffi/src/swift
-```
+**Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". `./scripts/build.sh` handles this automatically: it clones `vendor/mdk-swift` with the system git (LFS-aware) on first run, patches `project.yml`, runs xcodegen, then restores `project.yml` so the working tree stays clean.
 
-**When switching back to remote**: restore the `url`/`revision` form and delete the `path` line. Commit `project.yml` only when pointing to a published remote revision.
+`vendor/` is gitignored. CI does the same thing. Re-run `./scripts/build.sh` after deleting `vendor/mdk-swift` or switching to a branch with a different MDK reference.
 
 ## Known test failures (pre-existing, not ours)
 

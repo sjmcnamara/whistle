@@ -40,10 +40,25 @@ SIMULATOR=$(detect_simulator)
 echo "▸ Simulator: $SIMULATOR"
 DESTINATION="platform=iOS Simulator,name=$SIMULATOR"
 
+ensure_local_mdk() {
+    if [ ! -d "vendor/mdk-swift" ]; then
+        echo "▸ Cloning mdk-swift (LFS)..."
+        git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+        cd vendor/mdk-swift && git lfs pull && cd ../..
+    fi
+    python3 scripts/ci_use_local_mdk.py
+}
+
+restore_local_changes() {
+    git checkout -- project.yml 2>/dev/null || true
+}
+
 case "$COMMAND" in
     build)
         echo "▸ Generating Xcode project..."
+        ensure_local_mdk
         xcodegen generate
+        restore_local_changes
 
         echo "▸ Building $SCHEME..."
         xcodebuild build \

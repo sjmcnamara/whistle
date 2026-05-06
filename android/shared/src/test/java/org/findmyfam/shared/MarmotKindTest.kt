@@ -6,8 +6,8 @@ import kotlin.test.assertEquals
 class MarmotKindTest {
 
     @Test
-    fun `keyPackage is 443`() {
-        assertEquals(443u.toUShort(), MarmotKind.KEY_PACKAGE)
+    fun `keyPackage is 30443`() {
+        assertEquals(30443u.toUShort(), MarmotKind.KEY_PACKAGE)
     }
 
     @Test
