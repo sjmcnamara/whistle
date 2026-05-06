@@ -327,15 +327,16 @@ final class FailureRecoveryTests: XCTestCase {
 
     // MARK: - 10. Identity Service Lifecycle
 
-    func testIdentityService_generateAndRestore() {
+    func testIdentityService_generateAndRestore() async throws {
         let store = InMemorySecureStorage()
         let service1 = IdentityService(storage: store)
+        await service1.initialise()
 
         let npub1 = service1.identity?.npub
         XCTAssertNotNil(npub1)
 
-        // Simulate app restart with same storage
         let service2 = IdentityService(storage: store)
+        await service2.initialise()
 
         XCTAssertEqual(service2.identity?.npub, npub1,
                        "Same storage should restore same identity")
@@ -343,25 +344,27 @@ final class FailureRecoveryTests: XCTestCase {
                        "Second load should not be new user")
     }
 
-    func testIdentityService_destroyAndRegenerate() {
+    func testIdentityService_destroyAndRegenerate() async throws {
         let store = InMemorySecureStorage()
         let service = IdentityService(storage: store)
+        await service.initialise()
         let npub1 = service.identity?.npub
 
         service.destroyCurrentKey()
         XCTAssertNil(service.keys)
 
-        // Simulate restart — storage is empty, should create new identity
         let service2 = IdentityService(storage: store)
+        await service2.initialise()
 
         XCTAssertNotEqual(service2.identity?.npub, npub1,
                           "After destroy, new identity should be different")
         XCTAssertTrue(service2.isNewUser)
     }
 
-    func testIdentityService_importKey() throws {
+    func testIdentityService_importKey() async throws {
         let store = InMemorySecureStorage()
         let service = IdentityService(storage: store)
+        await service.initialise()
         let original = service.identity?.npub
 
         let newKeys = Keys.generate()
@@ -370,8 +373,8 @@ final class FailureRecoveryTests: XCTestCase {
 
         XCTAssertNotEqual(service.identity?.npub, original)
 
-        // Verify persistence
         let service2 = IdentityService(storage: store)
+        await service2.initialise()
         XCTAssertEqual(service2.identity?.npub, service.identity?.npub)
     }
 
