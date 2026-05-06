@@ -41,4 +41,5 @@ android/.idea/
 # Android native libs — checked in because MDK Kotlin bindings
 # require Rust cross-compilation to rebuild. See android/BUILD.md.
 !android/app/src/main/jniLibs/**/*.so
-.claude/settings.local.json
+# Claude Code
+.claude/
