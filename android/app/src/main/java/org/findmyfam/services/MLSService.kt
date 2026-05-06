@@ -1,11 +1,14 @@
 package org.findmyfam.services
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import build.marmot.mdk.*
 import timber.log.Timber
+import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,18 +28,15 @@ class MLSService @Inject constructor(
 
     /**
      * Initialise the MDK instance with SQLCipher-encrypted SQLite storage.
-     * Uses `newMdk` which delegates key management to keyring-core — the
-     * 32-byte encryption key is generated and stored in Android Keystore
-     * automatically. No app-level key management required.
      *
-     * If keyring-core is unavailable on this Android build (Phase 3 of the
-     * MDK encrypted-storage-plan is still in progress), falls back to
-     * `newMdkUnencrypted` with a warning — encryption will be enforced once
-     * the MDK ships Android keyring support.
+     * MDK 0.8.0's newMdk() auto-init of Android keyring requires the NDK
+     * context (JVM + Application context) to be set up, which is not
+     * available when loaded via JNA. As a workaround we manage the 32-byte
+     * encryption key ourselves via EncryptedSharedPreferences, which uses
+     * Android Keystore internally without the NDK context requirement.
      *
-     * If the existing DB cannot be opened (pre-0.9 plaintext DB or key
-     * mismatch), it is deleted and recreated — matching the forced-reinstall
-     * policy for the 0.9 release.
+     * If the DB can't be opened (corrupt or stale), it is deleted and
+     * recreated — matching the forced-reinstall policy from v0.9.
      */
     suspend fun initialise() = mutex.withLock {
         if (_isInitialised) return@withLock
@@ -57,23 +57,51 @@ class MLSService @Inject constructor(
         }
 
         val dbPath = newFile.absolutePath
+        val key = loadOrCreateDbKey()
 
         try {
-            mdk = newMdk(dbPath = dbPath, serviceId = SERVICE_ID, dbKeyId = DB_KEY_ID, config = null)
+            mdk = newMdkWithKey(dbPath = dbPath, encryptionKey = key, config = null)
             _isInitialised = true
-            Timber.i("MDK initialised (encrypted via keyring-core) at $dbPath")
+            Timber.i("MDK initialised (encrypted via EncryptedSharedPreferences key) at $dbPath")
         } catch (e: Exception) {
-            Timber.w(e, "newMdk failed — trying fresh DB, then unencrypted fallback")
+            Timber.w(e, "newMdkWithKey failed — deleting DB and retrying")
             try {
                 deleteDbFiles(dbDir)
-                mdk = newMdk(dbPath = dbPath, serviceId = SERVICE_ID, dbKeyId = DB_KEY_ID, config = null)
+                mdk = newMdkWithKey(dbPath = dbPath, encryptionKey = key, config = null)
                 _isInitialised = true
-                Timber.i("MDK initialised (encrypted, fresh) at $dbPath")
+                Timber.i("MDK initialised (encrypted, fresh DB) at $dbPath")
             } catch (e2: Exception) {
                 Timber.e(e2, "MDK init failed entirely")
                 throw e2
             }
         }
+    }
+
+    /**
+     * Load the 32-byte SQLCipher key from EncryptedSharedPreferences, or
+     * generate and persist a new one on first launch.
+     * EncryptedSharedPreferences wraps Android Keystore — the key never
+     * leaves the device in plaintext.
+     */
+    private fun loadOrCreateDbKey(): ByteArray {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        val prefs = EncryptedSharedPreferences.create(
+            context,
+            "mdk_db_key",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        val stored = prefs.getString(PREF_DB_KEY, null)
+        if (stored != null) {
+            return android.util.Base64.decode(stored, android.util.Base64.NO_WRAP)
+        }
+        val fresh = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        prefs.edit().putString(PREF_DB_KEY, android.util.Base64.encodeToString(fresh, android.util.Base64.NO_WRAP)).apply()
+        Timber.i("Generated new MDK database encryption key")
+        return fresh
     }
 
     /**
@@ -222,5 +250,6 @@ class MLSService @Inject constructor(
     companion object {
         private const val SERVICE_ID = "org.findmyfam"
         private const val DB_KEY_ID = "mdk.db.key"
+        private const val PREF_DB_KEY = "mdk_encryption_key"
     }
 }
