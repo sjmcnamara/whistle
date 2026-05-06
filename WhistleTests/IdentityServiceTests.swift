@@ -15,60 +15,70 @@ final class IdentityServiceTests: XCTestCase {
 
     // MARK: - Generation
 
-    func testGeneratesIdentityOnFirstLaunch() {
+    func testGeneratesIdentityOnFirstLaunch() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertNotNil(service.identity)
         XCTAssertNotNil(service.keys)
         XCTAssertTrue(service.isNewUser)
     }
 
-    func testNpubHasCorrectPrefix() {
+    func testNpubHasCorrectPrefix() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertTrue(service.identity?.npub.hasPrefix("npub1") == true,
                       "npub should start with 'npub1'")
     }
 
-    func testNpubIsReasonableLength() {
+    func testNpubIsReasonableLength() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertGreaterThan(service.identity?.npub.count ?? 0, 50,
                              "npub should be a full bech32 string")
     }
 
-    func testPublicKeyHexIsNonEmpty() {
+    func testPublicKeyHexIsNonEmpty() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertFalse(service.identity?.publicKeyHex.isEmpty == true)
     }
 
     // MARK: - Persistence
 
-    func testSameNpubRestoredOnSecondInit() {
+    func testSameNpubRestoredOnSecondInit() async throws {
         let first = IdentityService(storage: store)
+        await first.initialise()
         let stored = first.identity?.npub
 
-        // Second instance reads from the same in-memory store (simulates relaunch).
         let second = IdentityService(storage: store)
+        await second.initialise()
         XCTAssertEqual(stored, second.identity?.npub,
                        "npub should be stable across launches")
         XCTAssertFalse(second.isNewUser)
     }
 
-    func testTwoFreshInstancesProduceDifferentKeys() {
+    func testTwoFreshInstancesProduceDifferentKeys() async throws {
         let first  = IdentityService(storage: InMemorySecureStorage())
         let second = IdentityService(storage: InMemorySecureStorage())
+        await first.initialise()
+        await second.initialise()
         XCTAssertNotEqual(first.identity?.npub, second.identity?.npub,
                           "Two fresh instances should produce distinct keypairs")
     }
 
-    func testIsNewUserFalseOnRestore() {
-        _ = IdentityService(storage: store) // first launch — populates store
+    func testIsNewUserFalseOnRestore() async throws {
+        let first = IdentityService(storage: store)
+        await first.initialise()
         let restored = IdentityService(storage: store)
+        await restored.initialise()
         XCTAssertFalse(restored.isNewUser)
     }
 
     // MARK: - Destroy
 
-    func testDestroyCurrentKeyNilsIdentity() {
+    func testDestroyCurrentKeyNilsIdentity() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertNotNil(service.keys)
         XCTAssertNotNil(service.identity)
 
@@ -78,8 +88,9 @@ final class IdentityServiceTests: XCTestCase {
         XCTAssertNil(service.identity, "identity should be nil after destroy")
     }
 
-    func testDestroyCurrentKeyRemovesFromStorage() {
+    func testDestroyCurrentKeyRemovesFromStorage() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertNotNil(store.load(key: .nsec), "nsec should be in storage before destroy")
 
         service.destroyCurrentKey()
@@ -87,13 +98,13 @@ final class IdentityServiceTests: XCTestCase {
         XCTAssertNil(store.load(key: .nsec), "nsec should be removed from storage after destroy")
     }
 
-    func testDestroyThenImportProducesDifferentIdentity() throws {
+    func testDestroyThenImportProducesDifferentIdentity() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         let oldNpub = service.identity?.npub
 
         service.destroyCurrentKey()
 
-        // Generate a fresh key and import it
         let freshKeys = NostrSDK.Keys.generate()
         let freshNsec = try freshKeys.secretKey().toBech32()
         try service.importKey(nsec: freshNsec)
@@ -103,14 +114,15 @@ final class IdentityServiceTests: XCTestCase {
                           "New identity should differ from destroyed one")
     }
 
-    func testDestroyThenNewInstanceGeneratesFreshKey() {
+    func testDestroyThenNewInstanceGeneratesFreshKey() async throws {
         let first = IdentityService(storage: store)
+        await first.initialise()
         let oldNpub = first.identity?.npub
 
         first.destroyCurrentKey()
 
-        // Simulates app relaunch — no stored key, so a new one is generated
         let second = IdentityService(storage: store)
+        await second.initialise()
         XCTAssertNotNil(second.identity)
         XCTAssertNotEqual(second.identity?.npub, oldNpub,
                           "Fresh instance after destroy should generate a new identity")
@@ -119,8 +131,9 @@ final class IdentityServiceTests: XCTestCase {
 
     // MARK: - Import
 
-    func testImportKeyChangesIdentity() throws {
+    func testImportKeyChangesIdentity() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         let originalNpub = service.identity?.npub
 
         let freshKeys = NostrSDK.Keys.generate()
@@ -131,8 +144,9 @@ final class IdentityServiceTests: XCTestCase {
         XCTAssertFalse(service.isNewUser)
     }
 
-    func testImportKeyPersistsToStorage() throws {
+    func testImportKeyPersistsToStorage() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
 
         let freshKeys = NostrSDK.Keys.generate()
         let freshNsec = try freshKeys.secretKey().toBech32()
@@ -142,16 +156,17 @@ final class IdentityServiceTests: XCTestCase {
                        "Imported nsec should be persisted in storage")
     }
 
-    func testImportKeyRestoresOnRelaunch() throws {
+    func testImportKeyRestoresOnRelaunch() async throws {
         let first = IdentityService(storage: store)
+        await first.initialise()
 
         let freshKeys = NostrSDK.Keys.generate()
         let freshNsec = try freshKeys.secretKey().toBech32()
         try first.importKey(nsec: freshNsec)
         let importedNpub = first.identity?.npub
 
-        // Simulate relaunch
         let second = IdentityService(storage: store)
+        await second.initialise()
         XCTAssertEqual(second.identity?.npub, importedNpub,
                        "Imported identity should survive relaunch")
     }

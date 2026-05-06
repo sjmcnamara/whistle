@@ -85,32 +85,35 @@ final class EncryptedSecureStorageTests: XCTestCase {
 
     // MARK: - IdentityService integration (non-SE path)
 
-    func testIdentityServiceWorksWithInMemoryStorage() {
-        // InMemorySecureStorage mimics the non-SE fallback path
+    func testIdentityServiceWorksWithInMemoryStorage() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         XCTAssertNotNil(service.identity)
         XCTAssertNotNil(service.keys)
     }
 
-    func testIdentityServicePersistsAndRestoresWithInMemoryStorage() {
+    func testIdentityServicePersistsAndRestoresWithInMemoryStorage() async throws {
         let first = IdentityService(storage: store)
+        await first.initialise()
         let npub = first.identity?.npub
 
         let second = IdentityService(storage: store)
+        await second.initialise()
         XCTAssertEqual(second.identity?.npub, npub)
     }
 
-    func testDestroyKeyAndRecreateCleansAllState() {
+    func testDestroyKeyAndRecreateCleansAllState() async throws {
         let service = IdentityService(storage: store)
+        await service.initialise()
         let oldNpub = service.identity?.npub
 
         service.destroyCurrentKey()
 
-        // Verify SE key slots are also empty (no stale data)
         XCTAssertNil(store.loadData(key: .sePrivateKey))
         XCTAssertNil(store.loadData(key: .seEphemeralPublicKey))
 
         let fresh = IdentityService(storage: store)
+        await fresh.initialise()
         XCTAssertNotEqual(fresh.identity?.npub, oldNpub)
     }
 }
