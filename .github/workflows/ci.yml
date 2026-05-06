@@ -78,12 +78,18 @@ jobs:
           python3 scripts/ci_use_local_mdk.py
           xcodegen generate
 
+      - name: Boot simulator
+        run: |
+          SIM_ID=$(python3 scripts/ci_pick_simulator.py)
+          echo "SIM_ID=$SIM_ID" >> $GITHUB_ENV
+          xcrun simctl boot "$SIM_ID" || true
+
       - name: Build & Test
         run: |
           xcodebuild test \
             -project Whistle.xcodeproj \
             -scheme Whistle \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
             -only-testing:WhistleTests \
             -resultBundlePath TestResults.xcresult \
             -enableCodeCoverage YES \

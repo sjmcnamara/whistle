@@ -41,7 +41,7 @@ import kotlin.math.pow
  * RelayService (Nostr relay I/O) via the Marmot event kinds.
  *
  * MarmotService is the single entry point for all Marmot protocol operations:
- * - Kind 443 -- Key Package publishing & fetching
+ * - Kind 30443 -- Key Package publishing & fetching
  * - Kind 10051 -- Key Package Relay List
  * - Kind 444 -- Welcome (NIP-59 gift-wrapped)
  * - Kind 445 -- Group events (commits, proposals, application messages)
@@ -94,10 +94,10 @@ class MarmotService @Inject constructor(
     val activeRelayUrls: List<String>
         get() = relay.connectedRelayUrls.value
 
-    // --- Kind 443: Key Packages ---
+    // --- Kind 30443: Key Packages ---
 
     /**
-     * Create and publish a new MLS key package as a kind-443 event.
+     * Create and publish a new MLS key package as a kind-30443 event.
      */
     suspend fun publishKeyPackage(relays: List<String>) {
         val kp = mls.createKeyPackageForEvent(publicKeyHex, relays)
@@ -111,7 +111,7 @@ class MarmotService @Inject constructor(
         }
         val taggedBuilder = builder.tags(tags = tags)
         relay.publish(taggedBuilder)
-        Timber.i("Published key package (kind 443)")
+        Timber.i("Published key package (kind 30443)")
     }
 
     /**
@@ -380,7 +380,7 @@ class MarmotService @Inject constructor(
                 MarmotKind.GIFT_WRAP -> handleGiftWrap(event)
                 MarmotKind.GROUP_EVENT -> handleGroupEvent(event)
                 MarmotKind.KEY_PACKAGE -> {
-                    Timber.d("Received key package update (kind 443)")
+                    Timber.d("Received key package update (kind 30443)")
                 }
                 else -> Timber.d("Ignoring event kind $kind")
             }
