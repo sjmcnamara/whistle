@@ -70,18 +70,8 @@ class MLSService @Inject constructor(
                 _isInitialised = true
                 Timber.i("MDK initialised (encrypted, fresh) at $dbPath")
             } catch (e2: Exception) {
-                // keyring-core may not be available on Android yet (MDK Phase 3).
-                // Fall back to unencrypted until the MDK ships Android keyring support.
-                Timber.w(e2, "Encrypted init failed — falling back to newMdkUnencrypted")
-                deleteDbFiles(dbDir)
-                try {
-                    mdk = newMdkUnencrypted(dbPath = dbPath, config = null)
-                    _isInitialised = true
-                    Timber.w("MDK initialised UNENCRYPTED at $dbPath — Android keyring not yet available")
-                } catch (e3: Exception) {
-                    Timber.e(e3, "MDK init failed entirely")
-                    throw e3
-                }
+                Timber.e(e2, "MDK init failed entirely")
+                throw e2
             }
         }
     }
@@ -178,7 +168,7 @@ class MLSService @Inject constructor(
         kind: UShort,
         tags: List<List<String>>?
     ): String = mutex.withLock {
-        requireMdk().createMessage(mlsGroupId, senderPublicKey, content, kind, tags)
+        requireMdk().createMessage(mlsGroupId, senderPublicKey, content, kind, tags, eventTags = null)
     }
 
     suspend fun processMessage(eventJson: String): ProcessMessageResult =
