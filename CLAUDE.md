@@ -61,7 +61,7 @@ Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tag
 
 ## Known test failures (pre-existing, not ours)
 
-None currently known. All suites should pass on simulator.
+None currently known. All 242 tests should pass on simulator.
 
 ## MLS database
 
