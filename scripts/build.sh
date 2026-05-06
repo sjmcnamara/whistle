@@ -72,6 +72,17 @@ case "$COMMAND" in
         ;;
 
     test)
+        # mdk-swift only ships arm64 slices. On Intel Macs the simulator
+        # needs x86_64-apple-ios which requires building MDK from Rust source.
+        # Use CI (macos-15 arm64 runner) for the full test suite instead.
+        if [[ "$(uname -m)" == "x86_64" ]]; then
+            echo "⚠️  Intel Mac detected — mdk-swift has no x86_64 simulator slice."
+            echo "   Local simulator tests will fail with missing symbols."
+            echo "   Push to CI (arm64 runner) to run the full test suite."
+            echo "   Use './scripts/build.sh' (no 'test') to build and test manually in Xcode."
+            exit 1
+        fi
+
         echo "▸ Generating Xcode project..."
         ensure_local_mdk
         xcodegen generate
