@@ -49,8 +49,9 @@ ensure_local_mdk() {
     python3 scripts/ci_use_local_mdk.py
 }
 
-restore_project_yml() {
+restore_local_changes() {
     git checkout -- project.yml 2>/dev/null || true
+    git checkout -- Whistle.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved 2>/dev/null || true
 }
 
 case "$COMMAND" in
@@ -58,7 +59,7 @@ case "$COMMAND" in
         echo "▸ Generating Xcode project..."
         ensure_local_mdk
         xcodegen generate
-        restore_project_yml
+        restore_local_changes
 
         echo "▸ Building $SCHEME..."
         xcodebuild build \
@@ -75,7 +76,7 @@ case "$COMMAND" in
         echo "▸ Generating Xcode project..."
         ensure_local_mdk
         xcodegen generate
-        restore_project_yml
+        restore_local_changes
 
         echo "▸ Testing $SCHEME..."
         xcodebuild test \
