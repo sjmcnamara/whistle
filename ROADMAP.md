@@ -379,13 +379,13 @@ master
   └── feature/v0.9.1-settings-split    ✅ merged
   └── feature/v0.9.2-splash-appearance ✅ merged
   └── security/v0.9.3-mip02-commit-ordering ✅ merged
-  └── feature/v0.9.4-ux-fixes            ✅ merged (PR #34)
-  └── feature/v1.0-production-readiness  ✅ merged (PR #44)
+  └── feature/v0.9.4-ux-fixes            ✅ merged
+  └── feature/v1.0-production-readiness  ✅ merged
   └── feature/v1.0.1-ux-fixes           ✅ merged
   └── feature/v1.0.2-test-coverage      ✅ merged
   └── feature/v1.1.1-onboarding         ✅ merged
   └── feature/v1.1.2-settings-deep-links ✅ merged
-  └── feature/v1.1.3-sqlcipher-activation ✅ merged (direct to master — skipped branch)
+  └── feature/v1.1.3-sqlcipher-activation ✅ merged
   └── feature/v1.1.4-smart-location
 ```
 
