@@ -9,13 +9,15 @@
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey)
 [![License: Unlicense](https://img.shields.io/badge/License-Unlicense-blue.svg)](LICENSE)
 
-> Marmots are deeply social animals that form tight-knit family networks. They communicate through whistling, watch out for each other, and work together to keep their kin safe — no matter how far apart they roam.
+> Marmots are profoundly social animals. They live in close family groups, keep watch for one another, and communicate through sharp whistles that carry across distance — a simple system built on trust, awareness, and care.
 
 Most location-sharing apps route your real-time movements through servers that store, analyse, and monetise your patterns. They require accounts, phone numbers, and emails — turning a simple "are you home safe?" into permanent surveillance infrastructure you didn't ask for.
 
-Whistle takes the opposite approach. It's a private, encrypted group network built on the same instinct as its namesake — stay connected, share your location, and look out for each other. No server, no account, no one in the middle.
+Whistle is built around a different principle.
 
-Share your location because it's useful right now, with these people. Stop because the moment passed.
+It’s a private, encrypted group network designed to keep people connected without intermediaries. No servers. No accounts. No data trails. Just direct, secure sharing between the people you choose. Built on open-source tools and public cryptography, it uses Nostr for identity and message delivery, MLS for end-to-end encryption, and Marmot as the glue that binds it all together.
+
+Share your location when it matters, with the people who need it. Stop when it doesn’t.
 
 ## Who it's for
 
