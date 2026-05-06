@@ -12,7 +12,9 @@ Whistle is an open-source, decentralised family location app built on Nostr + ML
 ./scripts/build.sh clean    # xcodebuild clean + wipe DerivedData
 ```
 
-Requires XcodeGen (`brew install xcodegen`). The script auto-detects the newest available iPhone simulator.
+Requires XcodeGen (`brew install xcodegen`). The script auto-detects the newest available iPhone simulator and handles the mdk-swift vendor clone automatically.
+
+**Intel Mac:** `./scripts/build.sh test` is not supported — mdk-swift only ships arm64 slices and building x86_64-apple-ios requires the full Rust toolchain. Use CI for the test suite; local `./scripts/build.sh` (build only) works fine for development.
 
 For Android: `cd android && ./gradlew assembleDebug` / `./gradlew test`.
 
