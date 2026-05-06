@@ -38,8 +38,9 @@ jobs:
       - name: Clone mdk-swift with LFS (Swift)
         if: matrix.language == 'swift'
         run: |
+          git lfs install
           git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
-          cd vendor/mdk-swift && git lfs pull
+          cd vendor/mdk-swift && git lfs pull || true
           python3 scripts/ci_use_local_mdk.py
 
       - name: Initialize CodeQL
