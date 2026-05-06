@@ -53,16 +53,9 @@ MDKBindings:
 
 Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tags yet; switch to `revision:` once a tag is published.
 
-**Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". Fix by cloning mdk-swift locally with the system git:
+**Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". `./scripts/build.sh` handles this automatically: it clones `vendor/mdk-swift` with the system git (LFS-aware) on first run, patches `project.yml`, runs xcodegen, then restores `project.yml` so the working tree stays clean.
 
-```bash
-git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
-cd vendor/mdk-swift && git lfs pull && cd ../..
-python3 scripts/ci_use_local_mdk.py   # patches project.yml to path: vendor/mdk-swift
-xcodegen generate
-```
-
-`vendor/` is gitignored. CI does the same thing automatically. Re-run if you delete `vendor/mdk-swift` or switch to a branch with a different MDK reference.
+`vendor/` is gitignored. CI does the same thing. Re-run `./scripts/build.sh` after deleting `vendor/mdk-swift` or switching to a branch with a different MDK reference.
 
 ## Known test failures (pre-existing, not ours)
 
