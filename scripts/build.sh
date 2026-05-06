@@ -51,7 +51,6 @@ ensure_local_mdk() {
 
 restore_local_changes() {
     git checkout -- project.yml 2>/dev/null || true
-    git checkout -- Whistle.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved 2>/dev/null || true
 }
 
 case "$COMMAND" in
