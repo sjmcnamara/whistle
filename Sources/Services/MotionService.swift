@@ -43,11 +43,18 @@ final class MotionService: ObservableObject {
                         FMFLogger.location.info("Motion state: stationary")
                     }
                 } else {
-                    // Non-stationary: start or extend the debounce window.
+                    // Only count confirmed movement types toward the debounce.
+                    // "Unknown" activity (stationary=false but no specific type)
+                    // is GPS/vibration noise — ignoring it prevents the 30s debounce
+                    // window from expiring on a physically-still device.
+                    let definitelyMoving = activity.walking || activity.running
+                        || activity.automotive || activity.cycling
+                    guard definitelyMoving else { return }
+
                     if self.movingStartDate == nil {
                         self.movingStartDate = Date()
                     }
-                    // Only commit to "moving" after sustained non-stationary readings.
+                    // Only commit to "moving" after sustained confirmed movement.
                     let elapsed = Date().timeIntervalSince(self.movingStartDate!)
                     if self.isStationary && elapsed >= Self.movingDebounceSeconds {
                         self.isStationary = false
