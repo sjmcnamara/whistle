@@ -7,6 +7,7 @@ import XCTest
 /// (CMMotionActivityManager is unavailable on simulator). These tests
 /// cover the LocationService throttle logic that consumes the multiplier
 /// and the AppSettings persistence of the feature flag.
+@MainActor
 final class MotionAdaptiveTests: XCTestCase {
 
     // MARK: - LocationService motionMultiplier
