@@ -116,6 +116,7 @@ final class AppViewModel: ObservableObject {
         let nicknames = self.nicknameStore
         let identityRef = self.identity
         let locationSvc = self.locationService
+        let motionSvc = self.motionService
         self.locationViewModel = LocationViewModel(
             locationCache: cache,
             nicknameStore: nicknames,
