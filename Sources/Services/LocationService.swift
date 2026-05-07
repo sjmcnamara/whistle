@@ -123,6 +123,9 @@ final class LocationService: NSObject, ObservableObject {
         guard let last = lastFireDate else { return true }
         return Date().timeIntervalSince(last) >= TimeInterval(intervalSeconds) * motionMultiplier
     }
+
+    /// Test-only shim so unit tests can exercise shouldFire() without CLLocation callbacks.
+    func testShouldFire() -> Bool { shouldFire() }
 }
 
 // MARK: - CLLocationManagerDelegate
