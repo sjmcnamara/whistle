@@ -61,7 +61,7 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
         NSLocationWhenInUseUsageDescription: "Whistle needs your location to share it with your family group."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Whistle needs background location access to keep your family updated when the app is in the background."
-        NSMotionUsageDescription: "Whistle uses motion activity to reduce location updates when you're stationary, saving battery."
+        NSMotionUsageDescription: "Whistle uses motion data to detect when you're stationary and reduce battery usage."
         NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your family data."
         NSCameraUsageDescription: "Whistle uses the camera to scan QR invite codes."
         NFCReaderUsageDescription: "Whistle uses NFC to receive invite codes by tapping phones together."
