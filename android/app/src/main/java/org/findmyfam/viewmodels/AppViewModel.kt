@@ -37,6 +37,7 @@ class AppViewModel @Inject constructor(
     val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
+    val motionService: MotionService,
     val appLockService: AppLockService
 ) : ViewModel() {
 
@@ -225,10 +226,27 @@ class AppViewModel @Inject constructor(
                 }
             }
         }
+        // Observe motion state and update multiplier
+        viewModelScope.launch {
+            motionService.isStationary.collect { stationary ->
+                applyMotionMultiplier(stationary)
+            }
+        }
+
         // Start if not paused
         if (!settings.isLocationPaused) {
             locationService.startUpdating()
+            if (settings.isMotionAdaptiveEnabled) {
+                motionService.startMonitoring()
+            }
         }
+    }
+
+    private fun applyMotionMultiplier(isStationary: Boolean) {
+        val enabled = settings.isMotionAdaptiveEnabled
+        val multiplier = if (enabled && isStationary) MotionService.STATIONARY_MULTIPLIER else 1.0
+        locationService.motionMultiplier = multiplier
+        Timber.i("Motion-adaptive: ${if (enabled) "on" else "off"}, stationary=$isStationary, multiplier=${multiplier}×")
     }
 
     /**

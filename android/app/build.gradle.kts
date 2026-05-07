@@ -99,6 +99,9 @@ dependencies {
     // Accompanist (permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
+    // Activity Recognition (motion-adaptive location intervals)
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
     // Security / Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 

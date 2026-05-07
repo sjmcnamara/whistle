@@ -26,7 +26,7 @@ import org.findmyfam.models.AppSettings
 import org.findmyfam.services.IdentityService
 import org.findmyfam.services.NicknameStore
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
@@ -43,6 +43,10 @@ fun SettingsScreen(
     var displayName by remember { mutableStateOf(settings.displayName) }
     var locationPaused by remember { mutableStateOf(settings.isLocationPaused) }
     var locationInterval by remember { mutableIntStateOf(settings.locationIntervalSeconds) }
+    var motionAdaptive by remember { mutableStateOf(settings.isMotionAdaptiveEnabled) }
+    val activityRecognitionPermission = com.google.accompanist.permissions.rememberPermissionState(
+        android.Manifest.permission.ACTIVITY_RECOGNITION
+    )
 
     Scaffold(
         topBar = {
@@ -147,6 +151,19 @@ fun SettingsScreen(
                 icon = Icons.Default.LocationOff,
                 checked = locationPaused,
                 onCheckedChange = { locationPaused = it; settings.isLocationPaused = it }
+            )
+
+            SettingsToggle(
+                label = "Motion-Adaptive Intervals",
+                icon = Icons.Default.DirectionsWalk,
+                checked = motionAdaptive,
+                onCheckedChange = { enabled ->
+                    motionAdaptive = enabled
+                    settings.isMotionAdaptiveEnabled = enabled
+                    if (enabled) {
+                        activityRecognitionPermission.launchPermissionRequest()
+                    }
+                }
             )
 
             var intervalExpanded by remember { mutableStateOf(false) }

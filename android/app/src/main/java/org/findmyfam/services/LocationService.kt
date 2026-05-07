@@ -37,6 +37,9 @@ class LocationService @Inject constructor(
 
     var intervalSeconds: Int = 3600
 
+    /** Multiplier applied when motion-adaptive mode is active and device is stationary. */
+    var motionMultiplier: Double = 1.0
+
     private val locationManager: LocationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private var lastFireTime: Long = 0L
@@ -123,7 +126,7 @@ class LocationService @Inject constructor(
 
     private fun shouldFire(): Boolean {
         if (lastFireTime == 0L) return true
-        return (System.currentTimeMillis() - lastFireTime) >= intervalSeconds * 1000L
+        return (System.currentTimeMillis() - lastFireTime) >= intervalSeconds * motionMultiplier * 1000L
     }
 
     // LocationListener

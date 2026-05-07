@@ -20,6 +20,7 @@ final class AppViewModel: ObservableObject {
 
     /// CoreLocation wrapper — publishes via callback.
     let locationService: LocationService
+    let motionService: MotionService
 
     /// Shared in-memory cache of group members' latest locations.
     let locationCache: LocationCache
@@ -103,6 +104,7 @@ final class AppViewModel: ObservableObject {
         self.mls             = MLSService()
         self.settings        = AppSettings.shared
         self.locationService = LocationService()
+        self.motionService   = MotionService()
         self.locationCache   = LocationCache()
         self.nicknameStore       = NicknameStore()
         self.pendingInviteStore  = PendingInviteStore()
@@ -184,6 +186,26 @@ final class AppViewModel: ObservableObject {
             .sink { [weak self] _ in
                 self?.locationService.resetThrottle()
                 FMFLogger.location.info("Fuzz setting changed, throttle reset for immediate rebroadcast")
+            }
+            .store(in: &cancellables)
+
+        // When motion-adaptive setting changes, reapply the current motion state.
+        settings.$isMotionAdaptiveEnabled
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] enabled in
+                guard let self else { return }
+                self.applyMotionMultiplier(isStationary: self.motionService.isStationary, enabled: enabled)
+            }
+            .store(in: &cancellables)
+
+        // When the device transitions between stationary and moving, scale the interval.
+        motionService.$isStationary
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isStationary in
+                guard let self else { return }
+                self.applyMotionMultiplier(isStationary: isStationary, enabled: self.settings.isMotionAdaptiveEnabled)
             }
             .store(in: &cancellables)
 
@@ -633,10 +655,22 @@ final class AppViewModel: ObservableObject {
     private func applyLocationPauseSetting() {
         if settings.isLocationPaused {
             locationService.stopUpdating()
+            motionService.stopMonitoring()
         } else if locationService.onLocationUpdate != nil {
             locationService.startUpdating()
+            if settings.isMotionAdaptiveEnabled {
+                motionService.startMonitoring()
+            }
         }
         // If pipeline not yet wired, onAppear() will call this again after wireLocationPipeline().
+    }
+
+    private func applyMotionMultiplier(isStationary: Bool, enabled: Bool) {
+        let multiplier = (enabled && isStationary) ? MotionService.stationaryMultiplier : 1.0
+        locationService.motionMultiplier = multiplier
+        FMFLogger.location.info(
+            "Motion-adaptive: \(enabled ? "on" : "off"), stationary=\(isStationary), multiplier=\(multiplier)×"
+        )
     }
 
     // MARK: - Identity Replacement (v0.8.2)

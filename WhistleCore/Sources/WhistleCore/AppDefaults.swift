@@ -31,6 +31,7 @@ public enum AppDefaults {
         public static let keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
         public static let appearance = "fmf.appearance"
         public static let locationFuzzMeters = "fmf.locationFuzzMeters"
+        public static let motionAdaptive = "fmf.motionAdaptive"
         public static let hasCompletedOnboarding = "fmf.hasCompletedOnboarding"
     }
 }
