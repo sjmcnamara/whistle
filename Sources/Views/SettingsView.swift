@@ -81,8 +81,7 @@ struct SettingsView: View {
                 get: { appViewModel.settings.isMotionAdaptiveEnabled },
                 set: { appViewModel.settings.isMotionAdaptiveEnabled = $0 }
             )) {
-                Label("Motion-Adaptive Intervals", systemImage: "figure.walk.motion")
-                    .badge(appViewModel.motionService.isStationary ? "Stationary" : nil)
+                Label("Movement Awareness", systemImage: "figure.walk.motion")
             }
 
             Picker(selection: Binding(

@@ -154,7 +154,7 @@ fun SettingsScreen(
             )
 
             SettingsToggle(
-                label = "Motion-Adaptive Intervals",
+                label = "Movement Awareness",
                 icon = Icons.Default.DirectionsWalk,
                 checked = motionAdaptive,
                 onCheckedChange = { enabled ->
