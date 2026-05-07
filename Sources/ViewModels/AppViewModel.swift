@@ -123,7 +123,8 @@ final class AppViewModel: ObservableObject {
             myPubkeyHex: { identityRef.identity?.publicKeyHex },
             nextFireDate: {
                 guard let last = locationSvc.lastFireDate else { return nil }
-                return last.addingTimeInterval(TimeInterval(settingsRef.locationIntervalSeconds))
+                let effective = TimeInterval(settingsRef.locationIntervalSeconds) * locationSvc.motionMultiplier
+                return last.addingTimeInterval(effective)
             },
             isStationary: { motionSvc.isStationary && settingsRef.isMotionAdaptiveEnabled }
         )
