@@ -81,7 +81,7 @@ struct SettingsView: View {
                 get: { appViewModel.settings.isMotionAdaptiveEnabled },
                 set: { appViewModel.settings.isMotionAdaptiveEnabled = $0 }
             )) {
-                Label("Movement Awareness", systemImage: "figure.walk.motion")
+                Label("Movement Aware", systemImage: "figure.walk.motion")
             }
 
             Picker(selection: Binding(
