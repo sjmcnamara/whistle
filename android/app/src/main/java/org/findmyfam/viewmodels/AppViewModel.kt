@@ -45,7 +45,8 @@ class AppViewModel @Inject constructor(
         locationCache = locationCache,
         nicknameStore = nicknameStore,
         intervalSeconds = { settings.locationIntervalSeconds },
-        myPubkeyHex = { identity.publicKeyHex }
+        myPubkeyHex = { identity.publicKeyHex },
+        isStationary = { settings.isMotionAdaptiveEnabled && motionService.isStationary.value }
     )
 
     enum class StartupPhase {
@@ -226,10 +227,11 @@ class AppViewModel @Inject constructor(
                 }
             }
         }
-        // Observe motion state and update multiplier
+        // Observe motion state: update multiplier and refresh map badge.
         viewModelScope.launch {
             motionService.isStationary.collect { stationary ->
                 applyMotionMultiplier(stationary)
+                locationViewModel.refresh()
             }
         }
 

@@ -15,6 +15,9 @@ struct MemberAnnotation: Identifiable {
     let isMe: Bool
     /// Estimated time of next location broadcast — only set for the own pin.
     let nextUpdateDate: Date?
+    /// `true` when Movement Aware is active and the device is stationary.
+    /// Only set for the own pin; always `false` for remote members.
+    let isStationary: Bool
 }
 
 /// Transforms `LocationCache` entries into `[MemberAnnotation]` for the map.
@@ -44,6 +47,7 @@ final class LocationViewModel: ObservableObject {
     private let intervalSeconds: () -> Int   // closure so it's always current
     private let myPubkeyHex: () -> String?
     private let nextFireDate: () -> Date?
+    private let isStationary: () -> Bool
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
@@ -59,13 +63,15 @@ final class LocationViewModel: ObservableObject {
         nicknameStore: NicknameStore? = nil,
         intervalSeconds: @escaping () -> Int,
         myPubkeyHex: @escaping () -> String? = { nil },
-        nextFireDate: @escaping () -> Date? = { nil }
+        nextFireDate: @escaping () -> Date? = { nil },
+        isStationary: @escaping () -> Bool = { false }
     ) {
         self.locationCache = locationCache
         self.nicknameStore = nicknameStore
         self.intervalSeconds = intervalSeconds
         self.myPubkeyHex = myPubkeyHex
         self.nextFireDate = nextFireDate
+        self.isStationary = isStationary
 
         // Re-compute annotations whenever the cache changes
         locationCache.$locations
@@ -100,6 +106,7 @@ final class LocationViewModel: ObservableObject {
 
         let selfKey = myPubkeyHex()
         let nextUpdate = nextFireDate()
+        let stationary = isStationary()
         annotations = source.map { loc in
             let name = nicknameStore?.displayName(for: loc.memberPubkeyHex) ?? loc.displayName
             let isMe = selfKey != nil && loc.memberPubkeyHex == selfKey
@@ -110,7 +117,8 @@ final class LocationViewModel: ObservableObject {
                 isStale: loc.isStale(intervalSeconds: interval),
                 timestamp: loc.payload.date,
                 isMe: isMe,
-                nextUpdateDate: isMe ? nextUpdate : nil
+                nextUpdateDate: isMe ? nextUpdate : nil,
+                isStationary: isMe && stationary
             )
         }
 

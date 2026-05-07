@@ -1,8 +1,13 @@
 package org.findmyfam.ui.map
 
 import android.Manifest
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -213,6 +218,34 @@ fun FamilyMapScreen(
     }
 }
 
+/** Draws a small orange circle with a standing-person glyph (🧍) for the stationary badge. */
+private fun stationaryBadgeDrawable(context: Context): BitmapDrawable {
+    val dp = context.resources.displayMetrics.density
+    val size = (20 * dp).toInt()
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+
+    val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFF8C00.toInt() // orange
+        style = Paint.Style.FILL
+    }
+    val r = size / 2f
+    canvas.drawCircle(r, r, r, circlePaint)
+
+    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = size * 0.6f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT_BOLD
+    }
+    // Unicode standing person
+    val metrics = textPaint.fontMetrics
+    val textY = r - (metrics.ascent + metrics.descent) / 2f
+    canvas.drawText("🧍", r, textY, textPaint)
+
+    return BitmapDrawable(context.resources, bitmap)
+}
+
 @Composable
 private fun OsmMapView(
     annotations: List<MemberAnnotation>,
@@ -246,6 +279,18 @@ private fun OsmMapView(
                     alpha = if (ann.isStale) 0.5f else 1.0f
                 }
                 mapView.overlays.add(marker)
+
+                // Stationary badge: small orange circle offset above-right of the pin.
+                if (ann.isStationary) {
+                    val badge = Marker(mapView).apply {
+                        position = GeoPoint(ann.position.latitude, ann.position.longitude)
+                        icon = stationaryBadgeDrawable(mapView.context)
+                        setAnchor(-0.1f, 1.4f)
+                        isEnabled = false
+                        title = null
+                    }
+                    mapView.overlays.add(badge)
+                }
             }
 
             // Fit camera only once when first annotations arrive

@@ -124,7 +124,8 @@ final class AppViewModel: ObservableObject {
             nextFireDate: {
                 guard let last = locationSvc.lastFireDate else { return nil }
                 return last.addingTimeInterval(TimeInterval(settingsRef.locationIntervalSeconds))
-            }
+            },
+            isStationary: { motionSvc.isStationary && settingsRef.isMotionAdaptiveEnabled }
         )
 
         // Forward objectWillChange from nested ObservableObjects so that
@@ -199,13 +200,15 @@ final class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // When the device transitions between stationary and moving, scale the interval.
+        // When the device transitions between stationary and moving, scale the interval
+        // and refresh the map so the stationary badge updates immediately.
         motionService.$isStationary
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isStationary in
                 guard let self else { return }
                 self.applyMotionMultiplier(isStationary: isStationary, enabled: self.settings.isMotionAdaptiveEnabled)
+                self.locationViewModel.refresh()
             }
             .store(in: &cancellables)
 
