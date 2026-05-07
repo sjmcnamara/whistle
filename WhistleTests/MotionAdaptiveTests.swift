@@ -83,6 +83,17 @@ final class MotionAdaptiveTests: XCTestCase {
         XCTAssertEqual(MotionService.stationaryMultiplier, 4.0)
     }
 
+    func testMovingDebounceIsThirtySeconds() {
+        XCTAssertEqual(MotionService.movingDebounceSeconds, 30.0,
+            "Moving debounce must be long enough to outlast brief vibration/noise (30s)")
+    }
+
+    func testMovingDebounceIsGreaterThanStationaryInterval() {
+        // The debounce window should be substantial relative to a typical interval
+        // so that momentary non-stationary readings can't drop the multiplier mid-cycle.
+        XCTAssertGreaterThan(MotionService.movingDebounceSeconds, 10.0)
+    }
+
     // MARK: - AppSettings
 
     @MainActor

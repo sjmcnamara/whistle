@@ -12,10 +12,19 @@ final class MotionService: ObservableObject {
 
     static let stationaryMultiplier: Double = 4.0
 
+    /// Seconds of consecutive non-stationary readings required before declaring
+    /// the device moving. Prevents brief vibration/noise from oscillating the
+    /// multiplier and nullifying the 4× backoff.
+    static let movingDebounceSeconds: TimeInterval = 30
+
     /// True when CMMotionActivityManager reports stationary with medium/high confidence.
     @Published private(set) var isStationary: Bool = false
 
     private let manager = CMMotionActivityManager()
+
+    /// Timestamp of the first consecutive non-stationary reading in the current run.
+    /// Nil when stationary or when no non-stationary reading has been seen yet.
+    private var movingStartDate: Date?
 
     func startMonitoring() {
         guard CMMotionActivityManager.isActivityAvailable() else {
@@ -25,10 +34,25 @@ final class MotionService: ObservableObject {
         manager.startActivityUpdates(to: .main) { [weak self] activity in
             guard let activity, activity.confidence != .low else { return }
             Task { @MainActor [weak self] in
-                let stationary = activity.stationary
-                if self?.isStationary != stationary {
-                    self?.isStationary = stationary
-                    FMFLogger.location.info("Motion state: \(stationary ? "stationary" : "moving")")
+                guard let self else { return }
+                if activity.stationary {
+                    // Stationary: apply immediately, clear moving streak.
+                    self.movingStartDate = nil
+                    if !self.isStationary {
+                        self.isStationary = true
+                        FMFLogger.location.info("Motion state: stationary")
+                    }
+                } else {
+                    // Non-stationary: start or extend the debounce window.
+                    if self.movingStartDate == nil {
+                        self.movingStartDate = Date()
+                    }
+                    // Only commit to "moving" after sustained non-stationary readings.
+                    let elapsed = Date().timeIntervalSince(self.movingStartDate!)
+                    if self.isStationary && elapsed >= Self.movingDebounceSeconds {
+                        self.isStationary = false
+                        FMFLogger.location.info("Motion state: moving (after \(Int(elapsed))s debounce)")
+                    }
                 }
             }
         }
@@ -37,6 +61,7 @@ final class MotionService: ObservableObject {
 
     func stopMonitoring() {
         manager.stopActivityUpdates()
+        movingStartDate = nil
         isStationary = false
     }
 }

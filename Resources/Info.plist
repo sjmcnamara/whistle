@@ -50,6 +50,8 @@
 	<string>Whistle needs background location access to keep your family updated when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Whistle needs your location to share it with your family group.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Whistle uses motion activity to reduce location updates when you're stationary, saving battery.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
