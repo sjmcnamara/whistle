@@ -6,7 +6,7 @@ import org.json.JSONObject
  * JSON payload for location updates sent inside kind-445 MLS application messages.
  *
  * Schema (inner kind = MarmotKind.LOCATION / 1):
- * { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "v": 1 }
+ * { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "batt": 87, "v": 1 }
  */
 data class LocationPayload(
     val type: String = "location",
@@ -16,6 +16,8 @@ data class LocationPayload(
     val acc: Double,
     /** Unix timestamp in seconds since epoch. */
     val ts: Long,
+    /** Device battery level 0–100, or null if unavailable. */
+    val batt: Int? = null,
     /** Schema version — always 1. */
     val v: Int = 1
 ) {
@@ -28,6 +30,7 @@ data class LocationPayload(
             put("alt", alt)
             put("acc", acc)
             put("ts", ts)
+            batt?.let { put("batt", it) }
             put("v", v)
         }.toString()
     }
@@ -46,6 +49,7 @@ data class LocationPayload(
                 alt = obj.getDouble("alt"),
                 acc = obj.getDouble("acc"),
                 ts = obj.getLong("ts"),
+                batt = if (obj.has("batt") && !obj.isNull("batt")) obj.getInt("batt") else null,
                 v = obj.optInt("v", 1)
             )
         }

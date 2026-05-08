@@ -359,6 +359,30 @@ class MarmotService @Inject constructor(
         Timber.i("Renamed group $groupId to '$newName'")
     }
 
+    /**
+     * Promote a member to admin: appends their pubkey to the group's admin list.
+     * No-op if they are already an admin.
+     */
+    suspend fun promoteToAdmin(pubkeyHex: String, groupId: String) {
+        val group = mls.getGroup(groupId) ?: throw IllegalStateException("Group not found: $groupId")
+        val currentAdmins = group.adminPubkeys ?: emptyList()
+        if (pubkeyHex in currentAdmins) return
+        val update = GroupDataUpdate(
+            name = null,
+            description = null,
+            imageHash = null,
+            imageKey = null,
+            imageNonce = null,
+            relays = null,
+            admins = currentAdmins + pubkeyHex
+        )
+        val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
+        mls.mergePendingCommit(mlsGroupId = groupId)
+        publishGroupEvent(result.evolutionEventJson)
+        refreshGroups()
+        Timber.i("Promoted ${pubkeyHex.take(8)} to admin in group $groupId")
+    }
+
     // --- Incoming Event Handling ---
 
     /**

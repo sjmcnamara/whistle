@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WhistleCore
 import CoreLocation
 import NostrSDK
@@ -105,6 +106,7 @@ final class AppViewModel: ObservableObject {
         self.settings        = AppSettings.shared
         self.locationService = LocationService()
         self.motionService   = MotionService()
+        UIDevice.current.isBatteryMonitoringEnabled = true
         self.locationCache   = LocationCache()
         self.nicknameStore       = NicknameStore()
         self.pendingInviteStore  = PendingInviteStore()
@@ -616,12 +618,16 @@ final class AppViewModel: ObservableObject {
             lon = location.coordinate.longitude
         }
 
+        let batteryLevel = UIDevice.current.batteryLevel
+        let battery: Int? = batteryLevel >= 0 ? Int(batteryLevel * 100) : nil
+
         let payload = LocationPayload(
             latitude: lat,
             longitude: lon,
             altitude: location.altitude,
             accuracy: fuzzRadius > 0 ? max(location.horizontalAccuracy, Double(fuzzRadius)) : location.horizontalAccuracy,
-            timestamp: Date() // broadcast time, not acquisition time — avoids stale-pin false positives with imprecise location
+            timestamp: Date(), // broadcast time, not acquisition time — avoids stale-pin false positives with imprecise location
+            battery: battery
         )
 
         // Insert our own location into the cache immediately so the map

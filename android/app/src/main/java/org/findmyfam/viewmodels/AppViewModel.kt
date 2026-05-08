@@ -1,8 +1,11 @@
 package org.findmyfam.viewmodels
 
+import android.content.Context
+import android.os.BatteryManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +28,7 @@ import kotlin.random.Random
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     val identity: IdentityService,
     val relay: RelayService,
     val mls: MLSService,
@@ -205,12 +209,17 @@ class AppViewModel @Inject constructor(
                 lon = location.longitude
             }
 
+            val battery = (context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager)
+                ?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                ?.takeIf { it in 0..100 }
+
             val payload = LocationPayload(
                 lat = lat,
                 lon = lon,
                 alt = location.altitude,
                 acc = if (fuzzRadius > 0) max(location.accuracy.toDouble(), fuzzRadius.toDouble()) else location.accuracy.toDouble(),
-                ts = System.currentTimeMillis() / 1000
+                ts = System.currentTimeMillis() / 1000,
+                batt = battery
             )
             val myPubkey = identity.publicKeyHex ?: return
             val groups = marmotService.groups.value.filter { it.isActive }

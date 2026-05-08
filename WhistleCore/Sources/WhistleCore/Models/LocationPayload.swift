@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Schema (inner kind = `MarmotKind.location` / 1):
 /// ```json
-/// { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "v": 1 }
+/// { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "batt": 87, "v": 1 }
 /// ```
 public struct LocationPayload: Codable, Equatable {
 
@@ -26,19 +26,23 @@ public struct LocationPayload: Codable, Equatable {
     /// Unix timestamp (seconds since epoch).
     public let ts: Int
 
+    /// Device battery level 0–100, or nil if unavailable.
+    public let batt: Int?
+
     /// Schema version — always 1.
     public let v: Int
 
     public static let currentVersion = 1
 
     public init(latitude: Double, longitude: Double, altitude: Double,
-                accuracy: Double, timestamp: Date) {
+                accuracy: Double, timestamp: Date, battery: Int? = nil) {
         self.type = "location"
         self.lat  = latitude
         self.lon  = longitude
         self.alt  = altitude
         self.acc  = accuracy
         self.ts   = Int(timestamp.timeIntervalSince1970)
+        self.batt = battery
         self.v    = Self.currentVersion
     }
 
