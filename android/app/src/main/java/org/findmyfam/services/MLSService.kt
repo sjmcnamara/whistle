@@ -123,11 +123,15 @@ class MLSService @Inject constructor(
      * deletion to prevent recovery of MLS key material from disk.
      */
     private fun deleteDbFiles(dbDir: java.io.File) {
-        for (suffix in listOf("", "-wal", "-shm")) {
-            val f = dbDir.resolve("marmot.db$suffix")
-            if (f.exists()) {
-                secureOverwrite(f)
-                f.delete()
+        // Delete both legacy (marmot.db) and current (whistle.db) filenames so
+        // a corrupt DB is cleaned up regardless of which migration stage we're in.
+        for (name in listOf("marmot.db", "whistle.db")) {
+            for (suffix in listOf("", "-wal", "-shm")) {
+                val f = dbDir.resolve("$name$suffix")
+                if (f.exists()) {
+                    secureOverwrite(f)
+                    f.delete()
+                }
             }
         }
     }

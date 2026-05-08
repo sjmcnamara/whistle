@@ -215,6 +215,21 @@ class GroupDetailViewModel(
     val isAdmin: Boolean
         get() = _members.value.firstOrNull { it.isMe }?.isAdmin ?: false
 
+    // --- Promote to admin ---
+
+    fun promoteToAdmin(pubkeyHex: String) {
+        scope.launch {
+            try {
+                marmot.promoteToAdmin(pubkeyHex = pubkeyHex, groupId = groupId)
+                load()
+                _error.value = null
+            } catch (e: Exception) {
+                _error.value = e.message
+                Timber.e("Failed to promote to admin: $e")
+            }
+        }
+    }
+
     // --- Leave group ---
 
     fun requestLeave() {

@@ -218,14 +218,27 @@ fun GroupDetailScreen(
                                         Text("Approve")
                                     }
                                 } else {
-                                    IconButton(onClick = {
-                                        viewModel.removeMember(member.pubkeyHex)
-                                    }) {
-                                        Icon(
-                                            Icons.Default.PersonRemove,
-                                            contentDescription = "Remove",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
+                                    Row {
+                                        if (!member.isAdmin) {
+                                            IconButton(onClick = {
+                                                viewModel.promoteToAdmin(member.pubkeyHex)
+                                            }) {
+                                                Icon(
+                                                    Icons.Default.Shield,
+                                                    contentDescription = "Make admin",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                        IconButton(onClick = {
+                                            viewModel.removeMember(member.pubkeyHex)
+                                        }) {
+                                            Icon(
+                                                Icons.Default.PersonRemove,
+                                                contentDescription = "Remove",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                     }
                                 }
                             }
