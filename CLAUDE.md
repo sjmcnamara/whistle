@@ -38,7 +38,7 @@ Sources/
   ViewModels/    One per screen
   Views/         SwiftUI views
 WhistleCore/     Shared Swift package — AppDefaults, InviteCode, protocol constants
-WhistleTests/    Unit tests (242 tests as of v1.1.3)
+WhistleTests/    Unit tests (253 tests as of v1.1.4)
 android/         Kotlin/Compose parity implementation
 ```
 
@@ -61,7 +61,7 @@ Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tag
 
 ## Known test failures (pre-existing, not ours)
 
-None currently known. All 242 tests should pass on simulator.
+None currently known. All 253 tests should pass on simulator.
 
 ## MLS database
 
@@ -92,4 +92,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Next planned: **v1.1.4 — Smart Location Intervals** (parked). See ROADMAP.md.
+Current version: **v1.1.4 — Movement Aware** (shipped). See ROADMAP.md for next steps.
