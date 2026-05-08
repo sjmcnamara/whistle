@@ -341,13 +341,13 @@ _Completed the deferred SQLCipher encryption story; new admin management action 
 - **Promote to admin** (iOS): swipe right on a member in Group Detail to promote them; admin-only action, hidden for self and existing admins; uses MDK `updateGroupData()` to append to `admin_pubkeys`
 - **CLAUDE.md**: process notes for build, versioning, MDK local/remote setup, and known test failures
 
-### v1.1.4 — Smart Location Intervals
-_Per-group intervals + motion-adaptive battery mode_
+### v1.1.4 — Movement Aware ✅
+_Battery-saving motion-adaptive location intervals_
 
-- **Per-group update intervals**: each group stores its own interval in group metadata (kind 445 control message); slider in Group Detail UI replaces the global setting
-- **Motion-adaptive mode** (iOS): `CMMotionActivityManager` detects stationary state → backs off to 4× the configured interval; movement detected → resumes normal interval
-- **Motion-adaptive mode** (Android): `ActivityRecognitionClient` equivalent behaviour
-- Motion state feeds into the existing low-battery decision tree; per-group last-sent timestamps track independent publish cadence
+- **Movement Aware mode** (iOS & Android): device stationary → 4× location interval backoff; confirmed movement (30s debounce, confirmed activity types only) → resumes normal rate
+- **Stationary badge on map pin**: orange `figure.stand` overlay on own pin while stationary; clears on movement
+- **Accurate next-update countdown**: pin timer reflects the effective multiplied interval
+- Per-group intervals deferred to a future release
 
 ### Deferred
 - **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input (post-v1.0)
@@ -386,7 +386,7 @@ master
   └── feature/v1.1.1-onboarding         ✅ merged
   └── feature/v1.1.2-settings-deep-links ✅ merged
   └── feature/v1.1.3-sqlcipher-activation ✅ merged
-  └── feature/v1.1.4-smart-location
+  └── feature/motion-adaptive             ✅ merged (v1.1.4)
 ```
 
 ---
