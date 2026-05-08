@@ -36,9 +36,15 @@ print(best_name or 'iPhone 16 Pro')
 " 2>/dev/null || echo "iPhone 16 Pro"
 }
 
-SIMULATOR=$(detect_simulator)
-echo "▸ Simulator: $SIMULATOR"
-DESTINATION="platform=iOS Simulator,name=$SIMULATOR"
+if [[ "$(uname -m)" == "x86_64" ]]; then
+    # mdk-swift has no x86_64-simulator slice — build for generic device (arm64) instead.
+    echo "▸ Intel Mac detected — building for generic device (no x86_64 simulator slice in mdk-swift)"
+    DESTINATION="generic/platform=iOS"
+else
+    SIMULATOR=$(detect_simulator)
+    echo "▸ Simulator: $SIMULATOR"
+    DESTINATION="platform=iOS Simulator,name=$SIMULATOR"
+fi
 
 ensure_local_mdk() {
     if [ ! -d "vendor/mdk-swift" ]; then

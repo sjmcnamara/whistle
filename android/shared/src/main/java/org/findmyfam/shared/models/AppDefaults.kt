@@ -37,5 +37,6 @@ object AppDefaults {
         const val keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
         const val appearance = "fmf.appearance"
         const val locationFuzzMeters = "fmf.locationFuzzMeters"
+        const val motionAdaptive = "fmf.motionAdaptive"
     }
 }

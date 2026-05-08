@@ -16,7 +16,9 @@ data class MemberAnnotation(
     val displayName: String,
     val isStale: Boolean,
     val timestampMs: Long,
-    val isMe: Boolean
+    val isMe: Boolean,
+    /** True when Movement Aware is active and this device is stationary. Own pin only. */
+    val isStationary: Boolean = false
 )
 
 /** Simple lat/lon pair — no Google Maps dependency. */
@@ -30,7 +32,8 @@ class LocationViewModel(
     private val locationCache: LocationCache,
     private val nicknameStore: NicknameStore,
     private val intervalSeconds: () -> Int,
-    private val myPubkeyHex: () -> String?
+    private val myPubkeyHex: () -> String?,
+    private val isStationary: () -> Boolean = { false }
 ) {
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -63,7 +66,7 @@ class LocationViewModel(
         }
     }
 
-    private fun refresh() {
+    fun refresh() {
         val interval = intervalSeconds()
         val locs = locationCache.locations.value
         val groupFilter = _selectedGroupId.value
@@ -76,6 +79,7 @@ class LocationViewModel(
         }
 
         val now = System.currentTimeMillis()
+        val stationary = isStationary()
         val annotations = filtered.map { loc ->
             val name = nicknameStore.displayName(loc.memberPubkeyHex)
             val isMe = selfKey != null && loc.memberPubkeyHex == selfKey
@@ -86,7 +90,8 @@ class LocationViewModel(
                 displayName = name,
                 isStale = isStale,
                 timestampMs = loc.payload.ts * 1000,
-                isMe = isMe
+                isMe = isMe,
+                isStationary = isMe && stationary
             )
         }
 

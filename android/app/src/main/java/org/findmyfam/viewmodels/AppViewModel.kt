@@ -37,6 +37,7 @@ class AppViewModel @Inject constructor(
     val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
+    val motionService: MotionService,
     val appLockService: AppLockService
 ) : ViewModel() {
 
@@ -44,7 +45,8 @@ class AppViewModel @Inject constructor(
         locationCache = locationCache,
         nicknameStore = nicknameStore,
         intervalSeconds = { settings.locationIntervalSeconds },
-        myPubkeyHex = { identity.publicKeyHex }
+        myPubkeyHex = { identity.publicKeyHex },
+        isStationary = { settings.isMotionAdaptiveEnabled && motionService.isStationary.value }
     )
 
     enum class StartupPhase {
@@ -225,10 +227,28 @@ class AppViewModel @Inject constructor(
                 }
             }
         }
+        // Observe motion state: update multiplier and refresh map badge.
+        viewModelScope.launch {
+            motionService.isStationary.collect { stationary ->
+                applyMotionMultiplier(stationary)
+                locationViewModel.refresh()
+            }
+        }
+
         // Start if not paused
         if (!settings.isLocationPaused) {
             locationService.startUpdating()
+            if (settings.isMotionAdaptiveEnabled) {
+                motionService.startMonitoring()
+            }
         }
+    }
+
+    private fun applyMotionMultiplier(isStationary: Boolean) {
+        val enabled = settings.isMotionAdaptiveEnabled
+        val multiplier = if (enabled && isStationary) MotionService.STATIONARY_MULTIPLIER else 1.0
+        locationService.motionMultiplier = multiplier
+        Timber.i("Motion-adaptive: ${if (enabled) "on" else "off"}, stationary=$isStationary, multiplier=${multiplier}×")
     }
 
     /**

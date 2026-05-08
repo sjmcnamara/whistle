@@ -77,6 +77,13 @@ struct SettingsView: View {
                 Label("Pause Sharing", systemImage: "location.slash")
             }
 
+            Toggle(isOn: Binding(
+                get: { appViewModel.settings.isMotionAdaptiveEnabled },
+                set: { appViewModel.settings.isMotionAdaptiveEnabled = $0 }
+            )) {
+                Label("Movement Aware", systemImage: "figure.walk.motion")
+            }
+
             Picker(selection: Binding(
                 get: { appViewModel.settings.locationIntervalSeconds },
                 set: { appViewModel.settings.locationIntervalSeconds = $0 }

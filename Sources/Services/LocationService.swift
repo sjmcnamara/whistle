@@ -33,6 +33,10 @@ final class LocationService: NSObject, ObservableObject {
     /// `AppSettings.locationIntervalSeconds`.
     var intervalSeconds: Int = 3600
 
+    /// Multiplier applied to `intervalSeconds` when motion-adaptive mode is active
+    /// and the device is stationary. Set by AppViewModel from MotionService.
+    var motionMultiplier: Double = 1.0
+
     // MARK: - Private state
 
     private let manager = CLLocationManager()
@@ -114,10 +118,14 @@ final class LocationService: NSObject, ObservableObject {
     }
 
     /// Returns `true` if enough time has elapsed since the last callback.
+    /// Accounts for `motionMultiplier` when motion-adaptive mode is active.
     private func shouldFire() -> Bool {
         guard let last = lastFireDate else { return true }
-        return Date().timeIntervalSince(last) >= TimeInterval(intervalSeconds)
+        return Date().timeIntervalSince(last) >= TimeInterval(intervalSeconds) * motionMultiplier
     }
+
+    /// Test-only shim so unit tests can exercise shouldFire() without CLLocation callbacks.
+    func testShouldFire() -> Bool { shouldFire() }
 }
 
 // MARK: - CLLocationManagerDelegate

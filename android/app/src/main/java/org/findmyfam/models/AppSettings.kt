@@ -258,6 +258,13 @@ class AppSettings @Inject constructor(
         get() = prefs.getInt(AppDefaults.Keys.locationFuzzMeters, 0)
         set(value) { prefs.edit().putInt(AppDefaults.Keys.locationFuzzMeters, value).apply() }
 
+    // --- Motion-Adaptive Intervals ---
+
+    var isMotionAdaptiveEnabled: Boolean
+        get() = if (!prefs.contains(AppDefaults.Keys.motionAdaptive)) true
+                else prefs.getBoolean(AppDefaults.Keys.motionAdaptive, true)
+        set(value) { prefs.edit().putBoolean(AppDefaults.Keys.motionAdaptive, value).apply() }
+
     // --- Appearance ---
 
     private val _appearanceFlow = MutableStateFlow(

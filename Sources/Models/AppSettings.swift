@@ -92,6 +92,12 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(locationFuzzMeters, forKey: Keys.locationFuzzMeters) }
     }
 
+    /// Whether motion-adaptive intervals are enabled.
+    /// When enabled, the publish interval multiplies by 4× while stationary.
+    @Published var isMotionAdaptiveEnabled: Bool {
+        didSet { UserDefaults.standard.set(isMotionAdaptiveEnabled, forKey: Keys.motionAdaptive) }
+    }
+
     /// Whether the user has completed the first-run onboarding flow.
     @Published var hasCompletedOnboarding: Bool {
         didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
@@ -134,6 +140,9 @@ final class AppSettings: ObservableObject {
         self.keyRotationIntervalDays = UserDefaults.standard.integer(forKey: Keys.keyRotationIntervalDays)
             .nonZeroOr(AppDefaults.defaultKeyRotationIntervalDays)
         self.locationFuzzMeters = UserDefaults.standard.integer(forKey: Keys.locationFuzzMeters)
+        self.isMotionAdaptiveEnabled = UserDefaults.standard.object(forKey: Keys.motionAdaptive) == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: Keys.motionAdaptive)
         self.hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Keys.hasCompletedOnboarding)
 
         if let data = UserDefaults.standard.data(forKey: Keys.processedEventIds),
