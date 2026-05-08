@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WhistleCore
 import CoreLocation
 import NostrSDK
