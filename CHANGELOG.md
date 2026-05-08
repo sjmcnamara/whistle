@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.1.4] — 2026-05-08
+
+### Added
+- **Movement Aware mode** (iOS & Android): detects when the device is stationary and backs off location updates to 4× the configured interval, resuming the normal rate once movement is confirmed. Saves battery during extended periods of inactivity.
+  - iOS: `CMMotionActivityManager` with 30s confirmed-movement debounce (ignores `unknown`/noise activity).
+  - Android: Activity Transition API (STILL enter/exit) — OS-level debouncing included.
+- **Stationary badge on map pin** (iOS & Android): small orange `figure.stand` badge overlaid on the user's own pin while Movement Aware is active and the device is stationary. Clears when movement resumes.
+- **Accurate next-update countdown**: pin label now reflects the effective (multiplied) interval so the timer counts down to the real next fire rather than showing the 1× interval as overdue.
+
+---
+
 ## [chore] — 2026-05-05
 
 ### Changed
