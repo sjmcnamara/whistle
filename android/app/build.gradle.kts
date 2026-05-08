@@ -61,7 +61,7 @@ dependencies {
     implementation(project(":shared"))
 
     // Compose BOM
-    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -103,7 +103,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     // Security / Encrypted SharedPreferences
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.security:security-crypto:1.1.0")
 
     // NostrSDK (Kotlin bindings via rust-nostr UniFFI)
     implementation("org.rust-nostr:nostr-sdk:0.44.2")
