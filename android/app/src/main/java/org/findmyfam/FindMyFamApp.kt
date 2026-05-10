@@ -2,6 +2,7 @@ package org.findmyfam
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
+import org.findmyfam.services.BatteryAlertService
 import org.osmdroid.config.Configuration
 import timber.log.Timber
 
@@ -16,6 +17,8 @@ class FindMyFamApp : Application() {
             userAgentValue = packageName
             osmdroidTileCache = cacheDir.resolve("osmdroid")
         }
+
+        BatteryAlertService.createNotificationChannel(this)
 
         Timber.i("FindMyFam application started")
     }

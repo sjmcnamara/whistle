@@ -2,6 +2,7 @@ package org.findmyfam.ui.map
 
 import android.Manifest
 import android.content.Context
+import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -24,7 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.accompanist.permissions.rememberPermissionState
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -59,11 +62,21 @@ fun FamilyMapScreen(
         }
     }
 
+    // Request notification permission on Android 13+ (non-blocking, no UI gate)
+    val notificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    } else {
+        null
+    }
+
     // Configure osmdroid user agent + notify if permission already granted
     LaunchedEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
         if (locationPermissions.allPermissionsGranted) {
             onPermissionGranted()
+        }
+        notificationPermission?.let {
+            if (!it.status.isGranted) it.launchPermissionRequest()
         }
     }
 

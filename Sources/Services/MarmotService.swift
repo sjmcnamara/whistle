@@ -44,6 +44,9 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — queues unsolicited Welcomes for user approval.
     var pendingWelcomeStore: PendingWelcomeStore?
 
+    /// Injected by AppViewModel — fires local notifications on low battery.
+    var batteryAlertService: BatteryAlertService?
+
     /// Called when an MLS-encrypted leave request (kind 2) arrives from a group member.
     /// Parameters: (groupId, memberPubkeyHex).
     var onLeaveRequestReceived: ((String, String) -> Void)?
@@ -696,6 +699,7 @@ final class MarmotService: ObservableObject {
                     memberPubkeyHex: message.senderPubkey,
                     payload: payload
                 )
+                batteryAlertService?.check(pubkeyHex: message.senderPubkey, battery: payload.batt)
                 FMFLogger.marmot.info("Updated location for \(message.senderPubkey.prefix(8)) in group \(message.mlsGroupId)")
             } catch {
                 FMFLogger.marmot.error("Failed to decode location payload: \(error)")
