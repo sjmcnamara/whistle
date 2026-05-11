@@ -57,7 +57,8 @@ class MarmotService @Inject constructor(
     private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
     private val locationCache: LocationCache,
-    val healthTracker: GroupHealthTracker
+    val healthTracker: GroupHealthTracker,
+    private val batteryAlertService: BatteryAlertService
 ) {
     // --- Published State ---
 
@@ -632,6 +633,7 @@ class MarmotService @Inject constructor(
                         memberPubkeyHex = message.senderPubkey,
                         payload = payload
                     )
+                    batteryAlertService.check(pubkeyHex = message.senderPubkey, battery = payload.batt)
                     Timber.i("Updated location for ${message.senderPubkey.take(8)} in group ${message.mlsGroupId}")
                 } catch (e: Exception) {
                     Timber.e("Failed to decode location payload: $e")

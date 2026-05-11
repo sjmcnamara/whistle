@@ -432,6 +432,11 @@ final class AppViewModel: ObservableObject {
         marmotService.pendingLeaveStore = pendingLeaveStore
         marmotService.pendingWelcomeStore = pendingWelcomeStore
         marmotService.settings = settings
+        marmotService.batteryAlertService = BatteryAlertService(
+            myPubkeyHex: pubHex,
+            nicknameStore: nicknameStore
+        )
+        BatteryAlertService.requestPermission()
 
         // Load persisted groups from MDK database BEFORE publishing
         // marmotService to the UI — this avoids a flash of empty state
