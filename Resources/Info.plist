@@ -51,7 +51,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Whistle needs your location to share it with your family group.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Whistle uses motion activity to reduce location updates when you're stationary, saving battery.</string>
+	<string>Whistle uses motion data to detect when you're stationary and reduce battery usage.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
