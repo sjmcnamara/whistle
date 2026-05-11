@@ -15,9 +15,29 @@ final class BatteryAlertService {
     private let myPubkeyHex: String
     private weak var nicknameStore: NicknameStore?
 
+    /// Called when an alert should fire. Defaults to a real UNUserNotificationCenter delivery;
+    /// replace in tests to capture alerts without touching the notification system.
+    var deliver: (_ name: String, _ battery: Int, _ pubkeyHex: String) -> Void
+
     init(myPubkeyHex: String, nicknameStore: NicknameStore?) {
         self.myPubkeyHex = myPubkeyHex
         self.nicknameStore = nicknameStore
+        self.deliver = { name, battery, pubkeyHex in
+            let content = UNMutableNotificationContent()
+            content.title = "Low Battery"
+            content.body = "\(name)'s battery is at \(battery)%"
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: "battery.\(pubkeyHex)",
+                content: content,
+                trigger: nil
+            )
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error {
+                    FMFLogger.marmot.warning("Battery alert notification failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     /// Call this whenever a location payload arrives for a group member.
@@ -32,21 +52,7 @@ final class BatteryAlertService {
         guard previous == nil || previous! >= Self.threshold else { return }
 
         let name = nicknameStore?.displayName(for: pubkeyHex) ?? String(pubkeyHex.prefix(8))
-        let content = UNMutableNotificationContent()
-        content.title = "Low Battery"
-        content.body = "\(name)'s battery is at \(battery)%"
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: "battery.\(pubkeyHex)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                FMFLogger.marmot.warning("Battery alert notification failed: \(error.localizedDescription)")
-            }
-        }
+        deliver(name, battery, pubkeyHex)
     }
 
     /// Request notification authorisation. Call once during app startup.
