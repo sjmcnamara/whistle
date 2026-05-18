@@ -38,7 +38,7 @@ Sources/
   ViewModels/    One per screen
   Views/         SwiftUI views
 WhistleCore/     Shared Swift package — AppDefaults, InviteCode, protocol constants
-WhistleTests/    Unit tests (253 tests as of v1.1.4)
+WhistleTests/    Unit tests (iOS)
 android/         Kotlin/Compose parity implementation
 ```
 
@@ -92,4 +92,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.1.4 — Movement Aware** (shipped). See ROADMAP.md for next steps.
+Current version: **v1.2.0 — Low Battery Alerts** (shipped). See ROADMAP.md for next steps.
