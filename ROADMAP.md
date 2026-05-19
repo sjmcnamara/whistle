@@ -347,10 +347,26 @@ _Battery-saving motion-adaptive location intervals_
 - **Movement Aware mode** (iOS & Android): device stationary → 4× location interval backoff; confirmed movement (30s debounce, confirmed activity types only) → resumes normal rate
 - **Stationary badge on map pin**: orange `figure.stand` overlay on own pin while stationary; clears on movement
 - **Accurate next-update countdown**: pin timer reflects the effective multiplied interval
-- Per-group intervals deferred to a future release
+
+### v1.1.5 — Android Parity ✅
+_Brought Android up to feature parity with iOS v1.1.x — released 2026-05-08_
+
+- **Stale DB deletion** (Android): unencrypted database from pre-v0.9 now detected and deleted on first launch, matching iOS behaviour
+- **Promote to admin** (Android): swipe action in Group Detail to promote any non-admin member; admin-only, hidden for self and existing admins
+- **Battery level in location payload** (Android): `LocationPayload` extended with `battery` field, consistent with iOS
+
+### v1.2.0 — Low Battery Alerts ✅
+_Notifies family members when someone's battery is critically low — released 2026-05-13_
+
+- **Low battery alerts** (iOS & Android): `BatteryAlertService` monitors device battery; when level drops to a configurable threshold, a location message is published to the group with a battery-low flag; other members receive a local notification
+- **In-app alert banner** (Android): `FamilyMapScreen` surfaces the battery-low event as a dismissible banner over the map
+- **Notification icon** (Android): dedicated `ic_notification_battery` drawable for battery alert notifications
+
+---
 
 ### Deferred
-- **Chat commands**: `/list-members`, `/topic <name>`, `/leave` — slash commands parsed in chat input (post-v1.0)
+
+- **Push Notifications via MIP-05**: MIP-05 defines a notification server that watches kind 445 group events and delivers a silent APNs/FCM push to wake the app. MDK 0.8.0 ships the Rust primitives. Blocked on deciding whether to run Whistle infrastructure — the notification server needs APNs credentials and learns which device tokens belong to which groups. Revisit when the app moves beyond TestFlight.
 
 ---
 
@@ -387,6 +403,8 @@ master
   └── feature/v1.1.2-settings-deep-links ✅ merged
   └── feature/v1.1.3-sqlcipher-activation ✅ merged
   └── feature/motion-adaptive             ✅ merged (v1.1.4)
+  └── feature/v1.1.5-android-parity      ✅ merged
+  └── feature/v1.2-low-battery-alerts    ✅ merged
 ```
 
 ---
