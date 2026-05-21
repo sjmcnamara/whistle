@@ -18,7 +18,7 @@ packages:
     from: "0.44.2"
   MDKBindings:
     url: https://github.com/marmot-protocol/mdk-swift
-    branch: main
+    revision: 8a7a0a5
 
 settings:
   base:
