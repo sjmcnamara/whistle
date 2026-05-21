@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.2.0] — 2026-05-13
+
+### Added
+- **Low battery alerts** (iOS & Android): `BatteryAlertService` monitors device battery and, once it drops below the configured threshold, publishes a location message tagged with a battery-low flag. Other group members receive a local notification so they know someone's phone is about to die.
+- **In-app alert banner** (Android): `FamilyMapScreen` surfaces the battery-low event as a dismissible banner overlaid on the map.
+- **Notification icon** (Android): dedicated `ic_notification_battery` drawable used for battery alert notifications.
+
+### Changed
+- **Kotlin** (Android): 2.1.0 → 2.3.21, with matching Compose compiler plugin.
+- **KSP** (Android): 2.1.0-1.0.29 → 2.3.7.
+- **Hilt** (Android): 2.54 → 2.58.
+- **Compose BOM** (Android): 2024.12.01 → 2026.05.00.
+- **androidx.security:security-crypto** (Android): 1.1.0-alpha06 → 1.1.0 (stable).
+- **github/codeql-action** (CI): 4.35.2 → 4.35.3.
+
+---
+
+## [1.1.5] — 2026-05-08
+
+_Brought Android up to feature parity with iOS v1.1.x._
+
+### Added
+- **Promote to admin** (Android): swipe action in Group Detail to promote any non-admin member. Admin-only; hidden for self and existing admins.
+- **Battery level in location payload** (Android): `LocationPayload` extended with a `battery` field, consistent with iOS.
+
+### Fixed
+- **Stale DB deletion** (Android): unencrypted database from pre-v0.9 is now detected and deleted on first launch, matching iOS behaviour.
+
+---
+
 ## [1.1.4] — 2026-05-08
 
 ### Added
