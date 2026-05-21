@@ -12,7 +12,7 @@ import pathlib
 p = pathlib.Path("project.yml")
 original = p.read_text()
 patched = re.sub(
-    r"  MDKBindings:\n    url: [^\n]+\n    branch: [^\n]+",
+    r"  MDKBindings:\n    url: [^\n]+\n    (?:branch|revision): [^\n]+",
     "  MDKBindings:\n    path: vendor/mdk-swift",
     original,
 )
