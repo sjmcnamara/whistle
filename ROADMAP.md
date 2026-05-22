@@ -366,7 +366,16 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ### Deferred
 
-- **Push Notifications via MIP-05**: MIP-05 defines a notification server that watches kind 445 group events and delivers a silent APNs/FCM push to wake the app. MDK 0.8.0 ships the Rust primitives. Blocked on deciding whether to run Whistle infrastructure — the notification server needs APNs credentials and learns which device tokens belong to which groups. Revisit when the app moves beyond TestFlight.
+- **Push Notifications via MIP-05** _(parked)_: MIP-05 specifies a privacy-preserving push pipeline. Devices encrypt their APNs/FCM tokens to a notification server's pubkey (probabilistic encryption with ephemeral keys, no cross-group linkability) and gossip the encrypted tokens to group members via kinds 447/448/449. To deliver a push, the sending client gift-wraps a `kind:446` rumor with the bundled tokens (plus decoys) and publishes it to the server's inbox relays; the server decrypts each token and dispatches a silent content-available push.
+
+    **Why parked**: iOS ties APNs credentials to our bundle ID, so we have to run the notification server ourselves — there's no generic third-party operator. That means committing to small but real infra (VPS uptime, APNs `.p8`, Firebase project, monitoring, reproducible-build hygiene so users can trust the deployment). Not worth it for TestFlight-only scale; revisit when we commit to Play Store / App Store distribution.
+
+    **Phased plan when we pick this up**:
+    1. **MDK UniFFI bindings** — `crates/mdk-core/src/mip05/` exists in MDK 0.8.0 (encrypt/decrypt, rumor builders, batching), but `mdk-uniffi` doesn't expose it yet. Contribute upstream the way we did for keyring (PR #252). Reconcile the spec-vs-impl padding-size drift (spec: 280-byte encrypted token, impl: 1084).
+    2. **Notification server** — minimal stateless Rust service: subscribe to inbox relays for `kind:1059` addressed to its pubkey, unwrap → decrypt token → dispatch APNs/FCM. Open source, deployable to fly.io / small VPS, reproducible builds.
+    3. **Client token gossip** — local token store keyed by MLS leaf index; handlers for kinds 447/448/449; refresh on join / token change / 25-35 day periodic; auto-cleanup on MLS Remove.
+    4. **Notification trigger** — on outbound chat / location / battery-alert send, collect active-leaf tokens + decoys (self ±50%, 10-20% from other groups, min 3), shuffle, gift-wrap as `kind:446` rumor + `kind:13` seal + `kind:1059` wrap, publish to server inbox relays.
+    5. **Platform integration** — APNs registration via `UNUserNotificationCenter` on iOS; FCM via Firebase SDK on Android. Ship behind an opt-in setting initially.
 
 ---
 
