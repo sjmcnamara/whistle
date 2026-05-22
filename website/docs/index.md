@@ -71,7 +71,7 @@ data to a platform.
 <div class="w-pair__title"><span class="w-bolt"></span> The school trip</div>
 A class trip looks organised on paper; in reality it's a constant balancing
 act — small groups splitting off, missed meeting points, the low-level stress
-of "where are they now?". Whistle help coordinates without turning the day 
+of "where are they now?". Whistle helps coordinate without turning the day 
 into a surveillance exercise. Live for as long as the trip lasts; then gone 
 forever.
 </div>
