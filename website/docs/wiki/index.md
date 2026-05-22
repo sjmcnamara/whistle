@@ -6,7 +6,6 @@ This is the working knowledge base for Whistle — the practical stuff that does
 
 | Page | What it covers |
 |------|----------------|
-| [Overview](OVERVIEW.md) | What Whistle is for and why it exists |
 | [Architecture](Architecture.md) | How the codebase is laid out, what each service does, how encryption composes |
 | [Protocol Specification](PROTOCOL.md) | Wire-level reference: event kinds, payload schemas, URL schemes |
 | [Join and Invite Flow](Join-and-Invite-Flow.md) | All the ways someone can be brought into a group |

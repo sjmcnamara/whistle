@@ -65,7 +65,6 @@ nav:
   - Trust & security: trust.md
   - Reference:
     - wiki/index.md
-    - Overview: wiki/OVERVIEW.md
     - Architecture: wiki/Architecture.md
     - Protocol specification: wiki/PROTOCOL.md
     - Joining a group: wiki/Join-and-Invite-Flow.md
