@@ -38,7 +38,8 @@ Create or join an encrypted group, share a live map with your people, and chat �
 - **Group chat** — built-in encrypted messaging for the whole group
 - **Tap-to-join** — share invites via QR code, NFC tap, or AirDrop
 - **Pause/resume** — stop sharing your location anytime without leaving the group
-- **Low-battery mode** — automatically reduces update frequency when battery is low
+- **Movement aware** — automatically backs off location updates when a device is stationary, resumes normal rate on movement
+- **Low-battery alerts** — notifies the group when a member's battery is critically low
 - **Multiple groups** — belong to more than one circle at a time
 - **Cross-platform** — native iOS and Android apps that interop seamlessly
 - **No accounts** — identity is a Nostr keypair stored on-device
@@ -66,13 +67,13 @@ Group traffic is published as Marmot-compatible Nostr events:
 ## Requirements
 
 ### iOS
-- Xcode 16.1+
+- Xcode 16+ (tested on Xcode 26)
 - iOS 17.0+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
 ### Android
-- Android Studio Hedgehog+
-- Android SDK 34+
+- Android Studio — latest stable recommended (AGP 8.13)
+- Android SDK 36+
 - Java 17
 
 Pre-built native libraries (MDK, NostrSDK) are checked into `android/app/src/main/jniLibs/`. No Rust toolchain needed for development.
@@ -101,7 +102,7 @@ whistle/
 
 ## Status
 
-v1.1.3 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
+v1.2.0 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Wiki
 
