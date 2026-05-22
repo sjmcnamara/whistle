@@ -15,6 +15,7 @@ theme:
   features:
     - navigation.instant
     - navigation.instant.progress
+    - navigation.tabs
     - navigation.tracking
     - navigation.top
     - navigation.footer
@@ -62,6 +63,14 @@ nav:
   - Home: index.md
   - How it works: how-it-works.md
   - Trust & security: trust.md
+  - Reference:
+    - wiki/index.md
+    - Overview: wiki/OVERVIEW.md
+    - Architecture: wiki/Architecture.md
+    - Protocol specification: wiki/PROTOCOL.md
+    - Joining a group: wiki/Join-and-Invite-Flow.md
+    - Testing & CI: wiki/Testing-and-CI.md
+    - Release checklist: wiki/Release-Checklist.md
 
 extra:
   social:
