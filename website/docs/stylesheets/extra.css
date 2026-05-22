@@ -1,0 +1,688 @@
+/* =========================================================================
+   Whistle · extra.css
+   Single stylesheet that re-skins mkdocs-material with two UI modes:
+   - data-theme="safe"     (default) — calm technical, IBM Plex, blue accent
+   - data-theme="playful"  — chunky friendly, Unbounded + DM Sans, yellow accent
+   Toggle via the header switcher (theme-switcher.js).
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. Design tokens
+   ------------------------------------------------------------------------- */
+
+:root {
+  /* SAFE tokens (defaults — also bound to [data-theme="safe"] below) */
+  --w-bg:           #FAF8F3;
+  --w-paper:        #FFFFFF;
+  --w-ink:          #0E1216;
+  --w-ink-soft:     #3D454D;
+  --w-ink-muted:    #7A8088;
+  --w-rule:         #E6E1D5;
+  --w-rule-soft:    #EFEBE0;
+  --w-accent:       #0066E6;
+  --w-accent-soft:  #E8F0FF;
+  --w-yellow:       #FAB400;
+
+  --w-text-font:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --w-display-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --w-mono-font:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --w-display-weight: 600;
+  --w-display-tracking: -0.02em;
+  --w-display-uppercase: none;
+  --w-radius: 6px;
+  --w-rule-weight: 1px;
+  --w-card-shadow: none;
+  --w-btn-shadow: none;
+  --w-btn-border: 1px solid var(--w-rule);
+}
+
+[data-theme="playful"] {
+  --w-bg:           #FAF6E9;
+  --w-paper:        #FFFFFF;
+  --w-ink:          #16140E;
+  --w-ink-soft:     #3F3B2E;
+  --w-ink-muted:    #7A7563;
+  --w-rule:         #16140E;
+  --w-rule-soft:    #E5DFC8;
+  --w-accent:       #F5C400;    /* brand yellow as primary */
+  --w-accent-soft:  #FFF4C8;
+  --w-yellow:       #F5C400;
+
+  --w-text-font:    "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --w-display-font: "Unbounded", "DM Sans", system-ui, sans-serif;
+  --w-mono-font:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --w-display-weight: 800;
+  --w-display-tracking: -0.04em;
+  --w-display-uppercase: uppercase;
+  --w-radius: 12px;
+  --w-rule-weight: 2px;
+  --w-card-shadow: 4px 4px 0 var(--w-rule);
+  --w-btn-shadow: 4px 4px 0 var(--w-rule);
+  --w-btn-border: 2.5px solid var(--w-rule);
+}
+
+/* -------------------------------------------------------------------------
+   2. Bind tokens to Material's CSS variables
+   ------------------------------------------------------------------------- */
+
+:root,
+[data-md-color-scheme="default"] {
+  --md-text-font:         var(--w-text-font);
+  --md-code-font:         var(--w-mono-font);
+
+  --md-default-bg-color:  var(--w-bg);
+  --md-default-fg-color:  var(--w-ink);
+  --md-default-fg-color--light:  var(--w-ink-soft);
+  --md-default-fg-color--lighter: var(--w-ink-muted);
+  --md-default-fg-color--lightest: var(--w-rule-soft);
+
+  --md-typeset-color:     var(--w-ink);
+  --md-typeset-a-color:   var(--w-accent);
+
+  --md-primary-fg-color:        var(--w-ink);
+  --md-primary-fg-color--light: var(--w-ink-soft);
+  --md-primary-fg-color--dark:  var(--w-ink);
+  --md-primary-bg-color:        var(--w-bg);
+  --md-primary-bg-color--light: var(--w-bg);
+
+  --md-accent-fg-color:         var(--w-accent);
+  --md-accent-fg-color--transparent: color-mix(in oklab, var(--w-accent) 12%, transparent);
+  --md-accent-bg-color:         var(--w-bg);
+
+  --md-code-bg-color:           var(--w-paper);
+  --md-code-fg-color:           var(--w-ink);
+
+  --md-footer-bg-color:         var(--w-bg);
+  --md-footer-bg-color--dark:   var(--w-bg);
+  --md-footer-fg-color:         var(--w-ink-soft);
+  --md-footer-fg-color--light:  var(--w-ink-muted);
+  --md-footer-fg-color--lighter: var(--w-ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   3. Global type, body
+   ------------------------------------------------------------------------- */
+
+body {
+  font-feature-settings: "ss01", "cv01";
+}
+
+.md-typeset {
+  font-size: 0.78rem;       /* ~16px (Material default is 16) */
+  line-height: 1.65;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  font-family: var(--w-display-font);
+  font-weight: var(--w-display-weight);
+  letter-spacing: var(--w-display-tracking);
+  text-transform: var(--w-display-uppercase);
+  color: var(--w-ink);
+}
+
+.md-typeset h1 { font-size: 2.4rem; line-height: 1.05; margin: 0 0 0.6rem; }
+.md-typeset h2 { font-size: 1.5rem; line-height: 1.2;  margin: 2rem 0 0.6rem; }
+.md-typeset h3 { font-size: 1.15rem; line-height: 1.3; margin: 1.4rem 0 0.4rem; }
+
+/* Playful: heading anchors look like # */
+[data-theme="playful"] .md-typeset .headerlink {
+  color: var(--w-ink-muted);
+}
+
+/* -------------------------------------------------------------------------
+   4. Header
+   ------------------------------------------------------------------------- */
+
+.md-header {
+  background-color: var(--w-bg);
+  color: var(--w-ink);
+  box-shadow: none;
+  border-bottom: var(--w-rule-weight) solid var(--w-rule);
+}
+
+.md-header[data-md-state="shadow"] {
+  box-shadow: none;
+}
+
+.md-header__title {
+  font-family: var(--w-display-font);
+  font-weight: var(--w-display-weight);
+  letter-spacing: var(--w-display-tracking);
+  text-transform: var(--w-display-uppercase);
+  font-size: 1rem;
+}
+
+.md-header__button.md-logo svg,
+.md-header__button.md-logo img {
+  height: 1.4rem;
+  width: 1.4rem;
+}
+
+[data-theme="playful"] .md-header__button.md-logo {
+  background: var(--w-yellow);
+  border: 2px solid var(--w-rule);
+  border-radius: 8px;
+  padding: 4px;
+  margin: 0.25rem;
+}
+[data-theme="playful"] .md-header__button.md-logo svg,
+[data-theme="playful"] .md-header__button.md-logo img {
+  height: 1rem;
+  width: 1rem;
+}
+
+/* Search input */
+.md-search__form {
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: var(--w-radius);
+}
+[data-theme="playful"] .md-search__form {
+  border-radius: 999px;
+}
+
+/* -------------------------------------------------------------------------
+   5. UI toggle (the Safe / Playful switcher button)
+   ------------------------------------------------------------------------- */
+
+.w-ui-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  margin: 0 0.4rem;
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: 999px;
+  font-family: var(--w-text-font);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--w-ink);
+  cursor: pointer;
+  height: 28px;
+  line-height: 1;
+}
+
+.w-ui-toggle__opt {
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: var(--w-ink-muted);
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+
+[data-theme="safe"] .w-ui-toggle__opt[data-ui="safe"] {
+  background: var(--w-ink);
+  color: var(--w-bg);
+}
+
+[data-theme="playful"] .w-ui-toggle__opt[data-ui="playful"] {
+  background: var(--w-yellow);
+  color: var(--w-ink);
+}
+
+[data-theme="playful"] .w-ui-toggle {
+  border-width: 2px;
+  box-shadow: 2px 2px 0 var(--w-rule);
+}
+
+/* -------------------------------------------------------------------------
+   6. Sidebars & nav
+   ------------------------------------------------------------------------- */
+
+.md-nav__title {
+  font-family: var(--w-mono-font);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--w-ink-muted);
+  font-weight: 500;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.md-nav__link {
+  font-family: var(--w-text-font);
+  color: var(--w-ink-soft);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--w-radius);
+  transition: background 0.12s, color 0.12s;
+}
+.md-nav__link:hover {
+  background: var(--w-rule-soft);
+  color: var(--w-ink);
+}
+.md-nav__link--active,
+.md-nav__item--active > .md-nav__link {
+  color: var(--w-accent);
+  font-weight: 600;
+  background: var(--w-accent-soft);
+}
+
+[data-theme="playful"] .md-nav__link {
+  border-radius: 999px;
+}
+[data-theme="playful"] .md-nav__link--active,
+[data-theme="playful"] .md-nav__item--active > .md-nav__link {
+  background: var(--w-accent);
+  color: var(--w-ink);
+  border: 2px solid var(--w-ink);
+  margin-left: -2px;
+  font-weight: 700;
+}
+
+/* Right-side TOC */
+.md-sidebar--secondary .md-nav__title {
+  margin-bottom: 0.5rem;
+}
+
+/* -------------------------------------------------------------------------
+   7. Buttons (generic .w-btn)
+   ------------------------------------------------------------------------- */
+
+.w-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.7rem 1.1rem;
+  border: var(--w-btn-border);
+  border-radius: var(--w-radius);
+  font-family: var(--w-text-font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: transform 0.1s;
+  white-space: nowrap;
+  line-height: 1;
+}
+[data-theme="playful"] .w-btn {
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: var(--w-btn-shadow);
+  padding: 0.75rem 1.2rem;
+}
+[data-theme="playful"] .w-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--w-rule);
+}
+.w-btn--primary {
+  background: var(--w-ink);
+  color: var(--w-bg) !important;
+  border-color: var(--w-ink);
+}
+[data-theme="playful"] .w-btn--primary {
+  background: var(--w-yellow);
+  color: var(--w-ink) !important;
+}
+.w-btn--ghost {
+  background: var(--w-paper);
+  color: var(--w-ink) !important;
+}
+
+/* -------------------------------------------------------------------------
+   8. Hero (home page)
+   ------------------------------------------------------------------------- */
+
+.w-hero {
+  background: var(--w-bg);
+  padding: 4.5rem 0 3.5rem;
+  border-bottom: var(--w-rule-weight) solid var(--w-rule);
+}
+.w-hero__inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 0 1.6rem;
+}
+.w-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.3rem;
+  font-family: var(--w-mono-font);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--w-accent);
+}
+[data-theme="playful"] .w-hero__eyebrow {
+  background: var(--w-accent-soft);
+  padding: 0.35rem 0.85rem 0.35rem 0.45rem;
+  border: 2px solid var(--w-rule);
+  border-radius: 999px;
+  font-family: var(--w-text-font);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--w-ink);
+}
+
+/* The bolt mark used in the hero eyebrow */
+.w-bolt {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: var(--w-ink);
+  -webkit-mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+          mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+}
+[data-theme="playful"] .w-bolt {
+  width: 22px;
+  height: 22px;
+  background: var(--w-yellow);
+  border: 2px solid var(--w-rule);
+  border-radius: 6px;
+  padding: 2px;
+  /* The mask trick uses background to color the SVG, but we also want
+     the colored chip. Use a layered approach: */
+  -webkit-mask: none;
+          mask: none;
+  position: relative;
+}
+[data-theme="playful"] .w-bolt::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: var(--w-ink);
+  -webkit-mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+          mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+}
+
+.w-hero__title {
+  font-family: var(--w-display-font);
+  font-weight: var(--w-display-weight);
+  letter-spacing: var(--w-display-tracking);
+  text-transform: var(--w-display-uppercase);
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  line-height: 1.02;
+  margin: 0 0 1.3rem;
+  text-wrap: balance;
+  color: var(--w-ink);
+}
+
+/* Word-highlight slab — visible only in playful theme */
+.w-hl {
+  display: inline;
+}
+[data-theme="playful"] .w-hl {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.4rem;
+  white-space: nowrap;
+}
+[data-theme="playful"] .w-hl::before {
+  content: "";
+  position: absolute;
+  inset: 0.2em -0.05em 0.06em -0.05em;
+  background: var(--w-accent);
+  border: 2px solid var(--w-rule);
+  border-radius: 8px;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+}
+
+.w-hero__sub {
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: var(--w-ink-soft);
+  max-width: 40rem;
+  margin: 0 0 1.8rem;
+  text-wrap: pretty;
+}
+
+.w-hero__cta {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.w-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.4rem;
+  font-family: var(--w-mono-font);
+  font-size: 0.7rem;
+  color: var(--w-ink-muted);
+}
+.w-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--w-yellow);
+}
+[data-theme="playful"] .w-dot {
+  background: #FF6B5C;
+  box-shadow: 0 0 0 4px rgba(255, 107, 92, 0.25);
+}
+
+/* -------------------------------------------------------------------------
+   9. Sections (mono section labels, "§ 01" style)
+   ------------------------------------------------------------------------- */
+
+.w-section-label {
+  font-family: var(--w-mono-font);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--w-ink-muted);
+  margin-bottom: 0.4rem;
+}
+
+/* -------------------------------------------------------------------------
+   10. Cards row ("A different shape" — 3 primitive cards)
+   ------------------------------------------------------------------------- */
+
+.w-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.4rem 0;
+}
+@media (max-width: 50rem) {
+  .w-cards { grid-template-columns: 1fr; }
+}
+
+.w-card {
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: var(--w-radius);
+  padding: 1.2rem;
+  box-shadow: var(--w-card-shadow);
+}
+
+[data-theme="playful"] .w-card:nth-child(1) { transform: rotate(-0.4deg); }
+[data-theme="playful"] .w-card:nth-child(2) { transform: rotate(0.5deg); }
+[data-theme="playful"] .w-card:nth-child(3) { transform: rotate(-0.2deg); }
+
+.w-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--w-radius);
+  margin-bottom: 0.9rem;
+  overflow: hidden;
+  background: var(--w-rule-soft);
+}
+[data-theme="playful"] .w-card__icon {
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--w-rule);
+  border-radius: 12px;
+}
+.w-card__icon img { display: block; }
+
+.w-card__icon--nostr  { background: #F0E4FF; }
+.w-card__icon--mls    { background: #F0E4FF; }
+.w-card__icon--marmot { background: #FFE9D2; padding: 0; }
+.w-card__icon--marmot img { image-rendering: pixelated; }
+
+.w-card__title {
+  font-family: var(--w-display-font);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.3rem;
+}
+[data-theme="playful"] .w-card__title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.w-card__body {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--w-ink-soft);
+}
+
+/* -------------------------------------------------------------------------
+   11. "Who it's for" pair-grid + "What you get" list
+   ------------------------------------------------------------------------- */
+
+.w-pairs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.4rem 0;
+}
+@media (max-width: 50rem) { .w-pairs { grid-template-columns: 1fr; } }
+
+.w-pair {
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: var(--w-radius);
+  padding: 1rem 1.1rem;
+}
+[data-theme="playful"] .w-pair:nth-child(2n) { background: var(--w-accent-soft); }
+
+.w-pair__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--w-display-font);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.4rem;
+}
+
+.w-features {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+.w-features li {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 2rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--w-rule-soft);
+}
+.w-features li:first-child { border-top: none; }
+.w-features li > strong {
+  font-family: var(--w-display-font);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+  color: var(--w-ink);
+}
+.w-features li > span {
+  font-size: 0.86rem;
+  color: var(--w-ink-soft);
+  line-height: 1.55;
+}
+
+/* -------------------------------------------------------------------------
+   12. Hide nav + toc on home (template: home.html)
+   ------------------------------------------------------------------------- */
+
+body[data-md-template="home.html"] .md-sidebar--primary,
+body[data-md-template="home.html"] .md-sidebar--secondary {
+  display: none;
+}
+body[data-md-template="home.html"] .md-content {
+  max-width: 100%;
+}
+/* mkdocs-material uses 'hide: navigation/toc' frontmatter — but we also
+   collapse the home width since hero handles its own container. */
+
+/* -------------------------------------------------------------------------
+   13. Admonitions
+   ------------------------------------------------------------------------- */
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-width: var(--w-rule-weight);
+  border-radius: var(--w-radius);
+  box-shadow: none;
+}
+[data-theme="playful"] .md-typeset .admonition,
+[data-theme="playful"] .md-typeset details {
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--w-rule);
+}
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  border-color: var(--w-accent);
+  background: var(--w-accent-soft);
+}
+[data-theme="playful"] .md-typeset .admonition.warning,
+[data-theme="playful"] .md-typeset details.warning {
+  border-color: var(--w-rule);
+  background: var(--w-yellow);
+}
+
+/* -------------------------------------------------------------------------
+   14. Code blocks
+   ------------------------------------------------------------------------- */
+
+.md-typeset pre {
+  border-radius: var(--w-radius);
+  border: var(--w-rule-weight) solid var(--w-rule);
+}
+[data-theme="playful"] .md-typeset pre {
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--w-rule);
+}
+.md-typeset code {
+  font-family: var(--w-mono-font);
+}
+.md-typeset :not(pre) > code {
+  background: var(--w-rule-soft);
+  border: none;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+}
+[data-theme="playful"] .md-typeset :not(pre) > code {
+  background: var(--w-accent-soft);
+}
+
+/* -------------------------------------------------------------------------
+   15. Footer
+   ------------------------------------------------------------------------- */
+
+.md-footer-meta {
+  background: var(--w-bg);
+  border-top: var(--w-rule-weight) solid var(--w-rule);
+  color: var(--w-ink-muted);
+  font-family: var(--w-mono-font);
+  font-size: 0.7rem;
+}
+[data-theme="playful"] .md-footer-meta {
+  font-family: var(--w-text-font);
+  font-weight: 500;
+}
+.md-footer {
+  background: var(--w-bg);
+  color: var(--w-ink-soft);
+}
+.md-footer-meta__inner {
+  padding: 0.8rem 1rem;
+}
