@@ -53,7 +53,7 @@ MDKBindings:
   revision: <commit>
 ```
 
-Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tags yet; switch to `revision:` once a tag is published.
+Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.8.0). We previously tracked `branch: main` but upstream silently added a required `disappearingMessageSecs` parameter to `createGroup` and friends; the CI mdk-swift cache hid it until CodeQL (which fresh-clones) exposed the break. Bump the pin deliberately when adopting a newer MDK; switch to a tag once mdk-swift publishes one.
 
 **Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". `./scripts/build.sh` handles this automatically: it clones `vendor/mdk-swift` with the system git (LFS-aware) on first run, patches `project.yml`, runs xcodegen, then restores `project.yml` so the working tree stays clean.
 
