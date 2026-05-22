@@ -81,11 +81,12 @@ jobs:
           path: vendor/mdk-swift
           key: mdk-swift-${{ hashFiles('project.yml') }}
 
-      - name: Clone mdk-swift with LFS
+      - name: Clone mdk-swift with LFS at pinned revision
         if: steps.cache-mdk.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
-          cd vendor/mdk-swift && git lfs pull
+          REV=$(python3 scripts/ci_use_local_mdk.py --print-revision)
+          git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+          cd vendor/mdk-swift && git checkout "$REV" && git lfs pull
 
       - name: Generate Xcode project
         run: |
