@@ -9,13 +9,13 @@
   "use strict";
 
   var STORAGE_KEY = "whistle-ui";
-  var DEFAULT_UI = "safe";
+  var DEFAULT_UI = "playful";
   var root = document.documentElement;
 
   function get() {
     try {
       var v = localStorage.getItem(STORAGE_KEY);
-      return (v === "safe" || v === "playful") ? v : DEFAULT_UI;
+      return (v === "plain" || v === "playful") ? v : DEFAULT_UI;
     } catch (e) { return DEFAULT_UI; }
   }
 
@@ -39,7 +39,7 @@
     btn.className = "w-ui-toggle";
     btn.type = "button";
     btn.innerHTML =
-      '<span class="w-ui-toggle__opt" data-ui="safe">Safe</span>' +
+      '<span class="w-ui-toggle__opt" data-ui="plain">Plain</span>' +
       '<span class="w-ui-toggle__opt" data-ui="playful">Playful</span>';
     btn.addEventListener("click", function (ev) {
       var clickedOpt = ev.target.closest(".w-ui-toggle__opt");
@@ -47,7 +47,7 @@
       if (clickedOpt && clickedOpt.dataset.ui) {
         set(clickedOpt.dataset.ui);
       } else {
-        set(current === "safe" ? "playful" : "safe");
+        set(current === "plain" ? "playful" : "plain");
       }
     });
     return btn;

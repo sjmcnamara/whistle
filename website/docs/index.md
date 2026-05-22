@@ -56,13 +56,13 @@ on your household.
 You and six friends arrive at a festival. Phones die, people wander, plans
 dissolve. Whistle becomes a lightweight coordination layer — no endless "where
 are you?" chain, no swapping numbers with everyone, no 200MB official app. The
-group evaporates Monday morning; no lingering graph of who met whom.
+group evaporates Monday morning with no lingering graph of who met whom.
 </div>
 
 <div class="w-pair" markdown>
 <div class="w-pair__title"><span class="w-bolt"></span> The late walk home</div>
 Temporary visibility while you're in a taxi or crossing an unfamiliar city.
-The digital equivalent of <em>"text me when you're home"</em> — a bridge of
+The digital equivalent of <em>"text me when you're back"</em> — a bridge of
 reassurance during a late-night walk or a solo journey, without handing your
 data to a platform.
 </div>
@@ -71,8 +71,9 @@ data to a platform.
 <div class="w-pair__title"><span class="w-bolt"></span> The school trip</div>
 A class trip looks organised on paper; in reality it's a constant balancing
 act — small groups splitting off, missed meeting points, the low-level stress
-of "where are they now?". Whistle coordinates without turning the day into a
-surveillance exercise. Live for a weekend; forgotten by Tuesday.
+of "where are they now?". Whistle help coordinates without turning the day 
+into a surveillance exercise. Live for as long as the trip lasts; then gone 
+forever.
 </div>
 
 </div>
