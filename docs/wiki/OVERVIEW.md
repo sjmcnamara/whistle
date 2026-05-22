@@ -17,6 +17,22 @@ This isn’t about building a better tracking app. It’s about **removing track
 
 ---
 
+## What it actually does
+
+Strip away the philosophy for a moment, and Whistle is a small focused app that:
+
+- Lets you create or join an end-to-end encrypted group with people who already know you
+- Shows everyone's live location on a shared map, updated on a configurable interval
+- Has a built-in encrypted group chat so you don't need to coordinate elsewhere
+- Backs off location updates automatically when a device is stationary (battery friendly)
+- Sends a heads-up to the group when someone's battery is critically low
+- Lets you pause sharing without leaving the group, or leave the group cleanly, or burn your identity entirely
+- Runs natively on iOS and Android, interoperating over the same protocol
+
+No accounts. No phone numbers. No central server. Identity is a Nostr keypair generated on your phone; encryption is MLS (the IETF standard, RFC 9420); the network glue is the open [Marmot Protocol](https://github.com/marmot-protocol/marmot). See [PROTOCOL.md](PROTOCOL.md) for the wire details and [Architecture.md](Architecture.md) for how it's wired together.
+
+---
+
 ## Use Cases
 
 ### 1. The long-running family circle (calm, dependable)
