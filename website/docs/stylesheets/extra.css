@@ -1,0 +1,756 @@
+/* =========================================================================
+   Whistle · extra.css
+   Single stylesheet that re-skins mkdocs-material with two UI modes:
+   - data-theme="plain"     (default) — calm technical, IBM Plex, blue accent
+   - data-theme="playful"  — chunky friendly, Unbounded + DM Sans, yellow accent
+   Toggle via the header switcher (theme-switcher.js).
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. Design tokens
+   ------------------------------------------------------------------------- */
+
+:root {
+  /* SAFE tokens (defaults) */
+  --w-bg:           #FAF8F3;
+  --w-bg-deep:      #F2EEE2;
+  --w-paper:        #FFFFFF;
+  --w-ink:          #0E1216;
+  --w-ink-soft:     #3D454D;
+  --w-ink-muted:    #7A8088;
+  --w-rule:         #E6E1D5;
+  --w-rule-soft:    #EFEBE0;
+  --w-rule-strong:  #0E1216;
+  --w-accent:       #0066E6;
+  --w-accent-soft:  #E8F0FF;
+  --w-yellow:       #FAB400;
+
+  --w-text-font:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --w-display-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --w-mono-font:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --w-display-weight: 600;
+  --w-display-tracking: -0.02em;
+  --w-display-uppercase: none;
+  --w-radius: 6px;
+  --w-radius-pill: 6px;
+  --w-rule-weight: 1px;
+  --w-card-shadow: none;
+  --w-btn-shadow: none;
+  --w-btn-border-weight: 1px;
+  --w-header-border-weight: 1px;
+}
+
+/* Playful — significantly warmer paper, chunkier everything */
+[data-theme="playful"] {
+  --w-bg:           #F8EBC2;   /* visibly warmer yellow-cream */
+  --w-bg-deep:      #F2DF99;
+  --w-paper:        #FFFFFF;
+  --w-ink:          #16140E;
+  --w-ink-soft:     #3F3B2E;
+  --w-ink-muted:    #6B6452;
+  --w-rule:         #16140E;
+  --w-rule-soft:    #D9CC9C;
+  --w-rule-strong:  #16140E;
+  --w-accent:       #16140E;        /* keep dark text/link color */
+  --w-accent-soft:  #FCE6A1;
+  --w-yellow:       #F5C400;
+
+  --w-text-font:    "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --w-display-font: "Unbounded", "DM Sans", system-ui, sans-serif;
+  --w-mono-font:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --w-display-weight: 800;
+  --w-display-tracking: -0.04em;
+  --w-display-uppercase: uppercase;
+  --w-radius: 12px;
+  --w-radius-pill: 999px;
+  --w-rule-weight: 2px;
+  --w-card-shadow: 5px 5px 0 var(--w-rule);
+  --w-btn-shadow: 4px 4px 0 var(--w-rule);
+  --w-btn-border-weight: 2.5px;
+  --w-header-border-weight: 2px;
+}
+
+/* -------------------------------------------------------------------------
+   2. Bind tokens to Material's CSS variables
+   We attach to :root AND every common scheme selector so we win the cascade
+   regardless of which one Material is using.
+   ------------------------------------------------------------------------- */
+
+:root,
+:root[data-md-color-scheme="default"],
+[data-md-color-scheme="default"] {
+  --md-text-font:         var(--w-text-font);
+  --md-code-font:         var(--w-mono-font);
+
+  --md-default-bg-color:        var(--w-bg);
+  --md-default-fg-color:        var(--w-ink);
+  --md-default-fg-color--light: var(--w-ink-soft);
+  --md-default-fg-color--lighter: var(--w-ink-muted);
+  --md-default-fg-color--lightest: var(--w-rule-soft);
+
+  --md-typeset-color:     var(--w-ink);
+  --md-typeset-a-color:   var(--w-accent);
+
+  --md-primary-fg-color:        var(--w-ink);
+  --md-primary-fg-color--light: var(--w-ink-soft);
+  --md-primary-fg-color--dark:  var(--w-ink);
+  --md-primary-bg-color:        var(--w-bg);
+  --md-primary-bg-color--light: var(--w-bg);
+
+  --md-accent-fg-color:         var(--w-accent);
+  --md-accent-fg-color--transparent: color-mix(in oklab, var(--w-accent) 12%, transparent);
+  --md-accent-bg-color:         var(--w-bg);
+
+  --md-code-bg-color:           var(--w-paper);
+  --md-code-fg-color:           var(--w-ink);
+
+  --md-footer-bg-color:         var(--w-bg);
+  --md-footer-bg-color--dark:   var(--w-bg);
+  --md-footer-fg-color:         var(--w-ink-soft);
+  --md-footer-fg-color--light:  var(--w-ink-muted);
+  --md-footer-fg-color--lighter: var(--w-ink-muted);
+}
+
+/* Apply background to body so playful's warmer bg paints everywhere */
+body {
+  background-color: var(--w-bg);
+  font-feature-settings: "ss01", "cv01";
+}
+
+/* -------------------------------------------------------------------------
+   3. Suppress mkdocs' auto-generated "# Home" H1 on the home page so the
+   hero acts as the title. (mkdocs-material inserts an h1 derived from the
+   page's nav title when no h1 is in the markdown.)
+   ------------------------------------------------------------------------- */
+
+body[data-md-template$="home.html"] .md-content h1:first-of-type {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------
+   4. Type scale
+   ------------------------------------------------------------------------- */
+
+.md-typeset {
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  font-family: var(--w-display-font);
+  font-weight: var(--w-display-weight);
+  letter-spacing: var(--w-display-tracking);
+  text-transform: var(--w-display-uppercase);
+  color: var(--w-ink);
+}
+
+.md-typeset h1 { font-size: clamp(2rem, 6vw, 2.6rem); line-height: 1.05; margin: 0 0 0.6rem; }
+.md-typeset h2 { font-size: clamp(1.3rem, 3.5vw, 1.55rem); line-height: 1.2;  margin: 2.4rem 0 0.7rem; }
+.md-typeset h3 { font-size: 1.1rem; line-height: 1.3; margin: 1.4rem 0 0.4rem; }
+
+/* -------------------------------------------------------------------------
+   5. Header
+   ------------------------------------------------------------------------- */
+
+.md-header {
+  background-color: var(--w-bg);
+  color: var(--w-ink);
+  box-shadow: none;
+  border-bottom: var(--w-header-border-weight) solid var(--w-rule-strong);
+}
+.md-header[data-md-state="shadow"] { box-shadow: none; }
+
+[data-theme="plain"] .md-header { border-bottom-color: var(--w-rule); }
+[data-theme="playful"] .md-header {
+  background: linear-gradient(180deg, var(--w-bg) 0%, var(--w-bg-deep) 100%);
+}
+
+.md-header__title {
+  font-family: var(--w-display-font);
+  font-weight: var(--w-display-weight);
+  letter-spacing: var(--w-display-tracking);
+  text-transform: var(--w-display-uppercase);
+  font-size: 1rem;
+  color: var(--w-ink);
+}
+
+/* Logo: small bolt, tinted via background. Playful wraps it in a yellow chip. */
+.md-header__button.md-logo svg,
+.md-header__button.md-logo img {
+  height: 1.4rem;
+  width: 1.4rem;
+  color: var(--w-ink);
+  fill: var(--w-ink);
+}
+
+[data-theme="playful"] .md-header__button.md-logo {
+  background: var(--w-yellow);
+  border: 2px solid var(--w-rule);
+  border-radius: 8px;
+  padding: 4px;
+  margin: 0.4rem 0.2rem;
+  box-shadow: 2px 2px 0 var(--w-rule);
+}
+[data-theme="playful"] .md-header__button.md-logo svg,
+[data-theme="playful"] .md-header__button.md-logo img {
+  height: 1.1rem;
+  width: 1.1rem;
+}
+
+/* Search */
+.md-search__form {
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: var(--w-radius);
+  color: var(--w-ink);
+}
+[data-theme="playful"] .md-search__form {
+  border-radius: 999px;
+  border-width: 2px;
+  border-color: var(--w-rule);
+}
+.md-search__input { color: var(--w-ink); }
+.md-search__input::placeholder { color: var(--w-ink-muted); }
+
+/* GitHub source widget */
+.md-header__source { color: var(--w-ink); }
+
+/* -------------------------------------------------------------------------
+   6. UI toggle (Safe / Playful switcher)
+   ------------------------------------------------------------------------- */
+
+.w-ui-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  margin: 0 0.5rem;
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: 999px;
+  font-family: var(--w-text-font);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--w-ink);
+  cursor: pointer;
+  height: 28px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.w-ui-toggle__opt {
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: var(--w-ink-muted);
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+[data-theme="plain"] .w-ui-toggle__opt[data-ui="plain"] {
+  background: var(--w-ink);
+  color: var(--w-bg);
+}
+[data-theme="playful"] .w-ui-toggle__opt[data-ui="playful"] {
+  background: var(--w-yellow);
+  color: var(--w-ink);
+}
+[data-theme="plain"] .w-ui-toggle {
+  border-width: 2px;
+  box-shadow: 2px 2px 0 var(--w-rule);
+}
+
+/* On narrow mobile, shrink the toggle so it fits */
+@media (max-width: 30em) {
+  .w-ui-toggle { font-size: 10px; height: 24px; margin: 0 0.3rem; }
+  .w-ui-toggle__opt { padding: 4px 7px; }
+}
+
+/* -------------------------------------------------------------------------
+   7. Sidebars & nav
+   ------------------------------------------------------------------------- */
+
+.md-nav__title {
+  font-family: var(--w-mono-font);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--w-ink-muted);
+  font-weight: 600;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.md-nav__link {
+  font-family: var(--w-text-font);
+  color: var(--w-ink-soft);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--w-radius);
+  transition: background 0.12s, color 0.12s;
+}
+.md-nav__link:hover { background: var(--w-rule-soft); color: var(--w-ink); }
+
+.md-nav__link--active,
+.md-nav__item--active > .md-nav__link {
+  color: var(--w-ink);
+  font-weight: 600;
+  background: var(--w-accent-soft);
+}
+[data-theme="plain"] .md-nav__link--active {
+  background: var(--w-accent-soft);
+  color: var(--w-accent);
+}
+[data-theme="playful"] .md-nav__link {
+  border-radius: 999px;
+  font-weight: 500;
+}
+[data-theme="playful"] .md-nav__link--active,
+[data-theme="playful"] .md-nav__item--active > .md-nav__link {
+  background: var(--w-yellow);
+  color: var(--w-ink);
+  border: 2px solid var(--w-rule);
+  margin-left: -2px;
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------------------
+   8. Buttons
+   ------------------------------------------------------------------------- */
+
+.w-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.7rem 1.1rem;
+  border: var(--w-btn-border-weight) solid var(--w-rule);
+  border-radius: var(--w-radius-pill);
+  font-family: var(--w-text-font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  white-space: nowrap;
+  line-height: 1;
+}
+[data-theme="playful"] .w-btn {
+  font-weight: 700;
+  box-shadow: var(--w-btn-shadow);
+  padding: 0.8rem 1.3rem;
+}
+[data-theme="playful"] .w-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--w-rule);
+}
+.w-btn--primary {
+  background: var(--w-ink);
+  color: var(--w-bg) !important;
+  border-color: var(--w-ink);
+}
+[data-theme="playful"] .w-btn--primary {
+  background: var(--w-yellow);
+  color: var(--w-ink) !important;
+}
+.w-btn--ghost {
+  background: var(--w-paper);
+  color: var(--w-ink) !important;
+}
+
+/* -------------------------------------------------------------------------
+   9. Hero
+   ------------------------------------------------------------------------- */
+
+.w-hero {
+  background: var(--w-bg);
+  padding: 4rem 1.6rem 3rem;
+  border-bottom: var(--w-rule-weight) solid var(--w-rule);
+}
+[data-theme="playful"] .w-hero {
+  background: linear-gradient(180deg, var(--w-bg) 0%, var(--w-bg-deep) 100%);
+  border-bottom: 2px solid var(--w-rule);
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="playful"] .w-hero::after {
+  content: "";
+  position: absolute;
+  right: -60px; top: -60px;
+  width: 280px; height: 280px;
+  background: var(--w-yellow);
+  border: 2.5px solid var(--w-rule);
+  border-radius: 50%;
+  opacity: 0.55;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.w-hero__inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.w-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.3rem;
+  font-family: var(--w-mono-font);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--w-accent);
+}
+[data-theme="playful"] .w-hero__eyebrow {
+  background: var(--w-paper);
+  padding: 0.4rem 0.9rem 0.4rem 0.5rem;
+  border: 2px solid var(--w-rule);
+  border-radius: 999px;
+  font-family: var(--w-text-font);
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--w-ink);
+  box-shadow: 2px 2px 0 var(--w-rule);
+}
+
+/* Bolt mark (uses mask so it tints with currentColor logic) */
+.w-bolt {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-color: var(--w-ink);
+  -webkit-mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+          mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+  flex-shrink: 0;
+}
+[data-theme="playful"] .w-hero__eyebrow .w-bolt {
+  width: 22px; height: 22px;
+  background-color: transparent;
+  -webkit-mask: none; mask: none;
+  position: relative;
+  border-radius: 6px;
+  border: 2px solid var(--w-rule);
+  background-color: var(--w-yellow);
+}
+[data-theme="playful"] .w-hero__eyebrow .w-bolt::before {
+  content: "";
+  position: absolute; inset: 2px;
+  background-color: var(--w-ink);
+  -webkit-mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+          mask: url("../assets/whistle-bolt.svg") center/contain no-repeat;
+}
+
+.w-hero__title {
+  font-family: var(--w-display-font);
+  font-weight: var(--w-display-weight);
+  letter-spacing: var(--w-display-tracking);
+  text-transform: var(--w-display-uppercase);
+  font-size: clamp(2.2rem, 6.5vw, 4rem);
+  line-height: 1.02;
+  margin: 0 0 1.2rem;
+  text-wrap: balance;
+  color: var(--w-ink);
+}
+
+.w-hl { display: inline; }
+[data-theme="playful"] .w-hl {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.4rem;
+}
+[data-theme="playful"] .w-hl::before {
+  content: "";
+  position: absolute;
+  inset: 0.2em -0.05em 0.06em -0.05em;
+  background: var(--w-yellow);
+  border: 2px solid var(--w-rule);
+  border-radius: 8px;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+}
+
+.w-hero__sub {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--w-ink-soft);
+  max-width: 40rem;
+  margin: 0 0 1.8rem;
+  text-wrap: pretty;
+}
+
+.w-hero__cta {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.w-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.3rem;
+  font-family: var(--w-mono-font);
+  font-size: 0.7rem;
+  color: var(--w-ink-muted);
+}
+.w-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--w-yellow);
+}
+[data-theme="playful"] .w-dot {
+  background: #FF6B5C;
+  box-shadow: 0 0 0 4px rgba(255, 107, 92, 0.25);
+}
+
+/* Mobile hero */
+@media (max-width: 50em) {
+  .w-hero { padding: 2.4rem 1.1rem 2.4rem; }
+  .w-hero__title { margin-bottom: 1rem; }
+  .w-hero__sub { font-size: 0.95rem; margin-bottom: 1.4rem; }
+  [data-theme="playful"] .w-hero::after { width: 180px; height: 180px; right: -90px; top: -90px; }
+}
+
+/* -------------------------------------------------------------------------
+   10. Cards row ("A different shape")
+   ------------------------------------------------------------------------- */
+
+.w-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.6rem 0 2rem;
+}
+@media (max-width: 60em) {
+  .w-cards { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 38em) {
+  .w-cards { grid-template-columns: 1fr; }
+}
+
+.w-card {
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: var(--w-radius);
+  padding: 1.2rem;
+  box-shadow: var(--w-card-shadow);
+}
+[data-theme="playful"] .w-card { border-width: 2px; border-color: var(--w-rule); }
+[data-theme="playful"] .w-cards > *:nth-child(1) { transform: rotate(-0.6deg); }
+[data-theme="playful"] .w-cards > *:nth-child(2) { transform: rotate(0.5deg) translateY(-3px); }
+[data-theme="playful"] .w-cards > *:nth-child(3) { transform: rotate(-0.3deg); }
+
+.w-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--w-radius);
+  margin-bottom: 0.9rem;
+  overflow: hidden;
+  background: var(--w-rule-soft);
+}
+[data-theme="playful"] .w-card__icon {
+  width: 64px; height: 64px;
+  border: 2px solid var(--w-rule);
+  border-radius: 12px;
+}
+.w-card__icon img { display: block; max-width: 100%; height: auto; }
+
+.w-card__icon--nostr  { background: #F0E4FF; }
+.w-card__icon--mls    { background: #F0E4FF; }
+.w-card__icon--marmot { background: #FFE9D2; padding: 0; }
+.w-card__icon--marmot img { image-rendering: pixelated; width: 100%; height: 100%; object-fit: cover; }
+
+.w-card__title {
+  font-family: var(--w-display-font);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.3rem;
+  color: var(--w-ink);
+}
+[data-theme="playful"] .w-card__title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.w-card__body {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--w-ink-soft);
+}
+
+/* -------------------------------------------------------------------------
+   11. Pairs grid + features list
+   ------------------------------------------------------------------------- */
+
+.w-pairs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.6rem 0 2rem;
+}
+@media (max-width: 50em) {
+  .w-pairs { grid-template-columns: 1fr; }
+}
+.w-pair {
+  background: var(--w-paper);
+  border: var(--w-rule-weight) solid var(--w-rule);
+  border-radius: var(--w-radius);
+  padding: 1rem 1.2rem;
+  box-shadow: var(--w-card-shadow);
+}
+[data-theme="playful"] .w-pair { border-width: 2px; }
+[data-theme="playful"] .w-pair:nth-child(2n) { background: var(--w-accent-soft); }
+[data-theme="playful"] .w-pair:nth-child(4n) { background: #FFE6B0; }
+
+.w-pair__title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--w-display-font);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.4rem;
+  text-transform: var(--w-display-uppercase);
+  color: var(--w-ink);
+}
+
+.w-features {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 1.2rem 0 !important;
+}
+.w-features li {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1.5rem;
+  padding: 0.95rem 0;
+  border-top: 1px solid var(--w-rule-soft);
+}
+.w-features li::before { content: none !important; } /* kill default bullet */
+.w-features li:first-child { border-top: none; }
+.w-features li > strong {
+  font-family: var(--w-display-font);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+  color: var(--w-ink);
+  text-transform: var(--w-display-uppercase);
+}
+.w-features li > span {
+  font-size: 0.86rem;
+  color: var(--w-ink-soft);
+  line-height: 1.55;
+}
+@media (max-width: 50em) {
+  .w-features li {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+    padding: 0.8rem 0;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   12. Hide sidebar/TOC on home page (uses template: home.html)
+   ------------------------------------------------------------------------- */
+
+body[data-md-template$="home.html"] .md-sidebar--primary,
+body[data-md-template$="home.html"] .md-sidebar--secondary {
+  display: none !important;
+}
+body[data-md-template$="home.html"] .md-content {
+  max-width: 100%;
+  margin: 0;
+}
+body[data-md-template$="home.html"] .md-main__inner {
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+/* -------------------------------------------------------------------------
+   13. Admonitions
+   ------------------------------------------------------------------------- */
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-width: var(--w-rule-weight);
+  border-radius: var(--w-radius);
+  box-shadow: none;
+}
+[data-theme="playful"] .md-typeset .admonition,
+[data-theme="playful"] .md-typeset details {
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--w-rule);
+}
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  border-color: var(--w-accent);
+  background: var(--w-accent-soft);
+}
+[data-theme="playful"] .md-typeset .admonition.warning,
+[data-theme="playful"] .md-typeset details.warning {
+  border-color: var(--w-rule);
+  background: var(--w-yellow);
+}
+
+/* -------------------------------------------------------------------------
+   14. Code blocks
+   ------------------------------------------------------------------------- */
+
+.md-typeset pre {
+  border-radius: var(--w-radius);
+  border: var(--w-rule-weight) solid var(--w-rule);
+}
+[data-theme="playful"] .md-typeset pre {
+  border-width: 2px;
+  box-shadow: 3px 3px 0 var(--w-rule);
+}
+.md-typeset code { font-family: var(--w-mono-font); }
+.md-typeset :not(pre) > code {
+  background: var(--w-rule-soft);
+  border: none;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+}
+[data-theme="playful"] .md-typeset :not(pre) > code {
+  background: var(--w-accent-soft);
+}
+
+/* -------------------------------------------------------------------------
+   15. Footer
+   ------------------------------------------------------------------------- */
+
+.md-footer-meta {
+  background: var(--w-bg);
+  border-top: var(--w-rule-weight) solid var(--w-rule);
+  color: var(--w-ink-muted);
+  font-family: var(--w-mono-font);
+  font-size: 0.7rem;
+}
+[data-theme="playful"] .md-footer-meta {
+  font-family: var(--w-text-font);
+  font-weight: 500;
+  background: var(--w-bg-deep);
+}
+.md-footer { background: var(--w-bg); color: var(--w-ink-soft); }
+.md-footer-meta__inner { padding: 0.8rem 1rem; }
+
+/* -------------------------------------------------------------------------
+   16. Mobile global tweaks
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 60em) {
+  .md-header__title { font-size: 0.9rem; }
+  .md-search__form { border-radius: var(--w-radius); }
+}
+@media (max-width: 30em) {
+  .md-header { padding: 0; }
+  .md-header__inner { padding: 0 0.4rem; }
+  .md-header__title { display: none; }   /* free room for the toggle */
+}

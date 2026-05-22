@@ -106,4 +106,4 @@ v1.2.0 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for f
 
 ## Wiki
 
-Project operational docs live in [docs/wiki/Home.md](docs/wiki/Home.md)
+Project operational docs live in [website/docs/wiki/](website/docs/wiki/index.md) — also rendered as the "Reference" section of the Whistle site.

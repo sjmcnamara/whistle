@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{#-
+  Whistle override of Material's base template.
+  Adds:
+    1. Webfont preconnects + a no-flash data-theme initializer
+    2. The "Safe / Playful" UI switcher button into the header (via JS)
+    3. A clean hook for the home hero (used by overrides/home.html)
+-#}
+
+{% block site_meta %}
+  {{ super() }}
+  <meta name="theme-color" content="#FAF8F3"/>
+{% endblock %}
+
+{% block extrahead %}
+  {{ super() }}
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700;800&family=Unbounded:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"/>
+
+  {#- no-flash: set data-theme on <html> from localStorage before paint -#}
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('whistle-ui') || 'safe';
+        if (t !== 'safe' && t !== 'playful') t = 'safe';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'safe');
+      }
+    })();
+  </script>
+{% endblock %}
