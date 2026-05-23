@@ -1,0 +1,98 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v1.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Decode keystore
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 secret is not set"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "${RUNNER_TEMP}/whistle-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=${RUNNER_TEMP}/whistle-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Stage release assets
+        id: stage
+        run: |
+          APK_IN=android/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$APK_IN" ]; then
+            echo "::error::Expected APK not found at $APK_IN"
+            exit 1
+          fi
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          OUT="whistle-${TAG}.apk"
+          cp "$APK_IN" "$OUT"
+          sha256sum "$OUT" | tee "${OUT}.sha256"
+          # Also stage a stable filename for the website's "latest" CTA
+          cp "$OUT" whistle.apk
+          sha256sum whistle.apk | tee whistle.apk.sha256
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "versioned=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK signature
+        run: |
+          BUILD_TOOLS=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          "$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner" verify --verbose "${{ steps.stage.outputs.versioned }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.stage.outputs.tag }}" \
+            "${{ steps.stage.outputs.versioned }}" \
+            "${{ steps.stage.outputs.versioned }}.sha256" \
+            whistle.apk whistle.apk.sha256 \
+            --generate-notes \
+            --title "${{ steps.stage.outputs.tag }}"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: whistle-${{ steps.stage.outputs.tag }}-apk
+          path: |
+            ${{ steps.stage.outputs.versioned }}
+            ${{ steps.stage.outputs.versioned }}.sha256
