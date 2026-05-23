@@ -38,6 +38,7 @@ extra_css:
 
 extra_javascript:
   - javascripts/theme-switcher.js
+  - javascripts/platform-hint.js
 
 markdown_extensions:
   - attr_list
