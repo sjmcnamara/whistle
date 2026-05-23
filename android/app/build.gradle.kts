@@ -21,6 +21,22 @@ android {
 
     }
 
+    signingConfigs {
+        create("release") {
+            // Populated from env vars in CI (.github/workflows/release-android.yml).
+            // Local release builds without these env vars produce an unsigned APK
+            // (warning at build time); the release buildType only wires this
+            // config when ANDROID_KEYSTORE_PATH is present.
+            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (keystorePath != null) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // Required for Jacoco to instrument unit tests and produce .exec data
@@ -32,6 +48,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
