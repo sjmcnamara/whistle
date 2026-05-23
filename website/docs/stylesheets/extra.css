@@ -538,6 +538,22 @@ body[data-md-template$="home.html"] .md-content h1:first-of-type {
 .w-install__sep {
   opacity: 0.45;
 }
+.w-install__opt[data-recommended] {
+  border-color: var(--w-ink);
+}
+.w-install__opt[data-recommended]::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--w-yellow);
+  margin-right: 0.15rem;
+}
+[data-theme="playful"] .w-install__opt[data-recommended]::before {
+  background: #FF6B5C;
+  box-shadow: 0 0 0 3px rgba(255, 107, 92, 0.2);
+}
 
 .w-meta {
   display: inline-flex;
