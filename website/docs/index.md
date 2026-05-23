@@ -106,7 +106,7 @@ group, leave the group cleanly, or destroy your identity entirely.</span></li>
 analytics SDKs.</span></li>
 </ul>
 
-## §04 · Just for now { .w-section-title }
+## §04 · Why it matters { .w-section-title }
 
 We've quietly drifted into a world where every app wants to know who you are,
 where you are, and who you're with — *all the time*.
