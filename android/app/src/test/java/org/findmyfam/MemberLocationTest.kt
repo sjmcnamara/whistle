@@ -34,8 +34,11 @@ class MemberLocationTest {
 
     @Test
     fun `stale when receivedAt older than 2x interval`() {
-        // Received 2 hours ago, 1-hour interval → 2× threshold = 2h → stale
-        assertTrue(loc(freshPayload(), receivedAtSecondsAgo = 7200).isStale(3600))
+        // Received 3 hours ago, 1-hour interval → 2× threshold = 2h → stale.
+        // (Using 10800 not 7200 so we're clearly past the strict-`>` threshold
+        // with no boundary races when System.currentTimeMillis ticks during
+        // test setup.)
+        assertTrue(loc(freshPayload(), receivedAtSecondsAgo = 10800).isStale(3600))
     }
 
     @Test
