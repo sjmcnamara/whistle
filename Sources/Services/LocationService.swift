@@ -37,6 +37,22 @@ final class LocationService: NSObject, ObservableObject {
     /// and the device is stationary. Set by AppViewModel from MotionService.
     var motionMultiplier: Double = 1.0
 
+    /// `intervalSeconds × motionMultiplier`, rounded to seconds.
+    ///
+    /// Reflects the current actual publish cadence — what we'd report in
+    /// `LocationPayload.interval` so receivers grade staleness against the
+    /// real cadence, not the user's configured value. Stationary device on a
+    /// 10s setting → 40s here.
+    var effectiveIntervalSeconds: Int {
+        Self.effectiveIntervalSeconds(configured: intervalSeconds, multiplier: motionMultiplier)
+    }
+
+    /// Pure helper for the cadence formula — exposed for unit tests.
+    /// `nonisolated` so test code can call it off the main actor.
+    nonisolated static func effectiveIntervalSeconds(configured: Int, multiplier: Double) -> Int {
+        Int((Double(configured) * multiplier).rounded())
+    }
+
     // MARK: - Private state
 
     private let manager = CLLocationManager()

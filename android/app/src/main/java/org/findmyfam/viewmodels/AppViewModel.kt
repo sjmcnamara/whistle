@@ -234,7 +234,7 @@ class AppViewModel @Inject constructor(
                 acc = if (fuzzRadius > 0) max(location.accuracy.toDouble(), fuzzRadius.toDouble()) else location.accuracy.toDouble(),
                 ts = System.currentTimeMillis() / 1000,
                 batt = battery,
-                interval = settings.locationIntervalSeconds
+                interval = locationService.effectiveIntervalSeconds // reflects motion multiplier so receivers grade staleness against real cadence
             )
             val myPubkey = identity.publicKeyHex ?: return
             val groups = marmotService.groups.value.filter { it.isActive }

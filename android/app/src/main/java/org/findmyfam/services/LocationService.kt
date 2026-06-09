@@ -40,6 +40,23 @@ class LocationService @Inject constructor(
     /** Multiplier applied when motion-adaptive mode is active and device is stationary. */
     var motionMultiplier: Double = 1.0
 
+    /**
+     * `intervalSeconds × motionMultiplier`, rounded to seconds.
+     *
+     * Reflects the current actual publish cadence — what we report in
+     * `LocationPayload.interval` so receivers grade staleness against the
+     * real cadence, not the user's configured value. Stationary device on a
+     * 10s setting → 40s here.
+     */
+    val effectiveIntervalSeconds: Int
+        get() = effectiveIntervalSeconds(configured = intervalSeconds, multiplier = motionMultiplier)
+
+    companion object {
+        /** Pure helper for the cadence formula — exposed for unit tests. */
+        fun effectiveIntervalSeconds(configured: Int, multiplier: Double): Int =
+            kotlin.math.round(configured * multiplier).toInt()
+    }
+
     private val locationManager: LocationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private var lastFireTime: Long = 0L
