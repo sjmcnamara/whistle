@@ -364,6 +364,15 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.3 — UX Polish
+
+_Smoothing over rough edges surfaced during 1.2.x on-device testing._
+
+- **Member detail sheet** (iOS & Android): tapping a pin opens a bottom sheet with the member's nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence ("publishes every 10s" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Optionally show motion state ("currently stationary") for members who are publishing it. Answers "why is mom's pin always grey?" discoverably for the curious, hidden for the 95% case.
+- **Group chat header tappability** (iOS & Android): in the group chat view, tapping the group name or the member-list strip should open the group detail (where invite codes, member management, etc. live). Currently the only affordance is the small info icon to the right — non-obvious. The info icon stays as a secondary affordance; the title bar becomes the primary tap target.
+
+---
+
 ### Deferred
 
 - **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
