@@ -17,7 +17,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - **Internal rename** (iOS): `struct FindMyFamApp` → `WhistleApp` (file renamed too), and `FMFLogger` → `WhistleLogger` swept across 19 files. No user-facing behaviour change; bundle ID `org.findmyfam.app` deliberately untouched.
 - **`LocationPayload` schema**: added optional `interval` field (publisher's own update cadence in seconds). Schema version stays at `1` — older clients ignore the unknown field, and newer clients accept payloads without it. Fully backward and forward compatible.
-- **Settings → About → Version row** (iOS & Android): now shows the build number alongside the marketing version, e.g. `1.2.1(24)` on iOS, `1.2.1(20) (Android)` on Android. Makes TestFlight / sideload-vs-release builds visually distinguishable without digging into device info.
+- **Settings → About → Version row** (iOS & Android): now shows the build number alongside the marketing version, e.g. `1.2.1(24)`. Makes TestFlight / sideload-vs-release builds visually distinguishable without digging into device info.
 
 ### Docs
 - **Architecture wiki**: corrected the `LocationService` line — Android uses raw `LocationManager`, not `FusedLocationProvider`. Noted OSM via osmdroid is the deliberate (GMS-free) choice, not a Google Maps fallback.

@@ -240,7 +240,7 @@ fun SettingsScreen(
                     @Suppress("DEPRECATION") // longVersionCode requires API 28; minSdk is 26
                     val code = pi.versionCode
                     Text(
-                        text = "${pi.versionName}($code) (Android)",
+                        text = "${pi.versionName}($code)",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
