@@ -11,9 +11,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - **Lock screen & Face ID prompt** (iOS): replaced lingering "FindMyFam" strings on the locked-app screen and the Face ID / passcode prompts with "Whistle". Cosmetic only — no bundle ID, keychain, signing, or install identity changes.
 - **GPS vs Wi-Fi selection** (Android): `LocationService` now keeps the most recent fix from each of `GPS_PROVIDER` and `NETWORK_PROVIDER` and selects per-fire by freshness then accuracy. Previously, a low-accuracy network fix could beat a soon-to-arrive GPS fix to the throttle gate. Stays GMS-free (no `FusedLocationProviderClient` dependency, GrapheneOS-compatible).
+- **Live interval changes propagate on Android**: `AppViewModel` now observes `AppSettings.locationIntervalSecondsFlow` and re-applies the new value to the running `LocationService` (plus throttle reset) instead of snapshotting it at startup. Previously, changing the interval in Settings had no effect until the next app restart. Mirrors the iOS behaviour at `AppViewModel.swift:173`.
+- **Cross-device stale-pin grading** (iOS & Android): `MemberLocation.isStale` now prefers the publisher's own interval (carried in the new `LocationPayload.interval` field) and only falls back to the local device's interval when the field is absent (pre-1.2.1 senders). A member on a 1-hour cadence no longer goes grey within 20s on a device polling every 10s.
 
 ### Changed
 - **Internal rename** (iOS): `struct FindMyFamApp` → `WhistleApp` (file renamed too), and `FMFLogger` → `WhistleLogger` swept across 19 files. No user-facing behaviour change; bundle ID `org.findmyfam.app` deliberately untouched.
+- **`LocationPayload` schema**: added optional `interval` field (publisher's own update cadence in seconds). Schema version stays at `1` — older clients ignore the unknown field, and newer clients accept payloads without it. Fully backward and forward compatible.
 
 ### Docs
 - **Architecture wiki**: corrected the `LocationService` line — Android uses raw `LocationManager`, not `FusedLocationProvider`. Noted OSM via osmdroid is the deliberate (GMS-free) choice, not a Google Maps fallback.

@@ -97,6 +97,38 @@ class LocationViewModelTest {
     }
 
     @Test
+    fun annotations_publisherIntervalPreferredOverLocal() {
+        // Local interval is 60s (vm setUp), publisher is on a 1-hour cadence.
+        // Without the v1.2.1 fix, a 3-minute-old pin would be stale (60s × 2 = 120s).
+        // With it, the threshold is 2 × 3600 = 7200s.
+        val publisherInterval = 3600
+        val threeMinAgo = System.currentTimeMillis() / 1000 - 180
+        val payload = LocationPayload(
+            lat = 0.0, lon = 0.0, alt = 0.0, acc = 0.0,
+            ts = threeMinAgo, interval = publisherInterval
+        )
+        cache.update(group1, otherPubkey, payload)
+        val annotation = vm.annotations.value.first()
+        assertFalse(
+            "Publisher interval (${publisherInterval}s) must win over local (60s)",
+            annotation.isStale
+        )
+    }
+
+    @Test
+    fun annotations_fallsBackToLocalIntervalWhenPayloadIntervalMissing() {
+        // Pre-1.2.1 payload: no interval field. Local interval (60s) drives the threshold.
+        val staleTs = System.currentTimeMillis() / 1000 - 180  // 3 minutes ago
+        val payload = LocationPayload(
+            lat = 0.0, lon = 0.0, alt = 0.0, acc = 0.0,
+            ts = staleTs, interval = null
+        )
+        cache.update(group1, otherPubkey, payload)
+        val annotation = vm.annotations.value.first()
+        assertTrue("Should fall back to local 60s × 2 = 120s threshold", annotation.isStale)
+    }
+
+    @Test
     fun annotations_exactlyAt2xInterval_isNotStale() {
         // Boundary: exactly 2x interval should not be stale (> not >=)
         val boundaryTs = System.currentTimeMillis() / 1000 - 120

@@ -32,9 +32,15 @@ public struct MemberLocation: Identifiable, Equatable {
         CLLocationCoordinate2D(latitude: payload.lat, longitude: payload.lon)
     }
 
-    /// True when the location is older than 2× the configured update interval.
+    /// True when the location is older than 2× its update interval.
+    ///
+    /// Prefers the publisher's own `payload.interval` (added in v1.2.1) so a
+    /// member on a slow cadence isn't flagged stale just because the local
+    /// device polls more often. Falls back to `intervalSeconds` for pre-1.2.1
+    /// payloads that omit the field.
     public func isStale(intervalSeconds: Int) -> Bool {
-        let threshold = TimeInterval(intervalSeconds * 2)
+        let basis = payload.interval ?? intervalSeconds
+        let threshold = TimeInterval(basis * 2)
         return Date().timeIntervalSince(payload.date) > threshold
     }
 

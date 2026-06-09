@@ -80,6 +80,36 @@ final class LocationCacheTests: XCTestCase {
         XCTAssertFalse(loc.isStale(intervalSeconds: 3600))
     }
 
+    func testPublisherIntervalPreferredOverLocal() {
+        // Publisher is on a 1-hour cadence; local device polls every 10s.
+        // Without the v1.2.1 fix this would be marked stale within 20s; with it,
+        // the threshold is 2 × 3600 = 2h.
+        let recentDate = Date(timeIntervalSinceNow: -60) // 1 minute ago
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: recentDate, interval: 3600
+        )
+        let loc = MemberLocation(
+            groupId: group1, memberPubkeyHex: alice,
+            payload: payload, receivedAt: Date()
+        )
+        XCTAssertFalse(loc.isStale(intervalSeconds: 10), "Publisher interval (3600s) must win over local (10s)")
+    }
+
+    func testFallbackToLocalIntervalWhenPayloadIntervalMissing() {
+        // Pre-1.2.1 payload (no interval field) — should still grade against the local interval.
+        let oldDate = Date(timeIntervalSinceNow: -25)
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: oldDate, interval: nil
+        )
+        let loc = MemberLocation(
+            groupId: group1, memberPubkeyHex: alice,
+            payload: payload, receivedAt: Date()
+        )
+        XCTAssertTrue(loc.isStale(intervalSeconds: 10), "Should fall back to local 10s × 2 = 20s threshold")
+    }
+
     // MARK: - Empty state
 
     func testEmptyCacheReturnsEmpty() {

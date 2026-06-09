@@ -632,7 +632,8 @@ final class AppViewModel: ObservableObject {
             altitude: location.altitude,
             accuracy: fuzzRadius > 0 ? max(location.horizontalAccuracy, Double(fuzzRadius)) : location.horizontalAccuracy,
             timestamp: Date(), // broadcast time, not acquisition time — avoids stale-pin false positives with imprecise location
-            battery: battery
+            battery: battery,
+            interval: settings.locationIntervalSeconds
         )
 
         // Insert our own location into the cache immediately so the map
