@@ -127,7 +127,11 @@ final class AppViewModel: ObservableObject {
             nextFireDate: {
                 guard let last = locationSvc.lastFireDate else { return nil }
                 let effective = TimeInterval(settingsRef.locationIntervalSeconds) * locationSvc.motionMultiplier
-                return last.addingTimeInterval(effective)
+                let computed = last.addingTimeInterval(effective)
+                // Clamp to "now" so SwiftUI's Text(date, style: .relative) never
+                // flips into count-up mode while we're waiting for the next GPS
+                // fix to arrive after the throttle has already expired.
+                return max(computed, Date())
             },
             isStationary: { motionSvc.isStationary && settingsRef.isMotionAdaptiveEnabled }
         )
