@@ -175,12 +175,19 @@ struct SettingsView: View {
         }
     }
 
+    /// e.g. `1.2.1(24)` — marketing version with build number in parens.
+    private static let appVersionString: String = {
+        let m = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+        return "\(m)(\(b))"
+    }()
+
     private var aboutSection: some View {
         Section("About") {
             HStack {
                 Text("Version")
                 Spacer()
-                Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")
+                Text(Self.appVersionString)
                     .foregroundStyle(.secondary)
             }
             HStack {

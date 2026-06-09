@@ -364,7 +364,19 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.3 — UX Polish
+
+_Smoothing over rough edges surfaced during 1.2.x on-device testing._
+
+- **Member detail sheet** (iOS & Android): tapping a pin opens a bottom sheet with the member's nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence ("publishes every 10s" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Optionally show motion state ("currently stationary") for members who are publishing it. Answers "why is mom's pin always grey?" discoverably for the curious, hidden for the 95% case.
+- **Group chat header tappability** (iOS & Android): in the group chat view, tapping the group name or the member-list strip should open the group detail (where invite codes, member management, etc. live). Currently the only affordance is the small info icon to the right — non-obvious. The info icon stays as a secondary affordance; the title bar becomes the primary tap target.
+- **Debounce stationary→moving motion transitions** (iOS & Android): `MotionService` debounces moving→stationary via `movingDebounceSeconds` so brief stillness during walking doesn't flip the multiplier, but the reverse direction (stationary→moving) fires immediately. A spurious "moving" classification — e.g. phone bumped on a desk, indoor motion-sensor noise, sub-threshold accelerometer drift — currently flips the multiplier 4×→1× and triggers a publish recalculation. Add a small settle window (~5-10s) on the reverse transition too so the multiplier only changes when the device is actually being carried.
+
+---
+
 ### Deferred
+
+- **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
 
 - **Push Notifications via MIP-05** _(parked)_: MIP-05 specifies a privacy-preserving push pipeline. Devices encrypt their APNs/FCM tokens to a notification server's pubkey (probabilistic encryption with ephemeral keys, no cross-group linkability) and gossip the encrypted tokens to group members via kinds 447/448/449. To deliver a push, the sending client gift-wraps a `kind:446` rumor with the bundled tokens (plus decoys) and publishes it to the server's inbox relays; the server decrypts each token and dispatches a silent content-available push.
 

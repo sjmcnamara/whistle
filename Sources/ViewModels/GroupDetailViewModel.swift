@@ -117,7 +117,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to load group detail for \(self.groupId): \(error)")
+            WhistleLogger.chat.error("Failed to load group detail for \(self.groupId): \(error)")
         }
     }
 
@@ -135,7 +135,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to generate invite: \(error)")
+            WhistleLogger.chat.error("Failed to generate invite: \(error)")
         }
     }
 
@@ -168,13 +168,13 @@ final class GroupDetailViewModel: ObservableObject {
 
             // Reload member list
             await load()
-            FMFLogger.chat.info("Added member \(pubkeyHex.prefix(8)) to group \(self.groupId)")
+            WhistleLogger.chat.info("Added member \(pubkeyHex.prefix(8)) to group \(self.groupId)")
 
             // Signal the view to dismiss back to the chat
             didAddMember = true
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to add member: \(error)")
+            WhistleLogger.chat.error("Failed to add member: \(error)")
         }
     }
 
@@ -197,7 +197,7 @@ final class GroupDetailViewModel: ObservableObject {
 
             // Reload member list
             await load()
-            FMFLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
+            WhistleLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
 
             // Clear only the removed member's location (not all members in group)
             marmot.locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: pubkeyHex)
@@ -206,7 +206,7 @@ final class GroupDetailViewModel: ObservableObject {
             marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to remove member: \(error)")
+            WhistleLogger.chat.error("Failed to remove member: \(error)")
         }
     }
 
@@ -214,10 +214,10 @@ final class GroupDetailViewModel: ObservableObject {
         do {
             try await marmot.promoteToAdmin(pubkeyHex: pubkeyHex, inGroup: groupId)
             await load()
-            FMFLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
+            WhistleLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to promote member: \(error)")
+            WhistleLogger.chat.error("Failed to promote member: \(error)")
         }
     }
 
@@ -240,7 +240,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to send leave request: \(error)")
+            WhistleLogger.chat.error("Failed to send leave request: \(error)")
         }
     }
 
@@ -258,7 +258,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to rename group: \(error)")
+            WhistleLogger.chat.error("Failed to rename group: \(error)")
         }
     }
 

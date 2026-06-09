@@ -10,6 +10,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -195,6 +196,19 @@ class AppViewModel @Inject constructor(
      */
     private fun wireLocationPipeline() {
         locationService.intervalSeconds = settings.locationIntervalSeconds
+
+        // Mirror iOS AppViewModel.swift:173 — observe interval changes and
+        // re-apply at runtime, otherwise the user can change the setting in
+        // Settings and the running LocationService keeps publishing at the
+        // value snapshot at startup. drop(1) skips the initial replay.
+        viewModelScope.launch {
+            settings.locationIntervalSecondsFlow.drop(1).collect { newInterval ->
+                locationService.intervalSeconds = newInterval
+                locationService.resetThrottle()
+                Timber.i("Interval changed to ${newInterval}s, throttle reset")
+            }
+        }
+
         locationService.onLocationUpdate = fun(location) {
             val fuzzRadius = settings.locationFuzzMeters
             val lat: Double
@@ -219,7 +233,8 @@ class AppViewModel @Inject constructor(
                 alt = location.altitude,
                 acc = if (fuzzRadius > 0) max(location.accuracy.toDouble(), fuzzRadius.toDouble()) else location.accuracy.toDouble(),
                 ts = System.currentTimeMillis() / 1000,
-                batt = battery
+                batt = battery,
+                interval = locationService.effectiveIntervalSeconds // reflects motion multiplier so receivers grade staleness against real cadence
             )
             val myPubkey = identity.publicKeyHex ?: return
             val groups = marmotService.groups.value.filter { it.isActive }

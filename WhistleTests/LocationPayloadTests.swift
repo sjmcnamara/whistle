@@ -82,4 +82,47 @@ final class LocationPayloadTests: XCTestCase {
         XCTAssertEqual(payload.ts, 1700000000)
         XCTAssertEqual(payload.date.timeIntervalSince1970, 1700000000, accuracy: 1)
     }
+
+    // MARK: - Interval (v1.2.1+ optional field)
+
+    func testIntervalDefaultsToNil() {
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date()
+        )
+        XCTAssertNil(payload.interval)
+    }
+
+    func testIntervalIsEncodedWhenSet() throws {
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(), interval: 600
+        )
+        let json = try payload.jsonString()
+        let obj = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
+        XCTAssertEqual(obj["interval"] as? Int, 600)
+    }
+
+    func testIntervalRoundTrip() throws {
+        let original = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(timeIntervalSince1970: 1700000000),
+            battery: 87, interval: 3600
+        )
+        let json = try original.jsonString()
+        let decoded = try LocationPayload.from(jsonString: json)
+        XCTAssertEqual(decoded.interval, 3600)
+        XCTAssertEqual(original, decoded)
+    }
+
+    func testDecodeBackwardCompatPayloadWithoutInterval() throws {
+        // pre-v1.2.1 clients omit the interval field; receivers must accept the
+        // payload and fall back to their own local interval for staleness.
+        let json = """
+        {"type":"location","lat":0,"lon":0,"alt":0,"acc":0,"ts":1700000000,"v":1}
+        """
+        let payload = try LocationPayload.from(jsonString: json)
+        XCTAssertNil(payload.interval)
+        XCTAssertEqual(payload.v, 1)
+    }
 }

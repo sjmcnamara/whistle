@@ -78,18 +78,17 @@ class LocationViewModel(
             locs.values.toList()
         }
 
-        val now = System.currentTimeMillis()
         val stationary = isStationary()
         val annotations = filtered.map { loc ->
             val name = nicknameStore.displayName(loc.memberPubkeyHex)
             val isMe = selfKey != null && loc.memberPubkeyHex == selfKey
-            val isStale = (now - loc.payload.ts * 1000) > interval * 1000L * 2
             MemberAnnotation(
                 id = loc.id,
                 position = LatLon(loc.payload.lat, loc.payload.lon),
                 displayName = name,
-                isStale = isStale,
-                timestampMs = loc.payload.ts * 1000,
+                isStale = loc.isStale(interval),
+                // Local-clock anchor; payload.ts is the publisher's stamp, which can drift cross-device.
+                timestampMs = loc.receivedAt * 1000,
                 isMe = isMe,
                 isStationary = isMe && stationary
             )

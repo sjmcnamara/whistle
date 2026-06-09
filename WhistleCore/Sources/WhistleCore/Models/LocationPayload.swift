@@ -4,8 +4,14 @@ import Foundation
 ///
 /// Schema (inner kind = `MarmotKind.location` / 1):
 /// ```json
-/// { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0, "ts": 1700000000, "batt": 87, "v": 1 }
+/// { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0,
+///   "ts": 1700000000, "batt": 87, "interval": 3600, "v": 1 }
 /// ```
+///
+/// `interval` is the publisher's own update cadence in seconds. Receivers use
+/// it to decide when a pin is stale (typically `> 2 × interval` since `ts`).
+/// Optional for backward compatibility — pre-1.2.1 clients omit it and
+/// receivers fall back to their own local interval.
 public struct LocationPayload: Codable, Equatable {
 
     /// Always `"location"`.
@@ -29,13 +35,17 @@ public struct LocationPayload: Codable, Equatable {
     /// Device battery level 0–100, or nil if unavailable.
     public let batt: Int?
 
+    /// Publisher's own location interval in seconds, or nil if pre-1.2.1.
+    public let interval: Int?
+
     /// Schema version — always 1.
     public let v: Int
 
     public static let currentVersion = 1
 
     public init(latitude: Double, longitude: Double, altitude: Double,
-                accuracy: Double, timestamp: Date, battery: Int? = nil) {
+                accuracy: Double, timestamp: Date, battery: Int? = nil,
+                interval: Int? = nil) {
         self.type = "location"
         self.lat  = latitude
         self.lon  = longitude
@@ -43,6 +53,7 @@ public struct LocationPayload: Codable, Equatable {
         self.acc  = accuracy
         self.ts   = Int(timestamp.timeIntervalSince1970)
         self.batt = battery
+        self.interval = interval
         self.v    = Self.currentVersion
     }
 

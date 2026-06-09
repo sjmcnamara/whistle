@@ -6,6 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.2.1] — 2026-06-09
+
+### Fixed
+- **Lock screen & Face ID prompt** (iOS): replaced lingering "FindMyFam" strings on the locked-app screen and the Face ID / passcode prompts with "Whistle". Cosmetic only — no bundle ID, keychain, signing, or install identity changes.
+- **GPS vs Wi-Fi selection** (Android): `LocationService` now keeps the most recent fix from each of `GPS_PROVIDER` and `NETWORK_PROVIDER` and selects per-fire by freshness then accuracy. Previously, a low-accuracy network fix could beat a soon-to-arrive GPS fix to the throttle gate. Stays GMS-free (no `FusedLocationProviderClient` dependency, GrapheneOS-compatible).
+- **Live interval changes propagate on Android**: `AppViewModel` now observes `AppSettings.locationIntervalSecondsFlow` and re-applies the new value to the running `LocationService` (plus throttle reset) instead of snapshotting it at startup. Previously, changing the interval in Settings had no effect until the next app restart. Mirrors the iOS behaviour at `AppViewModel.swift:173`.
+- **Cross-device stale-pin grading** (iOS & Android): `MemberLocation.isStale` now prefers the publisher's own interval (carried in the new `LocationPayload.interval` field) and only falls back to the local device's interval when the field is absent (pre-1.2.1 senders). A member on a 1-hour cadence no longer goes grey within 20s on a device polling every 10s.
+- **Cross-device clock-skew resilience** (iOS & Android): staleness and the on-pin countdown are now anchored on `receivedAt` (local clock) rather than `payload.ts` (publisher's clock). Two devices whose clocks drift by even 30s would previously render each other as permanently grey; now staleness means "we haven't heard from them in a while" rather than "their stamped timestamp looks old." `payload.ts` and `payload.interval` still ride along in the wire format for telemetry/debugging but no longer drive UI staleness.
+- **Self-pin countdown no longer truncates** (iOS): the next-update countdown on the user's own pin rendered as "in 2 min, 5s…" with a shrunk font, because the future-relative form of `Text(date, style: .relative)` is longer than the past-relative form used for peer pins. Switched the label from `minimumScaleFactor(0.7)` to `fixedSize()` so it takes its natural width instead of being squeezed.
+- **Self-pin countdown no longer oscillates up-then-down** (iOS): the countdown is computed as `lastFireDate + (interval × motion multiplier)`, but Core Location doesn't always deliver an update right at the throttle's expiry — so the computed `nextFireDate` could fall into the past for several seconds until the next GPS fix arrived, flipping SwiftUI's `Text(date, style: .relative)` into count-up mode (e.g. `…, 1, 0, 1, 2, 3, 9, 8, 7, …`). Clamped at the viewmodel layer with `max(computed, Date())` so the timer holds at "0 sec" honestly while waiting for the late fix instead of climbing.
+- **Published interval reflects motion multiplier** (iOS & Android): `LocationPayload.interval` now carries `intervalSeconds × motionMultiplier` (via the new `LocationService.effectiveIntervalSeconds`) instead of the user-configured value. Without this, a stationary device on a 10s setting publishes every 40s but stamped `interval: 10`, so receivers using the publisher's interval (above) still saw the pin go grey within 20s of every send. New helper is testable in isolation; tests on both platforms.
+
+### Changed
+- **Internal rename** (iOS): `struct FindMyFamApp` → `WhistleApp` (file renamed too), and `FMFLogger` → `WhistleLogger` swept across 19 files. No user-facing behaviour change; bundle ID `org.findmyfam.app` deliberately untouched.
+- **`LocationPayload` schema**: added optional `interval` field (publisher's own update cadence in seconds). Schema version stays at `1` — older clients ignore the unknown field, and newer clients accept payloads without it. Fully backward and forward compatible.
+- **Settings → About → Version row** (iOS & Android): now shows the build number alongside the marketing version, e.g. `1.2.1(24)`. Makes TestFlight / sideload-vs-release builds visually distinguishable without digging into device info.
+
+### Docs
+- **Architecture wiki**: corrected the `LocationService` line — Android uses raw `LocationManager`, not `FusedLocationProvider`. Noted OSM via osmdroid is the deliberate (GMS-free) choice, not a Google Maps fallback.
+- **ROADMAP**: added an "Optional Google Maps on Android" entry to the Deferred section, framed as a future product-flavor option rather than a fallback.
+
+---
+
 ## [1.2.0] — 2026-05-13
 
 ### Added

@@ -119,7 +119,7 @@ final class ChatViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
+            WhistleLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
         }
     }
 
@@ -140,22 +140,22 @@ final class ChatViewModel: ObservableObject {
             currentOffset += UInt32(newItems.count)
             hasMore = mdkMessages.count == Int(pageSize)
         } catch {
-            FMFLogger.chat.error("Failed to load more messages: \(error)")
+            WhistleLogger.chat.error("Failed to load more messages: \(error)")
         }
     }
 
     /// Load member names for display in the chat subtitle.
     func loadMemberNames() async {
         do {
-          FMFLogger.chat.info("Loading member names for group \(self.groupId)")
+          WhistleLogger.chat.info("Loading member names for group \(self.groupId)")
             let pubkeys = try await mls.getMembers(groupId: groupId)
-            FMFLogger.chat.info("Got \(pubkeys.count) pubkeys: \(pubkeys)")
+            WhistleLogger.chat.info("Got \(pubkeys.count) pubkeys: \(pubkeys)")
             let names = pubkeys.map { nicknameStore.displayName(for: $0) }
             memberNames = names.joined(separator: ", ")
-          FMFLogger.chat.info("Member names: \(self.memberNames)")
+          WhistleLogger.chat.info("Member names: \(self.memberNames)")
         } catch {
             memberNames = ""
-            FMFLogger.chat.error("Failed to load member names for group \(self.groupId): \(error)")
+            WhistleLogger.chat.error("Failed to load member names for group \(self.groupId): \(error)")
         }
     }
 
@@ -179,7 +179,7 @@ final class ChatViewModel: ObservableObject {
             await loadMessages()
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to send message: \(error)")
+            WhistleLogger.chat.error("Failed to send message: \(error)")
         }
     }
 

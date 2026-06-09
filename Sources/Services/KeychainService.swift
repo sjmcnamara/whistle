@@ -59,7 +59,7 @@ final class KeychainService: SecureStorage {
         let status = SecItemAdd(query as CFDictionary, nil)
 
         if status != errSecSuccess {
-            FMFLogger.identity.error("Keychain save failed [\(key.rawValue)]: OSStatus \(status)")
+            WhistleLogger.identity.error("Keychain save failed [\(key.rawValue)]: OSStatus \(status)")
             return false
         }
 
@@ -88,7 +88,7 @@ final class KeychainService: SecureStorage {
 
         // One-time migration: move legacy UserDefaults fallback into Keychain
         if let legacy = UserDefaults.standard.string(forKey: Self.legacyFallbackPrefix + key.rawValue) {
-            FMFLogger.identity.warning("Migrating \(key.rawValue) from UserDefaults fallback to Keychain")
+            WhistleLogger.identity.warning("Migrating \(key.rawValue) from UserDefaults fallback to Keychain")
             if save(key: key, value: legacy) {
                 removeLegacyFallback(key: key)
                 return legacy
@@ -130,7 +130,7 @@ final class KeychainService: SecureStorage {
         SecItemDelete(query as CFDictionary)
         let status = SecItemAdd(query as CFDictionary, nil)
         if status != errSecSuccess {
-            FMFLogger.identity.error("Keychain saveData failed [\(key.rawValue)]: OSStatus \(status)")
+            WhistleLogger.identity.error("Keychain saveData failed [\(key.rawValue)]: OSStatus \(status)")
             return false
         }
         return true

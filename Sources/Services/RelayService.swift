@@ -27,7 +27,7 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
     /// Connect to the given relays using the provided signing keys.
     func connect(keys: Keys, relays: [RelayConfig]) async {
         guard !relays.isEmpty else {
-            FMFLogger.relay.warning("No relays configured — skipping connect")
+            WhistleLogger.relay.warning("No relays configured — skipping connect")
             return
         }
 
@@ -42,9 +42,9 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
                 let url = try RelayUrl.parse(url: relay.url)
                 _ = try await newClient.addRelay(url: url)
                 added.append(relay.url)
-                FMFLogger.relay.debug("Added relay: \(relay.url)")
+                WhistleLogger.relay.debug("Added relay: \(relay.url)")
             } catch {
-                FMFLogger.relay.warning("Skipping relay \(relay.url): \(error)")
+                WhistleLogger.relay.warning("Skipping relay \(relay.url): \(error)")
             }
         }
 
@@ -54,7 +54,7 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
         self.connectedRelayURLs = added
         self.connectionState   = added.isEmpty ? .failed("No relays connected") : .connected
 
-        FMFLogger.relay.info("Connected to \(added.count) relay(s)")
+        WhistleLogger.relay.info("Connected to \(added.count) relay(s)")
     }
 
     /// Disconnect from all relays.
@@ -63,7 +63,7 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
         client             = nil
         connectedRelayURLs = []
         connectionState    = .disconnected
-        FMFLogger.relay.info("Disconnected from all relays")
+        WhistleLogger.relay.info("Disconnected from all relays")
     }
 
     /// Publish a pre-built event to all connected relays.

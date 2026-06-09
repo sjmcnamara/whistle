@@ -64,7 +64,7 @@ final class IdentityService: ObservableObject {
         }
 
         guard let result else {
-            FMFLogger.identity.error("Fatal: could not create/load identity")
+            WhistleLogger.identity.error("Fatal: could not create/load identity")
             return
         }
 
@@ -72,9 +72,9 @@ final class IdentityService: ObservableObject {
         self.identity  = NostrIdentity(npub: result.npub, publicKeyHex: result.pubHex)
         self.isNewUser = result.isNew
         if result.isNew {
-            FMFLogger.identity.info("New identity created: \(result.npub)")
+            WhistleLogger.identity.info("New identity created: \(result.npub)")
         } else {
-            FMFLogger.identity.info("Identity restored: \(result.npub)")
+            WhistleLogger.identity.info("Identity restored: \(result.npub)")
         }
     }
 
@@ -94,7 +94,7 @@ final class IdentityService: ObservableObject {
         storage.delete(key: .nsec)
         self.keys = nil
         self.identity = nil
-        FMFLogger.identity.info("Current key destroyed from secure storage")
+        WhistleLogger.identity.info("Current key destroyed from secure storage")
     }
 
     /// Replace the current identity with an imported nsec.
@@ -113,7 +113,7 @@ final class IdentityService: ObservableObject {
         self.identity  = NostrIdentity(npub: npub, publicKeyHex: pubHex)
         self.isNewUser = false
 
-        FMFLogger.identity.info("Identity imported: \(npub)")
+        WhistleLogger.identity.info("Identity imported: \(npub)")
     }
 
     // MARK: - Private
@@ -138,9 +138,9 @@ final class IdentityService: ObservableObject {
             self.identity  = NostrIdentity(npub: npub, publicKeyHex: pubHex)
             self.isNewUser = false
 
-            FMFLogger.identity.info("Identity restored: \(npub)")
+            WhistleLogger.identity.info("Identity restored: \(npub)")
         } catch {
-            FMFLogger.identity.error("Failed to restore keys, generating new ones: \(error)")
+            WhistleLogger.identity.error("Failed to restore keys, generating new ones: \(error)")
             createNewIdentity()
         }
     }
@@ -158,9 +158,9 @@ final class IdentityService: ObservableObject {
             self.identity  = NostrIdentity(npub: npub, publicKeyHex: pubHex)
             self.isNewUser = true
 
-            FMFLogger.identity.info("New identity created: \(npub)")
+            WhistleLogger.identity.info("New identity created: \(npub)")
         } catch {
-            FMFLogger.identity.error("Fatal: could not create identity: \(error)")
+            WhistleLogger.identity.error("Fatal: could not create identity: \(error)")
         }
     }
 }

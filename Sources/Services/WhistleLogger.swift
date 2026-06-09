@@ -1,7 +1,7 @@
 import os.log
 
 /// Centralised os.Logger channels for Famstr.
-enum FMFLogger {
+enum WhistleLogger {
     private static let subsystem = "org.findmyfam"
 
     static let identity = Logger(subsystem: subsystem, category: "identity")

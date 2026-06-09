@@ -40,9 +40,32 @@ class LocationService @Inject constructor(
     /** Multiplier applied when motion-adaptive mode is active and device is stationary. */
     var motionMultiplier: Double = 1.0
 
+    /**
+     * `intervalSeconds × motionMultiplier`, rounded to seconds.
+     *
+     * Reflects the current actual publish cadence — what we report in
+     * `LocationPayload.interval` so receivers grade staleness against the
+     * real cadence, not the user's configured value. Stationary device on a
+     * 10s setting → 40s here.
+     */
+    val effectiveIntervalSeconds: Int
+        get() = effectiveIntervalSeconds(configured = intervalSeconds, multiplier = motionMultiplier)
+
+    companion object {
+        /** Pure helper for the cadence formula — exposed for unit tests. */
+        fun effectiveIntervalSeconds(configured: Int, multiplier: Double): Int =
+            kotlin.math.round(configured * multiplier).toInt()
+    }
+
     private val locationManager: LocationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private var lastFireTime: Long = 0L
+
+    // Per-provider state for accuracy-aware selection. We subscribe to GPS and
+    // NETWORK concurrently; without this, a low-accuracy NETWORK fix could
+    // beat a soon-to-arrive GPS fix to the throttle gate.
+    private var lastGpsFix: Location? = null
+    private var lastNetworkFix: Location? = null
 
     fun updatePermissionStatus(granted: Boolean) {
         _hasPermission.value = granted
@@ -132,17 +155,67 @@ class LocationService @Inject constructor(
     // LocationListener
 
     override fun onLocationChanged(location: Location) {
+        when (location.provider) {
+            LocationManager.GPS_PROVIDER -> lastGpsFix = location
+            LocationManager.NETWORK_PROVIDER -> lastNetworkFix = location
+        }
+
+        val now = System.currentTimeMillis()
+        val pick = pickBestFix(
+            gpsAccuracyM = lastGpsFix?.accuracy,
+            gpsTimeMs = lastGpsFix?.time,
+            netAccuracyM = lastNetworkFix?.accuracy,
+            netTimeMs = lastNetworkFix?.time,
+            nowMs = now,
+        )
+        val best = when (pick) {
+            FixPick.GPS -> lastGpsFix
+            FixPick.NETWORK -> lastNetworkFix
+            FixPick.NONE -> null
+        } ?: return
+
         if (!shouldFire()) {
             Timber.d("Location throttled (interval=${intervalSeconds}s)")
             return
         }
-        lastFireTime = System.currentTimeMillis()
-        Timber.i("Location firing — acc=${location.accuracy.toInt()}m provider=${location.provider}")
-        onLocationUpdate?.invoke(location)
+        lastFireTime = now
+        Timber.i("Location firing — acc=${best.accuracy.toInt()}m provider=${best.provider}")
+        onLocationUpdate?.invoke(best)
     }
 
     @Deprecated("Deprecated in API")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) {}
+}
+
+internal enum class FixPick { GPS, NETWORK, NONE }
+
+/**
+ * Pick which of two provider fixes to fire. Both-fresh → GPS (typically more
+ * accurate). One-fresh → that one. Neither fresh → better accuracy wins.
+ *
+ * Pure function — testable without Android dependencies. Mirrors how
+ * FusedLocationProviderClient blends GPS and Wi-Fi/cell, but stays GMS-free.
+ */
+internal fun pickBestFix(
+    gpsAccuracyM: Float?,
+    gpsTimeMs: Long?,
+    netAccuracyM: Float?,
+    netTimeMs: Long?,
+    nowMs: Long,
+    freshnessMs: Long = 30_000L,
+): FixPick {
+    val gpsFresh = gpsAccuracyM != null && gpsTimeMs != null && (nowMs - gpsTimeMs) < freshnessMs
+    val netFresh = netAccuracyM != null && netTimeMs != null && (nowMs - netTimeMs) < freshnessMs
+
+    return when {
+        gpsFresh -> FixPick.GPS
+        netFresh -> FixPick.NETWORK
+        gpsAccuracyM != null && netAccuracyM != null ->
+            if (gpsAccuracyM <= netAccuracyM) FixPick.GPS else FixPick.NETWORK
+        gpsAccuracyM != null -> FixPick.GPS
+        netAccuracyM != null -> FixPick.NETWORK
+        else -> FixPick.NONE
+    }
 }

@@ -34,7 +34,7 @@ final class BatteryAlertService {
             )
             UNUserNotificationCenter.current().add(request) { error in
                 if let error {
-                    FMFLogger.marmot.warning("Battery alert notification failed: \(error.localizedDescription)")
+                    WhistleLogger.marmot.warning("Battery alert notification failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -58,7 +58,7 @@ final class BatteryAlertService {
     /// Request notification authorisation. Call once during app startup.
     static func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            FMFLogger.marmot.info("Notification permission: \(granted ? "granted" : "denied")")
+            WhistleLogger.marmot.info("Notification permission: \(granted ? "granted" : "denied")")
         }
     }
 }

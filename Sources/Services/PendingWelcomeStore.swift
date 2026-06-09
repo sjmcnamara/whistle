@@ -23,7 +23,7 @@ final class PendingWelcomeStore: ObservableObject {
         guard !pendingWelcomes.contains(where: { $0.mlsGroupId == welcome.mlsGroupId }) else { return }
         pendingWelcomes.append(welcome)
         save()
-        FMFLogger.marmot.info("PendingWelcomeStore: queued welcome for group \(welcome.mlsGroupId)")
+        WhistleLogger.marmot.info("PendingWelcomeStore: queued welcome for group \(welcome.mlsGroupId)")
     }
 
     func remove(mlsGroupId: String) {

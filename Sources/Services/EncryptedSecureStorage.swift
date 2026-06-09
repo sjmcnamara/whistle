@@ -18,9 +18,9 @@ final class EncryptedSecureStorage: SecureStorage {
         self.keychain = keychain
 
         if SecureEnclaveService.isAvailable {
-            FMFLogger.identity.info("Secure Enclave available — nsec will be hardware-wrapped")
+            WhistleLogger.identity.info("Secure Enclave available — nsec will be hardware-wrapped")
         } else {
-            FMFLogger.identity.warning("Secure Enclave unavailable — nsec stored in Keychain without SE wrapping")
+            WhistleLogger.identity.warning("Secure Enclave unavailable — nsec stored in Keychain without SE wrapping")
         }
     }
 
@@ -39,14 +39,14 @@ final class EncryptedSecureStorage: SecureStorage {
             guard keychain.saveData(key: .sePrivateKey, value: result.sePrivateKeyData, thisDeviceOnly: true),
                   keychain.saveData(key: .seEphemeralPublicKey, value: result.ephemeralPublicKey),
                   keychain.save(key: .nsec, value: result.sealedBox.base64EncodedString()) else {
-                FMFLogger.identity.error("Failed to store SE-encrypted nsec components")
+                WhistleLogger.identity.error("Failed to store SE-encrypted nsec components")
                 return false
             }
 
-            FMFLogger.identity.info("nsec encrypted with Secure Enclave and stored")
+            WhistleLogger.identity.info("nsec encrypted with Secure Enclave and stored")
             return true
         } catch {
-            FMFLogger.identity.error("SE encryption failed, storing nsec in plain Keychain: \(error)")
+            WhistleLogger.identity.error("SE encryption failed, storing nsec in plain Keychain: \(error)")
             return keychain.save(key: key, value: value)
         }
     }
@@ -60,7 +60,7 @@ final class EncryptedSecureStorage: SecureStorage {
         if let stored = keychain.load(key: .nsec) {
             // Check if it's a plaintext nsec (pre-migration)
             if stored.hasPrefix("nsec1") {
-                FMFLogger.identity.info("Migrating plaintext nsec to SE-wrapped encryption")
+                WhistleLogger.identity.info("Migrating plaintext nsec to SE-wrapped encryption")
                 if save(key: .nsec, value: stored) {
                     return stored
                 }
@@ -72,7 +72,7 @@ final class EncryptedSecureStorage: SecureStorage {
             guard let sealedBoxData = Data(base64Encoded: stored),
                   let seKeyData = keychain.loadData(key: .sePrivateKey),
                   let ephemeralPubData = keychain.loadData(key: .seEphemeralPublicKey) else {
-                FMFLogger.identity.error("SE-wrapped nsec found but supporting keys missing")
+                WhistleLogger.identity.error("SE-wrapped nsec found but supporting keys missing")
                 return nil
             }
 
@@ -84,7 +84,7 @@ final class EncryptedSecureStorage: SecureStorage {
                 )
                 return nsec
             } catch {
-                FMFLogger.identity.error("SE decryption failed: \(error)")
+                WhistleLogger.identity.error("SE decryption failed: \(error)")
                 return nil
             }
         }

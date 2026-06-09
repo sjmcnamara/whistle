@@ -115,7 +115,8 @@ final class LocationViewModel: ObservableObject {
                 coordinate: loc.coordinate,
                 displayName: name,
                 isStale: loc.isStale(intervalSeconds: interval),
-                timestamp: loc.payload.date,
+                timestamp: loc.receivedAt, // local-clock anchor; payload.date is the publisher's stamp, which can drift cross-device
+
                 isMe: isMe,
                 nextUpdateDate: isMe ? nextUpdate : nil,
                 isStationary: isMe && stationary

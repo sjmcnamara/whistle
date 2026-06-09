@@ -28,7 +28,7 @@ final class MotionService: ObservableObject {
 
     func startMonitoring() {
         guard CMMotionActivityManager.isActivityAvailable() else {
-            FMFLogger.location.info("CMMotionActivityManager not available on this device")
+            WhistleLogger.location.info("CMMotionActivityManager not available on this device")
             return
         }
         manager.startActivityUpdates(to: .main) { [weak self] activity in
@@ -40,7 +40,7 @@ final class MotionService: ObservableObject {
                     self.movingStartDate = nil
                     if !self.isStationary {
                         self.isStationary = true
-                        FMFLogger.location.info("Motion state: stationary")
+                        WhistleLogger.location.info("Motion state: stationary")
                     }
                 } else {
                     // Only count confirmed movement types toward the debounce.
@@ -58,12 +58,12 @@ final class MotionService: ObservableObject {
                     let elapsed = Date().timeIntervalSince(self.movingStartDate!)
                     if self.isStationary && elapsed >= Self.movingDebounceSeconds {
                         self.isStationary = false
-                        FMFLogger.location.info("Motion state: moving (after \(Int(elapsed))s debounce)")
+                        WhistleLogger.location.info("Motion state: moving (after \(Int(elapsed))s debounce)")
                     }
                 }
             }
         }
-        FMFLogger.location.info("Motion activity monitoring started")
+        WhistleLogger.location.info("Motion activity monitoring started")
     }
 
     func stopMonitoring() {
