@@ -87,7 +87,8 @@ class LocationViewModel(
                 position = LatLon(loc.payload.lat, loc.payload.lon),
                 displayName = name,
                 isStale = loc.isStale(interval),
-                timestampMs = loc.payload.ts * 1000,
+                // Local-clock anchor; payload.ts is the publisher's stamp, which can drift cross-device.
+                timestampMs = loc.receivedAt * 1000,
                 isMe = isMe,
                 isStationary = isMe && stationary
             )

@@ -79,64 +79,18 @@ class LocationViewModelTest {
         assertEquals(2, vm.annotations.value.size)
     }
 
-    @Test
-    fun annotations_staleWhenOlderThan2xInterval() {
-        // interval = 60s, so > 120s ago is stale
-        val staleTs = System.currentTimeMillis() / 1000 - 180 // 3 minutes ago
-        cache.update(group1, otherPubkey, freshPayload(ts = staleTs))
-        val annotation = vm.annotations.value.first()
-        assertTrue("Expected stale annotation", annotation.isStale)
-    }
+    // Note: staleness is now anchored on receivedAt (local clock) rather than
+    // payload.ts, which cache.update doesn't expose for override. Staleness
+    // test cases live in MemberLocationTest where MemberLocation can be
+    // constructed directly with an explicit receivedAt.
 
     @Test
-    fun annotations_freshWhenWithin2xInterval() {
-        val freshTs = System.currentTimeMillis() / 1000 - 30 // 30s ago, interval=60
-        cache.update(group1, otherPubkey, freshPayload(ts = freshTs))
+    fun annotations_freshOnCacheUpdateAreNotStale() {
+        // Smoke test that the viewmodel wires through to the model correctly —
+        // freshly-cached members render as not stale at any reasonable interval.
+        cache.update(group1, otherPubkey, freshPayload())
         val annotation = vm.annotations.value.first()
-        assertFalse("Expected fresh annotation", annotation.isStale)
-    }
-
-    @Test
-    fun annotations_publisherIntervalPreferredOverLocal() {
-        // Local interval is 60s (vm setUp), publisher is on a 1-hour cadence.
-        // Without the v1.2.1 fix, a 3-minute-old pin would be stale (60s × 2 = 120s).
-        // With it, the threshold is 2 × 3600 = 7200s.
-        val publisherInterval = 3600
-        val threeMinAgo = System.currentTimeMillis() / 1000 - 180
-        val payload = LocationPayload(
-            lat = 0.0, lon = 0.0, alt = 0.0, acc = 0.0,
-            ts = threeMinAgo, interval = publisherInterval
-        )
-        cache.update(group1, otherPubkey, payload)
-        val annotation = vm.annotations.value.first()
-        assertFalse(
-            "Publisher interval (${publisherInterval}s) must win over local (60s)",
-            annotation.isStale
-        )
-    }
-
-    @Test
-    fun annotations_fallsBackToLocalIntervalWhenPayloadIntervalMissing() {
-        // Pre-1.2.1 payload: no interval field. Local interval (60s) drives the threshold.
-        val staleTs = System.currentTimeMillis() / 1000 - 180  // 3 minutes ago
-        val payload = LocationPayload(
-            lat = 0.0, lon = 0.0, alt = 0.0, acc = 0.0,
-            ts = staleTs, interval = null
-        )
-        cache.update(group1, otherPubkey, payload)
-        val annotation = vm.annotations.value.first()
-        assertTrue("Should fall back to local 60s × 2 = 120s threshold", annotation.isStale)
-    }
-
-    @Test
-    fun annotations_exactlyAt2xInterval_isNotStale() {
-        // Boundary: exactly 2x interval should not be stale (> not >=)
-        val boundaryTs = System.currentTimeMillis() / 1000 - 120
-        cache.update(group1, otherPubkey, freshPayload(ts = boundaryTs))
-        val annotation = vm.annotations.value.first()
-        // At exactly 2x, the condition is (now - ts) > interval*2, so it depends on
-        // millisecond rounding. Just verify it doesn't crash.
-        assertNotNull(annotation)
+        assertFalse("Just-cached payload should not be stale", annotation.isStale)
     }
 
     @Test
