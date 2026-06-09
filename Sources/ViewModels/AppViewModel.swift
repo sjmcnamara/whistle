@@ -177,7 +177,7 @@ final class AppViewModel: ObservableObject {
                 guard let self else { return }
                 self.locationService.intervalSeconds = newInterval
                 self.locationService.resetThrottle()
-                FMFLogger.location.info("Interval changed to \(newInterval)s, throttle reset")
+                WhistleLogger.location.info("Interval changed to \(newInterval)s, throttle reset")
             }
             .store(in: &cancellables)
 
@@ -190,7 +190,7 @@ final class AppViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.locationService.resetThrottle()
-                FMFLogger.location.info("Fuzz setting changed, throttle reset for immediate rebroadcast")
+                WhistleLogger.location.info("Fuzz setting changed, throttle reset for immediate rebroadcast")
             }
             .store(in: &cancellables)
 
@@ -225,7 +225,7 @@ final class AppViewModel: ObservableObject {
                 guard let self else { return }
                 let isAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
                 if isAuthorized {
-                    FMFLogger.location.info("Location authorization granted — re-applying pause setting")
+                    WhistleLogger.location.info("Location authorization granted — re-applying pause setting")
                     self.applyLocationPauseSetting()
                 }
             }
@@ -261,7 +261,7 @@ final class AppViewModel: ObservableObject {
         switch url.host {
         case "invite":
             guard let code = try? InviteCode.from(url: url).encode() else {
-                FMFLogger.marmot.warning("handleIncomingURL: failed to decode invite from \(url)")
+                WhistleLogger.marmot.warning("handleIncomingURL: failed to decode invite from \(url)")
                 return
             }
             groupListViewModel?.pendingJoinCode = code
@@ -270,7 +270,7 @@ final class AppViewModel: ObservableObject {
         case "addmember":
             let parts = url.pathComponents.dropFirst()
             guard parts.count >= 2 else {
-                FMFLogger.marmot.warning("handleIncomingURL: malformed addmember URL \(url)")
+                WhistleLogger.marmot.warning("handleIncomingURL: malformed addmember URL \(url)")
                 return
             }
             let pubkeyHex = String(parts[parts.startIndex])
@@ -279,7 +279,7 @@ final class AppViewModel: ObservableObject {
             pendingApproval = PendingApprovalRequest(pubkeyHex: pubkeyHex, groupId: groupId)
 
         default:
-            FMFLogger.marmot.warning("handleIncomingURL: unknown host in \(url)")
+            WhistleLogger.marmot.warning("handleIncomingURL: unknown host in \(url)")
         }
     }
 
@@ -294,10 +294,10 @@ final class AppViewModel: ObservableObject {
         pendingApproval = nil
         do {
             try await marmot.addMember(publicKeyHex: approval.pubkeyHex, toGroup: approval.groupId)
-            FMFLogger.marmot.info("Approved member \(approval.pubkeyHex.prefix(8)) into group \(approval.groupId)")
+            WhistleLogger.marmot.info("Approved member \(approval.pubkeyHex.prefix(8)) into group \(approval.groupId)")
             approvalSuccess = true
         } catch {
-            FMFLogger.marmot.error("Failed to approve member: \(error)")
+            WhistleLogger.marmot.error("Failed to approve member: \(error)")
             approvalError = errorMessage(for: error)
         }
     }
@@ -310,7 +310,7 @@ final class AppViewModel: ObservableObject {
         guard url.scheme == "whistle", url.host == "addmember" else { return }
         let parts = url.pathComponents.dropFirst()
         guard parts.count >= 2 else {
-            FMFLogger.marmot.warning("approveViaNearbyShare: malformed URL \(url)")
+            WhistleLogger.marmot.warning("approveViaNearbyShare: malformed URL \(url)")
             return
         }
         let pubkeyHex = String(parts[parts.startIndex])
@@ -324,10 +324,10 @@ final class AppViewModel: ObservableObject {
             }
             do {
                 try await marmot.addMember(publicKeyHex: pubkeyHex, toGroup: groupId, maxRetries: 10)
-                FMFLogger.marmot.info("NearbyShare auto-approved \(pubkeyHex.prefix(8)) into group \(groupId)")
+                WhistleLogger.marmot.info("NearbyShare auto-approved \(pubkeyHex.prefix(8)) into group \(groupId)")
                 approvalSuccess = true
             } catch {
-                FMFLogger.marmot.error("NearbyShare auto-approve failed: \(error)")
+                WhistleLogger.marmot.error("NearbyShare auto-approve failed: \(error)")
                 approvalError = errorMessage(for: error)
             }
         }
@@ -381,7 +381,7 @@ final class AppViewModel: ObservableObject {
         let splashStart = ContinuousClock.now
 
         guard let keys = identity.keys else {
-            FMFLogger.relay.error("No identity available — cannot connect to relays")
+            WhistleLogger.relay.error("No identity available — cannot connect to relays")
             didStart = false
             startupPhase = .ready   // dismiss splash so onboarding/empty state is visible
             return
@@ -411,7 +411,7 @@ final class AppViewModel: ObservableObject {
             }
         } catch {
             let msg = error.localizedDescription
-            FMFLogger.mls.error("MLSService init failed: \(msg)")
+            WhistleLogger.mls.error("MLSService init failed: \(msg)")
             mlsError = msg
         }
 
@@ -443,7 +443,7 @@ final class AppViewModel: ObservableObject {
         // and ensures GroupListViewModel sees groups immediately.
         startupPhase = .loadingGroups
         await marmotService.refreshGroups()
-        FMFLogger.marmot.info("Loaded \(marmotService.groups.count) group(s) from MDK database")
+        WhistleLogger.marmot.info("Loaded \(marmotService.groups.count) group(s) from MDK database")
 
         await Task.yield()
 
@@ -503,7 +503,7 @@ final class AppViewModel: ObservableObject {
                 guard !name.isEmpty else { return }
                 Task {
                     try? await marmotService.sendNicknameUpdate(name: name, toGroup: groupId)
-                    FMFLogger.chat.info("Auto-broadcast nickname to newly joined group \(groupId)")
+                    WhistleLogger.chat.info("Auto-broadcast nickname to newly joined group \(groupId)")
                 }
             }
             .store(in: &cancellables)
@@ -522,10 +522,10 @@ final class AppViewModel: ObservableObject {
         // Start subscriptions — launches the notification loop as a background
         // Task and returns immediately (no longer blocks).
         if await mls.isInitialised {
-            FMFLogger.marmot.info("Starting subscriptions, \(marmotService.groups.count) group(s) loaded")
+            WhistleLogger.marmot.info("Starting subscriptions, \(marmotService.groups.count) group(s) loaded")
             marmotService.startSubscriptions()
         } else {
-            FMFLogger.marmot.warning("MarmotService created but subscriptions skipped — MLS not initialised")
+            WhistleLogger.marmot.warning("MarmotService created but subscriptions skipped — MLS not initialised")
         }
 
         // Deferred work — runs after UI is interactive so startup feels snappy.
@@ -568,7 +568,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             try await marmot.publishKeyPackage(relays: relays)
-            FMFLogger.marmot.info("Published key package on startup to \(relays.count) relay(s)")
+            WhistleLogger.marmot.info("Published key package on startup to \(relays.count) relay(s)")
             if !pendingInviteStore.pendingInvites.isEmpty {
                 Task { @MainActor in
                     await marmot.fetchMissedGiftWraps()
@@ -576,7 +576,7 @@ final class AppViewModel: ObservableObject {
             }
         } catch {
             // Non-fatal — admin will get an error and can ask the invitee to re-open
-            FMFLogger.marmot.warning("Key package refresh failed: \(error)")
+            WhistleLogger.marmot.warning("Key package refresh failed: \(error)")
         }
     }
 
@@ -592,7 +592,7 @@ final class AppViewModel: ObservableObject {
                 await self.broadcastLocation(location, via: marmot)
             }
         }
-        FMFLogger.location.info("Location pipeline wired (interval=\(self.settings.locationIntervalSeconds)s)")
+        WhistleLogger.location.info("Location pipeline wired (interval=\(self.settings.locationIntervalSeconds)s)")
     }
 
     /// Send a location update to every active MLS group.
@@ -602,7 +602,7 @@ final class AppViewModel: ObservableObject {
     private func broadcastLocation(_ location: CLLocation, via marmot: MarmotService) async {
         let activeGroups = marmot.groups.filter(\.isActive)
         guard !activeGroups.isEmpty else {
-            FMFLogger.location.warning("broadcastLocation: no active groups — \(marmot.groups.count) total group(s)")
+            WhistleLogger.location.warning("broadcastLocation: no active groups — \(marmot.groups.count) total group(s)")
             return
         }
 
@@ -617,7 +617,7 @@ final class AppViewModel: ObservableObject {
             )
             lat = fuzzed.lat
             lon = fuzzed.lon
-            FMFLogger.location.debug("Location fuzzed by up to \(fuzzRadius)m")
+            WhistleLogger.location.debug("Location fuzzed by up to \(fuzzRadius)m")
         } else {
             lat = location.coordinate.latitude
             lon = location.coordinate.longitude
@@ -650,9 +650,9 @@ final class AppViewModel: ObservableObject {
         for group in activeGroups {
             do {
                 try await marmot.sendLocationUpdate(payload, toGroup: group.mlsGroupId)
-                FMFLogger.location.info("Location sent to group \(group.mlsGroupId)")
+                WhistleLogger.location.info("Location sent to group \(group.mlsGroupId)")
             } catch {
-                FMFLogger.location.error("Failed to send location to group \(group.mlsGroupId): \(error)")
+                WhistleLogger.location.error("Failed to send location to group \(group.mlsGroupId): \(error)")
             }
         }
     }
@@ -684,7 +684,7 @@ final class AppViewModel: ObservableObject {
     private func applyMotionMultiplier(isStationary: Bool, enabled: Bool) {
         let multiplier = (enabled && isStationary) ? MotionService.stationaryMultiplier : 1.0
         locationService.motionMultiplier = multiplier
-        FMFLogger.location.info(
+        WhistleLogger.location.info(
             "Motion-adaptive: \(enabled ? "on" : "off"), stationary=\(isStationary), multiplier=\(multiplier)×"
         )
     }
@@ -777,7 +777,7 @@ final class AppViewModel: ObservableObject {
     /// Called when the user toggles, adds, or removes relays.
     func reconnectRelays() async {
         guard let keys = identity.keys else {
-            FMFLogger.relay.warning("Cannot reconnect — no identity keys")
+            WhistleLogger.relay.warning("Cannot reconnect — no identity keys")
             return
         }
         await relay.disconnect()
@@ -797,9 +797,9 @@ final class AppViewModel: ObservableObject {
             do {
                 try await marmot.sendNicknameUpdate(name: name, toGroup: group.mlsGroupId)
             } catch {
-                FMFLogger.chat.error("Failed to broadcast nickname to group \(group.mlsGroupId): \(error)")
+                WhistleLogger.chat.error("Failed to broadcast nickname to group \(group.mlsGroupId): \(error)")
             }
         }
-        FMFLogger.chat.info("Broadcast nickname '\(name)' to \(marmot.groups.filter(\.isActive).count) group(s)")
+        WhistleLogger.chat.info("Broadcast nickname '\(name)' to \(marmot.groups.filter(\.isActive).count) group(s)")
     }
 }

@@ -25,14 +25,14 @@ final class PendingInviteStore: ObservableObject {
         guard !pendingInvites.contains(where: { $0.groupHint == invite.groupHint }) else { return }
         pendingInvites.append(invite)
         save()
-        FMFLogger.marmot.info("PendingInviteStore: added invite for group \(invite.groupHint)")
+        WhistleLogger.marmot.info("PendingInviteStore: added invite for group \(invite.groupHint)")
     }
 
     /// Remove a pending invite by group hint (e.g. when a Welcome is received).
     func remove(groupHint: String) {
         pendingInvites.removeAll { $0.groupHint == groupHint }
         save()
-        FMFLogger.marmot.info("PendingInviteStore: removed invite for group \(groupHint)")
+        WhistleLogger.marmot.info("PendingInviteStore: removed invite for group \(groupHint)")
     }
 
     /// Remove all pending invites.
@@ -49,7 +49,7 @@ final class PendingInviteStore: ObservableObject {
         let removed = before - pendingInvites.count
         if removed > 0 {
             save()
-            FMFLogger.marmot.info("PendingInviteStore: auto-removed \(removed) resolved invite(s)")
+            WhistleLogger.marmot.info("PendingInviteStore: auto-removed \(removed) resolved invite(s)")
         }
     }
 

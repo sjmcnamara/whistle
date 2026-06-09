@@ -112,7 +112,7 @@ struct JoinGroupView: View {
                 let rawCode = extractCode(from: inviteCode)
                 guard let expectedGroupId = try? InviteCode.decode(from: rawCode).groupId else { return }
 
-                FMFLogger.marmot.info("⏳ Polling for Welcome to group \(expectedGroupId)...")
+                WhistleLogger.marmot.info("⏳ Polling for Welcome to group \(expectedGroupId)...")
 
                 // Poll every 2 seconds for up to 120 seconds.
                 for _ in 0..<60 {
@@ -123,7 +123,7 @@ struct JoinGroupView: View {
 
                     // Check if the Welcome was processed and the group appeared.
                     if viewModel.groups.contains(where: { $0.id == expectedGroupId }) {
-                        FMFLogger.marmot.info("🎉 Welcome received! Auto-dismissing.")
+                        WhistleLogger.marmot.info("🎉 Welcome received! Auto-dismissing.")
                         dismiss()
                         return
                     }

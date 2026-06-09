@@ -27,14 +27,14 @@ final class PendingLeaveStore: ObservableObject {
         guard !pendingLeaves.contains(groupId) else { return }
         pendingLeaves.insert(groupId)
         save()
-        FMFLogger.marmot.info("PendingLeaveStore: added leave request for group \(groupId)")
+        WhistleLogger.marmot.info("PendingLeaveStore: added leave request for group \(groupId)")
     }
 
     func remove(_ groupId: String) {
         guard pendingLeaves.contains(groupId) else { return }
         pendingLeaves.remove(groupId)
         save()
-        FMFLogger.marmot.info("PendingLeaveStore: removed leave request for group \(groupId)")
+        WhistleLogger.marmot.info("PendingLeaveStore: removed leave request for group \(groupId)")
     }
 
     /// Remove all pending leaves (used during identity replacement).
@@ -50,7 +50,7 @@ final class PendingLeaveStore: ObservableObject {
         guard !resolved.isEmpty else { return }
         pendingLeaves.subtract(resolved)
         save()
-        FMFLogger.marmot.info("PendingLeaveStore: auto-cleared \(resolved.count) resolved leave(s)")
+        WhistleLogger.marmot.info("PendingLeaveStore: auto-cleared \(resolved.count) resolved leave(s)")
     }
 
     // MARK: - Persistence

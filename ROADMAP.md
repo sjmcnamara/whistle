@@ -366,6 +366,8 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ### Deferred
 
+- **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
+
 - **Push Notifications via MIP-05** _(parked)_: MIP-05 specifies a privacy-preserving push pipeline. Devices encrypt their APNs/FCM tokens to a notification server's pubkey (probabilistic encryption with ephemeral keys, no cross-group linkability) and gossip the encrypted tokens to group members via kinds 447/448/449. To deliver a push, the sending client gift-wraps a `kind:446` rumor with the bundled tokens (plus decoys) and publishes it to the server's inbox relays; the server decrypts each token and dispatches a silent content-available push.
 
     **Why parked**: iOS ties APNs credentials to our bundle ID, so we have to run the notification server ourselves — there's no generic third-party operator. That means committing to small but real infra (VPS uptime, APNs `.p8`, Firebase project, monitoring, reproducible-build hygiene so users can trust the deployment). Not worth it for TestFlight-only scale; revisit when we commit to Play Store / App Store distribution.

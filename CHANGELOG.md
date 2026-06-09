@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.2.1] — 2026-06-09
+
+### Fixed
+- **Lock screen & Face ID prompt** (iOS): replaced lingering "FindMyFam" strings on the locked-app screen and the Face ID / passcode prompts with "Whistle". Cosmetic only — no bundle ID, keychain, signing, or install identity changes.
+- **GPS vs Wi-Fi selection** (Android): `LocationService` now keeps the most recent fix from each of `GPS_PROVIDER` and `NETWORK_PROVIDER` and selects per-fire by freshness then accuracy. Previously, a low-accuracy network fix could beat a soon-to-arrive GPS fix to the throttle gate. Stays GMS-free (no `FusedLocationProviderClient` dependency, GrapheneOS-compatible).
+
+### Changed
+- **Internal rename** (iOS): `struct FindMyFamApp` → `WhistleApp` (file renamed too), and `FMFLogger` → `WhistleLogger` swept across 19 files. No user-facing behaviour change; bundle ID `org.findmyfam.app` deliberately untouched.
+
+### Docs
+- **Architecture wiki**: corrected the `LocationService` line — Android uses raw `LocationManager`, not `FusedLocationProvider`. Noted OSM via osmdroid is the deliberate (GMS-free) choice, not a Google Maps fallback.
+- **ROADMAP**: added an "Optional Google Maps on Android" entry to the Deferred section, framed as a future product-flavor option rather than a fallback.
+
+---
+
 ## [1.2.0] — 2026-05-13
 
 ### Added
