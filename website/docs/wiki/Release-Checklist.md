@@ -9,11 +9,12 @@ Whistle ships from `master`. Every release goes through a branch, a PR, and revi
 ## Before cutting a release
 
 1. **Confirm the target branch and version number.** Follow [SemVer](https://semver.org/) — features bump minor, fixes bump patch.
-2. **Bump the version in all four places.** They must agree:
+2. **Bump the version in all five places.** They must agree:
    - `project.yml` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (the latter is the iOS build number)
    - `android/app/build.gradle.kts` — `versionName` and `versionCode` (Android build number is monotonically increasing)
    - `CHANGELOG.md` — add a new `## [X.Y.Z] — YYYY-MM-DD` section at the top; follow the existing Keep a Changelog format with platform badges (`(iOS)` / `(Android)` / `(iOS & Android)`)
    - `CLAUDE.md` — update the `## Roadmap` "Current version:" line so AI agents and contributors see the latest shipped version
+   - `website/overrides/home.html` — update the `v1.X.Y` label in the hero CTA `<span class="w-meta">` block. The APK download link auto-resolves to `releases/latest`, but the displayed version is hardcoded.
 3. **Update `ROADMAP.md`** — mark the completed phase with ✅, document what shipped under it, and (when relevant) update the branch-strategy history at the bottom.
 4. **Regenerate the Xcode project** — `./scripts/build.sh` will run XcodeGen automatically; do this so the version change actually lands in the Xcode build settings.
 
