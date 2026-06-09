@@ -236,8 +236,11 @@ fun SettingsScreen(
                 label = "Version",
                 icon = Icons.Default.Info,
                 trailing = {
+                    val pi = context.packageManager.getPackageInfo(context.packageName, 0)
+                    @Suppress("DEPRECATION") // longVersionCode requires API 28; minSdk is 26
+                    val code = pi.versionCode
                     Text(
-                        text = "${context.packageManager.getPackageInfo(context.packageName, 0).versionName} (Android)",
+                        text = "${pi.versionName}($code) (Android)",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
