@@ -7,7 +7,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
+import android.util.TypedValue
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.layout.*
@@ -240,30 +242,85 @@ fun FamilyMapScreen(
     }
 }
 
-/** Draws a small orange circle with a standing-person glyph (🧍) for the stationary badge. */
-private fun stationaryBadgeDrawable(context: Context): BitmapDrawable {
-    val dp = context.resources.displayMetrics.density
-    val size = (20 * dp).toInt()
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFFF8C00.toInt() // orange
-        style = Paint.Style.FILL
-    }
-    val r = size / 2f
-    canvas.drawCircle(r, r, r, circlePaint)
+/**
+ * Renders a member pin matching iOS's MemberPinView: a white-ringed avatar
+ * circle with a person glyph (blue fresh, grey stale), the display name
+ * below with a white halo, and an orange stationary badge top-right.
+ *
+ * The bitmap is vertically centred on the avatar circle so the marker can
+ * use ANCHOR_CENTER and the avatar sits exactly on the geo position.
+ */
+private fun memberPinDrawable(
+    context: Context,
+    name: String,
+    isStale: Boolean,
+    isStationary: Boolean
+): BitmapDrawable {
+    val dm = context.resources.displayMetrics
+    val dp = dm.density
+    val avatar = 38f * dp
+    val badge = 16f * dp
+    val gap = 2f * dp
+    val halo = 3f * dp
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = size * 0.6f
-        textAlign = Paint.Align.CENTER
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 11f, dm)
         typeface = Typeface.DEFAULT_BOLD
+        textAlign = Paint.Align.CENTER
     }
-    // Unicode standing person
-    val metrics = textPaint.fontMetrics
-    val textY = r - (metrics.ascent + metrics.descent) / 2f
-    canvas.drawText("🧍", r, textY, textPaint)
+    val fm = textPaint.fontMetrics
+    val textHeight = fm.descent - fm.ascent
+    // Space below the avatar for the label; mirrored above to keep the
+    // avatar at the bitmap's vertical centre.
+    val below = gap + textHeight + halo
+
+    val width = maxOf(avatar + badge, textPaint.measureText(name) + 2 * halo).toInt() + 1
+    val height = (avatar + 2 * below).toInt() + 1
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val cx = width / 2f
+    val cy = height / 2f
+    val r = avatar / 2f
+
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+    // White ring + tinted disc
+    fill.color = Color.WHITE
+    canvas.drawCircle(cx, cy, r, fill)
+    fill.color = if (isStale) 0xFF8E8E93.toInt() else 0xFF007AFF.toInt()
+    val inner = r - 1.5f * dp
+    canvas.drawCircle(cx, cy, inner, fill)
+
+    // Person glyph: head + shoulders, clipped to the disc
+    fill.color = Color.WHITE
+    canvas.save()
+    canvas.clipPath(Path().apply { addCircle(cx, cy, inner, Path.Direction.CW) })
+    canvas.drawCircle(cx, cy - 0.30f * inner, 0.32f * inner, fill)
+    canvas.drawCircle(cx, cy + 0.85f * inner, 0.62f * inner, fill)
+    canvas.restore()
+
+    if (isStationary) {
+        val bx = cx + r - badge / 3f
+        val by = cy - r + badge / 3f
+        fill.color = 0xFFFF8C00.toInt()
+        canvas.drawCircle(bx, by, badge / 2f, fill)
+        val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = badge * 0.6f
+            textAlign = Paint.Align.CENTER
+        }
+        val bm = badgePaint.fontMetrics
+        canvas.drawText("🧍", bx, by - (bm.ascent + bm.descent) / 2f, badgePaint)
+    }
+
+    // Name label with a white halo so it stays readable over map tiles
+    val textY = cy + r + gap - fm.ascent
+    textPaint.style = Paint.Style.STROKE
+    textPaint.strokeWidth = halo
+    textPaint.color = Color.WHITE
+    canvas.drawText(name, cx, textY, textPaint)
+    textPaint.style = Paint.Style.FILL
+    textPaint.color = if (isStale) 0xFF6E6E73.toInt() else 0xFF1C1C1E.toInt()
+    canvas.drawText(name, cx, textY, textPaint)
 
     return BitmapDrawable(context.resources, bitmap)
 }
@@ -298,7 +355,10 @@ private fun OsmMapView(
                     title = ann.displayName
                     snippet = if (ann.isMe) "You • ${timeFormat.format(Date(ann.timestampMs))}"
                               else timeFormat.format(Date(ann.timestampMs))
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    icon = memberPinDrawable(
+                        mapView.context, ann.displayName, ann.isStale, ann.isStationary
+                    )
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     alpha = if (ann.isStale) 0.5f else 1.0f
                     setOnMarkerClickListener { _, _ ->
                         onMarkerTap(ann)
@@ -306,18 +366,6 @@ private fun OsmMapView(
                     }
                 }
                 mapView.overlays.add(marker)
-
-                // Stationary badge: small orange circle offset above-right of the pin.
-                if (ann.isStationary) {
-                    val badge = Marker(mapView).apply {
-                        position = GeoPoint(ann.position.latitude, ann.position.longitude)
-                        icon = stationaryBadgeDrawable(mapView.context)
-                        setAnchor(-0.1f, 1.4f)
-                        isEnabled = false
-                        title = null
-                    }
-                    mapView.overlays.add(badge)
-                }
             }
 
             // Fit camera only once when first annotations arrive

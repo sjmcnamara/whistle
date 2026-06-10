@@ -15,6 +15,7 @@ _UX polish — smoothing over rough edges surfaced during 1.2.x on-device testin
 
 ### Changed
 - **Group chat header is now tappable** (iOS & Android): tapping the group title or member-list strip in the chat view opens group detail (invite codes, member management). The small info icon to the right remains as a secondary affordance, so the existing tap target is preserved.
+- **Custom map pins** (Android): replaced osmdroid's default red marker with a custom-drawn pin matching the iOS `MemberPinView` — a white-ringed avatar circle (blue when fresh, grey when stale) with a person glyph, the member's display name labelled below with a white halo for legibility over tiles, and the orange stationary badge composited into the same bitmap (rather than a separate offset marker that could drift out of alignment). Rendered at device density so it stays crisp at any DPI.
 
 ### Fixed
 - **Spurious EXIT_STILL no longer drops the 4× backoff** (Android): `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS behaviour. Previously, a phone bumped on a desk could fire an `EXIT_STILL` transition that immediately cancelled the battery-saving backoff. The reverse direction (entering still) still applies immediately. iOS was already debounced — `MotionService.movingDebounceSeconds` (30 s) — and is unchanged.

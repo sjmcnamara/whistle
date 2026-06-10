@@ -60,9 +60,7 @@ fun GroupChatScreen(
             TopAppBar(
                 title = {
                     Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .clickable(onClick = onDetail)
+                        modifier = Modifier.clickable(onClick = onDetail)
                     ) {
                         Text(
                             text = groupName,
