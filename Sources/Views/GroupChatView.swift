@@ -29,18 +29,24 @@ struct GroupChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    Text(groupName)
-                        .font(.headline)
-                    if !viewModel.memberNames.isEmpty {
-                        Text(viewModel.memberNames)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                Button(action: onInfoTap) {
+                    VStack(spacing: 2) {
+                        Text(groupName)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        if !viewModel.memberNames.isEmpty {
+                            Text(viewModel.memberNames)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
+                    .multilineTextAlignment(.center)
+                    .contentShape(Rectangle())
                 }
-                .multilineTextAlignment(.center)
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens group details")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onInfoTap) {

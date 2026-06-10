@@ -15,6 +15,7 @@ struct FamilyMapView: View {
     @ObservedObject var viewModel: LocationViewModel
     @State private var position: MapCameraPosition = .automatic
     @State private var mapMode: MapMode = .standard
+    @State private var selectedAnnotation: MemberAnnotation?
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,10 @@ struct FamilyMapView: View {
                         coordinate: annotation.coordinate
                     ) {
                         MemberPinView(annotation: annotation)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedAnnotation = annotation
+                            }
                     }
                 }
             }
@@ -45,6 +50,9 @@ struct FamilyMapView: View {
                 if viewModel.annotations.isEmpty {
                     emptyState
                 }
+            }
+            .sheet(item: $selectedAnnotation) { annotation in
+                MemberDetailSheet(annotation: annotation)
             }
             .onChange(of: viewModel.annotations.count) {
                 if !viewModel.annotations.isEmpty {

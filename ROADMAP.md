@@ -364,13 +364,12 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
-### v1.3 — UX Polish
+### v1.3.0 — UX Polish ✅
+_Smoothing over rough edges surfaced during 1.2.x on-device testing — released 2026-06-10_
 
-_Smoothing over rough edges surfaced during 1.2.x on-device testing._
-
-- **Member detail sheet** (iOS & Android): tapping a pin opens a bottom sheet with the member's nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence ("publishes every 10s" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Optionally show motion state ("currently stationary") for members who are publishing it. Answers "why is mom's pin always grey?" discoverably for the curious, hidden for the 95% case.
-- **Group chat header tappability** (iOS & Android): in the group chat view, tapping the group name or the member-list strip should open the group detail (where invite codes, member management, etc. live). Currently the only affordance is the small info icon to the right — non-obvious. The info icon stays as a secondary affordance; the title bar becomes the primary tap target.
-- **Debounce stationary→moving motion transitions** (iOS & Android): `MotionService` debounces moving→stationary via `movingDebounceSeconds` so brief stillness during walking doesn't flip the multiplier, but the reverse direction (stationary→moving) fires immediately. A spurious "moving" classification — e.g. phone bumped on a desk, indoor motion-sensor noise, sub-threshold accelerometer drift — currently flips the multiplier 4×→1× and triggers a publish recalculation. Add a small settle window (~5-10s) on the reverse transition too so the multiplier only changes when the device is actually being carried.
+- **Member detail sheet** (iOS & Android): tapping a member's map pin opens a bottom sheet with nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence (e.g. "every 10 sec" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Own pin also shows "Currently stationary" while Movement Aware is active.
+- **Tappable group chat header** (iOS & Android): tapping the group title or the member-list strip in the chat view now opens the group detail (invite codes, member management). The small info icon to the right stays as a secondary affordance.
+- **Debounce stationary→moving on Android**: `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS `movingDebounceSeconds` (which already debounced this direction). A spurious `EXIT_STILL` — phone bumped on a desk, indoor motion noise — no longer immediately cancels the battery-saving backoff. iOS was already correct; no iOS change in this release.
 
 ---
 
@@ -426,6 +425,7 @@ master
   └── feature/motion-adaptive             ✅ merged (v1.1.4)
   └── feature/v1.1.5-android-parity      ✅ merged
   └── feature/v1.2-low-battery-alerts    ✅ merged
+  └── feature/v1.3-ux-polish             ✅ merged
 ```
 
 ---
