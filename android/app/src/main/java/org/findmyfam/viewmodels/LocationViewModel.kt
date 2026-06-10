@@ -18,7 +18,12 @@ data class MemberAnnotation(
     val timestampMs: Long,
     val isMe: Boolean,
     /** True when Movement Aware is active and this device is stationary. Own pin only. */
-    val isStationary: Boolean = false
+    val isStationary: Boolean = false,
+    /**
+     * Publisher's own update cadence in seconds (from `LocationPayload.interval`).
+     * Null for pre-1.2.1 payloads that omit the field.
+     */
+    val intervalSeconds: Int? = null
 )
 
 /** Simple lat/lon pair — no Google Maps dependency. */
@@ -90,7 +95,8 @@ class LocationViewModel(
                 // Local-clock anchor; payload.ts is the publisher's stamp, which can drift cross-device.
                 timestampMs = loc.receivedAt * 1000,
                 isMe = isMe,
-                isStationary = isMe && stationary
+                isStationary = isMe && stationary,
+                intervalSeconds = loc.payload.interval
             )
         }
 

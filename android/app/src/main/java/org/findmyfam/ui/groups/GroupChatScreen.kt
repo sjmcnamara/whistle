@@ -1,5 +1,6 @@
 package org.findmyfam.ui.groups
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -58,7 +59,11 @@ fun GroupChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .clickable(onClick = onDetail)
+                    ) {
                         Text(
                             text = groupName,
                             fontSize = 17.sp

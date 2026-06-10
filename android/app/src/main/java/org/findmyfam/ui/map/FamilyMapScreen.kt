@@ -114,7 +114,16 @@ fun FamilyMapScreen(
         } else {
             // OSM Map
             val mapViewRef = remember { mutableStateOf<MapView?>(null) }
-            OsmMapView(annotations = annotations, mapViewRef = mapViewRef)
+            var selectedAnnotation by remember { mutableStateOf<MemberAnnotation?>(null) }
+            OsmMapView(
+                annotations = annotations,
+                mapViewRef = mapViewRef,
+                onMarkerTap = { selectedAnnotation = it }
+            )
+
+            selectedAnnotation?.let { ann ->
+                MemberDetailSheet(annotation = ann, onDismiss = { selectedAnnotation = null })
+            }
 
             // Group filter picker
             if (groups.isNotEmpty()) {
@@ -262,7 +271,8 @@ private fun stationaryBadgeDrawable(context: Context): BitmapDrawable {
 @Composable
 private fun OsmMapView(
     annotations: List<MemberAnnotation>,
-    mapViewRef: MutableState<MapView?> = mutableStateOf(null)
+    mapViewRef: MutableState<MapView?> = mutableStateOf(null),
+    onMarkerTap: (MemberAnnotation) -> Unit = {}
 ) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     // Only auto-fit camera on first annotation load, not on every update
@@ -290,6 +300,10 @@ private fun OsmMapView(
                               else timeFormat.format(Date(ann.timestampMs))
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     alpha = if (ann.isStale) 0.5f else 1.0f
+                    setOnMarkerClickListener { _, _ ->
+                        onMarkerTap(ann)
+                        true   // suppress default info window
+                    }
                 }
                 mapView.overlays.add(marker)
 

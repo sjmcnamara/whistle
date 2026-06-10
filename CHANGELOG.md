@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.3.0] — 2026-06-10
+
+_UX polish — smoothing over rough edges surfaced during 1.2.x on-device testing._
+
+### Added
+- **Member detail sheet** (iOS & Android): tapping a member's map pin opens a bottom sheet with their nickname, last-seen time (anchored on local `receivedAt`), and the publisher's update cadence (e.g. "every 10 sec" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in v1.2.1 without crowding the map — answers "why is mom's pin always grey?" for the curious, hidden for the 95% case. Own pin also shows "Currently stationary" while Movement Aware is active.
+
+### Changed
+- **Group chat header is now tappable** (iOS & Android): tapping the group title or member-list strip in the chat view opens group detail (invite codes, member management). The small info icon to the right remains as a secondary affordance, so the existing tap target is preserved.
+
+### Fixed
+- **Spurious EXIT_STILL no longer drops the 4× backoff** (Android): `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS behaviour. Previously, a phone bumped on a desk could fire an `EXIT_STILL` transition that immediately cancelled the battery-saving backoff. The reverse direction (entering still) still applies immediately. iOS was already debounced — `MotionService.movingDebounceSeconds` (30 s) — and is unchanged.
+
+---
+
 ## [1.2.1] — 2026-06-09
 
 ### Fixed

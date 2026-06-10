@@ -21,6 +21,21 @@ class MotionAdaptiveTest {
         assertEquals(4.0, MotionService.STATIONARY_MULTIPLIER, 0.0)
     }
 
+    @Test
+    fun `moving debounce is 30 seconds`() {
+        // Mirrors iOS MotionService.movingDebounceSeconds. Long enough to outlast
+        // a spurious EXIT_STILL — phone bumped on a desk, indoor noise — so the
+        // 4× backoff isn't dropped on a single noisy reading.
+        assertEquals(30L, MotionService.MOVING_DEBOUNCE_SECONDS)
+    }
+
+    @Test
+    fun `moving debounce exceeds a typical poll interval`() {
+        // The debounce window should be substantial relative to typical intervals
+        // (10s default) so that the multiplier can't be dropped mid-cycle.
+        assertTrue(MotionService.MOVING_DEBOUNCE_SECONDS > 10L)
+    }
+
     // MARK: - shouldFire maths (tested via the formula directly)
 
     @Test

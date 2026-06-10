@@ -6,8 +6,14 @@ import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.DetectedActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,6 +36,14 @@ class MotionService @Inject constructor(
 ) {
     companion object {
         const val STATIONARY_MULTIPLIER = 4.0
+
+        /**
+         * Seconds of confirmed non-stationary activity required before flipping
+         * the multiplier back from 4× to 1×. Mirrors iOS `movingDebounceSeconds`
+         * so a spurious EXIT_STILL — phone bumped on a desk, indoor noise — doesn't
+         * yank the publish cadence back to full rate.
+         */
+        const val MOVING_DEBOUNCE_SECONDS = 30L
     }
 
     private val _isStationary = MutableStateFlow(false)
@@ -38,6 +52,9 @@ class MotionService @Inject constructor(
     private val client = ActivityRecognition.getClient(context)
     private var pendingIntent: android.app.PendingIntent? = null
     private var isMonitoring = false
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var pendingMovingJob: Job? = null
 
     fun startMonitoring() {
         if (isMonitoring) return
@@ -71,20 +88,44 @@ class MotionService @Inject constructor(
         client.removeActivityTransitionUpdates(pi)
             .addOnCompleteListener {
                 isMonitoring = false
+                pendingMovingJob?.cancel()
+                pendingMovingJob = null
                 _isStationary.value = false
                 pendingIntent = null
                 Timber.i("Motion activity monitoring stopped")
             }
     }
 
-    /** Called by [MotionTransitionReceiver] when a transition is detected. */
+    /**
+     * Called by [MotionTransitionReceiver] when a transition is detected.
+     *
+     * Apply ENTER_STILL immediately (stationary is the battery-friendly state —
+     * we want to claim it as fast as possible). Apply EXIT_STILL only after
+     * [MOVING_DEBOUNCE_SECONDS] of confirmed moving, so a spurious transition
+     * doesn't cancel the 4× backoff. A subsequent ENTER_STILL cancels the
+     * pending flip.
+     */
     fun onTransition(entering: Boolean, activityType: Int) {
-        if (activityType == DetectedActivity.STILL) {
-            val stationary = entering
-            if (_isStationary.value != stationary) {
-                _isStationary.value = stationary
-                Timber.i("Motion state: ${if (stationary) "stationary" else "moving"}")
+        if (activityType != DetectedActivity.STILL) return
+
+        if (entering) {
+            pendingMovingJob?.cancel()
+            pendingMovingJob = null
+            if (!_isStationary.value) {
+                _isStationary.value = true
+                Timber.i("Motion state: stationary")
             }
+            return
+        }
+
+        // Exiting STILL — debounce.
+        if (!_isStationary.value) return // already moving; nothing to do
+        if (pendingMovingJob?.isActive == true) return // already waiting
+
+        pendingMovingJob = scope.launch {
+            delay(MOVING_DEBOUNCE_SECONDS * 1000)
+            _isStationary.value = false
+            Timber.i("Motion state: moving (after ${MOVING_DEBOUNCE_SECONDS}s debounce)")
         }
     }
 
