@@ -68,9 +68,11 @@ final class LocationCacheTests: XCTestCase {
         let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: Date())
         let loc = MemberLocation(
             groupId: group1, memberPubkeyHex: alice,
-            payload: payload, receivedAt: Date(timeIntervalSinceNow: -7200) // received 2h ago
+            payload: payload, receivedAt: Date(timeIntervalSinceNow: -7260) // received 2h 1min ago
         )
-        // With 1-hour interval, 2× = 2 hours → stale
+        // With 1-hour interval, 2× = 2 hours → stale. Use 2h 1min (not exactly
+        // 2h) so the assertion can't flake on the `> threshold` boundary when
+        // both Date() reads land in the same clock tick.
         XCTAssertTrue(loc.isStale(intervalSeconds: 3600))
     }
 

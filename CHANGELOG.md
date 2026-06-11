@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.3.1] — 2026-06-11
+
+### Fixed
+- **Motion-adaptive backoff could get stuck at 4× while moving** (iOS): with Movement Aware on, a device that went stationary (multiplier → 4×) and then started moving could keep publishing at the slowed cadence indefinitely — e.g. a 15-min interval stayed at the stationary 1-hour rate, so the pin showed the stationary badge and stopped updating even while walking. `CMMotionActivityManager` is edge-triggered (it delivers a callback when the activity *changes*, not continuously), but `MotionService` only re-evaluated the 30 s moving-debounce *inside* that callback. During steady walking only the initial "walking" callback arrived, so the elapsed-time check never ran again and `isStationary` never flipped back. The debounce is now driven by a one-shot timer that fires after 30 s of sustained motion regardless of further activity callbacks, and is cancelled the moment a stationary reading arrives. Matches Android, which was already timer-driven and unaffected.
+
+---
+
 ## [1.3.0] — 2026-06-10
 
 _UX polish — smoothing over rough edges surfaced during 1.2.x on-device testing._
