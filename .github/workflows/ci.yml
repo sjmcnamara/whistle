@@ -74,12 +74,20 @@ jobs:
           key: derived-data-${{ hashFiles('Sources/**', 'WhistleCore/**', 'WhistleTests/**', 'project.yml') }}
           restore-keys: derived-data-
 
+      # Key the mdk-swift cache on the pinned MDK revision alone, not the whole
+      # project.yml — otherwise every version bump (MARKETING_VERSION /
+      # CURRENT_PROJECT_VERSION) busts the cache and forces a cold LFS re-clone
+      # of the large libmdk_uniffi.a, adding ~minutes to the iOS job.
+      - name: Resolve MDK revision
+        id: mdk-rev
+        run: echo "revision=$(python3 scripts/ci_use_local_mdk.py --print-revision)" >> "$GITHUB_OUTPUT"
+
       - name: Cache mdk-swift
         id: cache-mdk
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: vendor/mdk-swift
-          key: mdk-swift-${{ hashFiles('project.yml') }}
+          key: mdk-swift-${{ steps.mdk-rev.outputs.revision }}
 
       - name: Clone mdk-swift with LFS at pinned revision
         if: steps.cache-mdk.outputs.cache-hit != 'true'
