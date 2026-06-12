@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.3.0 — UX Polish** (shipped). See ROADMAP.md for next steps.
+Current version: **v1.4.0 — Manual Whistle** (shipped). See ROADMAP.md for next steps.
