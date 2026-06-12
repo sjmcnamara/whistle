@@ -364,6 +364,13 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.4.1 — Bugfixes ✅
+_Released 2026-06-12_
+
+- **App update could wipe group membership** (iOS & Android): `MLSService` deleted and recreated the MLS database on *any* `newMdk` failure — intended for a pre-v0.9 unencrypted DB, but the catch-all also fired when a healthy *encrypted* DB failed to open transiently (e.g. Keychain/Keystore not yet readable on a background launch), silently destroying every group. The recreate path is now gated on a plaintext-SQLite header check; any other failure fails loudly without deleting so a later launch can recover.
+- **iOS device never went stationary until pause toggled** (iOS): `CMMotionActivityManager` is edge-triggered, so opening the app while already still produced no callback and `isStationary` stuck at false. `startMonitoring()` now seeds the initial state from recent motion history via `queryActivityStarting`. Complements the v1.3.1 fix for the inverse case.
+- **Map pins showed no staleness counter** (Android): OSM pins now carry a live relative-time counter matching iOS `MemberPinView` — others count up ("2 min ago"), own pin counts down ("in 30s").
+
 ### v1.4.0 — Manual Whistle ✅
 _Released 2026-06-12_
 
@@ -446,6 +453,7 @@ master
   └── bugfix/v1.3.1                       ✅ merged
   └── chore/ci-mdk-cache-key              ✅ merged
   └── feature/v1.4-manual-whistle         ✅ merged
+  └── bugfix/v1.4.1                       ✅ merged
 ```
 
 ---
