@@ -52,7 +52,8 @@ class AppViewModel @Inject constructor(
         nicknameStore = nicknameStore,
         intervalSeconds = { settings.locationIntervalSeconds },
         myPubkeyHex = { identity.publicKeyHex },
-        isStationary = { settings.isMotionAdaptiveEnabled && motionService.isStationary.value }
+        isStationary = { settings.isMotionAdaptiveEnabled && motionService.isStationary.value },
+        nextFireMs = { locationService.nextFireTimeMs() }
     )
 
     enum class StartupPhase {

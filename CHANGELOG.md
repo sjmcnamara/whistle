@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.4.1] — 2026-06-12
+
+### Fixed
+- **Map pins showed no staleness counter** (Android): on the OSM map, member pins displayed only the avatar and name — the relative-time line iOS shows below the name was missing entirely, so there was no at-a-glance "how fresh is this?" without tapping into the detail sheet. Pins now carry a live counter matching iOS `MemberPinView`: other members count **up** since last seen ("2 min ago"), and your own pin counts **down** to its next scheduled publish ("in 30s"), derived from the last fire time and the effective (motion-adjusted) cadence. The counter ticks once a second.
+
+---
+
 ## [1.4.0] — 2026-06-12
 
 ### Added

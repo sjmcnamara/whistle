@@ -166,4 +166,30 @@ class LocationViewModelTest {
         val annotation = vm.annotations.value.first()
         assertEquals(epochSec * 1000, annotation.timestampMs)
     }
+
+    @Test
+    fun annotations_ownPinCarriesNextUpdate_othersNull() {
+        val nextFire = 9_999_999L
+        val withNextFire = LocationViewModel(
+            locationCache = cache,
+            nicknameStore = nicknameStore,
+            intervalSeconds = { 60 },
+            myPubkeyHex = { myPubkey },
+            nextFireMs = { nextFire }
+        )
+        cache.update(group1, myPubkey, freshPayload())
+        cache.update(group1, otherPubkey, freshPayload())
+
+        val me = withNextFire.annotations.value.first { it.isMe }
+        val other = withNextFire.annotations.value.first { !it.isMe }
+        assertEquals("Own pin drives the count-down", nextFire, me.nextUpdateMs)
+        assertNull("Other members count up from timestamp instead", other.nextUpdateMs)
+    }
+
+    @Test
+    fun annotations_nextUpdateNull_whenNoFireYet() {
+        // Default constructor (used in setUp) has nextFireMs returning null.
+        cache.update(group1, myPubkey, freshPayload())
+        assertNull(vm.annotations.value.first { it.isMe }.nextUpdateMs)
+    }
 }

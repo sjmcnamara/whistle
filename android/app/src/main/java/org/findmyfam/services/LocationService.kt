@@ -233,6 +233,18 @@ class LocationService @Inject constructor(
         return (System.currentTimeMillis() - lastFireTime) >= intervalSeconds * motionMultiplier * 1000L
     }
 
+    /**
+     * Estimated wall-clock time (ms) of the next scheduled publish — mirrors
+     * iOS's `nextFireDate`. Null until the first fix fires. Clamped to "now" so
+     * a count-down on the map pin never flips into count-up while we wait for
+     * the next GPS fix to arrive after the throttle has already expired.
+     */
+    fun nextFireTimeMs(): Long? {
+        if (lastFireTime == 0L) return null
+        val effectiveMs = (intervalSeconds * motionMultiplier * 1000.0).toLong()
+        return maxOf(lastFireTime + effectiveMs, System.currentTimeMillis())
+    }
+
     // LocationListener
 
     override fun onLocationChanged(location: Location) {
