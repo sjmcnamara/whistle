@@ -26,6 +26,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Warning
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -35,6 +37,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.findmyfam.viewmodels.AppViewModel
 import org.findmyfam.viewmodels.LocationViewModel
 import org.findmyfam.viewmodels.MemberAnnotation
 import java.text.SimpleDateFormat
@@ -48,6 +51,8 @@ fun FamilyMapScreen(
     locationViewModel: LocationViewModel,
     groups: List<GroupOption> = emptyList(),
     onPermissionGranted: () -> Unit,
+    whistleState: AppViewModel.WhistleState = AppViewModel.WhistleState.IDLE,
+    onWhistle: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -213,6 +218,44 @@ fun FamilyMapScreen(
                     )
                 }
             }
+
+            // Whistle button — force a location publish now, ignoring throttle,
+            // motion backoff, and pause state (see AppViewModel.whistle()).
+            ExtendedFloatingActionButton(
+                onClick = onWhistle,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+                containerColor = if (whistleState == AppViewModel.WhistleState.FAILED)
+                    MaterialTheme.colorScheme.errorContainer
+                else MaterialTheme.colorScheme.primary,
+                icon = {
+                    when (whistleState) {
+                        AppViewModel.WhistleState.SENDING ->
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        AppViewModel.WhistleState.SENT ->
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        AppViewModel.WhistleState.FAILED ->
+                            Icon(Icons.Default.Warning, contentDescription = null)
+                        AppViewModel.WhistleState.IDLE ->
+                            Icon(Icons.Default.Sensors, contentDescription = null)
+                    }
+                },
+                text = {
+                    Text(
+                        when (whistleState) {
+                            AppViewModel.WhistleState.SENDING -> "Whistling…"
+                            AppViewModel.WhistleState.SENT -> "Sent"
+                            AppViewModel.WhistleState.FAILED -> "No fix"
+                            AppViewModel.WhistleState.IDLE -> "Whistle"
+                        }
+                    )
+                }
+            )
 
             // Empty state overlay
             if (annotations.isEmpty()) {

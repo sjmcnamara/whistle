@@ -94,6 +94,17 @@ final class AppViewModel: ObservableObject {
     /// MLS initialisation error surfaced to the UI (non-fatal — app works without it).
     @Published private(set) var mlsError: String?
 
+    /// Drives the map's "Whistle" button feedback (manual force-publish).
+    @Published private(set) var whistleState: WhistleState = .idle
+
+    /// Set while a manual whistle is in flight so the next `broadcastLocation`
+    /// is recognised as the forced send and flips `whistleState` to `.sent`.
+    private var pendingWhistle = false
+
+    enum WhistleState: Equatable {
+        case idle, sending, sent, failed
+    }
+
     /// Tracks whether onAppear has completed — prevents duplicate startup.
     private var didStart = false
     private var cancellables = Set<AnyCancellable>()
@@ -599,6 +610,37 @@ final class AppViewModel: ObservableObject {
         WhistleLogger.location.info("Location pipeline wired (interval=\(self.settings.locationIntervalSeconds)s)")
     }
 
+    /// Force an immediate location publish, ignoring the throttle, motion
+    /// backoff, and pause state. Drives the map's "Whistle" button.
+    func whistle() {
+        guard whistleState != .sending else { return }
+        whistleState = .sending
+        pendingWhistle = true
+        locationService.requestImmediateUpdate()
+
+        // Resolve the button state even if no fix arrives (denied, no signal,
+        // no active groups). The forced send flips this to `.sent` first if it
+        // lands; otherwise we report failure.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(12))
+            guard self.pendingWhistle else { return }
+            self.pendingWhistle = false
+            self.whistleState = .failed
+            self.scheduleWhistleReset()
+        }
+    }
+
+    /// Return the button to its resting state a short moment after a terminal
+    /// (sent/failed) result so the confirmation is visible but transient.
+    private func scheduleWhistleReset() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if self.whistleState == .sent || self.whistleState == .failed {
+                self.whistleState = .idle
+            }
+        }
+    }
+
     /// Send a location update to every active MLS group.
     ///
     /// Also inserts the user's own location into `LocationCache` so it appears
@@ -659,6 +701,14 @@ final class AppViewModel: ObservableObject {
             } catch {
                 WhistleLogger.location.error("Failed to send location to group \(group.mlsGroupId): \(error)")
             }
+        }
+
+        // A manual whistle resolves to "sent" as soon as its forced fix is
+        // broadcast (the timeout in `whistle()` only fires if none arrives).
+        if pendingWhistle {
+            pendingWhistle = false
+            whistleState = .sent
+            scheduleWhistleReset()
         }
     }
 

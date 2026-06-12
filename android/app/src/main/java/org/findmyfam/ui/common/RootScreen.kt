@@ -236,10 +236,13 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     .filter { it.state == "active" && it.mlsGroupId !in pendingLeaves }
                     .map { GroupOption(id = it.mlsGroupId, name = it.name) }
 
+                val whistleState by viewModel.whistleState.collectAsState()
                 FamilyMapScreen(
                     locationViewModel = locationViewModel,
                     groups = activeGroups,
                     onPermissionGranted = { viewModel.onLocationPermissionGranted() },
+                    whistleState = whistleState,
+                    onWhistle = { viewModel.whistle() },
                     modifier = Modifier.fillMaxSize()
                 )
             }

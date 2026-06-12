@@ -51,6 +51,10 @@ struct FamilyMapView: View {
                     emptyState
                 }
             }
+            .overlay(alignment: .bottom) {
+                whistleButton
+                    .padding(.bottom, 24)
+            }
             .sheet(item: $selectedAnnotation) { annotation in
                 MemberDetailSheet(annotation: annotation)
             }
@@ -73,6 +77,45 @@ struct FamilyMapView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Whistle
+
+    /// Manual "force-publish my location now" button. Ignores the throttle,
+    /// motion backoff, and pause state — see `AppViewModel.whistle()`.
+    @ViewBuilder
+    private var whistleButton: some View {
+        Button {
+            appViewModel.whistle()
+        } label: {
+            HStack(spacing: 8) {
+                switch appViewModel.whistleState {
+                case .sending:
+                    ProgressView().tint(.white)
+                    Text("Whistling…")
+                case .sent:
+                    Image(systemName: "checkmark")
+                    Text("Sent")
+                case .failed:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text("No fix")
+                case .idle:
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                    Text("Whistle")
+                }
+            }
+            .font(.subheadline.bold())
+            .padding(.horizontal, 22)
+            .padding(.vertical, 13)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(appViewModel.whistleState == .failed ? .red : .accentColor)
+        .clipShape(Capsule())
+        .shadow(radius: 4, y: 2)
+        .disabled(appViewModel.whistleState == .sending)
+        .sensoryFeedback(.success, trigger: appViewModel.whistleState) { _, new in new == .sent }
+        .sensoryFeedback(.impact, trigger: appViewModel.whistleState) { _, new in new == .sending }
+        .animation(.easeInOut(duration: 0.2), value: appViewModel.whistleState)
     }
 
     // MARK: - Locate me

@@ -135,13 +135,52 @@ final class LocationService: NSObject, ObservableObject {
 
     /// Returns `true` if enough time has elapsed since the last callback.
     /// Accounts for `motionMultiplier` when motion-adaptive mode is active.
+    /// A pending force-fire (set by `requestImmediateUpdate()`) bypasses the
+    /// interval entirely — the manual "whistle" ignores timer, backoff, and
+    /// motion-aware state by design.
     private func shouldFire() -> Bool {
+        if forceNextFire { return true }
         guard let last = lastFireDate else { return true }
         return Date().timeIntervalSince(last) >= TimeInterval(intervalSeconds) * motionMultiplier
     }
 
     /// Test-only shim so unit tests can exercise shouldFire() without CLLocation callbacks.
     func testShouldFire() -> Bool { shouldFire() }
+
+    // MARK: - Manual whistle
+
+    /// Set by `requestImmediateUpdate()`; consumed by the next fire. Lets a
+    /// manual update bypass the throttle exactly once.
+    private var forceNextFire = false
+
+    /// Force a single location publish now, ignoring the throttle/backoff.
+    ///
+    /// When updates are already running we fire the freshest fix CoreLocation
+    /// holds immediately (continuous updates keep it current) and also arm
+    /// `forceNextFire` so the next incoming fix bypasses the throttle once.
+    /// When paused/stopped we issue a one-shot `requestLocation()` for a fresh
+    /// fix; `didFailWithError` falls back to the last known fix.
+    func requestImmediateUpdate() {
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            WhistleLogger.location.info("requestImmediateUpdate: not authorized — ignoring")
+            return
+        }
+        forceNextFire = true
+        if isUpdating, let fix = manager.location, fix.horizontalAccuracy >= 0 {
+            WhistleLogger.location.info("Manual whistle: firing freshest fix immediately")
+            fire(fix)
+        } else {
+            WhistleLogger.location.info("Manual whistle: requesting one-shot fix")
+            manager.requestLocation()
+        }
+    }
+
+    /// Commit a fix: stamp the throttle, clear any pending force, deliver it.
+    private func fire(_ location: CLLocation) {
+        lastFireDate = Date()
+        forceNextFire = false
+        onLocationUpdate?(location)
+    }
 }
 
 // MARK: - CLLocationManagerDelegate
@@ -180,15 +219,20 @@ extension LocationService: CLLocationManagerDelegate {
                 WhistleLogger.location.debug("didUpdateLocations (\(mode)) throttled — count=\(locations.count)")
                 return
             }
-            self.lastFireDate = Date()
             WhistleLogger.location.info("didUpdateLocations (\(mode)) firing — count=\(locations.count) acc=\(String(format: "%.0f", location.horizontalAccuracy))m")
-            self.onLocationUpdate?(location)
+            self.fire(location)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
             WhistleLogger.location.error("Location error: \(error.localizedDescription)")
+            // A one-shot whistle request that failed still wants to publish —
+            // fall back to the last known fix so the manual update isn't lost.
+            if self.forceNextFire, let fix = manager.location, fix.horizontalAccuracy >= 0 {
+                WhistleLogger.location.info("Manual whistle: one-shot failed, firing last known fix")
+                self.fire(fix)
+            }
         }
     }
 }

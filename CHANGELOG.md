@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.4.0] — 2026-06-12
+
+### Added
+- **Whistle button** (iOS & Android): a button on the map that force-publishes your location to every active group immediately, bypassing the update timer, the motion-aware backoff, and the stationary multiplier. A one-shot override that even fires while sharing is paused (a single send; it stays paused afterwards). Requests a fresh fix and falls back to the last known location if none arrives, with "Whistling… → Sent" feedback (and "No fix" if it can't get a location). For the "I need them to see where I am right now" moment without waiting for the next scheduled update. The stamped `LocationPayload.interval` still reflects the normal cadence, so a manual whistle doesn't skew receivers' staleness grading.
+
+---
+
 ## [1.3.1] — 2026-06-11
 
 ### Fixed
