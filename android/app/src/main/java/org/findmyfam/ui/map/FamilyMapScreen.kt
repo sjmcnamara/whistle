@@ -26,7 +26,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Warning
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -221,7 +221,7 @@ fun FamilyMapScreen(
 
             // Whistle button — force a location publish now, ignoring throttle,
             // motion backoff, and pause state (see AppViewModel.whistle()).
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = onWhistle,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -229,33 +229,22 @@ fun FamilyMapScreen(
                 containerColor = if (whistleState == AppViewModel.WhistleState.FAILED)
                     MaterialTheme.colorScheme.errorContainer
                 else MaterialTheme.colorScheme.primary,
-                icon = {
-                    when (whistleState) {
-                        AppViewModel.WhistleState.SENDING ->
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        AppViewModel.WhistleState.SENT ->
-                            Icon(Icons.Default.Check, contentDescription = null)
-                        AppViewModel.WhistleState.FAILED ->
-                            Icon(Icons.Default.Warning, contentDescription = null)
-                        AppViewModel.WhistleState.IDLE ->
-                            Icon(Icons.Default.Sensors, contentDescription = null)
-                    }
-                },
-                text = {
-                    Text(
-                        when (whistleState) {
-                            AppViewModel.WhistleState.SENDING -> "Whistling…"
-                            AppViewModel.WhistleState.SENT -> "Sent"
-                            AppViewModel.WhistleState.FAILED -> "No fix"
-                            AppViewModel.WhistleState.IDLE -> "Whistle"
-                        }
-                    )
+            ) {
+                when (whistleState) {
+                    AppViewModel.WhistleState.SENDING ->
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    AppViewModel.WhistleState.SENT ->
+                        Icon(Icons.Default.Check, contentDescription = "Sent")
+                    AppViewModel.WhistleState.FAILED ->
+                        Icon(Icons.Default.Warning, contentDescription = "No fix")
+                    AppViewModel.WhistleState.IDLE ->
+                        Icon(Icons.Default.Podcasts, contentDescription = "Whistle")
                 }
-            )
+            }
 
             // Empty state overlay
             if (annotations.isEmpty()) {

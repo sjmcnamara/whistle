@@ -88,34 +88,35 @@ struct FamilyMapView: View {
         Button {
             appViewModel.whistle()
         } label: {
-            HStack(spacing: 8) {
-                switch appViewModel.whistleState {
-                case .sending:
-                    ProgressView().tint(.white)
-                    Text("Whistling…")
-                case .sent:
-                    Image(systemName: "checkmark")
-                    Text("Sent")
-                case .failed:
-                    Image(systemName: "exclamationmark.triangle.fill")
-                    Text("No fix")
-                case .idle:
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                    Text("Whistle")
-                }
-            }
-            .font(.subheadline.bold())
-            .padding(.horizontal, 22)
-            .padding(.vertical, 13)
+            whistleIcon
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle().fill(appViewModel.whistleState == .failed ? Color.red : Color.accentColor)
+                )
+                .shadow(radius: 4, y: 2)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(appViewModel.whistleState == .failed ? .red : .accentColor)
-        .clipShape(Capsule())
-        .shadow(radius: 4, y: 2)
+        .buttonStyle(.plain)
         .disabled(appViewModel.whistleState == .sending)
+        .accessibilityLabel("Whistle")
         .sensoryFeedback(.success, trigger: appViewModel.whistleState) { _, new in new == .sent }
         .sensoryFeedback(.impact, trigger: appViewModel.whistleState) { _, new in new == .sending }
         .animation(.easeInOut(duration: 0.2), value: appViewModel.whistleState)
+    }
+
+    @ViewBuilder
+    private var whistleIcon: some View {
+        switch appViewModel.whistleState {
+        case .sending:
+            ProgressView().tint(.white)
+        case .sent:
+            Image(systemName: "checkmark")
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+        case .idle:
+            Image(systemName: "dot.radiowaves.left.and.right")
+        }
     }
 
     // MARK: - Locate me
