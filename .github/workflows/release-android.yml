@@ -10,12 +10,19 @@ on:
         description: 'Existing tag to release (e.g. v1.2.0)'
         required: true
 
+# Least privilege at the top level; the publishing job opts into contents:write,
+# and the provenance job opts into the scopes the SLSA generator needs.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the GitHub release + upload assets
+    outputs:
+      tag: ${{ steps.stage.outputs.tag }}
+      hashes: ${{ steps.stage.outputs.hashes }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
@@ -72,6 +79,9 @@ jobs:
           sha256sum whistle.apk | tee whistle.apk.sha256
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "versioned=$OUT" >> "$GITHUB_OUTPUT"
+          # Base64-encoded subject list for SLSA provenance (attests both the
+          # versioned APK and the stable whistle.apk).
+          echo "hashes=$(sha256sum "$OUT" whistle.apk | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Verify APK signature
         run: |
@@ -96,3 +106,23 @@ jobs:
           path: |
             ${{ steps.stage.outputs.versioned }}
             ${{ steps.stage.outputs.versioned }}.sha256
+
+  # SLSA build provenance: keyless (Fulcio/Rekor via GitHub OIDC) attestation of
+  # the released APKs, uploaded to the release as a `.intoto.jsonl` artifact.
+  # Verify with: slsa-verifier verify-artifact whistle-<tag>.apk \
+  #   --provenance-path <name>.intoto.jsonl --source-uri github.com/sjmcnamara/whistle
+  #
+  # NOTE: the SLSA generator MUST be referenced by version tag, not by commit SHA
+  # — it resolves its own ref to build the provenance and fails when pinned by
+  # hash. This is a documented exception to our pin-by-SHA convention.
+  provenance:
+    needs: [build-and-publish]
+    permissions:
+      actions: read       # read the workflow path for the provenance
+      id-token: write     # keyless signing via GitHub OIDC
+      contents: write     # attach the provenance to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build-and-publish.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ needs.build-and-publish.outputs.tag }}
