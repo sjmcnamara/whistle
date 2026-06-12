@@ -385,6 +385,13 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
 
 ### Deferred
 
+- **Share stationary state in the location payload** _(parity feature)_: the Movement Aware "stationary" indicator (standing-man badge + "Currently stationary" in the detail sheet) is currently computed locally from the device's own motion sensor and is hard-gated to the own pin — it is **not** carried in `LocationPayload`, so a member viewing someone else never sees their stationary state. Receivers can already infer the slowdown from the `interval` field (which reflects the motion-adjusted 4× cadence), but not the explicit badge. To make it cross-device, add an **optional** `stationary` boolean to `LocationPayload` on both platforms (backward-compatible, exactly as `interval` was added in v1.2.1), serialize it for the own broadcast, and read it for non-self members. Deferred from v1.4.1 as it extends the wire protocol — a feature, not a bugfix.
+
+- **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
+    - **Nearby Share** (`NearbyShareCoordinator`) — MultipeerConnectivity peer-to-peer invite exchange with no relay connectivity. Android equivalent would use Nearby Connections or custom BLE. _Parity matters._
+    - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
+    - **NFC tag read/write** (`NFCReadCoordinator` / `NFCWriteCoordinator`) — tap-to-join via NFC stickers. **Candidate to drop** rather than port — niche use, low demand.
+
 - **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
 
 - **Push Notifications via MIP-05** _(parked)_: MIP-05 specifies a privacy-preserving push pipeline. Devices encrypt their APNs/FCM tokens to a notification server's pubkey (probabilistic encryption with ephemeral keys, no cross-group linkability) and gossip the encrypted tokens to group members via kinds 447/448/449. To deliver a push, the sending client gift-wraps a `kind:446` rumor with the bundled tokens (plus decoys) and publishes it to the server's inbox relays; the server decrypts each token and dispatches a silent content-available push.
