@@ -364,6 +364,11 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.4.0 — Manual Whistle ✅
+_Released 2026-06-12_
+
+- **Whistle button** (iOS & Android): circular broadcast-icon button that force-publishes location to every active group immediately, bypassing the update timer, motion-aware backoff, and stationary multiplier. One-shot override that fires even while paused (stays paused afterwards). Fresh fix with last-known fallback; icon swaps to spinner/checkmark/warning for feedback. Stamped `LocationPayload.interval` still reflects the normal cadence so receivers' staleness grading isn't skewed.
+
 ### v1.3.1 — Motion backoff bugfix ✅
 _Released 2026-06-11_
 
@@ -432,6 +437,8 @@ master
   └── feature/v1.2-low-battery-alerts    ✅ merged
   └── feature/v1.3-ux-polish             ✅ merged
   └── bugfix/v1.3.1                       ✅ merged
+  └── chore/ci-mdk-cache-key              ✅ merged
+  └── feature/v1.4-manual-whistle         ✅ merged
 ```
 
 ---

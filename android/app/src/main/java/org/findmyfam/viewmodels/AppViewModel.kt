@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.delay
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -63,6 +64,15 @@ class AppViewModel @Inject constructor(
 
     private val _mlsError = MutableStateFlow<String?>(null)
     val mlsError: StateFlow<String?> = _mlsError.asStateFlow()
+
+    enum class WhistleState { IDLE, SENDING, SENT, FAILED }
+
+    /** Drives the map's "Whistle" button feedback (manual force-publish). */
+    private val _whistleState = MutableStateFlow(WhistleState.IDLE)
+    val whistleState: StateFlow<WhistleState> = _whistleState.asStateFlow()
+
+    /** True while a manual whistle is in flight; the next broadcast flips to SENT. */
+    private var pendingWhistle = false
 
     private var didStart = false
 
@@ -250,6 +260,14 @@ class AppViewModel @Inject constructor(
                     }
                 }
             }
+
+            // A manual whistle resolves to SENT as soon as its forced fix is
+            // broadcast (the timeout in whistle() only fires if none arrives).
+            if (pendingWhistle) {
+                pendingWhistle = false
+                _whistleState.value = WhistleState.SENT
+                scheduleWhistleReset()
+            }
         }
         // Observe motion state: update multiplier and refresh map badge.
         viewModelScope.launch {
@@ -264,6 +282,40 @@ class AppViewModel @Inject constructor(
             locationService.startUpdating()
             if (settings.isMotionAdaptiveEnabled) {
                 motionService.startMonitoring()
+            }
+        }
+    }
+
+    /**
+     * Force an immediate location publish, ignoring the throttle, motion
+     * backoff, and pause state. Drives the map's "Whistle" button.
+     */
+    fun whistle() {
+        if (_whistleState.value == WhistleState.SENDING) return
+        _whistleState.value = WhistleState.SENDING
+        pendingWhistle = true
+        locationService.requestImmediateUpdate()
+
+        // Resolve the button state even if no fix arrives (denied, no signal,
+        // no active groups). The forced broadcast flips this to SENT first if
+        // it lands; otherwise we report failure.
+        viewModelScope.launch {
+            delay(12_000)
+            if (pendingWhistle) {
+                pendingWhistle = false
+                _whistleState.value = WhistleState.FAILED
+                scheduleWhistleReset()
+            }
+        }
+    }
+
+    /** Return the button to rest a short moment after a terminal result. */
+    private fun scheduleWhistleReset() {
+        viewModelScope.launch {
+            delay(2_000)
+            val s = _whistleState.value
+            if (s == WhistleState.SENT || s == WhistleState.FAILED) {
+                _whistleState.value = WhistleState.IDLE
             }
         }
     }

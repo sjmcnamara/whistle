@@ -51,6 +51,10 @@ struct FamilyMapView: View {
                     emptyState
                 }
             }
+            .overlay(alignment: .bottom) {
+                whistleButton
+                    .padding(.bottom, 24)
+            }
             .sheet(item: $selectedAnnotation) { annotation in
                 MemberDetailSheet(annotation: annotation)
             }
@@ -72,6 +76,46 @@ struct FamilyMapView: View {
                     viewModel.selectedGroupId = nil
                 }
             }
+        }
+    }
+
+    // MARK: - Whistle
+
+    /// Manual "force-publish my location now" button. Ignores the throttle,
+    /// motion backoff, and pause state — see `AppViewModel.whistle()`.
+    @ViewBuilder
+    private var whistleButton: some View {
+        Button {
+            appViewModel.whistle()
+        } label: {
+            whistleIcon
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle().fill(appViewModel.whistleState == .failed ? Color.red : Color.accentColor)
+                )
+                .shadow(radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+        .disabled(appViewModel.whistleState == .sending)
+        .accessibilityLabel("Whistle")
+        .sensoryFeedback(.success, trigger: appViewModel.whistleState) { _, new in new == .sent }
+        .sensoryFeedback(.impact, trigger: appViewModel.whistleState) { _, new in new == .sending }
+        .animation(.easeInOut(duration: 0.2), value: appViewModel.whistleState)
+    }
+
+    @ViewBuilder
+    private var whistleIcon: some View {
+        switch appViewModel.whistleState {
+        case .sending:
+            ProgressView().tint(.white)
+        case .sent:
+            Image(systemName: "checkmark")
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+        case .idle:
+            Image(systemName: "dot.radiowaves.left.and.right")
         }
     }
 

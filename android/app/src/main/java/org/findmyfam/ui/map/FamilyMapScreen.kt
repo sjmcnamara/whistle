@@ -26,6 +26,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.Warning
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -35,6 +37,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.findmyfam.viewmodels.AppViewModel
 import org.findmyfam.viewmodels.LocationViewModel
 import org.findmyfam.viewmodels.MemberAnnotation
 import java.text.SimpleDateFormat
@@ -48,6 +51,8 @@ fun FamilyMapScreen(
     locationViewModel: LocationViewModel,
     groups: List<GroupOption> = emptyList(),
     onPermissionGranted: () -> Unit,
+    whistleState: AppViewModel.WhistleState = AppViewModel.WhistleState.IDLE,
+    onWhistle: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -211,6 +216,33 @@ fun FamilyMapScreen(
                         contentDescription = "Find me",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
+                }
+            }
+
+            // Whistle button — force a location publish now, ignoring throttle,
+            // motion backoff, and pause state (see AppViewModel.whistle()).
+            FloatingActionButton(
+                onClick = onWhistle,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+                containerColor = if (whistleState == AppViewModel.WhistleState.FAILED)
+                    MaterialTheme.colorScheme.errorContainer
+                else MaterialTheme.colorScheme.primary,
+            ) {
+                when (whistleState) {
+                    AppViewModel.WhistleState.SENDING ->
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    AppViewModel.WhistleState.SENT ->
+                        Icon(Icons.Default.Check, contentDescription = "Sent")
+                    AppViewModel.WhistleState.FAILED ->
+                        Icon(Icons.Default.Warning, contentDescription = "No fix")
+                    AppViewModel.WhistleState.IDLE ->
+                        Icon(Icons.Default.Podcasts, contentDescription = "Whistle")
                 }
             }
 

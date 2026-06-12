@@ -37,6 +37,7 @@ Create or join an encrypted group, share a live map with your people, and chat �
 - **Live map** — see everyone's location, updated on a configurable interval
 - **Group chat** — built-in encrypted messaging for the whole group
 - **Tap-to-join** — share invites via QR code, NFC tap, or AirDrop
+- **Whistle** — force an instant location update to your group on demand, ignoring the timer and battery backoff
 - **Pause/resume** — stop sharing your location anytime without leaving the group
 - **Movement aware** — automatically backs off location updates when a device is stationary, resumes normal rate on movement
 - **Low-battery alerts** — notifies the group when a member's battery is critically low
@@ -102,7 +103,7 @@ whistle/
 
 ## Status
 
-v1.3.1 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
+v1.4.0 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Wiki
 

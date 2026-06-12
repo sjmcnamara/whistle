@@ -147,7 +147,88 @@ class LocationService @Inject constructor(
         lastFireTime = 0L
     }
 
+    // Set by requestImmediateUpdate(); lets the next fix bypass the throttle once.
+    private var forceNextFire = false
+
+    /**
+     * Force a single location publish now, ignoring the throttle/backoff and
+     * motion-aware multiplier. Drives the map's "Whistle" button.
+     *
+     * Requests a fresh one-shot fix via [LocationManagerCompat.getCurrentLocation]
+     * (works even while continuous updates are stopped, e.g. paused), and falls
+     * back to the best last-known fix if no fresh one arrives. [forceNextFire]
+     * also lets any concurrently-delivered fix skip the throttle gate once.
+     */
+    @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION") // requestSingleUpdate: deprecated in API 30 but valid back to minSdk 26
+    fun requestImmediateUpdate() {
+        if (!_hasPermission.value) {
+            Timber.i("requestImmediateUpdate: no permission — ignoring")
+            return
+        }
+        forceNextFire = true
+
+        // Continuous updates already running: fire the freshest fix we hold now,
+        // and let the next live fix bypass the throttle once via forceNextFire.
+        if (_isUpdating.value) {
+            fireForced(bestLastKnown())
+            return
+        }
+
+        // Paused/stopped: request one fresh fix, falling back to last known.
+        val provider = when {
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> null
+        }
+        if (provider == null) {
+            Timber.w("Manual whistle: no provider enabled — using last known")
+            fireForced(bestLastKnown())
+            return
+        }
+        try {
+            locationManager.requestSingleUpdate(
+                provider,
+                object : LocationListener {
+                    override fun onLocationChanged(location: Location) = fireForced(location)
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
+                    @Deprecated("Deprecated in API")
+                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                },
+                context.mainLooper
+            )
+        } catch (e: Exception) {
+            Timber.w("Manual whistle: single-update failed (${e.message}) — using last known")
+            fireForced(bestLastKnown())
+        }
+    }
+
+    /** Best of the two providers' last-known fixes, or null. */
+    @SuppressLint("MissingPermission")
+    private fun bestLastKnown(): Location? = try {
+        listOfNotNull(
+            locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER),
+            locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER),
+        ).maxByOrNull { it.time }
+    } catch (e: SecurityException) {
+        null
+    }
+
+    /** Publish a forced fix immediately, bypassing the throttle. No-op if null. */
+    private fun fireForced(location: Location?) {
+        if (location == null) {
+            Timber.w("Manual whistle: no fix available")
+            return
+        }
+        lastFireTime = System.currentTimeMillis()
+        forceNextFire = false
+        Timber.i("Manual whistle: firing fix acc=${location.accuracy.toInt()}m provider=${location.provider}")
+        onLocationUpdate?.invoke(location)
+    }
+
     private fun shouldFire(): Boolean {
+        if (forceNextFire) return true
         if (lastFireTime == 0L) return true
         return (System.currentTimeMillis() - lastFireTime) >= intervalSeconds * motionMultiplier * 1000L
     }
@@ -179,6 +260,7 @@ class LocationService @Inject constructor(
             return
         }
         lastFireTime = now
+        forceNextFire = false
         Timber.i("Location firing — acc=${best.accuracy.toInt()}m provider=${best.provider}")
         onLocationUpdate?.invoke(best)
     }
