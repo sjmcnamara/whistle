@@ -364,6 +364,11 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.3.1 — Motion backoff bugfix ✅
+_Released 2026-06-11_
+
+- **Motion-adaptive backoff stuck at 4× while moving** (iOS): `MotionService` only re-evaluated the 30 s moving-debounce inside a `CMMotionActivityManager` callback, but that API is edge-triggered — during steady walking only the initial callback arrives, so `isStationary` never flipped back and the device kept publishing at the slowed (e.g. 1-hour) cadence. Debounce is now driven by a one-shot timer. Android was already timer-driven and unaffected.
+
 ### v1.3.0 — UX Polish ✅
 _Smoothing over rough edges surfaced during 1.2.x on-device testing — released 2026-06-10_
 
@@ -426,6 +431,7 @@ master
   └── feature/v1.1.5-android-parity      ✅ merged
   └── feature/v1.2-low-battery-alerts    ✅ merged
   └── feature/v1.3-ux-polish             ✅ merged
+  └── bugfix/v1.3.1                       ✅ merged
 ```
 
 ---
