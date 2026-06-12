@@ -42,8 +42,19 @@ actor MLSService {
         do {
             mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
         } catch {
-            // Existing DB is unencrypted (pre-v0.9) or corrupt — delete and recreate.
-            WhistleLogger.mls.warning("newMdk failed (\(error)) — deleting stale DB and retrying")
+            // newMdk failed to open an existing DB. ONLY recreate if the file is a
+            // genuine pre-v0.9 *plaintext* SQLite database — it cannot be opened with
+            // SQLCipher and is safe to discard. Any other failure on an encrypted DB is
+            // almost always transient (e.g. the Keychain isn't yet readable on a
+            // background launch before first unlock), and deleting would silently wipe
+            // every group, so fail loudly and let a later launch retry.
+            // (Regression history: 6cfab3c removed an unconditional delete for exactly
+            // this reason; dbea127 reintroduced it when SQLCipher was switched on.)
+            guard Self.isUnencryptedLegacyDatabase(at: path) else {
+                WhistleLogger.mls.error("newMdk failed on an encrypted DB — NOT deleting (would lose groups): \(error)")
+                throw error
+            }
+            WhistleLogger.mls.warning("Detected pre-v0.9 unencrypted DB — deleting and recreating encrypted: \(error)")
             Self.deleteDatabase(at: path)
             mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
         }
@@ -63,6 +74,20 @@ actor MLSService {
         mdk = nil
         Self.deleteDatabase(at: Self.defaultDBPath())
         WhistleLogger.mls.info("MLS database reset for identity replacement")
+    }
+
+    /// True only when the file at `path` is a plaintext SQLite database — i.e. a
+    /// pre-v0.9 database created before SQLCipher encryption was enabled. SQLCipher
+    /// encrypts the whole file including the header, so a healthy encrypted DB never
+    /// starts with the SQLite magic. This lets us safely recreate a legacy plaintext
+    /// DB while refusing to delete a healthy encrypted one that merely failed to open
+    /// (e.g. transient keyring/Keychain unavailability).
+    static func isUnencryptedLegacyDatabase(at path: String) -> Bool {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return false }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: 16), header.count == 16 else { return false }
+        // SQLite file-format magic string: "SQLite format 3\0"
+        return header == Data("SQLite format 3\u{0}".utf8)
     }
 
     /// Securely delete the database file and any related WAL/SHM files.

@@ -23,7 +23,13 @@ data class MemberAnnotation(
      * Publisher's own update cadence in seconds (from `LocationPayload.interval`).
      * Null for pre-1.2.1 payloads that omit the field.
      */
-    val intervalSeconds: Int? = null
+    val intervalSeconds: Int? = null,
+    /**
+     * Estimated wall-clock time (ms) of this member's next publish — own pin
+     * only, drives the count-down on the map pin. Null for other members, which
+     * count up from `timestampMs` instead. Mirrors iOS `nextUpdateDate`.
+     */
+    val nextUpdateMs: Long? = null
 )
 
 /** Simple lat/lon pair — no Google Maps dependency. */
@@ -38,7 +44,9 @@ class LocationViewModel(
     private val nicknameStore: NicknameStore,
     private val intervalSeconds: () -> Int,
     private val myPubkeyHex: () -> String?,
-    private val isStationary: () -> Boolean = { false }
+    private val isStationary: () -> Boolean = { false },
+    /** Estimated wall-clock ms of the own device's next publish (own pin count-down). */
+    private val nextFireMs: () -> Long? = { null }
 ) {
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -84,6 +92,7 @@ class LocationViewModel(
         }
 
         val stationary = isStationary()
+        val nextFire = nextFireMs()
         val annotations = filtered.map { loc ->
             val name = nicknameStore.displayName(loc.memberPubkeyHex)
             val isMe = selfKey != null && loc.memberPubkeyHex == selfKey
@@ -96,7 +105,8 @@ class LocationViewModel(
                 timestampMs = loc.receivedAt * 1000,
                 isMe = isMe,
                 isStationary = isMe && stationary,
-                intervalSeconds = loc.payload.interval
+                intervalSeconds = loc.payload.interval,
+                nextUpdateMs = if (isMe) nextFire else null
             )
         }
 

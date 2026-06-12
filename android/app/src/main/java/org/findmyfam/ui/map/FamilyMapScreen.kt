@@ -32,6 +32,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -276,8 +277,13 @@ fun FamilyMapScreen(
 
 /**
  * Renders a member pin matching iOS's MemberPinView: a white-ringed avatar
- * circle with a person glyph (blue fresh, grey stale), the display name
- * below with a white halo, and an orange stationary badge top-right.
+ * circle with a person glyph (blue fresh, grey stale), the display name and a
+ * staleness counter below (each with a white halo), and an orange stationary
+ * badge top-right.
+ *
+ * `counter` is the relative-time line under the name — count-up "2 min ago" for
+ * other members, count-down "in 30s" for the own pin — matching iOS. Pass null
+ * to omit it.
  *
  * The bitmap is vertically centred on the avatar circle so the marker can
  * use ANCHOR_CENTER and the avatar sits exactly on the geo position.
@@ -285,6 +291,7 @@ fun FamilyMapScreen(
 private fun memberPinDrawable(
     context: Context,
     name: String,
+    counter: String?,
     isStale: Boolean,
     isStationary: Boolean
 ): BitmapDrawable {
@@ -293,6 +300,7 @@ private fun memberPinDrawable(
     val avatar = 38f * dp
     val badge = 16f * dp
     val gap = 2f * dp
+    val lineGap = 1f * dp
     val halo = 3f * dp
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -302,11 +310,24 @@ private fun memberPinDrawable(
     }
     val fm = textPaint.fontMetrics
     val textHeight = fm.descent - fm.ascent
-    // Space below the avatar for the label; mirrored above to keep the
-    // avatar at the bitmap's vertical centre.
-    val below = gap + textHeight + halo
 
-    val width = maxOf(avatar + badge, textPaint.measureText(name) + 2 * halo).toInt() + 1
+    val counterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 10f, dm)
+        textAlign = Paint.Align.CENTER
+    }
+    val cfm = counterPaint.fontMetrics
+    val counterHeight = if (counter != null) cfm.descent - cfm.ascent else 0f
+
+    // Space below the avatar for the name (+ optional counter line); mirrored
+    // above to keep the avatar at the bitmap's vertical centre.
+    val below = gap + textHeight +
+        (if (counter != null) lineGap + counterHeight else 0f) + halo
+
+    val labelWidth = maxOf(
+        textPaint.measureText(name),
+        if (counter != null) counterPaint.measureText(counter) else 0f
+    )
+    val width = maxOf(avatar + badge, labelWidth + 2 * halo).toInt() + 1
     val height = (avatar + 2 * below).toInt() + 1
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
@@ -354,6 +375,18 @@ private fun memberPinDrawable(
     textPaint.color = if (isStale) 0xFF6E6E73.toInt() else 0xFF1C1C1E.toInt()
     canvas.drawText(name, cx, textY, textPaint)
 
+    // Staleness counter, one line below the name (iOS's .secondary relative text)
+    if (counter != null) {
+        val counterY = textY + fm.descent + lineGap - cfm.ascent
+        counterPaint.style = Paint.Style.STROKE
+        counterPaint.strokeWidth = halo
+        counterPaint.color = Color.WHITE
+        canvas.drawText(counter, cx, counterY, counterPaint)
+        counterPaint.style = Paint.Style.FILL
+        counterPaint.color = 0xFF6E6E73.toInt()
+        canvas.drawText(counter, cx, counterY, counterPaint)
+    }
+
     return BitmapDrawable(context.resources, bitmap)
 }
 
@@ -367,6 +400,17 @@ private fun OsmMapView(
     // Only auto-fit camera on first annotation load, not on every update
     var hasFittedCamera by remember { mutableStateOf(false) }
 
+    // Tick every second so the per-pin staleness counter stays live. The bitmap
+    // is static once drawn, so we re-render markers on each tick (the family pin
+    // count is small). `now` is read inside `update` to drive its re-execution.
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000L)
+            now = System.currentTimeMillis()
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
             MapView(ctx).apply {
@@ -378,17 +422,26 @@ private fun OsmMapView(
             }
         },
         update = { mapView ->
+            // Read `now` so this block re-runs on each tick, refreshing counters.
+            val tickNow = now
             // Update markers without touching the camera
             mapView.overlays.removeAll { it is Marker }
 
             for (ann in annotations) {
+                // Own pin counts down to its next publish; others count up since
+                // last seen — mirrors iOS MemberPinView.
+                val counter = if (ann.isMe && ann.nextUpdateMs != null) {
+                    formatCountdownShort(ann.nextUpdateMs - tickNow)
+                } else {
+                    formatAgeShort(tickNow - ann.timestampMs)
+                }
                 val marker = Marker(mapView).apply {
                     position = GeoPoint(ann.position.latitude, ann.position.longitude)
                     title = ann.displayName
                     snippet = if (ann.isMe) "You • ${timeFormat.format(Date(ann.timestampMs))}"
                               else timeFormat.format(Date(ann.timestampMs))
                     icon = memberPinDrawable(
-                        mapView.context, ann.displayName, ann.isStale, ann.isStationary
+                        mapView.context, ann.displayName, counter, ann.isStale, ann.isStationary
                     )
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     alpha = if (ann.isStale) 0.5f else 1.0f
@@ -428,4 +481,26 @@ private fun OsmMapView(
         },
         modifier = Modifier.fillMaxSize()
     )
+}
+
+/** Count-up since last seen: "5s ago" / "2 min ago" / "1 hr ago" / "3 d ago". */
+private fun formatAgeShort(deltaMs: Long): String {
+    val s = maxOf(0L, deltaMs / 1000)
+    return when {
+        s < 60 -> "${s}s ago"
+        s < 3600 -> "${s / 60} min ago"
+        s < 86_400 -> "${s / 3600} hr ago"
+        else -> "${s / 86_400} d ago"
+    }
+}
+
+/** Count-down to own next publish: "in 5s" / "in 2 min" / "in 1 hr"; "now" when due. */
+private fun formatCountdownShort(deltaMs: Long): String {
+    val s = deltaMs / 1000
+    return when {
+        s <= 0 -> "now"
+        s < 60 -> "in ${s}s"
+        s < 3600 -> "in ${s / 60} min"
+        else -> "in ${s / 3600} hr"
+    }
 }

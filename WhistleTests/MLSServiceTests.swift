@@ -230,6 +230,43 @@ final class MLSServiceTests: XCTestCase {
         XCTAssertNotNil(groups) // may be empty or non-empty — just verify no throw
     }
 
+    // MARK: - Legacy plaintext-DB detection (data-loss guard)
+
+    /// Writes `bytes` to a unique temp file and returns its path. Cleaned up by the test.
+    private func writeTempFile(_ bytes: [UInt8]) throws -> String {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mls-detect-\(UUID().uuidString).db")
+        try Data(bytes).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url.path
+    }
+
+    func testDetectsPlaintextSqliteDatabase() throws {
+        let magic = Array("SQLite format 3\u{0}".utf8) + Array(repeating: UInt8(0x42), count: 100)
+        let path = try writeTempFile(magic)
+        XCTAssertTrue(MLSService.isUnencryptedLegacyDatabase(at: path),
+                      "A plaintext SQLite file must be recognised as a legacy DB")
+    }
+
+    func testDoesNotDetectEncryptedDatabase() throws {
+        // SQLCipher encrypts the header — random-looking bytes, not the SQLite magic.
+        let encrypted = (0..<64).map { UInt8(($0 * 7 + 3) & 0xFF) }
+        let path = try writeTempFile(encrypted)
+        XCTAssertFalse(MLSService.isUnencryptedLegacyDatabase(at: path),
+                       "An encrypted DB must NOT be treated as a deletable legacy DB")
+    }
+
+    func testDoesNotDetectMissingFile() {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("does-not-exist-\(UUID().uuidString).db").path
+        XCTAssertFalse(MLSService.isUnencryptedLegacyDatabase(at: path))
+    }
+
+    func testDoesNotDetectShortFile() throws {
+        let path = try writeTempFile([0x53, 0x51, 0x4C]) // "SQL" — too short
+        XCTAssertFalse(MLSService.isUnencryptedLegacyDatabase(at: path))
+    }
+
     // MARK: - Publish payload helpers
 
     func testCreateGroupPublishPayloadHasWelcomeRumors() async throws {

@@ -17,6 +17,12 @@ final class MotionService: ObservableObject {
     /// multiplier and nullifying the 4× backoff.
     static let movingDebounceSeconds: TimeInterval = 30
 
+    /// How far back to look for a recent activity sample when seeding the initial
+    /// stationary state on `startMonitoring()`. `CMMotionActivityManager` is
+    /// edge-triggered, so a device that is already still at launch never receives a
+    /// callback; the seed reads recent history instead of waiting for a transition.
+    static let initialStateQueryWindowSeconds: TimeInterval = 120
+
     /// True when CMMotionActivityManager reports stationary with medium/high confidence.
     @Published private(set) var isStationary: Bool = false
 
@@ -72,7 +78,33 @@ final class MotionService: ObservableObject {
                 }
             }
         }
+        seedInitialStationaryState()
         WhistleLogger.location.info("Motion activity monitoring started")
+    }
+
+    /// Seed `isStationary` from recent motion history so we don't wait for an
+    /// activity *transition* that may never arrive. `CMMotionActivityManager`
+    /// only fires `startActivityUpdates` callbacks on a change — open the app
+    /// while already still and no callback comes, leaving `isStationary` stuck at
+    /// false until something forces a transition (previously only a pause/unpause
+    /// restart did). Querying the recent history gives us the current state up
+    /// front. Only ever *sets* stationary; never clears a live-detected state.
+    private func seedInitialStationaryState() {
+        let now = Date()
+        let start = now.addingTimeInterval(-Self.initialStateQueryWindowSeconds)
+        manager.queryActivityStarting(from: start, to: now, to: .main) { [weak self] activities, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Don't override state a live callback has already established
+                // (e.g. movement detected while the query was in flight).
+                guard !self.isStationary, self.movingStartDate == nil else { return }
+                guard let latest = activities?.last(where: { $0.confidence != .low }) else { return }
+                if latest.stationary {
+                    self.isStationary = true
+                    WhistleLogger.location.info("Motion state: stationary (seeded from history)")
+                }
+            }
+        }
     }
 
     /// Arms the one-shot debounce: after `movingDebounceSeconds`, if the moving

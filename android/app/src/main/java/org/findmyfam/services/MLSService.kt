@@ -64,16 +64,47 @@ class MLSService @Inject constructor(
             _isInitialised = true
             Timber.i("MDK initialised (encrypted via EncryptedSharedPreferences key) at $dbPath")
         } catch (e: Exception) {
-            Timber.w(e, "newMdkWithKey failed — deleting DB and retrying")
-            try {
-                deleteDbFiles(dbDir)
-                mdk = newMdkWithKey(dbPath = dbPath, encryptionKey = key, config = null)
-                _isInitialised = true
-                Timber.i("MDK initialised (encrypted, fresh DB) at $dbPath")
-            } catch (e2: Exception) {
-                Timber.e(e2, "MDK init failed entirely")
-                throw e2
+            // newMdkWithKey failed to open an existing DB. ONLY recreate if the file
+            // is a genuine pre-encryption *plaintext* SQLite database — it can't be
+            // opened with SQLCipher and is safe to discard. Any other failure on an
+            // encrypted DB is almost always transient (e.g. Keystore not yet ready on
+            // a background launch), and deleting would silently wipe every group, so
+            // fail loudly and let a later launch retry. Mirrors iOS MLSService.
+            if (isUnencryptedLegacyDatabase(newFile)) {
+                Timber.w(e, "Detected pre-encryption plaintext DB — deleting and recreating encrypted")
+                try {
+                    deleteDbFiles(dbDir)
+                    mdk = newMdkWithKey(dbPath = dbPath, encryptionKey = key, config = null)
+                    _isInitialised = true
+                    Timber.i("MDK initialised (encrypted, fresh DB) at $dbPath")
+                } catch (e2: Exception) {
+                    Timber.e(e2, "MDK init failed entirely")
+                    throw e2
+                }
+            } else {
+                Timber.e(e, "newMdkWithKey failed on an encrypted DB — NOT deleting (would lose groups)")
+                throw e
             }
+        }
+    }
+
+    /**
+     * True only when [file] is a plaintext SQLite database — a pre-encryption DB
+     * created before SQLCipher was enabled. SQLCipher encrypts the whole file
+     * including the header, so a healthy encrypted DB never starts with the SQLite
+     * magic. Lets us safely recreate a legacy plaintext DB while refusing to delete
+     * a healthy encrypted one that merely failed to open. Mirrors iOS.
+     */
+    private fun isUnencryptedLegacyDatabase(file: java.io.File): Boolean {
+        if (!file.exists()) return false
+        return try {
+            file.inputStream().use { stream ->
+                val header = ByteArray(SQLITE_MAGIC.size)
+                val read = stream.read(header)
+                read == header.size && isPlaintextSqliteHeader(header)
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -255,5 +286,16 @@ class MLSService @Inject constructor(
         private const val SERVICE_ID = "org.findmyfam"
         private const val DB_KEY_ID = "mdk.db.key"
         private const val PREF_DB_KEY = "mdk_encryption_key"
+
+        /** SQLite file-format magic: "SQLite format 3 " (first 16 bytes). */
+        private val SQLITE_MAGIC = byteArrayOf(
+            0x53, 0x51, 0x4C, 0x69, 0x74, 0x65, 0x20, 0x66,
+            0x6F, 0x72, 0x6D, 0x61, 0x74, 0x20, 0x33, 0x00
+        )
+
+        /** True if [header] (the first 16 bytes of a file) is the plaintext SQLite magic. */
+        internal fun isPlaintextSqliteHeader(header: ByteArray): Boolean =
+            header.size >= SQLITE_MAGIC.size &&
+                header.copyOf(SQLITE_MAGIC.size).contentEquals(SQLITE_MAGIC)
     }
 }
