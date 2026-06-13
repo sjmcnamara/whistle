@@ -72,15 +72,7 @@ struct GroupDetailView: View {
             if viewModel.isAdmin {
                 // People who accepted an invite and are waiting to be added.
                 if !viewModel.pendingJoiners.isEmpty {
-                    Section("Ready to Join (\(viewModel.pendingJoiners.count))") {
-                        if viewModel.pendingJoiners.count > 1 {
-                            Button {
-                                Task { await viewModel.addAllPendingJoiners() }
-                            } label: {
-                                Label("Add all (\(viewModel.pendingJoiners.count))", systemImage: "person.2.badge.plus")
-                            }
-                            .disabled(viewModel.isAddingMember)
-                        }
+                    Section {
                         ForEach(viewModel.pendingJoiners, id: \.pubkey) { joiner in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -106,6 +98,20 @@ struct GroupDetailView: View {
                                         .frame(minWidth: 44, minHeight: 44)
                                 }
                                 .buttonStyle(.borderless)
+                            }
+                        }
+                    } header: {
+                        HStack {
+                            Text("Ready to Join (\(viewModel.pendingJoiners.count))")
+                            if viewModel.pendingJoiners.count > 1 {
+                                Spacer()
+                                Button {
+                                    Task { await viewModel.addAllPendingJoiners() }
+                                } label: {
+                                    Text("Add all")
+                                }
+                                .textCase(nil)
+                                .disabled(viewModel.isAddingMember)
                             }
                         }
                     }
