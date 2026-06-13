@@ -31,6 +31,11 @@ class MarmotKindTest {
     }
 
     @Test
+    fun `joinRequest is 1080`() {
+        assertEquals(1080u.toUShort(), MarmotKind.JOIN_REQUEST)
+    }
+
+    @Test
     fun `chat is 9`() {
         assertEquals(9u.toUShort(), MarmotKind.CHAT)
     }
