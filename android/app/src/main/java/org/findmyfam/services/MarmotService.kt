@@ -57,7 +57,7 @@ class MarmotService @Inject constructor(
     private val pendingInviteStore: PendingInviteStore,
     private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
-    private val joinRequestStore: JoinRequestStore,
+    val joinRequestStore: JoinRequestStore,
     private val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     private val batteryAlertService: BatteryAlertService

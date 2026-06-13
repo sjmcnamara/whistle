@@ -73,6 +73,10 @@ class GroupDetailViewModel(
     private val _leaveRequestMembers = MutableStateFlow<Set<String>>(emptySet())
     val leaveRequestMembers: StateFlow<Set<String>> = _leaveRequestMembers.asStateFlow()
 
+    /** Invitees who gift-wrapped a join-request for this group, awaiting the admin's add. */
+    private val _pendingJoiners = MutableStateFlow<List<org.findmyfam.shared.models.JoinRequest>>(emptyList())
+    val pendingJoiners: StateFlow<List<org.findmyfam.shared.models.JoinRequest>> = _pendingJoiners.asStateFlow()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
@@ -80,6 +84,13 @@ class GroupDetailViewModel(
         scope.launch {
             nicknameStore.nicknames.collect {
                 refreshDisplayNames()
+            }
+        }
+
+        // Surface incoming join-requests for this group.
+        scope.launch {
+            marmot.joinRequestStore.requests.collect { all ->
+                _pendingJoiners.value = all.filter { it.groupId == groupId }
             }
         }
     }
@@ -179,6 +190,36 @@ class GroupDetailViewModel(
                 _isAddingMember.value = false
             }
         }
+    }
+
+    /**
+     * Add a joiner from their gift-wrapped join-request.
+     *
+     * Interim: uses the existing single-add (fetches their published key package
+     * from the relay). A later batch path will use the inline key package and add
+     * everyone in one MLS commit via "Add all".
+     */
+    fun addPendingJoiner(request: org.findmyfam.shared.models.JoinRequest) {
+        scope.launch {
+            _isAddingMember.value = true
+            try {
+                marmot.addMember(pubkeyHex = request.pubkey, groupId = groupId)
+                marmot.joinRequestStore.remove(groupId = groupId, pubkey = request.pubkey)
+                _error.value = null
+                load()
+                Timber.i("Added pending joiner ${request.pubkey.take(8)} to group $groupId")
+            } catch (e: Exception) {
+                _error.value = e.message
+                Timber.e("Failed to add pending joiner: $e")
+            } finally {
+                _isAddingMember.value = false
+            }
+        }
+    }
+
+    /** Discard a join-request without adding (e.g. unrecognised requester). */
+    fun dismissPendingJoiner(request: org.findmyfam.shared.models.JoinRequest) {
+        marmot.joinRequestStore.remove(groupId = groupId, pubkey = request.pubkey)
     }
 
     // --- Remove member ---

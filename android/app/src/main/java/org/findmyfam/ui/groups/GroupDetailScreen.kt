@@ -38,6 +38,7 @@ fun GroupDetailScreen(
     val didRequestLeave by viewModel.didRequestLeave.collectAsState()
     val isRenaming by viewModel.isRenaming.collectAsState()
     val leaveRequestMembers by viewModel.leaveRequestMembers.collectAsState()
+    val pendingJoiners by viewModel.pendingJoiners.collectAsState()
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
@@ -245,6 +246,48 @@ fun GroupDetailScreen(
                         }
                     )
                     HorizontalDivider()
+                }
+
+                // Pending joiners (admin only) — accepted an invite, awaiting add.
+                if (viewModel.isAdmin && pendingJoiners.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ready to Join (${pendingJoiners.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    items(pendingJoiners, key = { it.pubkey }) { joiner ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = joiner.name?.takeIf { it.isNotEmpty() } ?: "Anonymous",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = joiner.pubkey.take(16) + "…",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.addPendingJoiner(joiner) },
+                                enabled = !isAddingMember
+                            ) {
+                                Icon(Icons.Default.PersonAdd, contentDescription = "Add ${joiner.pubkey.take(8)}")
+                            }
+                            IconButton(onClick = { viewModel.dismissPendingJoiner(joiner) }) {
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss")
+                            }
+                        }
+                    }
                 }
 
                 // Add member section (admin only)
