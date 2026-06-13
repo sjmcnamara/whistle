@@ -15,6 +15,7 @@ import org.findmyfam.models.*
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.ChatPayload
 import org.findmyfam.shared.models.InviteCode
+import org.findmyfam.shared.models.JoinRequest
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.shared.models.NicknamePayload
 import org.json.JSONObject
@@ -56,6 +57,7 @@ class MarmotService @Inject constructor(
     private val pendingInviteStore: PendingInviteStore,
     private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
+    private val joinRequestStore: JoinRequestStore,
     private val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     private val batteryAlertService: BatteryAlertService
@@ -100,7 +102,7 @@ class MarmotService @Inject constructor(
     /**
      * Create and publish a new MLS key package as a kind-30443 event.
      */
-    suspend fun publishKeyPackage(relays: List<String>) {
+    suspend fun publishKeyPackage(relays: List<String>): String {
         val kp = mls.createKeyPackageForEvent(publicKeyHex, relays)
 
         val builder = EventBuilder(kind = Kind(kind = MarmotKind.KEY_PACKAGE), content = kp.keyPackage)
@@ -110,9 +112,13 @@ class MarmotService @Inject constructor(
                 tags.add(Tag.custom(kind = TagKind.Unknown(tag[0]), values = tag.drop(1)))
             }
         }
-        val taggedBuilder = builder.tags(tags = tags)
-        relay.publish(taggedBuilder)
+        // Sign locally so we can both publish AND embed the signed event inline
+        // in a join-request (no separate relay fetch for the admin).
+        val keys = identity.keys.value ?: throw IllegalStateException("No identity — cannot publish key package")
+        val signed = builder.tags(tags = tags).signWithKeys(keys = keys)
+        relay.sendEvent(signed)
         Timber.i("Published key package (kind 30443)")
+        return signed.asJson()
     }
 
     /**
@@ -453,6 +459,19 @@ class MarmotService @Inject constructor(
         val gift = relay.unwrapGiftWrap(event = event)
         val rumor = gift.rumor()
         val rumorKind = rumor.kind().asU16()
+
+        // Join-request from an invitee who accepted our invite — queue it for the
+        // admin to batch-add. (Their KeyPackage rides inline in the payload.)
+        if (rumorKind == MarmotKind.JOIN_REQUEST) {
+            try {
+                val request = JoinRequest.fromJson(rumor.content())
+                joinRequestStore.add(request)
+                Timber.i("Received join-request from ${request.pubkey.take(8)}… for group ${request.groupId}")
+            } catch (e: Exception) {
+                Timber.w("Failed to decode join-request rumor — ignoring: ${e.message}")
+            }
+            return
+        }
 
         if (rumorKind != MarmotKind.WELCOME) {
             Timber.d("Gift-wrap contained non-welcome kind $rumorKind, ignoring")
@@ -880,13 +899,36 @@ class MarmotService @Inject constructor(
     suspend fun acceptInvite(encoded: String) {
         val invite = InviteCode.decode(encoded)
 
-        // Publish our key package to ALL connected relays (not just the invite
-        // relay) so the admin can find it regardless of which relay they query.
-        val allRelays = activeRelayUrls.toMutableList()
-        if (invite.relay !in allRelays) {
-            allRelays.add(invite.relay)
+        // The relay in the invite is the guaranteed common ground with the admin.
+        // Connect to it (Nostr has no global discovery) so our key package AND the
+        // join-request below land where the admin reads — not just on whichever
+        // relays we happened to already be connected to.
+        relay.ensureRelay(invite.relay)
+
+        val allRelays = activeRelayUrls
+        val keyPackageJson = publishKeyPackage(relays = allRelays)
+
+        // Tell the inviter directly that we're ready to join, carrying our key
+        // package inline so they can batch-add us with no separate relay fetch.
+        // Private: it rides inside a NIP-59 gift-wrap to the inviter. Non-fatal on
+        // failure — the admin can still add us by npub the old way.
+        try {
+            val inviterPK = PublicKey.parse(publicKey = invite.inviterNpub)
+            val joinRequest = JoinRequest(
+                groupId = invite.groupId,
+                pubkey = publicKeyHex,
+                keyPackage = keyPackageJson,
+                name = nicknameStore.displayName(publicKeyHex)
+            )
+            val rumor = EventBuilder(
+                kind = Kind(kind = MarmotKind.JOIN_REQUEST),
+                content = joinRequest.toJson()
+            ).build(publicKey = PublicKey.parse(publicKey = publicKeyHex))
+            relay.giftWrap(receiver = inviterPK, rumor = rumor, extraTags = emptyList())
+            Timber.i("Sent join-request to inviter for group ${invite.groupId}")
+        } catch (e: Exception) {
+            Timber.w("Failed to send join-request (admin can still add by npub): ${e.message}")
         }
-        publishKeyPackage(relays = allRelays)
 
         Timber.i("Accepted invite for group ${invite.groupId} from ${invite.inviterNpub} — key package published to ${allRelays.size} relay(s)")
     }

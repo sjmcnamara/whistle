@@ -40,6 +40,7 @@ class AppViewModel @Inject constructor(
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,
+    val joinRequestStore: JoinRequestStore,
     val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
@@ -401,6 +402,7 @@ class AppViewModel @Inject constructor(
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
+        joinRequestStore.removeAll()
         locationCache.clear()
 
         // Clear settings — including pendingLeaveRequests and chat timestamps
