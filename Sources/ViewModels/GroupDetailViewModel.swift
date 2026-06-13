@@ -216,6 +216,26 @@ final class GroupDetailViewModel: ObservableObject {
         marmot.joinRequestStore?.remove(groupId: groupId, pubkey: request.pubkey)
     }
 
+    /// Admit every pending joiner in a single MLS commit (one epoch bump for all).
+    func addAllPendingJoiners() async {
+        let toAdd = pendingJoiners
+        guard !toAdd.isEmpty else { return }
+        isAddingMember = true
+        defer { isAddingMember = false }
+        do {
+            let result = try await marmot.addMembers(toAdd, toGroup: groupId)
+            for pubkey in result.added {
+                marmot.joinRequestStore?.remove(groupId: groupId, pubkey: pubkey)
+            }
+            error = nil
+            await load()
+            WhistleLogger.chat.info("Batch-added \(result.added.count) joiner(s) to group \(self.groupId)")
+        } catch {
+            self.error = error.localizedDescription
+            WhistleLogger.chat.error("Failed to batch-add joiners: \(error)")
+        }
+    }
+
     // MARK: - Remove member
 
     /// Remove a member from the group. Only admins can do this.

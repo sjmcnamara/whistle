@@ -353,6 +353,109 @@ final class MarmotService: ObservableObject {
         WhistleLogger.marmot.debug("Gift-wrapped \(welcomeRumors.count) welcome(s) for \(receiverHex)")
     }
 
+    // MARK: - Batch add (join-requests)
+
+    /// Outcome of a batch add.
+    struct BatchAddResult: Equatable {
+        /// Pubkeys now in the group (added by this batch, or already members).
+        let added: [String]
+    }
+
+    /// Add several joiners from their gift-wrapped join-requests in a SINGLE MLS
+    /// commit — one epoch bump for the whole batch, instead of one per person.
+    /// Each request carries the member's signed key package inline, so there's no
+    /// relay fetch (and no "key package not found" race).
+    ///
+    /// Atomic: either the whole commit lands (published, verified, welcomes routed)
+    /// or the group is left unchanged. A single invalid/stale key package fails the
+    /// batch; the admin can dismiss that request and retry. Members already in the
+    /// group are skipped and reported as added.
+    @discardableResult
+    func addMembers(_ requests: [JoinRequest], toGroup groupId: String) async throws -> BatchAddResult {
+        guard !requests.isEmpty else { return BatchAddResult(added: []) }
+        guard !relay.connectedRelayURLs.isEmpty else { throw MarmotError.noRelaysConnected }
+
+        let existing = (try? await mls.getMembers(groupId: groupId)).map(Set.init) ?? []
+        let alreadyIn = requests.filter { existing.contains($0.pubkey) }.map { $0.pubkey }
+        let toAdd = requests.filter { !existing.contains($0.pubkey) }
+        guard !toAdd.isEmpty else { return BatchAddResult(added: alreadyIn) }
+
+        do {
+            // 1. One commit for all the inline key packages.
+            let result = try await mls.addMembers(groupId: groupId, keyPackageEventsJson: toAdd.map { $0.keyPackage })
+            try await mls.mergePendingCommit(groupId: groupId)
+
+            // 2. Publish the evolution event(s) with retry.
+            let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
+            var attempts = 0
+            while true {
+                do {
+                    for eventJson in payload.events { try await publishGroupEvent(eventJson: eventJson) }
+                    break
+                } catch {
+                    attempts += 1
+                    if attempts >= 3 { throw error }
+                    try await Task.sleep(for: .seconds(min(0.5 * pow(2.0, Double(attempts - 1)), 10.0)))
+                }
+            }
+
+            // 3. Verify the commit landed before sending Welcomes (MIP-02 anti-fork).
+            for eventJson in payload.events {
+                let event = try Event.fromJson(json: eventJson)
+                try await verifyEventOnRelay(eventId: event.id().toHex())
+            }
+
+            // 4. Route each Welcome to its member by the rumor's `e` tag.
+            try await routeWelcomes(payload.welcomeRumors, requests: toAdd)
+
+            await refreshGroups()
+            WhistleLogger.marmot.info("Batch-added \(toAdd.count) member(s) to group \(groupId) in one commit")
+            return BatchAddResult(added: alreadyIn + toAdd.map { $0.pubkey })
+        } catch {
+            // Roll back any unmerged pending commit so the group is left unchanged.
+            try? await mls.clearPendingCommit(groupId: groupId)
+            WhistleLogger.marmot.error("Batch add to group \(groupId) failed — rolled back: \(error)")
+            throw error
+        }
+    }
+
+    /// Gift-wrap each Welcome rumor to its intended member. MDK returns one rumor
+    /// per added member, tagged with `e` = the key package event id used to add
+    /// them; we map that id back to the member's pubkey. Falls back to positional
+    /// order (rumor[i] ← requests[i]) if a tag is missing — see research in PR2b.
+    private func routeWelcomes(_ welcomeRumors: [String], requests: [JoinRequest]) async throws {
+        var kpIdToPubkey: [String: String] = [:]
+        for req in requests {
+            if let id = try? Event.fromJson(json: req.keyPackage).id().toHex() {
+                kpIdToPubkey[id] = req.pubkey
+            }
+        }
+        for (index, rumorJson) in welcomeRumors.enumerated() {
+            let receiverHex: String
+            if let kpId = Self.firstETag(inRumorJson: rumorJson), let pk = kpIdToPubkey[kpId] {
+                receiverHex = pk
+            } else if index < requests.count {
+                receiverHex = requests[index].pubkey
+                WhistleLogger.marmot.warning("Welcome rumor \(index): no e-tag match — using positional recipient")
+            } else {
+                WhistleLogger.marmot.error("Welcome rumor \(index): cannot route — skipping")
+                continue
+            }
+            let rumor = try UnsignedEvent.fromJson(json: rumorJson)
+            let receiverPK = try PublicKey.parse(publicKey: receiverHex)
+            try await relay.giftWrap(receiver: receiverPK, rumor: rumor, extraTags: [])
+        }
+    }
+
+    /// First `e` tag value (the key package event id) in a rumor's JSON.
+    static func firstETag(inRumorJson json: String) -> String? {
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tags = obj["tags"] as? [[String]] else { return nil }
+        for tag in tags where tag.count >= 2 && tag[0] == "e" { return tag[1] }
+        return nil
+    }
+
     // MARK: - Group Lifecycle
 
     /// Create a new MLS group and publish welcome events for initial members.

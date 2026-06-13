@@ -222,6 +222,28 @@ final class MarmotServiceTests: XCTestCase {
         XCTAssertFalse(jr.keyPackage.isEmpty, "join-request must carry the KeyPackage inline")
     }
 
+    // MARK: - Batch add (join-requests)
+
+    func testFirstETagExtractsKeyPackageEventId() {
+        let json = #"{"kind":444,"content":"x","tags":[["e","kp-event-id-123"],["relays","wss://r"]]}"#
+        XCTAssertEqual(MarmotService.firstETag(inRumorJson: json), "kp-event-id-123")
+    }
+
+    func testFirstETagNilWhenNoETag() {
+        let json = #"{"kind":444,"content":"x","tags":[["relays","wss://r"],["encoding","base64"]]}"#
+        XCTAssertNil(MarmotService.firstETag(inRumorJson: json))
+    }
+
+    func testFirstETagNilOnMalformedJson() {
+        XCTAssertNil(MarmotService.firstETag(inRumorJson: "not json"))
+        XCTAssertNil(MarmotService.firstETag(inRumorJson: #"{"tags":"oops"}"#))
+    }
+
+    func testAddMembersEmptyReturnsEmpty() async throws {
+        let result = try await sut.addMembers([], toGroup: "any-group")
+        XCTAssertTrue(result.added.isEmpty)
+    }
+
     // MARK: - Gift Wrap
 
     func testGiftWrapAndPublishWelcomesCallsRelay() async throws {

@@ -259,6 +259,23 @@ fun GroupDetailScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
+                    if (pendingJoiners.size > 1) {
+                        item {
+                            Button(
+                                onClick = { viewModel.addAllPendingJoiners() },
+                                enabled = !isAddingMember,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.GroupAdd,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Add all (${pendingJoiners.size})")
+                            }
+                        }
+                    }
                     items(pendingJoiners, key = { it.pubkey }) { joiner ->
                         Row(
                             modifier = Modifier
