@@ -364,6 +364,16 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.5.0 — Group onboarding 🚧
+_In progress — batched joins without a coordinating server._
+
+User testing surfaced that onboarding several people to a new group is slow and fragile: each add is a separate MLS commit (one epoch bump + resync per person), and the admin has to source each invitee's npub out-of-band. MLS forbids concurrent commits, so the fix isn't more retries — it's turning N joins into one commit, plus a private way for the admin to discover who's ready.
+
+- **A — Batch adds into one commit**: collect ready KeyPackages and call `addMembers([…])` once → a single epoch bump, one kind-445, N Welcomes. Partial-failure rule: add everyone whose KeyPackage is in hand; laggards stay pending and are retried later (invitees republish their KeyPackage on launch).
+- **B — Join-requests (no server)**: on accepting an invite, the invitee gift-wraps a join-request to the inviter (npub from the invite code) carrying their KeyPackage **inline**. The admin's app collects these into a "pending joiners" list → "Add all" feeds A. Private by construction (rides inside a kind-1059 gift-wrap; nothing on a public event leaks membership intent).
+
+Shipping in slices: **PR1** — wire protocol + shared `JoinRequest` model (kind `1080`) on both platforms, no behavior change. PR2 — service layer (invitee send, admin store + routing, batch add). PR3 — UI (pending-joiners list, Add all) per platform.
+
 ### v1.4.1 — Bugfixes ✅
 _Released 2026-06-12_
 

@@ -23,6 +23,10 @@ final class MarmotKindTests: XCTestCase {
         XCTAssertEqual(MarmotKind.giftWrap, 1059)
     }
 
+    func testJoinRequestIs1080() {
+        XCTAssertEqual(MarmotKind.joinRequest, 1080)
+    }
+
     func testChatIs9() {
         XCTAssertEqual(MarmotKind.chat, 9)
     }

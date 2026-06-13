@@ -25,6 +25,17 @@ object MarmotKind {
     /** NIP-59 Gift Wrap outer event kind. */
     const val GIFT_WRAP: UShort = 1059u
 
+    // Whistle gift-wrapped rumor kinds (NIP-59, alongside Welcome 444)
+
+    /**
+     * Join-request — a rumor an invitee gift-wraps to the inviter right after
+     * accepting an invite, carrying their KeyPackage so the admin can batch-add
+     * joiners in one MLS commit without a manual npub exchange. Whistle-specific;
+     * chosen outside the Marmot 443–445 and reserved MIP-05 446–449 kind ranges.
+     * Only seen after unwrapping the kind-1059 gift-wrap, so it never reaches relays.
+     */
+    const val JOIN_REQUEST: UShort = 1080u
+
     // Whistle inner message kinds (inside kind-445 payloads)
 
     /** Chat message inner kind. */

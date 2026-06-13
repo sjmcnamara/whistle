@@ -18,6 +18,15 @@ public enum MarmotKind {
     /// NIP-59 Gift Wrap outer event kind.
     public static let giftWrap: UInt16 = 1059
 
+    // MARK: - Whistle gift-wrapped rumor kinds (NIP-59, alongside Welcome 444)
+
+    /// Join-request — a rumor an invitee gift-wraps to the inviter right after
+    /// accepting an invite, carrying their KeyPackage so the admin can batch-add
+    /// joiners in one MLS commit without a manual npub exchange. Whistle-specific;
+    /// chosen outside the Marmot 443–445 and reserved MIP-05 446–449 kind ranges.
+    /// Only seen after unwrapping the kind-1059 gift-wrap, so it never reaches relays.
+    public static let joinRequest: UInt16 = 1080
+
     // MARK: - Whistle inner message kinds (inside kind-445 payloads)
 
     /// Chat message inner kind.
