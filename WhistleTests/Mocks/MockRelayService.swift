@@ -60,6 +60,14 @@ final class MockRelayService: RelayServiceProtocol {
         connectionState = .disconnected
     }
 
+    /// Relay URLs passed to `ensureRelay(_:)`, for assertions.
+    var ensuredRelays: [String] = []
+
+    func ensureRelay(_ url: String) async {
+        ensuredRelays.append(url)
+        if !connectedRelayURLs.contains(url) { connectedRelayURLs.append(url) }
+    }
+
     @discardableResult
     func publish(builder: EventBuilder) async throws -> String {
         // We can't easily inspect EventBuilder internals without signing,

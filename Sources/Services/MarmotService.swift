@@ -44,6 +44,10 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — queues unsolicited Welcomes for user approval.
     var pendingWelcomeStore: PendingWelcomeStore?
 
+    /// Injected by AppViewModel — collects incoming join-requests (invitees who
+    /// accepted an invite) so an admin can batch-add them.
+    var joinRequestStore: JoinRequestStore?
+
     /// Injected by AppViewModel — fires local notifications on low battery.
     var batteryAlertService: BatteryAlertService?
 
@@ -107,8 +111,12 @@ final class MarmotService: ObservableObject {
 
     // MARK: - Kind 30443 — Key Packages
 
-    /// Create and publish a new MLS key package as a kind-30443 event.
-    func publishKeyPackage(relays: [String]) async throws {
+    /// Create, sign, publish, and return a new MLS key package as a kind-30443
+    /// event. The returned JSON is the signed event an admin feeds to
+    /// `mls.addMembers` — we also hand it to the inviter inline via the
+    /// join-request so they can add us without a separate relay fetch.
+    @discardableResult
+    func publishKeyPackage(relays: [String]) async throws -> String {
         let kp = try await mls.createKeyPackage(publicKeyHex: publicKeyHex, relays: relays)
 
         let builder = EventBuilder(kind: Kind(kind: MarmotKind.keyPackage), content: kp.keyPackage)
@@ -118,10 +126,12 @@ final class MarmotService: ObservableObject {
             guard tag.count >= 2 else { continue }
             tags.append(Tag.custom(kind: .unknown(unknown: tag[0]), values: Array(tag.dropFirst())))
         }
-        let taggedBuilder = builder.tags(tags: tags)
-        try await relay.publish(builder: taggedBuilder)
+        // Sign locally so we can both publish AND embed the signed event inline.
+        let signed = try builder.tags(tags: tags).signWithKeys(keys: keys)
+        try await relay.sendEvent(signed)
 
         WhistleLogger.marmot.info("Published key package (kind 30443)")
+        return try signed.asJson()
     }
 
     /// Fetch the latest key package for a given public key.
@@ -520,6 +530,18 @@ final class MarmotService: ObservableObject {
         let gift = try await relay.unwrapGiftWrap(event: event)
         let rumor = gift.rumor()
         let rumorKind = rumor.kind().asU16()
+
+        // Join-request from an invitee who accepted our invite — queue it for the
+        // admin to batch-add. (Their KeyPackage rides inline in the payload.)
+        if rumorKind == MarmotKind.joinRequest {
+            if let request = try? JoinRequest.from(jsonString: rumor.content()) {
+                joinRequestStore?.add(request)
+                WhistleLogger.marmot.info("Received join-request from \(request.pubkey.prefix(8))… for group \(request.groupId)")
+            } else {
+                WhistleLogger.marmot.warning("Failed to decode join-request rumor — ignoring")
+            }
+            return
+        }
 
         guard rumorKind == MarmotKind.welcome else {
             WhistleLogger.marmot.debug("Gift-wrap contained non-welcome kind \(rumorKind), ignoring")
@@ -972,18 +994,44 @@ final class MarmotService: ObservableObject {
         return invite.encode()
     }
 
-    /// Accept an invite: decode, connect if needed, and publish a key package
-    /// so the inviter can add us to the group.
+    /// Accept an invite: connect to the invite's relay, publish our key package,
+    /// and send the inviter a join-request so they can batch-add us.
     func acceptInvite(_ encoded: String) async throws {
         let invite = try InviteCode.decode(from: encoded)
 
-        // Publish our key package to ALL connected relays (not just the invite
-        // relay) so the admin can find it regardless of which relay they query.
-        var allRelays = relay.connectedRelayURLs
-        if !allRelays.contains(invite.relay) {
-            allRelays.append(invite.relay)
+        // The relay in the invite is the guaranteed common ground with the admin.
+        // Connect to it (Nostr has no global discovery) so our key package AND the
+        // join-request below actually land where the admin reads — not just on
+        // whichever relays we happened to already be connected to.
+        await relay.ensureRelay(invite.relay)
+
+        // Publish our key package to ALL connected relays so the admin can find it
+        // regardless of which relay they query.
+        let allRelays = relay.connectedRelayURLs
+        let keyPackageJson = try await publishKeyPackage(relays: allRelays)
+
+        // Tell the inviter directly that we're ready to join, carrying our key
+        // package inline so they can batch-add us with no separate relay fetch.
+        // Private: it rides inside a NIP-59 gift-wrap to the inviter — nothing on
+        // a public event reveals our intent to join. Non-fatal on failure: the
+        // admin can still add us by npub the old way.
+        do {
+            let inviterPK = try PublicKey.parse(publicKey: invite.inviterNpub)
+            let joinRequest = JoinRequest(
+                groupId: invite.groupId,
+                pubkey: publicKeyHex,
+                keyPackage: keyPackageJson,
+                name: nicknameStore?.displayName(for: publicKeyHex)
+            )
+            let rumor = EventBuilder(
+                kind: Kind(kind: MarmotKind.joinRequest),
+                content: try joinRequest.jsonString()
+            ).build(publicKey: keys.publicKey())
+            try await relay.giftWrap(receiver: inviterPK, rumor: rumor, extraTags: [])
+            WhistleLogger.marmot.info("Sent join-request to inviter for group \(invite.groupId)")
+        } catch {
+            WhistleLogger.marmot.warning("Failed to send join-request (admin can still add by npub): \(error)")
         }
-        try await publishKeyPackage(relays: allRelays)
 
         WhistleLogger.marmot.info("Accepted invite for group \(invite.groupId) from \(invite.inviterNpub) — key package published to \(allRelays.count) relay(s)")
     }

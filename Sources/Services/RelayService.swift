@@ -66,6 +66,26 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
         WhistleLogger.relay.info("Disconnected from all relays")
     }
 
+    /// Add and connect a single relay (e.g. an invite's relay hint) to the
+    /// existing client so subsequent publishes and gift-wraps reach it. No-op if
+    /// already connected or if we have no client yet. `addRelay` is idempotent.
+    func ensureRelay(_ url: String) async {
+        guard let client else {
+            WhistleLogger.relay.warning("ensureRelay(\(url)) skipped — not connected")
+            return
+        }
+        guard !connectedRelayURLs.contains(url) else { return }
+        do {
+            let relayUrl = try RelayUrl.parse(url: url)
+            _ = try await client.addRelay(url: relayUrl)
+            try await client.connectRelay(url: relayUrl)
+            connectedRelayURLs.append(url)
+            WhistleLogger.relay.info("Ensured relay connected: \(url)")
+        } catch {
+            WhistleLogger.relay.warning("ensureRelay(\(url)) failed: \(error)")
+        }
+    }
+
     /// Publish a pre-built event to all connected relays.
     /// - Returns: The event ID on success.
     @discardableResult

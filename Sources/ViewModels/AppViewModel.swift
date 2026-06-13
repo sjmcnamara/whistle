@@ -47,6 +47,9 @@ final class AppViewModel: ObservableObject {
     /// Unsolicited Welcomes awaiting user consent before joining.
     let pendingWelcomeStore: PendingWelcomeStore
 
+    /// Incoming join-requests from invitees, for the admin to batch-add.
+    let joinRequestStore: JoinRequestStore
+
     // MARK: - Pending Approval (v0.7)
 
     /// A member approval request received via `whistle://addmember/` deep link.
@@ -123,6 +126,7 @@ final class AppViewModel: ObservableObject {
         self.pendingInviteStore  = PendingInviteStore()
         self.pendingLeaveStore   = PendingLeaveStore()
         self.pendingWelcomeStore = PendingWelcomeStore()
+        self.joinRequestStore    = JoinRequestStore()
 
         let cache = self.locationCache
         let settingsRef = self.settings
@@ -446,6 +450,7 @@ final class AppViewModel: ObservableObject {
         marmotService.pendingInviteStore = pendingInviteStore
         marmotService.pendingLeaveStore = pendingLeaveStore
         marmotService.pendingWelcomeStore = pendingWelcomeStore
+        marmotService.joinRequestStore = joinRequestStore
         marmotService.settings = settings
         marmotService.batteryAlertService = BatteryAlertService(
             myPubkeyHex: pubHex,
@@ -771,6 +776,7 @@ final class AppViewModel: ObservableObject {
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
+        joinRequestStore.removeAll()
         locationCache.clear()
 
         // 6. Reset identity-bound settings
