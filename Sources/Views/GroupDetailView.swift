@@ -70,6 +70,39 @@ struct GroupDetailView: View {
 
             // MARK: - Invite
             if viewModel.isAdmin {
+                // People who accepted an invite and are waiting to be added.
+                if !viewModel.pendingJoiners.isEmpty {
+                    Section("Ready to Join (\(viewModel.pendingJoiners.count))") {
+                        ForEach(viewModel.pendingJoiners, id: \.pubkey) { joiner in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(joiner.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Anonymous")
+                                    Text(joiner.pubkey.prefix(16) + "…")
+                                        .font(.caption2.monospaced())
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button {
+                                    Task { await viewModel.addPendingJoiner(joiner) }
+                                } label: {
+                                    Image(systemName: "person.badge.plus")
+                                        .frame(minWidth: 44, minHeight: 44)
+                                }
+                                .buttonStyle(.borderless)
+                                .disabled(viewModel.isAddingMember)
+
+                                Button(role: .destructive) {
+                                    viewModel.dismissPendingJoiner(joiner)
+                                } label: {
+                                    Image(systemName: "xmark.circle")
+                                        .frame(minWidth: 44, minHeight: 44)
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                }
+
                 Section {
                     Button {
                         viewModel.generateInvite()
