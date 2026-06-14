@@ -280,15 +280,6 @@ private struct GroupChatContainer: View {
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex
         )
-        let detailVM = GroupDetailViewModel(
-            groupId: group.id,
-            marmot: marmot,
-            mls: mls,
-            nicknameStore: nicknameStore,
-            myPubkeyHex: myPubkeyHex,
-            pendingLeaveStore: pendingLeaveStore
-        )
-
         GroupChatView(
             viewModel: chatVM,
             groupName: group.name,
@@ -296,7 +287,16 @@ private struct GroupChatContainer: View {
             isUnhealthy: isUnhealthy
         )
         .navigationDestination(isPresented: $showDetail) {
-            GroupDetailView(viewModel: detailVM)
+            // GroupDetailView owns its VM via @StateObject, so this re-evaluating
+            // body never swaps in a blank instance.
+            GroupDetailView(
+                groupId: group.id,
+                marmot: marmot,
+                mls: mls,
+                nicknameStore: nicknameStore,
+                myPubkeyHex: myPubkeyHex,
+                pendingLeaveStore: pendingLeaveStore
+            )
         }
     }
 }

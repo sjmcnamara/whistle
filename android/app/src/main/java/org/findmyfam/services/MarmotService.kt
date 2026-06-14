@@ -306,6 +306,95 @@ class MarmotService @Inject constructor(
         Timber.d("Gift-wrapped ${welcomeRumors.size} welcome(s) for $receiverHex")
     }
 
+    // --- Batch add (join-requests) ---
+
+    /** Outcome of a batch add: pubkeys now in the group (added, or already members). */
+    data class BatchAddResult(val added: List<String>)
+
+    /**
+     * Add several joiners from their gift-wrapped join-requests in a SINGLE MLS
+     * commit — one epoch bump for the whole batch instead of one per person. Each
+     * request carries the member's signed key package inline, so there's no relay
+     * fetch. Atomic: either the whole commit lands (published, verified, welcomes
+     * routed) or the group is left unchanged (a bad key package fails the batch and
+     * is rolled back; the admin can dismiss it and retry). Mirrors iOS.
+     */
+    suspend fun addMembers(requests: List<JoinRequest>, groupId: String): BatchAddResult {
+        if (requests.isEmpty()) return BatchAddResult(emptyList())
+        if (relay.connectedRelayUrls.value.isEmpty()) {
+            throw MarmotException("Not connected to any relay")
+        }
+
+        val existing = runCatching { mls.getMembers(groupId).toSet() }.getOrDefault(emptySet())
+        val alreadyIn = requests.filter { it.pubkey in existing }.map { it.pubkey }
+        val toAdd = requests.filter { it.pubkey !in existing }
+        if (toAdd.isEmpty()) return BatchAddResult(alreadyIn)
+
+        try {
+            // 1. One commit for all the inline key packages.
+            val result = mls.addMembers(mlsGroupId = groupId, keyPackageEventsJson = toAdd.map { it.keyPackage })
+            mls.mergePendingCommit(mlsGroupId = groupId)
+
+            // 2. Publish + 3. verify the evolution event (MIP-02 anti-fork).
+            val evolutionEventJson = result.evolutionEventJson
+            publishGroupEvent(evolutionEventJson)
+            verifyEventOnRelay(Event.fromJson(json = evolutionEventJson).id().toHex())
+
+            // 4. Route each Welcome to its member by the rumor's `e` tag.
+            routeWelcomes(result.welcomeRumorsJson ?: emptyList(), toAdd)
+
+            refreshGroups()
+            Timber.i("Batch-added ${toAdd.size} member(s) to group $groupId in one commit")
+            return BatchAddResult(alreadyIn + toAdd.map { it.pubkey })
+        } catch (e: Exception) {
+            // Roll back any unmerged pending commit so the group is left unchanged.
+            runCatching { mls.clearPendingCommit(mlsGroupId = groupId) }
+            Timber.e("Batch add to group $groupId failed — rolled back: ${e.message}")
+            throw e
+        }
+    }
+
+    /**
+     * Gift-wrap each Welcome rumor to its intended member. MDK returns one rumor
+     * per added member, tagged with `e` = the key package event id used to add
+     * them; map that id back to the member's pubkey. Falls back to positional
+     * order if a tag is missing.
+     */
+    private suspend fun routeWelcomes(welcomeRumors: List<String>, requests: List<JoinRequest>) {
+        val kpIdToPubkey = HashMap<String, String>()
+        for (req in requests) {
+            runCatching { Event.fromJson(json = req.keyPackage).id().toHex() }.getOrNull()?.let {
+                kpIdToPubkey[it] = req.pubkey
+            }
+        }
+        welcomeRumors.forEachIndexed { index, rumorJson ->
+            val receiverHex = firstETag(rumorJson)?.let { kpIdToPubkey[it] }
+                ?: requests.getOrNull(index)?.pubkey?.also {
+                    Timber.w("Welcome rumor $index: no e-tag match — using positional recipient")
+                }
+            if (receiverHex == null) {
+                Timber.e("Welcome rumor $index: cannot route — skipping")
+                return@forEachIndexed
+            }
+            val rumor = UnsignedEvent.fromJson(json = rumorJson)
+            relay.giftWrap(receiver = PublicKey.parse(publicKey = receiverHex), rumor = rumor, extraTags = emptyList())
+        }
+    }
+
+    /** First `e` tag value (the key package event id) in a rumor's JSON. */
+    internal fun firstETag(rumorJson: String): String? {
+        return try {
+            val tags = JSONObject(rumorJson).optJSONArray("tags") ?: return null
+            for (i in 0 until tags.length()) {
+                val tag = tags.optJSONArray(i) ?: continue
+                if (tag.length() >= 2 && tag.optString(0) == "e") return tag.optString(1)
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     // --- Group Lifecycle ---
 
     /**

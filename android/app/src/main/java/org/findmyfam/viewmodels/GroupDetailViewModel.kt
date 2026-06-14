@@ -222,6 +222,27 @@ class GroupDetailViewModel(
         marmot.joinRequestStore.remove(groupId = groupId, pubkey = request.pubkey)
     }
 
+    /** Admit every pending joiner in a single MLS commit (one epoch bump for all). */
+    fun addAllPendingJoiners() {
+        val toAdd = _pendingJoiners.value
+        if (toAdd.isEmpty()) return
+        scope.launch {
+            _isAddingMember.value = true
+            try {
+                val result = marmot.addMembers(requests = toAdd, groupId = groupId)
+                result.added.forEach { marmot.joinRequestStore.remove(groupId = groupId, pubkey = it) }
+                _error.value = null
+                load()
+                Timber.i("Batch-added ${result.added.size} joiner(s) to group $groupId")
+            } catch (e: Exception) {
+                _error.value = e.message
+                Timber.e("Failed to batch-add joiners: $e")
+            } finally {
+                _isAddingMember.value = false
+            }
+        }
+    }
+
     // --- Remove member ---
 
     fun removeMember(pubkeyHex: String) {
