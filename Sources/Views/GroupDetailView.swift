@@ -2,12 +2,34 @@ import SwiftUI
 
 /// Group management view — member list, invite generation, rename, and leave.
 struct GroupDetailView: View {
-    @ObservedObject var viewModel: GroupDetailViewModel
+    // Owned via @StateObject so it survives parent re-renders. The parent row's
+    // body re-evaluates whenever marmot.groups changes (e.g. after an add), and
+    // an @ObservedObject created in that body would be swapped for a fresh blank
+    // instance mid-view — leaving the detail screen unpopulated after "Add all".
+    @StateObject private var viewModel: GroupDetailViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showInvite = false
     @State private var editingName = ""
     @State private var showLeaveConfirmation = false
     @State private var showNpubScanner = false
+
+    init(
+        groupId: String,
+        marmot: MarmotService,
+        mls: MLSService,
+        nicknameStore: NicknameStore,
+        myPubkeyHex: String,
+        pendingLeaveStore: PendingLeaveStore
+    ) {
+        _viewModel = StateObject(wrappedValue: GroupDetailViewModel(
+            groupId: groupId,
+            marmot: marmot,
+            mls: mls,
+            nicknameStore: nicknameStore,
+            myPubkeyHex: myPubkeyHex,
+            pendingLeaveStore: pendingLeaveStore
+        ))
+    }
 
     var body: some View {
         List {
