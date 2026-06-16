@@ -273,15 +273,12 @@ private struct GroupChatContainer: View {
     @State private var showDetail = false
 
     var body: some View {
-        let chatVM = ChatViewModel(
+        GroupChatView(
             groupId: group.id,
             marmot: marmot,
             mls: mls,
             nicknameStore: nicknameStore,
-            myPubkeyHex: myPubkeyHex
-        )
-        GroupChatView(
-            viewModel: chatVM,
+            myPubkeyHex: myPubkeyHex,
             groupName: group.name,
             onInfoTap: { showDetail = true },
             isUnhealthy: isUnhealthy

@@ -2,14 +2,32 @@ import SwiftUI
 
 /// Chat thread for a single group — shows messages with a bottom input bar.
 struct GroupChatView: View {
-    @ObservedObject var viewModel: ChatViewModel
+    // Owned via @StateObject so a parent body re-render (e.g. marmot.groups
+    // changing after an add) doesn't swap in a fresh blank ChatViewModel and
+    // reset the thread. See GroupDetailView for the same fix.
+    @StateObject private var viewModel: ChatViewModel
     let groupName: String
     let onInfoTap: () -> Void
     var isUnhealthy: Bool = false
     @State private var title: String
 
-    init(viewModel: ChatViewModel, groupName: String, onInfoTap: @escaping () -> Void, isUnhealthy: Bool = false) {
-        self.viewModel = viewModel
+    init(
+        groupId: String,
+        marmot: MarmotService,
+        mls: MLSService,
+        nicknameStore: NicknameStore,
+        myPubkeyHex: String,
+        groupName: String,
+        onInfoTap: @escaping () -> Void,
+        isUnhealthy: Bool = false
+    ) {
+        _viewModel = StateObject(wrappedValue: ChatViewModel(
+            groupId: groupId,
+            marmot: marmot,
+            mls: mls,
+            nicknameStore: nicknameStore,
+            myPubkeyHex: myPubkeyHex
+        ))
         self.groupName = groupName
         self.onInfoTap = onInfoTap
         self.isUnhealthy = isUnhealthy
