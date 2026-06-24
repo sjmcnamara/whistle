@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.5.0] — 2026-06-24
+
+### Added
+- **Join requests** (iOS & Android): when an invitee accepts an invite link, the app automatically gift-wraps a join-request (Nostr kind 1080) directly to the inviter, carrying the invitee's MLS KeyPackage inline. Nothing leaks to relays — the request rides inside a NIP-59 kind-1059 gift-wrap.
+- **Pending-joiners list** (iOS & Android): the group admin sees a "Ready to Join" section in Group Details listing everyone who has sent a join request and is waiting to be added. Each row shows the invitee's display name and when the request arrived.
+- **"Add all" batch add** (iOS & Android): a single button collects all pending KeyPackages and calls `addMembers([…])` once, producing one MLS epoch bump and one kind-445 commit instead of N sequential commits. Each invitee receives an individual Welcome. Partial-failure rule: anyone whose KeyPackage is in hand is added immediately; latecomers stay pending and are retried on their next launch.
+- **Group Details redesign** (iOS): the Group Details screen is rebuilt with a cleaner layout — pending joiners surface prominently at the top so admins can act without scrolling past the full member list.
+
+### Fixed
+- **`ChatViewModel` `@StateObject` crash** (iOS): `ChatViewModel` was declared `@ObservedObject` in a parent view that created it inline, causing SwiftUI to tear it down and recreate it on every parent re-render, dropping message subscriptions and sometimes crashing. Moved to `@StateObject` so SwiftUI owns the lifetime.
+
+---
+
 ## [1.4.1] — 2026-06-12
 
 ### Fixed

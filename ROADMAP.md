@@ -364,15 +364,14 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
-### v1.5.0 — Group onboarding 🚧
-_In progress — batched joins without a coordinating server._
+### v1.5.0 — Group onboarding ✅
+_Released 2026-06-24_
 
-User testing surfaced that onboarding several people to a new group is slow and fragile: each add is a separate MLS commit (one epoch bump + resync per person), and the admin has to source each invitee's npub out-of-band. MLS forbids concurrent commits, so the fix isn't more retries — it's turning N joins into one commit, plus a private way for the admin to discover who's ready.
-
-- **A — Batch adds into one commit**: collect ready KeyPackages and call `addMembers([…])` once → a single epoch bump, one kind-445, N Welcomes. Partial-failure rule: add everyone whose KeyPackage is in hand; laggards stay pending and are retried later (invitees republish their KeyPackage on launch).
-- **B — Join-requests (no server)**: on accepting an invite, the invitee gift-wraps a join-request to the inviter (npub from the invite code) carrying their KeyPackage **inline**. The admin's app collects these into a "pending joiners" list → "Add all" feeds A. Private by construction (rides inside a kind-1059 gift-wrap; nothing on a public event leaks membership intent).
-
-Shipping in slices: **PR1** — wire protocol + shared `JoinRequest` model (kind `1080`) on both platforms, no behavior change. PR2 — service layer (invitee send, admin store + routing, batch add). PR3 — UI (pending-joiners list, Add all) per platform.
+- **Join requests** (iOS & Android): invitees gift-wrap a join-request (kind 1080) directly to the inviter carrying their MLS KeyPackage inline. Private by construction — rides inside a NIP-59 kind-1059 gift-wrap; nothing on a public relay leaks membership intent.
+- **Pending-joiners list** (iOS & Android): admins see a "Ready to Join" list in Group Details showing who has sent a request and when.
+- **"Add all" batch add** (iOS & Android): one button calls `addMembers([…])` for all pending KeyPackages — a single MLS epoch bump, one kind-445, N Welcomes. Laggards stay pending and retry on next launch.
+- **Group Details redesign** (iOS): cleaner layout with pending joiners surfaced at the top.
+- **`ChatViewModel` `@StateObject` fix** (iOS): was `@ObservedObject` in a parent that created it inline, causing SwiftUI to tear it down on every re-render.
 
 ### v1.4.1 — Bugfixes ✅
 _Released 2026-06-12_
@@ -464,6 +463,12 @@ master
   └── chore/ci-mdk-cache-key              ✅ merged
   └── feature/v1.4-manual-whistle         ✅ merged
   └── bugfix/v1.4.1                       ✅ merged
+  └── chore/ci-slsa-hygiene               ✅ merged
+  └── feature/v1.5-join-requests-pr1      ✅ merged
+  └── feature/v1.5-join-requests-pr2a     ✅ merged
+  └── feature/v1.5-join-requests-pr3      ✅ merged
+  └── feature/v1.5-join-requests-pr2b     ✅ merged
+  └── feature/v1.5-group-details-ux       ✅ merged
 ```
 
 ---
