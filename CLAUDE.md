@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.4.1 — Bugfixes** (shipped). See ROADMAP.md for next steps.
+Current version: **v1.5.0 — Group onboarding** (shipped). See ROADMAP.md for next steps.
