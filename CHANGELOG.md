@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.0] — 2026-06-29
+
+### Added
+- **Group avatar** (iOS & Android): tap the group icon in Group Details to set a personal photo from your library. The avatar appears in the group list row in place of the default icon. Local and per-device — not shared with other members, no protocol changes. Long-press the hero circle to remove the photo.
+
+---
+
 ## [1.5.0] — 2026-06-24
 
 ### Added
