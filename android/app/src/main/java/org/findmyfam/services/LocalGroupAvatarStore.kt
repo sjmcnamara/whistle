@@ -3,6 +3,8 @@ package org.findmyfam.services
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,10 +49,25 @@ object LocalGroupAvatarStore {
     // MARK: - Write
 
     fun setImage(context: Context, groupId: String, uri: Uri) {
+        val rotation = context.contentResolver.openInputStream(uri)?.use { stream ->
+            val exif = ExifInterface(stream)
+            when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } ?: 0f
+
         val raw = context.contentResolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it)
         } ?: return
-        val scaled = downscale(raw)
+
+        val upright = if (rotation != 0f) {
+            Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, Matrix().apply { postRotate(rotation) }, true)
+        } else raw
+
+        val scaled = downscale(upright)
         fileFor(groupId).outputStream().use { out ->
             scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
         }
