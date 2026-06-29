@@ -51,6 +51,7 @@ fun GroupListScreen(
     val unhealthyGroupIds by viewModel.unhealthyGroupIds.collectAsState()
     val pendingAdminActionGroupIds by viewModel.pendingAdminActionGroupIds.collectAsState()
     val error by viewModel.error.collectAsState()
+    val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
 
     var showCreateSheet by remember { mutableStateOf(false) }
     var showJoinSheet by remember { mutableStateOf(false) }
@@ -226,8 +227,6 @@ fun GroupListScreen(
                         }
                     }
                 }
-
-                val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
 
                 items(groups.filter { it.isActive }, key = { it.id }) { group ->
                     val isUnhealthy = group.id in unhealthyGroupIds

@@ -4,7 +4,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -34,7 +36,7 @@ import org.findmyfam.viewmodels.GroupDetailViewModel
  * all" for large groups), and leave. Members and Add-by-npub are full-screen
  * sub-views swapped in via local state.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GroupDetailScreen(
     viewModel: GroupDetailViewModel,
@@ -145,11 +147,17 @@ fun GroupDetailScreen(
                                     .size(80.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .clickable {
-                                        avatarPicker.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    },
+                                    .combinedClickable(
+                                        onClick = {
+                                            avatarPicker.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
+                                        onLongClick = {
+                                            if (LocalGroupAvatarStore.hasImage(viewModel.groupId))
+                                                showAvatarMenu = true
+                                        }
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (avatarBitmap != null) {
