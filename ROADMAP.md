@@ -364,6 +364,11 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.6.0 — Group avatar ✅
+_Released 2026-06-29_
+
+- **Group avatar** (iOS & Android): tap the group icon in Group Details to pick a photo from the library. Shown in the group list row, local/per-device only. Long-press hero circle to remove.
+
 ### v1.5.0 — Group onboarding ✅
 _Released 2026-06-24_
 
@@ -469,6 +474,7 @@ master
   └── feature/v1.5-join-requests-pr3      ✅ merged
   └── feature/v1.5-join-requests-pr2b     ✅ merged
   └── feature/v1.5-group-details-ux       ✅ merged
+  └── feature/v1.5-local-group-avatar     ✅ merged
 ```
 
 ---
