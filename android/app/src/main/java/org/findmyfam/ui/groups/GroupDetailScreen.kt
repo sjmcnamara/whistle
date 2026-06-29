@@ -1,7 +1,12 @@
 package org.findmyfam.ui.groups
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -15,9 +20,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.findmyfam.services.LocalGroupAvatarStore
 import org.findmyfam.ui.common.QrScannerScreen
 import org.findmyfam.viewmodels.GroupDetailViewModel
 
@@ -27,7 +36,7 @@ import org.findmyfam.viewmodels.GroupDetailViewModel
  * all" for large groups), and leave. Members and Add-by-npub are full-screen
  * sub-views swapped in via local state.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GroupDetailScreen(
     viewModel: GroupDetailViewModel,
@@ -54,6 +63,14 @@ fun GroupDetailScreen(
     var renameText by remember { mutableStateOf("") }
     var subScreen by remember { mutableStateOf("main") } // main | members | addNpub
     var submittingAdd by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
+    val avatarBitmap = remember(avatarRevision) { LocalGroupAvatarStore.image(viewModel.groupId) }
+    var showAvatarMenu by remember { mutableStateOf(false) }
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { LocalGroupAvatarStore.setImage(context, viewModel.groupId, it) }
+    }
 
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(didRequestLeave) { if (didRequestLeave) onLeaveComplete() }
@@ -124,16 +141,65 @@ fun GroupDetailScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Box(
-                            modifier = Modifier.size(80.dp).clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .combinedClickable(
+                                        onClick = {
+                                            avatarPicker.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
+                                        onLongClick = {
+                                            if (LocalGroupAvatarStore.hasImage(viewModel.groupId))
+                                                showAvatarMenu = true
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (avatarBitmap != null) {
+                                    androidx.compose.foundation.Image(
+                                        bitmap = avatarBitmap.asImageBitmap(),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Groups, contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                }
+                            }
                             Icon(
-                                Icons.Default.Groups, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(40.dp)
+                                Icons.Default.AddAPhoto,
+                                contentDescription = "Set group photo",
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .padding(4.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
                             )
+                        }
+                        if (LocalGroupAvatarStore.hasImage(viewModel.groupId)) {
+                            DropdownMenu(
+                                expanded = showAvatarMenu,
+                                onDismissRequest = { showAvatarMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Remove Photo") },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                    onClick = {
+                                        LocalGroupAvatarStore.removeImage(viewModel.groupId)
+                                        showAvatarMenu = false
+                                    }
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {

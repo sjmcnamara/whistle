@@ -777,6 +777,7 @@ final class AppViewModel: ObservableObject {
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
         joinRequestStore.removeAll()
+        LocalGroupAvatarStore.shared.removeAll()
         locationCache.clear()
 
         // 6. Reset identity-bound settings

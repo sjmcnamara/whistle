@@ -8,10 +8,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import org.findmyfam.services.LocalGroupAvatarStore
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -45,6 +51,7 @@ fun GroupListScreen(
     val unhealthyGroupIds by viewModel.unhealthyGroupIds.collectAsState()
     val pendingAdminActionGroupIds by viewModel.pendingAdminActionGroupIds.collectAsState()
     val error by viewModel.error.collectAsState()
+    val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
 
     var showCreateSheet by remember { mutableStateOf(false) }
     var showJoinSheet by remember { mutableStateOf(false) }
@@ -224,16 +231,28 @@ fun GroupListScreen(
                 items(groups.filter { it.isActive }, key = { it.id }) { group ->
                     val isUnhealthy = group.id in unhealthyGroupIds
                     val hasAdminAction = group.id in pendingAdminActionGroupIds
+                    val avatarBitmap = remember(avatarRevision, group.id) {
+                        LocalGroupAvatarStore.image(group.id)
+                    }
 
                     ListItem(
                         leadingContent = {
                             Box(contentAlignment = Alignment.TopEnd) {
-                                Icon(
-                                    Icons.Default.Groups,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(36.dp)
-                                )
+                                if (avatarBitmap != null) {
+                                    Image(
+                                        bitmap = avatarBitmap.asImageBitmap(),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(36.dp).clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Groups,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
                                 if (hasAdminAction) {
                                     Box(
                                         modifier = Modifier

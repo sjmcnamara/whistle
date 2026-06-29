@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// Group management — a WhatsApp-style hero header (icon + name + rename) over
 /// Settings-style grouped sections: pending joiners, invite actions, members
@@ -14,6 +15,8 @@ struct GroupDetailView: View {
     @State private var showLeaveConfirmation = false
     @State private var showRename = false
     @State private var renameText = ""
+    @State private var pickedAvatar: PhotosPickerItem?
+    @ObservedObject private var avatars = LocalGroupAvatarStore.shared
 
     /// Show members inline up to this many; beyond it, preview + "See all".
     private let memberPreviewCap = 6
@@ -86,12 +89,51 @@ struct GroupDetailView: View {
     private var heroSection: some View {
         Section {
             VStack(spacing: 10) {
-                ZStack {
-                    Circle().fill(Color.blue.opacity(0.12)).frame(width: 80, height: 80)
-                    Image(systemName: "person.3.fill")
-                        .font(.system(size: 34))
-                        .foregroundStyle(.blue)
+                // Tap to set a personal (local, per-device) group photo. Not shared
+                // with other members — see LocalGroupAvatarStore.
+                PhotosPicker(selection: $pickedAvatar, matching: .images) {
+                    ZStack(alignment: .bottomTrailing) {
+                        if let img = avatars.image(for: viewModel.groupId) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 80)
+                                .clipShape(Circle())
+                        } else {
+                            ZStack {
+                                Circle().fill(Color.blue.opacity(0.12)).frame(width: 80, height: 80)
+                                Image(systemName: "person.3.fill")
+                                    .font(.system(size: 34))
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                        Image(systemName: "camera.circle.fill")
+                            .font(.system(size: 24))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .blue)
+                    }
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Set group photo")
+                .contextMenu {
+                    if avatars.hasImage(for: viewModel.groupId) {
+                        Button(role: .destructive) {
+                            avatars.removeImage(for: viewModel.groupId)
+                        } label: {
+                            Label("Remove Photo", systemImage: "trash")
+                        }
+                    }
+                }
+                .onChange(of: pickedAvatar) { _, item in
+                    guard let item else { return }
+                    Task {
+                        if let data = try? await item.loadTransferable(type: Data.self) {
+                            avatars.setImage(data: data, for: viewModel.groupId)
+                        }
+                        pickedAvatar = nil
+                    }
+                }
+
                 HStack(spacing: 6) {
                     Text(viewModel.groupName.isEmpty ? "Unnamed Group" : viewModel.groupName)
                         .font(.title2.weight(.semibold))
