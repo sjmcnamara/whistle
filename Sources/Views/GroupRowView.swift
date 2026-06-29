@@ -7,13 +7,24 @@ struct GroupRowView: View {
     var isLeaving: Bool = false
     var hasAdminAction: Bool = false
 
+    @ObservedObject private var avatars = LocalGroupAvatarStore.shared
+
     var body: some View {
         HStack(spacing: 12) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: "person.3.fill")
-                    .font(.title2)
-                    .foregroundStyle(group.isActive && !isLeaving ? .blue : .secondary)
-                    .frame(width: 36)
+                if let img = avatars.image(for: group.id) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
+                        .opacity(group.isActive && !isLeaving ? 1 : 0.4)
+                } else {
+                    Image(systemName: "person.3.fill")
+                        .font(.title2)
+                        .foregroundStyle(group.isActive && !isLeaving ? .blue : .secondary)
+                        .frame(width: 36)
+                }
                 if hasAdminAction {
                     Circle()
                         .fill(.orange)
