@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.1] — 2026-07-01
+
+### Fixed
+- **Self-update commits now verified on relay** (iOS): MLS self-update (key rotation) commits — both the post-join rotation and the periodic 7-day rotation — were published fire-and-forget. If the kind-445 commit failed to reach the relay, the sender's epoch advanced locally (old epoch secrets dropped for forward secrecy) while other members stayed behind, desyncing decryption in both directions and surfacing "Some messages couldn't be decrypted. A member may need to be re-invited to resync." Both paths now confirm the commit is retrievable from the relay after publishing (re-publishing if it did not land), matching the MIP-02 anti-fork check already used when adding members.
+
+---
+
 ## [1.6.0] — 2026-06-29
 
 ### Added
