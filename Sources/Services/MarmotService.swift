@@ -213,6 +213,39 @@ final class MarmotService: ObservableObject {
         throw MarmotError.commitVerificationFailed
     }
 
+    /// Publish commit evolution event(s) and confirm they are retrievable from
+    /// the relay before returning.
+    ///
+    /// Unlike a fire-and-forget publish, this re-publishes and re-verifies
+    /// across a few rounds. A self-update merges locally *before* it is
+    /// published (old epoch secrets are dropped for forward secrecy), so a
+    /// commit that silently fails to reach the relay leaves other members
+    /// stranded on the previous epoch — the cause of "Some messages couldn't
+    /// be decrypted." Confirming propagation (and retrying the publish) closes
+    /// that gap. Re-publishing is idempotent: relays dedupe by event id.
+    private func publishAndVerifyCommits(_ eventJsons: [String], maxRounds: Int = 2) async throws {
+        var lastError: Error?
+        for round in 1...maxRounds {
+            do {
+                for eventJson in eventJsons {
+                    try await publishGroupEvent(eventJson: eventJson)
+                }
+                for eventJson in eventJsons {
+                    let event = try Event.fromJson(json: eventJson)
+                    try await verifyEventOnRelay(eventId: event.id().toHex())
+                }
+                return
+            } catch {
+                lastError = error
+                WhistleLogger.marmot.warning("Commit publish/verify round \(round)/\(maxRounds) failed: \(error)")
+                if round < maxRounds {
+                    try await Task.sleep(for: .seconds(min(1.0 * pow(2.0, Double(round - 1)), 10.0)))
+                }
+            }
+        }
+        throw lastError ?? MarmotError.commitVerificationFailed
+    }
+
     /// Encrypt and send a message to a group.
     /// - Parameters:
     ///   - content: Message content string.
@@ -510,10 +543,9 @@ final class MarmotService: ObservableObject {
         let result = try await mls.updateGroupData(groupId: groupId, update: update)
         try await mls.mergePendingCommit(groupId: groupId)
 
-        let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
-        for eventJson in payload.events {
-            try await publishGroupEvent(eventJson: eventJson)
-        }
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
 
         await refreshGroups()
         WhistleLogger.marmot.info("Promoted \(pubkeyHex) to admin in group \(groupId)")
@@ -533,10 +565,9 @@ final class MarmotService: ObservableObject {
         let result = try await mls.updateGroupData(groupId: groupId, update: update)
         try await mls.mergePendingCommit(groupId: groupId)
 
-        let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
-        for eventJson in payload.events {
-            try await publishGroupEvent(eventJson: eventJson)
-        }
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
 
         await refreshGroups()
         WhistleLogger.marmot.info("Renamed group \(groupId) to '\(newName)'")
@@ -701,14 +732,16 @@ final class MarmotService: ObservableObject {
         do {
             let updateResult = try await mls.selfUpdate(groupId: welcome.mlsGroupId)
             try await mls.mergePendingCommit(groupId: welcome.mlsGroupId)
-            let updatePayload = updateResult.publishPayload(relayURLs: relay.connectedRelayURLs)
-            for eventJson in updatePayload.events {
-                try await publishGroupEvent(eventJson: eventJson)
-            }
+            // Confirm the commit reached the relay — an unpropagated self-update
+            // advances our epoch locally while other members stay behind, which
+            // desyncs decryption in both directions.
+            try await publishAndVerifyCommits(updateResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
             WhistleLogger.marmot.info("Post-join self-update completed for group \(welcome.mlsGroupId)")
         } catch {
-            // Non-fatal: the join succeeded. rotateStaleGroups() will retry later.
-            WhistleLogger.marmot.warning("Post-join self-update failed: \(error)")
+            // Non-fatal: the join succeeded and we are usable at the Welcome's
+            // epoch. The self-update commit could not be confirmed on the relay,
+            // so the group may be desynced until the next successful commit.
+            WhistleLogger.marmot.error("Post-join self-update failed to confirm on relay for group \(welcome.mlsGroupId): \(error)")
         }
 
         // Clear matching pending invite now that we've joined
@@ -905,13 +938,13 @@ final class MarmotService: ObservableObject {
                 let newEpoch = try await mls.getGroup(mlsGroupId: groupId)?.epoch ?? 0
                 WhistleLogger.mls.info("Key rotation: group \(groupId) epoch \(oldEpoch) → \(newEpoch)")
 
-                // Publish the evolution event so other members advance their epoch
-                let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
-                for eventJson in payload.events {
-                    try await publishGroupEvent(eventJson: eventJson)
-                }
+                // Publish the evolution event so other members advance their
+                // epoch — and confirm it landed. A rotation that merges locally
+                // but never reaches the relay strands other members on the old
+                // epoch, breaking decryption both ways.
+                try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
 
-                WhistleLogger.mls.info("Key rotation: published evolution event for group \(groupId)")
+                WhistleLogger.mls.info("Key rotation: published + verified evolution event for group \(groupId)")
             } catch {
                 // Per-group error handling — don't let one failure block others
                 WhistleLogger.mls.error("Key rotation failed for group \(groupId): \(error)")
