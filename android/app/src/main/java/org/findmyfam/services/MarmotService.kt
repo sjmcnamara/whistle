@@ -179,6 +179,38 @@ class MarmotService @Inject constructor(
     }
 
     /**
+     * Publish a commit evolution event and confirm it is retrievable from the
+     * relay before returning, re-publishing across a few rounds if it did not
+     * land.
+     *
+     * A self-update or metadata change merges locally *before* it is published
+     * (old epoch secrets are dropped for forward secrecy), so a commit that
+     * silently fails to reach the relay leaves other members stranded on the
+     * previous epoch — the cause of "Some messages couldn't be decrypted."
+     * Confirming propagation closes that gap. Re-publishing is idempotent:
+     * relays dedupe by event id.
+     */
+    private suspend fun publishAndVerifyCommit(eventJson: String, maxRounds: Int = 2) {
+        var lastError: Exception? = null
+        for (round in 1..maxRounds) {
+            try {
+                publishGroupEvent(eventJson)
+                val event = Event.fromJson(json = eventJson)
+                verifyEventOnRelay(event.id().toHex())
+                return
+            } catch (e: Exception) {
+                lastError = e
+                Timber.w("Commit publish/verify round $round/$maxRounds failed: ${e.message}")
+                if (round < maxRounds) {
+                    val backoff = (min(1.0 * 2.0.pow((round - 1).toDouble()), 10.0) * 1000).toLong()
+                    delay(backoff)
+                }
+            }
+        }
+        throw lastError ?: MarmotException("Could not verify commit on relay")
+    }
+
+    /**
      * Encrypt and send a message to a group.
      */
     suspend fun sendMessage(content: String, groupId: String, kind: UShort = MarmotKind.CHAT) {
@@ -448,8 +480,9 @@ class MarmotService @Inject constructor(
         val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
         mls.mergePendingCommit(mlsGroupId = groupId)
 
-        val evolutionEventJson = result.evolutionEventJson
-        publishGroupEvent(evolutionEventJson)
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        publishAndVerifyCommit(result.evolutionEventJson)
 
         refreshGroups()
         Timber.i("Renamed group $groupId to '$newName'")
@@ -474,7 +507,9 @@ class MarmotService @Inject constructor(
         )
         val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
         mls.mergePendingCommit(mlsGroupId = groupId)
-        publishGroupEvent(result.evolutionEventJson)
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        publishAndVerifyCommit(result.evolutionEventJson)
         refreshGroups()
         Timber.i("Promoted ${pubkeyHex.take(8)} to admin in group $groupId")
     }
@@ -615,11 +650,16 @@ class MarmotService @Inject constructor(
         try {
             val updateResult = mls.selfUpdate(mlsGroupId = welcome.mlsGroupId)
             mls.mergePendingCommit(mlsGroupId = welcome.mlsGroupId)
-            publishGroupEvent(updateResult.evolutionEventJson)
+            // Confirm the commit reached the relay — an unpropagated self-update
+            // advances our epoch locally while other members stay behind, which
+            // desyncs decryption in both directions.
+            publishAndVerifyCommit(updateResult.evolutionEventJson)
             Timber.i("Post-join self-update completed for group ${welcome.mlsGroupId}")
         } catch (e: Exception) {
-            // Non-fatal: the join succeeded. rotateStaleGroups() will retry later.
-            Timber.w("Post-join self-update failed: ${e.message}")
+            // Non-fatal: the join succeeded and we are usable at the Welcome's
+            // epoch. The self-update commit could not be confirmed on the relay,
+            // so the group may be desynced until the next successful commit.
+            Timber.e("Post-join self-update failed to confirm on relay for group ${welcome.mlsGroupId}: ${e.message}")
         }
 
         // Clear matching pending invite now that we've joined
@@ -821,10 +861,13 @@ class MarmotService @Inject constructor(
                 val newEpoch = mls.getGroup(groupId)?.epoch ?: 0u
                 Timber.i("Key rotation: group $groupId epoch $oldEpoch -> $newEpoch")
 
-                val evolutionEventJson = result.evolutionEventJson
-                publishGroupEvent(evolutionEventJson)
+                // Publish the evolution event so other members advance their
+                // epoch — and confirm it landed. A rotation that merges locally
+                // but never reaches the relay strands other members on the old
+                // epoch, breaking decryption both ways.
+                publishAndVerifyCommit(result.evolutionEventJson)
 
-                Timber.i("Key rotation: published evolution event for group $groupId")
+                Timber.i("Key rotation: published + verified evolution event for group $groupId")
             } catch (e: Exception) {
                 Timber.e("Key rotation failed for group $groupId: $e")
             }

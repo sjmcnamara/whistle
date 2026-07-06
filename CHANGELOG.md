@@ -9,7 +9,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.6.1] — 2026-07-06
 
 ### Fixed
-- **MLS commits now verified on relay** (iOS): epoch-advancing commits that merge locally before publishing — self-update key rotation (post-join and the periodic 7-day rotation) and group-metadata changes (promote-to-admin, rename) — were published fire-and-forget. If the kind-445 commit failed to reach the relay, the sender's epoch advanced locally (old epoch secrets dropped for forward secrecy) while other members stayed behind, desyncing decryption in both directions and surfacing "Some messages couldn't be decrypted. A member may need to be re-invited to resync." All these paths now confirm the commit is retrievable from the relay after publishing (re-publishing if it did not land), matching the MIP-02 anti-fork check already used when adding members.
+- **MLS commits now verified on relay** (iOS & Android): epoch-advancing commits that merge locally before publishing — self-update key rotation (post-join and the periodic 7-day rotation) and group-metadata changes (promote-to-admin, rename) — were published fire-and-forget. If the kind-445 commit failed to reach the relay, the sender's epoch advanced locally (old epoch secrets dropped for forward secrecy) while other members stayed behind, desyncing decryption in both directions and surfacing "Some messages couldn't be decrypted. A member may need to be re-invited to resync." All these paths now confirm the commit is retrievable from the relay after publishing (re-publishing if it did not land), matching the MIP-02 anti-fork check already used when adding members.
 
 ---
 
