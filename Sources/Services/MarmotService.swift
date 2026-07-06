@@ -543,10 +543,9 @@ final class MarmotService: ObservableObject {
         let result = try await mls.updateGroupData(groupId: groupId, update: update)
         try await mls.mergePendingCommit(groupId: groupId)
 
-        let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
-        for eventJson in payload.events {
-            try await publishGroupEvent(eventJson: eventJson)
-        }
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
 
         await refreshGroups()
         WhistleLogger.marmot.info("Promoted \(pubkeyHex) to admin in group \(groupId)")
@@ -566,10 +565,9 @@ final class MarmotService: ObservableObject {
         let result = try await mls.updateGroupData(groupId: groupId, update: update)
         try await mls.mergePendingCommit(groupId: groupId)
 
-        let payload = result.publishPayload(relayURLs: relay.connectedRelayURLs)
-        for eventJson in payload.events {
-            try await publishGroupEvent(eventJson: eventJson)
-        }
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
 
         await refreshGroups()
         WhistleLogger.marmot.info("Renamed group \(groupId) to '\(newName)'")
