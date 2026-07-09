@@ -1121,6 +1121,52 @@ final class MarmotService: ObservableObject {
         }
     }
 
+    /// Soft resync: re-fetch recent group (kind-445) events ignoring the normal
+    /// `since` high-water mark and re-process them, so a commit this device
+    /// never received — because it was offline or its subscription had a gap
+    /// while the commit sat on the relay — can finally be applied and the local
+    /// epoch caught up. This is why v1.6.1's publish-verify matters: the missed
+    /// commit is now reliably retrievable.
+    ///
+    /// Deliberately does NOT self-update: a self-update from a behind device
+    /// cannot heal a fork and would only deepen divergence. Events already seen
+    /// (in `processedEventIds`) are skipped by `handleIncomingEvent`, so a
+    /// commit that was received-but-unprocessable (a true fork) is not retried
+    /// here — that case needs the admin re-invite (hard) path.
+    ///
+    /// Returns true if the group is decrypting again after the attempt.
+    @discardableResult
+    func catchUpGroup(groupId: String) async -> Bool {
+        // MPC/background activity may have degraded the socket — a fresh
+        // connection guarantees the one-shot query works.
+        await reconnectRelaysIfNeeded()
+
+        // Bounded lookback rather than all of history: kind-445 also carries
+        // every location update, so an unbounded fetch would be huge. Any
+        // still-relevant missed commit is recent (well inside the 7-day
+        // rotation interval); 30 days is a generous safety margin.
+        let lookbackSecs: UInt64 = 30 * 24 * 3600
+        let nowSecs = UInt64(Date().timeIntervalSince1970)
+        let sinceSecs = nowSecs > lookbackSecs ? nowSecs - lookbackSecs : 0
+
+        do {
+            let filter = Filter()
+                .kind(kind: Kind(kind: MarmotKind.groupEvent))
+                .since(timestamp: Timestamp.fromSecs(secs: sinceSecs))
+            let events = try await relay.fetchEvents(filter: filter, timeout: 10)
+            WhistleLogger.marmot.info("catchUpGroup(\(groupId)): re-processing \(events.count) group event(s)")
+            for event in events {
+                await handleIncomingEvent(event)
+            }
+        } catch {
+            WhistleLogger.marmot.error("catchUpGroup(\(groupId)) fetch failed: \(error)")
+        }
+
+        let healthy = !healthTracker.isUnhealthy(groupId: groupId)
+        WhistleLogger.marmot.info("catchUpGroup(\(groupId)): group is now \(healthy ? "healthy" : "still unhealthy")")
+        return healthy
+    }
+
     // MARK: - Invite Flow
 
     /// Generate a shareable invite code for a group.

@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.2] — 2026-07-09
+
+### Added
+- **Soft group resync** (iOS & Android): the in-chat decryption banner is now actionable. Tapping **Resync** re-fetches and re-processes the group's recent MLS commits (a bounded 30-day window, ignoring the normal `since` high-water mark) so a commit this device never received — because it was offline or its subscription had a gap while the commit sat on the relay — is finally applied and the epoch catches up. The banner clears automatically on success. Deliberately does not self-update (a self-update from a behind device cannot heal a fork). If catch-up does not resolve it — the true-fork case — the banner switches to directing the user to ask an admin to re-invite them (the hard-resync path, planned next).
+
+---
+
 ## [1.6.1] — 2026-07-06
 
 ### Fixed

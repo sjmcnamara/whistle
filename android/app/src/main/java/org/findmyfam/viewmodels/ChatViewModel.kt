@@ -59,6 +59,15 @@ class ChatViewModel(
     private val _memberNames = MutableStateFlow("")
     val memberNames: StateFlow<String> = _memberNames.asStateFlow()
 
+    // Soft-resync (catch-up) state for the decryption banner.
+    private val _isResyncing = MutableStateFlow(false)
+    val isResyncing: StateFlow<Boolean> = _isResyncing.asStateFlow()
+
+    // Set after a resync attempt that ran but did not clear the failures —
+    // signals the UI to point the user at the admin re-invite (hard) path.
+    private val _resyncDidNotResolve = MutableStateFlow(false)
+    val resyncDidNotResolve: StateFlow<Boolean> = _resyncDidNotResolve.asStateFlow()
+
     // --- Pagination ---
 
     private val pageSize: UInt = 50u
@@ -98,6 +107,29 @@ class ChatViewModel(
 
     fun updateDraftText(text: String) {
         _draftText.value = text
+    }
+
+    // --- Resync ---
+
+    /**
+     * Soft resync triggered from the decryption banner: re-fetch and
+     * re-process this group's recent commits so a missed epoch advance can be
+     * applied. On success the health tracker clears the banner automatically;
+     * on failure we flag the UI to suggest the admin re-invite path.
+     */
+    fun resync() {
+        if (_isResyncing.value) return
+        scope.launch {
+            _isResyncing.value = true
+            _resyncDidNotResolve.value = false
+            val healthy = marmot.catchUpGroup(groupId)
+            if (healthy) {
+                loadMessages()
+            } else {
+                _resyncDidNotResolve.value = true
+            }
+            _isResyncing.value = false
+        }
     }
 
     // --- Load messages ---

@@ -37,6 +37,8 @@ fun GroupChatScreen(
     val isSending by chatViewModel.isSending.collectAsState()
     val memberNames by chatViewModel.memberNames.collectAsState()
     val error by chatViewModel.error.collectAsState()
+    val isResyncing by chatViewModel.isResyncing.collectAsState()
+    val resyncDidNotResolve by chatViewModel.resyncDidNotResolve.collectAsState()
     val focusManager = LocalFocusManager.current
 
     val listState = rememberLazyListState()
@@ -95,18 +97,40 @@ fun GroupChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Epoch mismatch warning banner
+            // Epoch mismatch warning banner — tap Resync to catch up on a
+            // missed commit; if that doesn't clear it, point at admin re-invite.
             if (isUnhealthy) {
+                val bannerText = when {
+                    isResyncing -> "Resyncing…"
+                    resyncDidNotResolve -> "Still out of sync. Ask a group admin to re-invite you to resync."
+                    else -> "Some messages couldn't be decrypted. Tap Resync to catch up."
+                }
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Encryption key mismatch detected. Messages may not be delivered.",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 12.sp,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                    ) {
+                        Text(
+                            text = bannerText,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isResyncing) {
+                            CircularProgressIndicator(
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        } else if (!resyncDidNotResolve) {
+                            TextButton(onClick = { chatViewModel.resync() }) {
+                                Text("Resync", fontSize = 12.sp)
+                            }
+                        }
+                    }
                 }
             }
 

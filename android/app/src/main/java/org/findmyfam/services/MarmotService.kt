@@ -1014,6 +1014,53 @@ class MarmotService @Inject constructor(
         }
     }
 
+    /**
+     * Soft resync: re-fetch recent group (kind-445) events ignoring the normal
+     * `since` high-water mark and re-process them, so a commit this device
+     * never received — because it was offline or its subscription had a gap
+     * while the commit sat on the relay — can finally be applied and the local
+     * epoch caught up. This is why v1.6.1's publish-verify matters: the missed
+     * commit is now reliably retrievable.
+     *
+     * Deliberately does NOT self-update: a self-update from a behind device
+     * cannot heal a fork and would only deepen divergence. Events already seen
+     * (in processedEventIds) are skipped by handleIncomingEvent, so a commit
+     * that was received-but-unprocessable (a true fork) is not retried here —
+     * that case needs the admin re-invite (hard) path.
+     *
+     * Returns true if the group is decrypting again after the attempt.
+     */
+    suspend fun catchUpGroup(groupId: String): Boolean {
+        // MPC/background activity may have degraded the socket — a fresh
+        // connection guarantees the one-shot query works.
+        reconnectRelaysIfNeeded()
+
+        // Bounded lookback rather than all of history: kind-445 also carries
+        // every location update, so an unbounded fetch would be huge. Any
+        // still-relevant missed commit is recent (well inside the 7-day
+        // rotation interval); 30 days is a generous safety margin.
+        val lookbackSecs = 30L * 24 * 3600
+        val nowSecs = System.currentTimeMillis() / 1000
+        val sinceSecs = (if (nowSecs > lookbackSecs) nowSecs - lookbackSecs else 0L).toULong()
+
+        try {
+            val filter = Filter()
+                .kind(kind = Kind(kind = MarmotKind.GROUP_EVENT))
+                .since(timestamp = Timestamp.fromSecs(secs = sinceSecs))
+            val events = relay.fetchEvents(filter = filter, timeout = java.time.Duration.ofSeconds(10))
+            Timber.i("catchUpGroup($groupId): re-processing ${events.size} group event(s)")
+            for (event in events) {
+                handleIncomingEvent(event)
+            }
+        } catch (e: Exception) {
+            Timber.e("catchUpGroup($groupId) fetch failed: $e")
+        }
+
+        val healthy = !healthTracker.isUnhealthy(groupId)
+        Timber.i("catchUpGroup($groupId): group is now ${if (healthy) "healthy" else "still unhealthy"}")
+        return healthy
+    }
+
     // --- Invite Flow ---
 
     /**
