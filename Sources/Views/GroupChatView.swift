@@ -87,13 +87,39 @@ struct GroupChatView: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.white)
-            Text("Some messages couldn't be decrypted. A member may need to be re-invited to resync.")
+            Text(bannerMessage)
                 .font(.caption)
                 .foregroundStyle(.white)
+            Spacer(minLength: 8)
+            if viewModel.isResyncing {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+            } else if !viewModel.resyncDidNotResolve {
+                Button("Resync") {
+                    Task { await viewModel.resync() }
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.2), in: Capsule())
+                .buttonStyle(.plain)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.red.opacity(0.85))
+    }
+
+    private var bannerMessage: String {
+        if viewModel.isResyncing {
+            return "Resyncing…"
+        }
+        if viewModel.resyncDidNotResolve {
+            return "Still out of sync. Ask a group admin to re-invite you to resync."
+        }
+        return "Some messages couldn't be decrypted. Tap Resync to catch up."
     }
 
     private var messageList: some View {

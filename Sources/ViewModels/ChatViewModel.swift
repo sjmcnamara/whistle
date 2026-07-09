@@ -16,6 +16,12 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var error: String?
     @Published private(set) var memberNames: String = ""
 
+    /// Soft-resync (catch-up) state for the decryption banner.
+    @Published private(set) var isResyncing = false
+    /// Set after a resync attempt that ran but did not clear the failures —
+    /// signals the UI to point the user at the admin re-invite (hard) path.
+    @Published private(set) var resyncDidNotResolve = false
+
     // MARK: - Item model
 
     struct ChatMessageItem: Identifiable, Equatable {
@@ -98,6 +104,25 @@ final class ChatViewModel: ObservableObject {
                 isMe: msg.isMe
             )
         }
+    }
+
+    // MARK: - Resync
+
+    /// Soft resync triggered from the decryption banner: re-fetch and
+    /// re-process this group's recent commits so a missed epoch advance can be
+    /// applied. On success the health tracker clears the banner automatically;
+    /// on failure we flag the UI to suggest the admin re-invite path.
+    func resync() async {
+        guard !isResyncing else { return }
+        isResyncing = true
+        resyncDidNotResolve = false
+        let healthy = await marmot.catchUpGroup(groupId: groupId)
+        if healthy {
+            await loadMessages()
+        } else {
+            resyncDidNotResolve = true
+        }
+        isResyncing = false
     }
 
     // MARK: - Load messages

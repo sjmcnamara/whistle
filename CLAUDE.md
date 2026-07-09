@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.6.1 — MLS commit relay verification** (bugfix). See ROADMAP.md for next steps.
+Current version: **v1.6.2 — soft group resync** (feature). See ROADMAP.md for next steps.
