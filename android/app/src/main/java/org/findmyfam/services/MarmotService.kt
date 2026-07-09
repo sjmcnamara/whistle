@@ -1026,14 +1026,24 @@ class MarmotService @Inject constructor(
      * cannot heal a fork and would only deepen divergence. Events already seen
      * (in processedEventIds) are skipped by handleIncomingEvent, so a commit
      * that was received-but-unprocessable (a true fork) is not retried here —
-     * that case needs the admin re-invite (hard) path.
+     * MDK also permanently marks such a message PreviouslyFailed and refuses to
+     * re-apply it. Both cases need the admin re-invite (hard) path.
      *
-     * Returns true if the group is decrypting again after the attempt.
+     * Success is measured by whether the local epoch advanced — i.e. a missed
+     * commit was actually applied — NOT by the health tracker. The 30-day
+     * window can contain an old pre-desync application message that decrypts
+     * fine and would spuriously clear the banner via recordSuccess while the
+     * group stays behind on the current epoch. Epoch delta is the only signal
+     * that reflects real recovery.
+     *
+     * Returns true if a missed commit was applied (the group caught up).
      */
     suspend fun catchUpGroup(groupId: String): Boolean {
         // MPC/background activity may have degraded the socket — a fresh
         // connection guarantees the one-shot query works.
         reconnectRelaysIfNeeded()
+
+        val epochBefore = mls.getGroup(groupId)?.epoch ?: 0u
 
         // Bounded lookback rather than all of history: kind-445 also carries
         // every location update, so an unbounded fetch would be huge. Any
@@ -1056,9 +1066,16 @@ class MarmotService @Inject constructor(
             Timber.e("catchUpGroup($groupId) fetch failed: $e")
         }
 
-        val healthy = !healthTracker.isUnhealthy(groupId)
-        Timber.i("catchUpGroup($groupId): group is now ${if (healthy) "healthy" else "still unhealthy"}")
-        return healthy
+        val epochAfter = mls.getGroup(groupId)?.epoch ?: epochBefore
+        val recovered = epochAfter > epochBefore
+        if (recovered) {
+            // A missed commit was applied — we're back on the shared epoch.
+            // Clear any residual failure count that other events re-processed in
+            // the window may have recorded during the pass.
+            healthTracker.recordSuccess(groupId = groupId)
+        }
+        Timber.i("catchUpGroup($groupId): epoch $epochBefore -> $epochAfter, recovered=$recovered")
+        return recovered
     }
 
     // --- Invite Flow ---

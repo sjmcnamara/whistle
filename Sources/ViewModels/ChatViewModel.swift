@@ -116,8 +116,8 @@ final class ChatViewModel: ObservableObject {
         guard !isResyncing else { return }
         isResyncing = true
         resyncDidNotResolve = false
-        let healthy = await marmot.catchUpGroup(groupId: groupId)
-        if healthy {
+        let recovered = await marmot.catchUpGroup(groupId: groupId)
+        if recovered {
             await loadMessages()
         } else {
             resyncDidNotResolve = true
