@@ -122,8 +122,8 @@ class ChatViewModel(
         scope.launch {
             _isResyncing.value = true
             _resyncDidNotResolve.value = false
-            val healthy = marmot.catchUpGroup(groupId)
-            if (healthy) {
+            val recovered = marmot.catchUpGroup(groupId)
+            if (recovered) {
                 loadMessages()
             } else {
                 _resyncDidNotResolve.value = true

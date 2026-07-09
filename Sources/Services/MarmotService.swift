@@ -1132,14 +1132,24 @@ final class MarmotService: ObservableObject {
     /// cannot heal a fork and would only deepen divergence. Events already seen
     /// (in `processedEventIds`) are skipped by `handleIncomingEvent`, so a
     /// commit that was received-but-unprocessable (a true fork) is not retried
-    /// here — that case needs the admin re-invite (hard) path.
+    /// here — MDK also permanently marks such a message `.previouslyFailed` and
+    /// refuses to re-apply it. Both cases need the admin re-invite (hard) path.
     ///
-    /// Returns true if the group is decrypting again after the attempt.
+    /// Success is measured by whether the local epoch advanced — i.e. a missed
+    /// commit was actually applied — NOT by the health tracker. The 30-day
+    /// window can contain an old pre-desync application message that decrypts
+    /// fine and would spuriously clear the banner via `recordSuccess` while the
+    /// group stays behind on the current epoch. Epoch delta is the only signal
+    /// that reflects real recovery.
+    ///
+    /// Returns true if a missed commit was applied (the group caught up).
     @discardableResult
     func catchUpGroup(groupId: String) async -> Bool {
         // MPC/background activity may have degraded the socket — a fresh
         // connection guarantees the one-shot query works.
         await reconnectRelaysIfNeeded()
+
+        let epochBefore = (try? await mls.getGroup(mlsGroupId: groupId))?.epoch ?? 0
 
         // Bounded lookback rather than all of history: kind-445 also carries
         // every location update, so an unbounded fetch would be huge. Any
@@ -1162,9 +1172,16 @@ final class MarmotService: ObservableObject {
             WhistleLogger.marmot.error("catchUpGroup(\(groupId)) fetch failed: \(error)")
         }
 
-        let healthy = !healthTracker.isUnhealthy(groupId: groupId)
-        WhistleLogger.marmot.info("catchUpGroup(\(groupId)): group is now \(healthy ? "healthy" : "still unhealthy")")
-        return healthy
+        let epochAfter = (try? await mls.getGroup(mlsGroupId: groupId))?.epoch ?? epochBefore
+        let recovered = epochAfter > epochBefore
+        if recovered {
+            // A missed commit was applied — we're back on the shared epoch.
+            // Clear any residual failure count that other events re-processed in
+            // the window may have recorded during the pass.
+            healthTracker.recordSuccess(groupId: groupId)
+        }
+        WhistleLogger.marmot.info("catchUpGroup(\(groupId)): epoch \(epochBefore) → \(epochAfter), recovered=\(recovered)")
+        return recovered
     }
 
     // MARK: - Invite Flow
