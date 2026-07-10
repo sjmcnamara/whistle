@@ -252,15 +252,7 @@ class GroupDetailViewModel(
     fun removeMember(pubkeyHex: String) {
         scope.launch {
             try {
-                val result = mls.removeMembers(
-                    mlsGroupId = groupId,
-                    memberPublicKeys = listOf(pubkeyHex)
-                )
-                mls.mergePendingCommit(mlsGroupId = groupId)
-
-                // Publish the evolution event
-                val evolutionEventJson = result.evolutionEventJson
-                marmot.publishGroupEvent(evolutionEventJson)
+                marmot.removeMember(pubkeyHex = pubkeyHex, groupId = groupId)
 
                 // Clear the leave request since it's processed
                 settings?.removePendingLeaveRequest(groupId, pubkeyHex)

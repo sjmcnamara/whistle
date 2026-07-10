@@ -11,6 +11,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **Hard group resync** (iOS & Android): admins get a **Resync** action on each member row in Group Details for the true-fork case that soft catch-up can't reach (a commit the member merged that others never got — MDK marks it `previouslyFailed` and won't re-apply). Behind a confirmation, it removes the member and immediately re-adds them with a fresh key package, rebuilding their leaf in the MLS ratchet tree. Ordering is deliberate — the key package is fetched first, so a member is never removed unless they can be re-added; if the re-add still fails, the error prompts a retry rather than leaving them stranded. Both the remove and re-add commits are verified on the relay (the v1.6.1 anti-fork check). This completes the resync story started in v1.6.2: soft catch-up for a missed commit, hard re-invite for a genuine fork.
 
+### Fixed
+- **Remove-member commit now verified on relay** (iOS & Android): the standalone "Remove member" admin action published its removal commit fire-and-forget — the same gap v1.6.1 closed for self-update and metadata commits, but on the removal path. In a group of three or more, a dropped removal commit stranded the remaining members on the old epoch and desynced decryption. Removal now routes through the same relay-verified publish.
+
 ---
 
 ## [1.6.2] — 2026-07-09

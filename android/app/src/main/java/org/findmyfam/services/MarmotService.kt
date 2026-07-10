@@ -345,6 +345,23 @@ class MarmotService @Inject constructor(
         Timber.d("Gift-wrapped ${welcomeRumors.size} welcome(s) for $receiverHex")
     }
 
+    // --- Remove member ---
+
+    /**
+     * Remove a member from a group — verified commit (v1.6.1 anti-fork). An
+     * unconfirmed removal commit would strand the *remaining* members on the old
+     * epoch (they'd still think the removed member is present) while the admin
+     * advanced, desyncing decryption. Clears the member's cached location.
+     */
+    suspend fun removeMember(pubkeyHex: String, groupId: String) {
+        val result = mls.removeMembers(mlsGroupId = groupId, memberPublicKeys = listOf(pubkeyHex))
+        mls.mergePendingCommit(mlsGroupId = groupId)
+        publishAndVerifyCommit(result.evolutionEventJson)
+        locationCache.removeLocation(groupId, pubkeyHex)
+        refreshGroups()
+        Timber.i("Removed member ${pubkeyHex.take(8)}… from group $groupId")
+    }
+
     // --- Hard resync (fork recovery) ---
 
     /**

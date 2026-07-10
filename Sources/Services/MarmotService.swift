@@ -392,6 +392,21 @@ final class MarmotService: ObservableObject {
         WhistleLogger.marmot.debug("Gift-wrapped \(welcomeRumors.count) welcome(s) for \(receiverHex)")
     }
 
+    // MARK: - Remove member
+
+    /// Remove a member from a group — verified commit (v1.6.1 anti-fork). An
+    /// unconfirmed removal commit would strand the *remaining* members on the old
+    /// epoch (they'd still think the removed member is present) while the admin
+    /// advanced, desyncing decryption. Clears the member's cached location.
+    func removeMember(publicKeyHex memberHex: String, inGroup groupId: String) async throws {
+        let result = try await mls.removeMembers(groupId: groupId, memberPublicKeys: [memberHex])
+        try await mls.mergePendingCommit(groupId: groupId)
+        try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+        locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: memberHex)
+        await refreshGroups()
+        WhistleLogger.marmot.info("Removed member \(memberHex.prefix(8))… from group \(groupId)")
+    }
+
     // MARK: - Hard resync (fork recovery)
 
     /// Hard resync: remove a member and immediately re-add them with a fresh key

@@ -244,27 +244,14 @@ final class GroupDetailViewModel: ObservableObject {
     /// Remove a member from the group. Only admins can do this.
     func removeMember(pubkeyHex: String) async {
         do {
-            let result = try await mls.removeMembers(
-                groupId: groupId,
-                memberPublicKeys: [pubkeyHex]
-            )
-            try await mls.mergePendingCommit(groupId: groupId)
+            try await marmot.removeMember(publicKeyHex: pubkeyHex, inGroup: groupId)
 
-            // Publish the evolution event
-            let payload = result.publishPayload(relayURLs: marmot.activeRelayURLs)
-            for eventJson in payload.events {
-                try await marmot.publishGroupEvent(eventJson: eventJson)
-            }
+            // Clear the leave request since it's processed
+            marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
 
             // Reload member list
             await load()
             WhistleLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
-
-            // Clear only the removed member's location (not all members in group)
-            marmot.locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: pubkeyHex)
-
-            // Clear the leave request since it's processed
-            marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
         } catch {
             self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to remove member: \(error)")
