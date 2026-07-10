@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.6.3 — hard group resync** (feature). See ROADMAP.md for next steps.
+Current version: **v1.6.4 — chat pagination fix** (bugfix). See ROADMAP.md for next steps.

@@ -479,6 +479,7 @@ master
   └── feature/v1.6.2-soft-resync          ✅ merged (v1.6.2 — banner-triggered catch-up)
   └── fix/v1.6.2-resync-epoch-detection   ✅ merged (v1.6.2 follow-up — epoch-delta success check)
   └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
+  └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
 ```
 
 ---

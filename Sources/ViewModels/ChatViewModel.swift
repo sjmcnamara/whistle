@@ -45,8 +45,16 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Pagination
 
     private let pageSize: UInt32 = 50
+    /// Offset into the RAW message store (all inner kinds — chat, location,
+    /// nickname), NOT the count of displayed chat bubbles. Location updates
+    /// dominate the store, so tracking this in displayed-chat units would make
+    /// paging overlap itself and stall.
     private var currentOffset: UInt32 = 0
+    /// Safety cap on raw pages scanned in a single `loadMore` when a chat-sparse
+    /// history is mostly location updates (1000 raw messages / tap).
+    private let maxPagesPerLoadMore = 20
     @Published private(set) var hasMore = false
+    @Published private(set) var isLoadingMore = false
 
     // MARK: - Init
 
@@ -139,7 +147,9 @@ final class ChatViewModel: ObservableObject {
             // MDK returns newest-first; reverse so oldest is at the top
             // and newest at the bottom (natural chat order).
             messages = mdkMessages.compactMap { mapMessage($0) }.reversed()
-            currentOffset = UInt32(messages.count)
+            // Advance by the RAW page size consumed, not the mapped chat count —
+            // the offset indexes the raw store (see `currentOffset`).
+            currentOffset = UInt32(mdkMessages.count)
             hasMore = mdkMessages.count == Int(pageSize)
             error = nil
         } catch {
@@ -148,24 +158,43 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    /// Load the next page of older messages (prepend to list).
+    /// Load older messages and prepend them. Because location updates dominate
+    /// the raw store, a single raw page can contain zero chat messages — so this
+    /// keeps paging (advancing the raw offset) until it gathers at least one chat
+    /// bubble or reaches the start of history, up to a bounded scan.
     func loadMore() async {
-        guard hasMore else { return }
-        do {
-            let mdkMessages = try await mls.getMessages(
-                groupId: groupId,
-                limit: pageSize,
-                offset: currentOffset,
-                sortOrder: MLSSortOrder.createdAtFirst
-            )
-            // MDK returns newest-first; reverse for chronological order
-            let newItems = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
-            // Prepend older messages at the top
-            messages.insert(contentsOf: newItems, at: 0)
-            currentOffset += UInt32(newItems.count)
-            hasMore = mdkMessages.count == Int(pageSize)
-        } catch {
-            WhistleLogger.chat.error("Failed to load more messages: \(error)")
+        guard hasMore, !isLoadingMore else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        var collected: [ChatMessageItem] = []
+        var pages = 0
+        while hasMore, collected.isEmpty, pages < maxPagesPerLoadMore {
+            pages += 1
+            do {
+                let mdkMessages = try await mls.getMessages(
+                    groupId: groupId,
+                    limit: pageSize,
+                    offset: currentOffset,
+                    sortOrder: MLSSortOrder.createdAtFirst
+                )
+                // Advance by the RAW count so successive pages don't overlap.
+                currentOffset += UInt32(mdkMessages.count)
+                hasMore = mdkMessages.count == Int(pageSize)
+                // Older page → its bubbles belong above anything gathered so far.
+                let mapped = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
+                collected.insert(contentsOf: mapped, at: 0)
+            } catch {
+                WhistleLogger.chat.error("Failed to load more messages: \(error)")
+                return
+            }
+        }
+
+        // Dedupe against what's already shown (guards any overlap) and prepend.
+        let existing = Set(messages.map(\.id))
+        let fresh = collected.filter { !existing.contains($0.id) }
+        if !fresh.isEmpty {
+            messages.insert(contentsOf: fresh, at: 0)
         }
     }
 

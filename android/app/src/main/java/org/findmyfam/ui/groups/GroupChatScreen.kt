@@ -50,8 +50,10 @@ fun GroupChatScreen(
         chatViewModel.loadMemberNames()
     }
 
-    // Scroll to bottom on new messages
-    LaunchedEffect(messages.size) {
+    // Scroll to bottom only when a message is appended (the last id changes) —
+    // NOT when older messages are prepended by loadMore, which would otherwise
+    // snap the view back to the bottom and hide what was just loaded.
+    LaunchedEffect(messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
@@ -142,11 +144,30 @@ fun GroupChatScreen(
                     .fillMaxWidth(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                // Load more trigger
-                item {
-                    if (chatViewModel.hasMore) {
-                        LaunchedEffect(Unit) {
-                            chatViewModel.loadMore()
+                // Load earlier messages — explicit, so it can't get stuck the way
+                // a one-shot LaunchedEffect trigger did.
+                if (chatViewModel.hasMore) {
+                    item {
+                        val isLoadingMore by chatViewModel.isLoadingMore.collectAsState()
+                        TextButton(
+                            onClick = {
+                                val prevSize = messages.size
+                                coroutineScope.launch {
+                                    chatViewModel.loadMore()
+                                    val added = chatViewModel.messages.value.size - prevSize
+                                    // Hold position: keep the previously-top message
+                                    // in view, with the newly loaded ones above it.
+                                    if (added > 0) listState.scrollToItem(added + 1)
+                                }
+                            },
+                            enabled = !isLoadingMore,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isLoadingMore) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text("Load earlier messages", fontSize = 12.sp)
+                            }
                         }
                     }
                 }

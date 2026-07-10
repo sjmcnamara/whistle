@@ -6,7 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [1.6.3] — 2026-07-09
+## [1.6.4] — 2026-07-10
+
+### Fixed
+- **"Load earlier messages" in group chat** (iOS & Android): paging older chat history was unreliable and often did nothing. Two compounding bugs: (1) the paging offset was advanced by the number of *displayed chat bubbles*, but it indexes the raw message store — which is dominated by frequent location updates — so successive pages overlapped and barely progressed (sometimes not at all, and could duplicate messages); (2) the chat view scrolled back to the newest message on *any* change, including when older messages were prepended, so even a successful load snapped away from what it just loaded. The offset now advances by the raw page size, `loadMore` keeps paging until it surfaces at least one older chat message (bounded), results are de-duplicated, and the view holds position on prepend (only auto-scrolling to the bottom when a message is actually sent or received). On Android the one-shot auto-trigger that could get permanently stuck is replaced with an explicit, reliable button.
 
 ### Added
 - **Hard group resync** (iOS & Android): admins get a **Resync** action on each member row in Group Details for the true-fork case that soft catch-up can't reach (a commit the member merged that others never got — MDK marks it `previouslyFailed` and won't re-apply). Behind a confirmation, it removes the member and immediately re-adds them with a fresh key package, rebuilding their leaf in the MLS ratchet tree. Ordering is deliberate — the key package is fetched first, so a member is never removed unless they can be re-added; if the re-add still fails, the error prompts a retry rather than leaving them stranded. Both the remove and re-add commits are verified on the relay (the v1.6.1 anti-fork check). This completes the resync story started in v1.6.2: soft catch-up for a missed commit, hard re-invite for a genuine fork.

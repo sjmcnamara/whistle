@@ -71,9 +71,19 @@ class ChatViewModel(
     // --- Pagination ---
 
     private val pageSize: UInt = 50u
+    // Offset into the RAW message store (all inner kinds — chat, location,
+    // nickname), NOT the count of displayed chat bubbles. Location updates
+    // dominate the store, so tracking this in displayed-chat units would make
+    // paging overlap itself and stall.
     private var currentOffset: UInt = 0u
+    // Safety cap on raw pages scanned in a single loadMore when a chat-sparse
+    // history is mostly location updates (1000 raw messages / call).
+    private val maxPagesPerLoadMore = 20
     private var _hasMore = true
     val hasMore: Boolean get() = _hasMore
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -143,7 +153,9 @@ class ChatViewModel(
                 sortOrder = "created_at_first"
             )
             _messages.value = mdkMessages.mapNotNull { mapMessage(it) }.reversed()
-            currentOffset = _messages.value.size.toUInt()
+            // Advance by the RAW page size consumed, not the mapped chat count —
+            // the offset indexes the raw store (see currentOffset).
+            currentOffset = mdkMessages.size.toUInt()
             _hasMore = mdkMessages.size == pageSize.toInt()
             _error.value = null
         } catch (e: Exception) {
@@ -152,21 +164,42 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Load older messages and prepend them. Because location updates dominate
+     * the raw store, a single raw page can contain zero chat messages — so this
+     * keeps paging (advancing the raw offset) until it gathers at least one chat
+     * bubble or reaches the start of history, up to a bounded scan.
+     */
     suspend fun loadMore() {
-        if (!_hasMore) return
+        if (!_hasMore || _isLoadingMore.value) return
+        _isLoadingMore.value = true
         try {
-            val mdkMessages = mls.getMessages(
-                mlsGroupId = groupId,
-                limit = pageSize,
-                offset = currentOffset,
-                sortOrder = "created_at_first"
-            )
-            val newItems = mdkMessages.mapNotNull { mapMessage(it) }.reversed()
-            _messages.value = newItems + _messages.value
-            currentOffset += newItems.size.toUInt()
-            _hasMore = mdkMessages.size == pageSize.toInt()
+            val collected = mutableListOf<ChatMessageItem>()
+            var pages = 0
+            while (_hasMore && collected.isEmpty() && pages < maxPagesPerLoadMore) {
+                pages++
+                val mdkMessages = mls.getMessages(
+                    mlsGroupId = groupId,
+                    limit = pageSize,
+                    offset = currentOffset,
+                    sortOrder = "created_at_first"
+                )
+                // Advance by the RAW count so successive pages don't overlap.
+                currentOffset += mdkMessages.size.toUInt()
+                _hasMore = mdkMessages.size == pageSize.toInt()
+                // Older page → its bubbles belong above anything gathered so far.
+                collected.addAll(0, mdkMessages.mapNotNull { mapMessage(it) }.reversed())
+            }
+            // Dedupe against what's already shown (guards any overlap) and prepend.
+            val existing = _messages.value.map { it.id }.toSet()
+            val fresh = collected.filter { it.id !in existing }
+            if (fresh.isNotEmpty()) {
+                _messages.value = fresh + _messages.value
+            }
         } catch (e: Exception) {
             Timber.e("Failed to load more messages: $e")
+        } finally {
+            _isLoadingMore.value = false
         }
     }
 
