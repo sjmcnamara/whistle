@@ -73,6 +73,10 @@ class GroupDetailViewModel(
     private val _leaveRequestMembers = MutableStateFlow<Set<String>>(emptySet())
     val leaveRequestMembers: StateFlow<Set<String>> = _leaveRequestMembers.asStateFlow()
 
+    /** Pubkey currently being hard-resynced (remove + re-add), for per-row spinner. */
+    private val _resyncingMemberPubkey = MutableStateFlow<String?>(null)
+    val resyncingMemberPubkey: StateFlow<String?> = _resyncingMemberPubkey.asStateFlow()
+
     /** Invitees who gift-wrapped a join-request for this group, awaiting the admin's add. */
     private val _pendingJoiners = MutableStateFlow<List<org.findmyfam.shared.models.JoinRequest>>(emptyList())
     val pendingJoiners: StateFlow<List<org.findmyfam.shared.models.JoinRequest>> = _pendingJoiners.asStateFlow()
@@ -248,15 +252,7 @@ class GroupDetailViewModel(
     fun removeMember(pubkeyHex: String) {
         scope.launch {
             try {
-                val result = mls.removeMembers(
-                    mlsGroupId = groupId,
-                    memberPublicKeys = listOf(pubkeyHex)
-                )
-                mls.mergePendingCommit(mlsGroupId = groupId)
-
-                // Publish the evolution event
-                val evolutionEventJson = result.evolutionEventJson
-                marmot.publishGroupEvent(evolutionEventJson)
+                marmot.removeMember(pubkeyHex = pubkeyHex, groupId = groupId)
 
                 // Clear the leave request since it's processed
                 settings?.removePendingLeaveRequest(groupId, pubkeyHex)
@@ -267,6 +263,30 @@ class GroupDetailViewModel(
             } catch (e: Exception) {
                 _error.value = e.message
                 Timber.e("Failed to remove member: $e")
+            }
+        }
+    }
+
+    /**
+     * Hard resync a member: remove + re-add to rebuild their ratchet-tree leaf,
+     * curing a fork that soft catch-up cannot. Admin-only. On failure (including
+     * a re-add that failed after removal), surfaces the error so the UI can
+     * prompt a retry — tapping Resync again re-adds the now-removed member.
+     */
+    fun resyncMember(pubkeyHex: String) {
+        if (_resyncingMemberPubkey.value != null) return
+        scope.launch {
+            _resyncingMemberPubkey.value = pubkeyHex
+            try {
+                marmot.resyncMember(pubkeyHex = pubkeyHex, groupId = groupId)
+                _error.value = null
+                load()
+                Timber.i("Hard-resynced member ${pubkeyHex.take(8)} in group $groupId")
+            } catch (e: Exception) {
+                _error.value = e.message
+                Timber.e("Failed to resync member: $e")
+            } finally {
+                _resyncingMemberPubkey.value = null
             }
         }
     }

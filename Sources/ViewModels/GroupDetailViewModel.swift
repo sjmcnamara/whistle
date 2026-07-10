@@ -25,6 +25,9 @@ final class GroupDetailViewModel: ObservableObject {
     @Published var isRenaming = false
     @Published private(set) var leaveRequestMembers: Set<String> = []  // pubkeys wanting to leave
 
+    /// Pubkey currently being hard-resynced (remove + re-add), for per-row spinner.
+    @Published private(set) var resyncingMemberPubkey: String?
+
     /// Invitees who gift-wrapped a join-request for this group, awaiting the admin's add.
     @Published private(set) var pendingJoiners: [JoinRequest] = []
 
@@ -241,27 +244,14 @@ final class GroupDetailViewModel: ObservableObject {
     /// Remove a member from the group. Only admins can do this.
     func removeMember(pubkeyHex: String) async {
         do {
-            let result = try await mls.removeMembers(
-                groupId: groupId,
-                memberPublicKeys: [pubkeyHex]
-            )
-            try await mls.mergePendingCommit(groupId: groupId)
+            try await marmot.removeMember(publicKeyHex: pubkeyHex, inGroup: groupId)
 
-            // Publish the evolution event
-            let payload = result.publishPayload(relayURLs: marmot.activeRelayURLs)
-            for eventJson in payload.events {
-                try await marmot.publishGroupEvent(eventJson: eventJson)
-            }
+            // Clear the leave request since it's processed
+            marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
 
             // Reload member list
             await load()
             WhistleLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
-
-            // Clear only the removed member's location (not all members in group)
-            marmot.locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: pubkeyHex)
-
-            // Clear the leave request since it's processed
-            marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
         } catch {
             self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to remove member: \(error)")
@@ -276,6 +266,24 @@ final class GroupDetailViewModel: ObservableObject {
         } catch {
             self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to promote member: \(error)")
+        }
+    }
+
+    /// Hard resync a member: remove + re-add to rebuild their ratchet-tree leaf,
+    /// curing a fork that soft catch-up cannot. Admin-only. On failure (including
+    /// a re-add that failed after removal), surfaces the error so the UI can
+    /// prompt a retry — tapping Resync again re-adds the now-removed member.
+    func resyncMember(pubkeyHex: String) async {
+        guard resyncingMemberPubkey == nil else { return }
+        resyncingMemberPubkey = pubkeyHex
+        defer { resyncingMemberPubkey = nil }
+        do {
+            try await marmot.resyncMember(publicKeyHex: pubkeyHex, inGroup: groupId)
+            await load()
+            WhistleLogger.chat.info("Hard-resynced \(pubkeyHex.prefix(8)) in group \(self.groupId)")
+        } catch {
+            self.error = error.localizedDescription
+            WhistleLogger.chat.error("Failed to resync member: \(error)")
         }
     }
 
