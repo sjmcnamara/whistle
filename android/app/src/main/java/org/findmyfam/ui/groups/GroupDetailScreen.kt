@@ -63,6 +63,8 @@ fun GroupDetailScreen(
     var renameText by remember { mutableStateOf("") }
     var subScreen by remember { mutableStateOf("main") } // main | members | addNpub
     var submittingAdd by remember { mutableStateOf(false) }
+    var resyncTargetPubkey by remember { mutableStateOf<String?>(null) }
+    val resyncingPubkey by viewModel.resyncingMemberPubkey.collectAsState()
 
     val context = LocalContext.current
     val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
@@ -86,6 +88,8 @@ fun GroupDetailScreen(
             isAdmin = viewModel.isAdmin,
             onPromote = { viewModel.promoteToAdmin(it) },
             onRemove = { viewModel.removeMember(it) },
+            onResync = { resyncTargetPubkey = it },
+            resyncingPubkey = resyncingPubkey,
             onBack = { subScreen = "main" }
         )
         return
@@ -300,7 +304,9 @@ fun GroupDetailScreen(
                         wantsToLeave = member.pubkeyHex in leaveRequestMembers,
                         canManage = viewModel.isAdmin && !isLarge,
                         onPromote = { viewModel.promoteToAdmin(it) },
-                        onRemove = { viewModel.removeMember(it) }
+                        onRemove = { viewModel.removeMember(it) },
+                        onResync = { resyncTargetPubkey = it },
+                        resyncingPubkey = resyncingPubkey
                     )
                 }
                 if (isLarge) {
@@ -376,6 +382,23 @@ fun GroupDetailScreen(
         )
     }
 
+    // Hard-resync confirmation dialog
+    resyncTargetPubkey?.let { target ->
+        val name = members.firstOrNull { it.pubkeyHex == target }?.displayName ?: "this member"
+        AlertDialog(
+            onDismissRequest = { resyncTargetPubkey = null },
+            title = { Text("Resync $name?") },
+            text = { Text("They'll be briefly removed and re-added to rebuild encryption keys. Use this only if messages still can't be decrypted after a normal resync.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.resyncMember(target)
+                    resyncTargetPubkey = null
+                }) { Text("Resync") }
+            },
+            dismissButton = { TextButton(onClick = { resyncTargetPubkey = null }) { Text("Cancel") } }
+        )
+    }
+
     // Invite share sheet
     if (showInviteSheet && inviteCode != null) {
         InviteShareSheet(inviteCode = inviteCode ?: "", onDismiss = { showInviteSheet = false })
@@ -399,8 +422,11 @@ private fun MemberListItem(
     wantsToLeave: Boolean,
     canManage: Boolean,
     onPromote: (String) -> Unit,
-    onRemove: (String) -> Unit
+    onRemove: (String) -> Unit,
+    onResync: (String) -> Unit,
+    resyncingPubkey: String?
 ) {
+    val isResyncing = resyncingPubkey == member.pubkeyHex
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -428,6 +454,8 @@ private fun MemberListItem(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Approve")
                     }
+                } else if (isResyncing) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 } else {
                     Row {
                         if (!member.isAdmin) {
@@ -435,6 +463,10 @@ private fun MemberListItem(
                                 Icon(Icons.Default.Shield, contentDescription = "Make admin",
                                     tint = MaterialTheme.colorScheme.primary)
                             }
+                        }
+                        IconButton(onClick = { onResync(member.pubkeyHex) }, enabled = resyncingPubkey == null) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Resync member",
+                                tint = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { onRemove(member.pubkeyHex) }) {
                             Icon(Icons.Default.PersonRemove, contentDescription = "Remove",
@@ -456,6 +488,8 @@ private fun MembersSubScreen(
     isAdmin: Boolean,
     onPromote: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onResync: (String) -> Unit,
+    resyncingPubkey: String?,
     onBack: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
@@ -493,7 +527,9 @@ private fun MembersSubScreen(
                         wantsToLeave = member.pubkeyHex in leaveRequestMembers,
                         canManage = isAdmin,
                         onPromote = onPromote,
-                        onRemove = onRemove
+                        onRemove = onRemove,
+                        onResync = onResync,
+                        resyncingPubkey = resyncingPubkey
                     )
                 }
             }

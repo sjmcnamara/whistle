@@ -289,6 +289,12 @@ private struct MemberRowView: View {
     /// manage from the dedicated "See all" screen.
     var allowManage: Bool = true
 
+    @State private var showResyncConfirm = false
+
+    private var isResyncing: Bool {
+        viewModel.resyncingMemberPubkey == member.pubkeyHex
+    }
+
     var body: some View {
         HStack {
             Image(systemName: member.isMe ? "person.crop.circle.fill" : "person.circle")
@@ -309,9 +315,16 @@ private struct MemberRowView: View {
                         Label("Wants to leave", systemImage: "arrow.right.circle.fill")
                             .font(.caption).foregroundStyle(.orange)
                     }
+                    if isResyncing {
+                        Label("Resyncing…", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
             Spacer()
+            if isResyncing {
+                ProgressView().controlSize(.small)
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if allowManage && viewModel.isAdmin && !member.isMe {
@@ -332,14 +345,35 @@ private struct MemberRowView: View {
             }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            if allowManage && viewModel.isAdmin && !member.isMe && !member.isAdmin {
+            if allowManage && viewModel.isAdmin && !member.isMe {
                 Button {
-                    Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
+                    showResyncConfirm = true
                 } label: {
-                    Label("Make Admin", systemImage: "shield.checkered")
+                    Label("Resync", systemImage: "arrow.triangle.2.circlepath")
                 }
-                .tint(.orange)
+                .tint(.indigo)
+
+                if !member.isAdmin {
+                    Button {
+                        Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
+                    } label: {
+                        Label("Make Admin", systemImage: "shield.checkered")
+                    }
+                    .tint(.orange)
+                }
             }
+        }
+        .confirmationDialog(
+            "Resync \(member.displayName)?",
+            isPresented: $showResyncConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Resync") {
+                Task { await viewModel.resyncMember(pubkeyHex: member.pubkeyHex) }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("They'll be briefly removed and re-added to rebuild encryption keys. Use this only if messages still can't be decrypted after a normal resync.")
         }
     }
 }

@@ -133,6 +133,42 @@ class MarmotService @Inject constructor(
         return relay.fetchEvents(filter = filter, timeout = java.time.Duration.ofSeconds(10))
     }
 
+    /**
+     * Fetch a member's key package with exponential-backoff retry, returning its
+     * JSON. The key package may not have propagated to the relay yet (especially
+     * after scanning an invite code, where the publish is deferred). Throws past a
+     * 60s budget, or if no key package is ever seen.
+     */
+    private suspend fun fetchKeyPackageWithRetry(pubkeyHex: String, maxRetries: Int): String {
+        val startTime = System.currentTimeMillis()
+        val globalTimeout = 60_000L
+        Timber.i("Fetching key package for ${pubkeyHex.take(8)}… from ${relay.connectedRelayUrls.value.size} relay(s)")
+
+        var kpEvents: List<Event> = emptyList()
+        for (attempt in 1..maxRetries) {
+            if (System.currentTimeMillis() - startTime > globalTimeout) {
+                throw MarmotException("Operation timed out — could not find key package for this member. Ask them to re-open the app and try again.")
+            }
+            try {
+                kpEvents = fetchKeyPackage(pubkeyHex)
+            } catch (e: Exception) {
+                Timber.w("fetchKeyPackage attempt $attempt failed: ${e.message}")
+                // Continue retrying — relay may be temporarily unavailable
+            }
+            if (kpEvents.isNotEmpty()) {
+                Timber.i("Found key package for ${pubkeyHex.take(8)}… on attempt $attempt")
+                break
+            }
+            if (attempt < maxRetries) {
+                val backoff = min(0.5 * 2.0.pow((attempt - 1).toDouble()), 30.0)
+                Timber.i("Key package not found for ${pubkeyHex.take(8)}… (attempt $attempt/$maxRetries) -- retrying in $backoff s")
+                delay((backoff * 1000).toLong())
+            }
+        }
+        return kpEvents.firstOrNull()?.asJson()
+            ?: throw MarmotException("No key package found for this member. Make sure they have the app open and are connected to the same relay.")
+    }
+
     // --- Kind 445: Group Events ---
 
     /**
@@ -271,37 +307,8 @@ class MarmotService @Inject constructor(
             throw MarmotException("Not connected to any relay — check your connection")
         }
 
-        val startTime = System.currentTimeMillis()
-        val globalTimeout = 60_000L
-
         // 1. Fetch the member's key package with retry.
-        //    The invitee's key package may not have propagated yet (especially
-        //    after scanning an invite code where the publish is deferred).
-        Timber.i("Fetching key package for ${pubkeyHex.take(8)}… from ${relay.connectedRelayUrls.value.size} relay(s)")
-        var kpEvents: List<Event> = emptyList()
-        for (attempt in 1..maxRetries) {
-            if (System.currentTimeMillis() - startTime > globalTimeout) {
-                throw MarmotException("Operation timed out — could not find key package for this member. Ask them to re-open the app and try again.")
-            }
-            try {
-                kpEvents = fetchKeyPackage(pubkeyHex)
-            } catch (e: Exception) {
-                Timber.w("fetchKeyPackage attempt $attempt failed: ${e.message}")
-                // Continue retrying — relay may be temporarily unavailable
-            }
-            if (kpEvents.isNotEmpty()) {
-                Timber.i("Found key package for ${pubkeyHex.take(8)}… on attempt $attempt")
-                break
-            }
-            if (attempt < maxRetries) {
-                val backoff = min(0.5 * 2.0.pow((attempt - 1).toDouble()), 30.0)
-                Timber.i("Key package not found for ${pubkeyHex.take(8)}… (attempt $attempt/$maxRetries) -- retrying in $backoff s")
-                delay((backoff * 1000).toLong())
-            }
-        }
-        val kpEvent = kpEvents.firstOrNull()
-            ?: throw MarmotException("No key package found for this member. Make sure they have the app open and are connected to the same relay.")
-        val kpJson = kpEvent.asJson()
+        val kpJson = fetchKeyPackageWithRetry(pubkeyHex, maxRetries)
 
         // 2. MLS addMembers
         val result = mls.addMembers(mlsGroupId = groupId, keyPackageEventsJson = listOf(kpJson))
@@ -336,6 +343,64 @@ class MarmotService @Inject constructor(
         }
 
         Timber.d("Gift-wrapped ${welcomeRumors.size} welcome(s) for $receiverHex")
+    }
+
+    // --- Hard resync (fork recovery) ---
+
+    /**
+     * Hard resync: remove a member and immediately re-add them with a fresh key
+     * package, rebuilding their leaf in the ratchet tree. This is the only cure
+     * for a true fork — where the member merged a commit others never got — that
+     * soft catch-up (catchUpGroup) cannot reach, because MDK permanently marks
+     * such a commit PreviouslyFailed and refuses to re-apply it.
+     *
+     * Ordering is deliberate: the key package is fetched FIRST, so we never
+     * remove someone we cannot re-add. The only window the member is out of the
+     * group is between a successful remove and the re-add, with their key package
+     * already in hand. If the re-add fails after removal, this throws so the UI
+     * can offer a retry rather than silently stranding them. Both commits are
+     * verified on the relay (v1.6.1 anti-fork).
+     */
+    suspend fun resyncMember(pubkeyHex: String, groupId: String) {
+        if (pubkeyHex == publicKeyHex) throw MarmotException("Cannot resync yourself")
+        if (relay.connectedRelayUrls.value.isEmpty()) {
+            throw MarmotException("Not connected to any relay — check your connection")
+        }
+
+        // 1. Fetch the fresh key package FIRST — abort before touching the group.
+        val kpJson = fetchKeyPackageWithRetry(pubkeyHex, maxRetries = 10)
+
+        // 2. Remove the member — verified commit. Skip if a previous attempt
+        //    already removed them (re-add failed and the admin tapped Resync
+        //    again) — otherwise removeMembers would throw on a non-member.
+        val stillMember = try {
+            pubkeyHex in mls.getMembers(groupId)
+        } catch (e: Exception) {
+            true
+        }
+        if (stillMember) {
+            val removeResult = mls.removeMembers(mlsGroupId = groupId, memberPublicKeys = listOf(pubkeyHex))
+            mls.mergePendingCommit(mlsGroupId = groupId)
+            publishAndVerifyCommit(removeResult.evolutionEventJson)
+            locationCache.removeLocation(groupId, pubkeyHex)
+            Timber.i("Hard resync: removed ${pubkeyHex.take(8)}… from group $groupId")
+        } else {
+            Timber.i("Hard resync: ${pubkeyHex.take(8)}… already removed — re-adding only")
+        }
+
+        // 3. Re-add with the key package already in hand — verified commit + Welcome.
+        try {
+            val addResult = mls.addMembers(mlsGroupId = groupId, keyPackageEventsJson = listOf(kpJson))
+            mls.mergePendingCommit(mlsGroupId = groupId)
+            publishAndVerifyCommit(addResult.evolutionEventJson)
+            giftWrapAndPublishWelcomes(addResult.welcomeRumorsJson ?: emptyList(), pubkeyHex)
+        } catch (e: Exception) {
+            Timber.e("Hard resync: re-add failed after removing ${pubkeyHex.take(8)}…: ${e.message}")
+            throw MarmotException("Removed the member, but re-adding them failed. Tap Resync again to retry.")
+        }
+
+        refreshGroups()
+        Timber.i("Hard resync complete for ${pubkeyHex.take(8)}… in group $groupId")
     }
 
     // --- Batch add (join-requests) ---

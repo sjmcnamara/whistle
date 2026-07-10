@@ -144,6 +144,44 @@ final class MarmotService: ObservableObject {
         return try await relay.fetchEvents(filter: filter, timeout: 10)
     }
 
+    /// Fetch a member's key package with exponential-backoff retry, returning its
+    /// JSON. The invitee's key package may not have propagated to the relay yet
+    /// (especially via NearbyShare, where the publish is deferred until after MPC
+    /// tears down). Throws `.timeout` past a 60s budget, `.noKeyPackageFound` if
+    /// none is ever seen.
+    private func fetchKeyPackageWithRetry(for memberHex: String, maxRetries: Int) async throws -> String {
+        let startTime = Date()
+        let globalTimeout: TimeInterval = 60.0
+        let relayCount = relay.connectedRelayURLs.count
+        WhistleLogger.marmot.info("Fetching key package for \(memberHex.prefix(8))… from \(relayCount) relay(s)")
+
+        var kpEvents: [Event] = []
+        for attempt in 1...maxRetries {
+            if Date().timeIntervalSince(startTime) > globalTimeout {
+                throw MarmotError.timeout
+            }
+            do {
+                kpEvents = try await fetchKeyPackage(for: memberHex)
+            } catch {
+                WhistleLogger.marmot.warning("fetchKeyPackage attempt \(attempt) failed: \(error)")
+                // Continue retrying — relay may be temporarily unavailable
+            }
+            if !kpEvents.isEmpty {
+                WhistleLogger.marmot.info("Found key package for \(memberHex.prefix(8))… on attempt \(attempt)")
+                break
+            }
+            if attempt < maxRetries {
+                let delay = min(0.5 * pow(2.0, Double(attempt - 1)), 30.0)
+                WhistleLogger.marmot.info("Key package not found for \(memberHex.prefix(8))… (attempt \(attempt)/\(maxRetries)) — retrying in \(delay) s")
+                try await Task.sleep(for: .seconds(delay))
+            }
+        }
+        guard let kpEvent = kpEvents.first else {
+            throw MarmotError.noKeyPackageFound(memberHex)
+        }
+        return try kpEvent.asJson()
+    }
+
     // MARK: - Kind 10051 — Key Package Relay List
 
     /// Publish a replaceable key package relay list (kind 10051).
@@ -297,40 +335,8 @@ final class MarmotService: ObservableObject {
             throw MarmotError.noRelaysConnected
         }
 
-        let startTime = Date()
-        let globalTimeout: TimeInterval = 60.0
-
         // 1. Fetch the member's key package.
-        //    Retry with exponential backoff — the invitee's key package may not have
-        //    propagated to the relay yet (especially via NearbyShare where
-        //    the key package publish is deferred until after MPC tears down).
-        let relayCount = relay.connectedRelayURLs.count
-        WhistleLogger.marmot.info("Fetching key package for \(memberHex.prefix(8))… from \(relayCount) relay(s)")
-        var kpEvents: [Event] = []
-        for attempt in 1...maxRetries {
-            if Date().timeIntervalSince(startTime) > globalTimeout {
-                throw MarmotError.timeout
-            }
-            do {
-                kpEvents = try await fetchKeyPackage(for: memberHex)
-            } catch {
-                WhistleLogger.marmot.warning("fetchKeyPackage attempt \(attempt) failed: \(error)")
-                // Continue retrying — relay may be temporarily unavailable
-            }
-            if !kpEvents.isEmpty {
-                WhistleLogger.marmot.info("Found key package for \(memberHex.prefix(8))… on attempt \(attempt)")
-                break
-            }
-            if attempt < maxRetries {
-                let delay = min(0.5 * pow(2.0, Double(attempt - 1)), 30.0)
-                WhistleLogger.marmot.info("Key package not found for \(memberHex.prefix(8))… (attempt \(attempt)/\(maxRetries)) — retrying in \(delay) s")
-                try await Task.sleep(for: .seconds(delay))
-            }
-        }
-        guard let kpEvent = kpEvents.first else {
-            throw MarmotError.noKeyPackageFound(memberHex)
-        }
-        let kpJson = try kpEvent.asJson()
+        let kpJson = try await fetchKeyPackageWithRetry(for: memberHex, maxRetries: maxRetries)
 
         // 2. MLS addMembers
         let result = try await mls.addMembers(groupId: groupId, keyPackageEventsJson: [kpJson])
@@ -384,6 +390,57 @@ final class MarmotService: ObservableObject {
         }
 
         WhistleLogger.marmot.debug("Gift-wrapped \(welcomeRumors.count) welcome(s) for \(receiverHex)")
+    }
+
+    // MARK: - Hard resync (fork recovery)
+
+    /// Hard resync: remove a member and immediately re-add them with a fresh key
+    /// package, rebuilding their leaf in the ratchet tree. This is the only cure
+    /// for a true fork — where the member merged a commit others never got — that
+    /// soft catch-up (`catchUpGroup`) cannot reach, because MDK permanently marks
+    /// such a commit `.previouslyFailed` and refuses to re-apply it.
+    ///
+    /// Ordering is deliberate: the key package is fetched FIRST, so we never
+    /// remove someone we cannot re-add. The only window the member is out of the
+    /// group is between a successful remove and the re-add, with their key package
+    /// already in hand. If the re-add fails after removal, this throws
+    /// `.reAddFailed` so the UI can offer a retry rather than silently stranding
+    /// them. Both commits are verified on the relay (v1.6.1 anti-fork).
+    func resyncMember(publicKeyHex memberHex: String, inGroup groupId: String) async throws {
+        guard memberHex != publicKeyHex else { throw MarmotError.alreadyMember }
+        guard !relay.connectedRelayURLs.isEmpty else { throw MarmotError.noRelaysConnected }
+
+        // 1. Fetch the fresh key package FIRST — abort before touching the group.
+        let kpJson = try await fetchKeyPackageWithRetry(for: memberHex, maxRetries: 10)
+
+        // 2. Remove the member — verified commit. Skip if a previous attempt
+        //    already removed them (re-add failed and the admin tapped Resync
+        //    again) — otherwise removeMembers would throw on a non-member.
+        let stillMember = (try? await mls.getMembers(groupId: groupId))?.contains(memberHex) ?? true
+        if stillMember {
+            let removeResult = try await mls.removeMembers(groupId: groupId, memberPublicKeys: [memberHex])
+            try await mls.mergePendingCommit(groupId: groupId)
+            try await publishAndVerifyCommits(removeResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+            locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: memberHex)
+            WhistleLogger.marmot.info("Hard resync: removed \(memberHex.prefix(8))… from group \(groupId)")
+        } else {
+            WhistleLogger.marmot.info("Hard resync: \(memberHex.prefix(8))… already removed — re-adding only")
+        }
+
+        // 3. Re-add with the key package already in hand — verified commit + Welcome.
+        do {
+            let addResult = try await mls.addMembers(groupId: groupId, keyPackageEventsJson: [kpJson])
+            try await mls.mergePendingCommit(groupId: groupId)
+            let addPayload = addResult.publishPayload(relayURLs: relay.connectedRelayURLs)
+            try await publishAndVerifyCommits(addPayload.events)
+            try await giftWrapAndPublishWelcomes(welcomeRumors: addPayload.welcomeRumors, receiverHex: memberHex)
+        } catch {
+            WhistleLogger.marmot.error("Hard resync: re-add failed after removing \(memberHex.prefix(8))…: \(error)")
+            throw MarmotError.reAddFailed(memberHex)
+        }
+
+        await refreshGroups()
+        WhistleLogger.marmot.info("Hard resync complete for \(memberHex.prefix(8))… in group \(groupId)")
     }
 
     // MARK: - Batch add (join-requests)
@@ -1256,6 +1313,7 @@ final class MarmotService: ObservableObject {
         case commitVerificationFailed
         case alreadyMember
         case noRelaysConnected
+        case reAddFailed(String)
 
         var errorDescription: String? {
             switch self {
@@ -1269,6 +1327,8 @@ final class MarmotService: ObservableObject {
                 return "This person is already a member of the group"
             case .noRelaysConnected:
                 return "Not connected to any relay — check your connection"
+            case .reAddFailed:
+                return "Removed the member, but re-adding them failed. Tap Resync again to retry."
             }
         }
     }
