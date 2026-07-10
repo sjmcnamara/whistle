@@ -127,11 +127,25 @@ struct GroupChatView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     if viewModel.hasMore {
-                        Button("Load earlier messages") {
-                            Task { await viewModel.loadMore() }
+                        Button {
+                            // Anchor on the current top message so the view holds
+                            // position after older messages prepend, instead of
+                            // staying pinned to the bottom.
+                            let anchorId = viewModel.messages.first?.id
+                            Task {
+                                await viewModel.loadMore()
+                                if let anchorId { proxy.scrollTo(anchorId, anchor: .top) }
+                            }
+                        } label: {
+                            if viewModel.isLoadingMore {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Text("Load earlier messages")
+                            }
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .disabled(viewModel.isLoadingMore)
                         .padding()
                     }
 
@@ -143,7 +157,10 @@ struct GroupChatView: View {
                 .padding(.vertical, 8)
             }
             .defaultScrollAnchor(.bottom)
-            .onChange(of: viewModel.messages.count) {
+            // Key on the last message id, not the count: this fires when a
+            // message is appended (sent/received) but NOT when older messages are
+            // prepended by loadMore — so "load earlier" no longer snaps to bottom.
+            .onChange(of: viewModel.messages.last?.id) {
                 if let lastId = viewModel.messages.last?.id {
                     withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
                 }
