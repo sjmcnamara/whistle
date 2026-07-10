@@ -474,7 +474,11 @@ master
   └── feature/v1.5-join-requests-pr3      ✅ merged
   └── feature/v1.5-join-requests-pr2b     ✅ merged
   └── feature/v1.5-group-details-ux       ✅ merged
-  └── feature/v1.5-local-group-avatar     ✅ merged
+  └── feature/v1.5-local-group-avatar     ✅ merged (v1.6.0)
+  └── bugfix/v1.6.1-selfupdate-verify-relay ✅ merged (v1.6.1 — verify MLS commits reach the relay)
+  └── feature/v1.6.2-soft-resync          ✅ merged (v1.6.2 — banner-triggered catch-up)
+  └── fix/v1.6.2-resync-epoch-detection   ✅ merged (v1.6.2 follow-up — epoch-delta success check)
+  └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
 ```
 
 ---
