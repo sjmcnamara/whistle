@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.5] — 2026-07-17
+
+### Fixed
+- **Group chat no longer reloads from scratch on every visit** (iOS & Android): leaving a chat and returning showed an empty thread that then had to re-decrypt and repaint from MDK. The chat view-model is created per-group and destroyed when the chat is popped off the navigation stack, so each return started from an empty message list. Loaded threads are now held in an in-memory `ChatMessageCache` keyed by group, and a re-entered chat seeds itself from that cache synchronously — so the thread renders instantly. The background refresh now *merges* the newest page into what's shown (de-duplicated, by message id) instead of replacing it, so any older history paged in with "Load earlier messages" survives the refresh rather than being dropped. The cache is purely in-memory (the durable store remains MDK's encrypted SQLite DB) and is cleared on logout.
+
+---
+
 ## [1.6.4] — 2026-07-10
 
 ### Fixed

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.ChatPayload
+import org.findmyfam.services.ChatMessageCache
 import org.findmyfam.services.MLSService
 import org.findmyfam.services.MarmotService
 import org.findmyfam.services.NicknameStore
@@ -29,7 +30,8 @@ class ChatViewModel(
     private val marmot: MarmotService,
     private val mls: MLSService,
     private val nicknameStore: NicknameStore,
-    private val myPubkeyHex: String
+    private val myPubkeyHex: String,
+    private val messageCache: ChatMessageCache
 ) {
     // --- Item model ---
 
@@ -88,6 +90,16 @@ class ChatViewModel(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
+        // Seed synchronously from the cache so re-entering a chat renders the
+        // last-known thread immediately instead of flashing empty while MDK
+        // reloads. loadMessages() (from the screen's LaunchedEffect) then merges
+        // in anything new.
+        messageCache.thread(groupId)?.let { cached ->
+            _messages.value = cached.messages
+            currentOffset = cached.offset
+            _hasMore = cached.hasMore
+        }
+
         // Observe incoming chat messages for this group
         scope.launch {
             marmot.lastChatMessageGroupId.collect { updatedGroupId ->
@@ -152,16 +164,59 @@ class ChatViewModel(
                 offset = null,
                 sortOrder = "created_at_first"
             )
-            _messages.value = mdkMessages.mapNotNull { mapMessage(it) }.reversed()
-            // Advance by the RAW page size consumed, not the mapped chat count —
-            // the offset indexes the raw store (see currentOffset).
-            currentOffset = mdkMessages.size.toUInt()
-            _hasMore = mdkMessages.size == pageSize.toInt()
+            // MDK returns newest-first; reverse so oldest is at the top.
+            val recent = mdkMessages.mapNotNull { mapMessage(it) }.reversed()
+            val recentRawCount = mdkMessages.size.toUInt()
+
+            if (_messages.value.isEmpty()) {
+                // Cold load: the recent page is the whole thread we know about.
+                _messages.value = recent
+                // Advance by the RAW page size consumed, not the mapped chat
+                // count — the offset indexes the raw store (see currentOffset).
+                currentOffset = recentRawCount
+                _hasMore = mdkMessages.size == pageSize.toInt()
+            } else {
+                // A thread is already showing (seeded from cache, or the user
+                // paged back). Merge the recent page in — picking up new/edited
+                // bubbles — without dropping older pages already loaded, and
+                // leave hasMore (the "load earlier" affordance) untouched since a
+                // newest-end refresh says nothing about the start of history.
+                _messages.value = merge(_messages.value, recent)
+                if (recentRawCount > currentOffset) currentOffset = recentRawCount
+            }
             _error.value = null
+            persist()
         } catch (e: Exception) {
             _error.value = e.message
             Timber.e("Failed to load messages for group $groupId: $e")
         }
+    }
+
+    /**
+     * Union two bubble lists by id (incoming wins, for fresh names/text) and
+     * sort into chat order (oldest first), tie-breaking on id for stability.
+     */
+    private fun merge(
+        existing: List<ChatMessageItem>,
+        incoming: List<ChatMessageItem>
+    ): List<ChatMessageItem> {
+        val byId = LinkedHashMap<String, ChatMessageItem>()
+        for (m in existing) byId[m.id] = m
+        for (m in incoming) byId[m.id] = m
+        return byId.values.sortedWith(compareBy({ it.timestamp }, { it.id }))
+    }
+
+    /**
+     * Write the current thread state back to the shared cache so the next visit
+     * to this group renders instantly.
+     */
+    private fun persist() {
+        messageCache.store(
+            groupId = groupId,
+            messages = _messages.value,
+            offset = currentOffset,
+            hasMore = _hasMore
+        )
     }
 
     /**
@@ -196,6 +251,7 @@ class ChatViewModel(
             if (fresh.isNotEmpty()) {
                 _messages.value = fresh + _messages.value
             }
+            persist()
         } catch (e: Exception) {
             Timber.e("Failed to load more messages: $e")
         } finally {
@@ -282,5 +338,6 @@ class ChatViewModel(
         _messages.value = _messages.value.map { msg ->
             msg.copy(senderDisplayName = nicknameStore.displayName(msg.senderPubkeyHex))
         }
+        persist()
     }
 }

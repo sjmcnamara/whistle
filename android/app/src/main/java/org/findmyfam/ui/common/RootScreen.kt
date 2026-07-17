@@ -183,7 +183,8 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                         marmot = viewModel.marmotService,
                         mls = viewModel.mls,
                         nicknameStore = viewModel.nicknameStore,
-                        myPubkeyHex = viewModel.identity.publicKeyHex ?: ""
+                        myPubkeyHex = viewModel.identity.publicKeyHex ?: "",
+                        messageCache = viewModel.chatMessageCache
                     )
                 }
 

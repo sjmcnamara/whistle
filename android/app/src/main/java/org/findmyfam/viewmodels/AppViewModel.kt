@@ -42,6 +42,7 @@ class AppViewModel @Inject constructor(
     val pendingWelcomeStore: PendingWelcomeStore,
     val joinRequestStore: JoinRequestStore,
     val locationCache: LocationCache,
+    val chatMessageCache: ChatMessageCache,
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
     val motionService: MotionService,
@@ -404,6 +405,7 @@ class AppViewModel @Inject constructor(
         pendingWelcomeStore.removeAll()
         joinRequestStore.removeAll()
         locationCache.clear()
+        chatMessageCache.clear()
 
         // Clear settings — including pendingLeaveRequests and chat timestamps
         settings.lastEventTimestamp = 0u
