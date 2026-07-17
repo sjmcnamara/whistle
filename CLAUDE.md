@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.6.4 — chat pagination fix** (bugfix). See ROADMAP.md for next steps.
+Current version: **v1.6.5 — chat thread cache (no empty-flash on re-entry)** (bugfix). See ROADMAP.md for next steps.

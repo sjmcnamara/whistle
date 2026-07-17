@@ -34,6 +34,10 @@ final class AppViewModel: ObservableObject {
     /// Local nickname store — maps pubkey hex → display name.
     let nicknameStore: NicknameStore
 
+    /// In-memory cache of loaded chat threads so re-entering a chat renders
+    /// instantly instead of flashing empty while MDK reloads.
+    let chatMessageCache: ChatMessageCache
+
     // MARK: - Pending Invites (v0.6)
 
     /// Tracks invites where key package was published but Welcome not yet received.
@@ -123,6 +127,7 @@ final class AppViewModel: ObservableObject {
         UIDevice.current.isBatteryMonitoringEnabled = true
         self.locationCache   = LocationCache()
         self.nicknameStore       = NicknameStore()
+        self.chatMessageCache    = ChatMessageCache()
         self.pendingInviteStore  = PendingInviteStore()
         self.pendingLeaveStore   = PendingLeaveStore()
         self.pendingWelcomeStore = PendingWelcomeStore()
@@ -779,6 +784,7 @@ final class AppViewModel: ObservableObject {
         joinRequestStore.removeAll()
         LocalGroupAvatarStore.shared.removeAll()
         locationCache.clear()
+        chatMessageCache.clear()
 
         // 6. Reset identity-bound settings
         settings.lastEventTimestamp = 0

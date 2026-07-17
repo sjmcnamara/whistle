@@ -40,6 +40,7 @@ final class ChatViewModel: ObservableObject {
     private let mls: MLSService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
+    private let messageCache: ChatMessageCache
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Pagination
@@ -63,13 +64,24 @@ final class ChatViewModel: ObservableObject {
         marmot: MarmotService,
         mls: MLSService,
         nicknameStore: NicknameStore,
-        myPubkeyHex: String
+        myPubkeyHex: String,
+        messageCache: ChatMessageCache
     ) {
         self.groupId = groupId
         self.marmot = marmot
         self.mls = mls
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
+        self.messageCache = messageCache
+
+        // Seed synchronously from the cache so re-entering a chat renders the
+        // last-known thread immediately instead of flashing empty while MDK
+        // reloads. `loadMessages()` (from `.task`) then merges in anything new.
+        if let cached = messageCache.thread(for: groupId) {
+            self.messages = cached.messages
+            self.currentOffset = cached.offset
+            self.hasMore = cached.hasMore
+        }
 
         // Refresh when a new chat message arrives for this group
         marmot.$lastChatMessageGroupId
@@ -112,6 +124,7 @@ final class ChatViewModel: ObservableObject {
                 isMe: msg.isMe
             )
         }
+        persist()
     }
 
     // MARK: - Resync
@@ -146,16 +159,53 @@ final class ChatViewModel: ObservableObject {
             )
             // MDK returns newest-first; reverse so oldest is at the top
             // and newest at the bottom (natural chat order).
-            messages = mdkMessages.compactMap { mapMessage($0) }.reversed()
-            // Advance by the RAW page size consumed, not the mapped chat count —
-            // the offset indexes the raw store (see `currentOffset`).
-            currentOffset = UInt32(mdkMessages.count)
-            hasMore = mdkMessages.count == Int(pageSize)
+            let recent = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
+            let recentRawCount = UInt32(mdkMessages.count)
+
+            if messages.isEmpty {
+                // Cold load: the recent page is the whole thread we know about.
+                messages = recent
+                // Advance by the RAW page size consumed, not the mapped chat
+                // count — the offset indexes the raw store (see `currentOffset`).
+                currentOffset = recentRawCount
+                hasMore = mdkMessages.count == Int(pageSize)
+            } else {
+                // A thread is already showing (seeded from cache, or the user
+                // paged back). Merge the recent page in — picking up new/edited
+                // bubbles — without dropping older pages already loaded, and
+                // leave `hasMore` (the "load earlier" affordance) untouched since
+                // a newest-end refresh says nothing about the start of history.
+                messages = merge(existing: messages, incoming: recent)
+                currentOffset = max(currentOffset, recentRawCount)
+            }
             error = nil
+            persist()
         } catch {
             self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
         }
+    }
+
+    /// Union two bubble lists by id (incoming wins, for fresh names/text) and
+    /// sort into chat order (oldest first), tie-breaking on id for stability.
+    private func merge(existing: [ChatMessageItem], incoming: [ChatMessageItem]) -> [ChatMessageItem] {
+        var byId: [String: ChatMessageItem] = [:]
+        for m in existing { byId[m.id] = m }
+        for m in incoming { byId[m.id] = m }
+        return byId.values.sorted { lhs, rhs in
+            lhs.timestamp == rhs.timestamp ? lhs.id < rhs.id : lhs.timestamp < rhs.timestamp
+        }
+    }
+
+    /// Write the current thread state back to the shared cache so the next
+    /// visit to this group renders instantly.
+    private func persist() {
+        messageCache.store(
+            groupId: groupId,
+            messages: messages,
+            offset: currentOffset,
+            hasMore: hasMore
+        )
     }
 
     /// Load older messages and prepend them. Because location updates dominate
@@ -196,6 +246,7 @@ final class ChatViewModel: ObservableObject {
         if !fresh.isEmpty {
             messages.insert(contentsOf: fresh, at: 0)
         }
+        persist()
     }
 
     /// Load member names for display in the chat subtitle.

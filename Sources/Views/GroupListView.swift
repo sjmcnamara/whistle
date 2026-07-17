@@ -199,6 +199,7 @@ struct GroupListView: View {
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
                 pendingLeaveStore: appViewModel.pendingLeaveStore,
+                messageCache: appViewModel.chatMessageCache,
                 isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
             )
         } else {
@@ -268,6 +269,7 @@ private struct GroupChatContainer: View {
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
     let pendingLeaveStore: PendingLeaveStore
+    let messageCache: ChatMessageCache
     var isUnhealthy: Bool = false
 
     @State private var showDetail = false
@@ -279,6 +281,7 @@ private struct GroupChatContainer: View {
             mls: mls,
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex,
+            messageCache: messageCache,
             groupName: group.name,
             onInfoTap: { showDetail = true },
             isUnhealthy: isUnhealthy
