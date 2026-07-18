@@ -481,6 +481,7 @@ master
   └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
   └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
   └── bugfix/v1.6.5                        ✅ merged (v1.6.5 — in-memory chat thread cache; no empty-flash on re-entry)
+  └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
 ```
 
 ---

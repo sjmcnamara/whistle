@@ -62,6 +62,15 @@ class MarmotService @Inject constructor(
     val healthTracker: GroupHealthTracker,
     private val batteryAlertService: BatteryAlertService
 ) {
+    // The post-join self-update -- an immediate key rotation right after
+    // accepting a Welcome (MIP-02 hardening) -- is disabled. It advanced the
+    // joiner to a new epoch during the fragile just-joined window before the
+    // admin's subscription had settled; the admin never converged on that epoch,
+    // so the group forked at formation and every subsequent message failed to
+    // decrypt. The joiner now stays at the Welcome's shared epoch. Re-enable only
+    // once a dropped commit is guaranteed recoverable (see catch-up handling).
+    private val postJoinSelfUpdateEnabled = false
+
     // --- Published State ---
 
     private val _groups = MutableStateFlow<List<Group>>(emptyList())
@@ -644,11 +653,19 @@ class MarmotService @Inject constructor(
                 Timber.i("Queued gift-wrap $eventId for retry after key package refresh")
             }
 
-            if (kind != MarmotKind.GIFT_WRAP) {
+            // The relay-wide kind-445 filter delivers events for groups we're not
+            // in; those throw "group not found" and can never apply, so mark them
+            // processed to avoid re-scanning. A failure for one of OUR groups (a
+            // commit we can't yet apply, an undecryptable message) is left
+            // unrecorded so catch-up can re-apply it once we're able. Marking it
+            // processed here is what made forks permanent -- a single dropped
+            // commit could never be retried by any recovery path.
+            val isForeignGroup = msg.contains("group not found") || msg.contains("not found")
+            if (kind != MarmotKind.GIFT_WRAP && isForeignGroup) {
                 settings.addProcessedEventId(eventId)
             }
 
-            if (msg.contains("group not found") || msg.contains("not found")) {
+            if (isForeignGroup) {
                 Timber.d("MDK skipped event kind $kind: $msg")
             } else {
                 _lastError.value = msg
@@ -727,21 +744,26 @@ class MarmotService @Inject constructor(
         }
         refreshGroups()
 
-        // Post-join self-update: immediately rotate key material so we
-        // are not relying on the Welcome's initial key package (MIP-02).
-        try {
-            val updateResult = mls.selfUpdate(mlsGroupId = welcome.mlsGroupId)
-            mls.mergePendingCommit(mlsGroupId = welcome.mlsGroupId)
-            // Confirm the commit reached the relay — an unpropagated self-update
-            // advances our epoch locally while other members stay behind, which
-            // desyncs decryption in both directions.
-            publishAndVerifyCommit(updateResult.evolutionEventJson)
-            Timber.i("Post-join self-update completed for group ${welcome.mlsGroupId}")
-        } catch (e: Exception) {
-            // Non-fatal: the join succeeded and we are usable at the Welcome's
-            // epoch. The self-update commit could not be confirmed on the relay,
-            // so the group may be desynced until the next successful commit.
-            Timber.e("Post-join self-update failed to confirm on relay for group ${welcome.mlsGroupId}: ${e.message}")
+        // Post-join self-update: immediately rotate key material so we are not
+        // relying on the Welcome's initial key package (MIP-02). Disabled -- it
+        // forks the group at formation; see postJoinSelfUpdateEnabled.
+        if (postJoinSelfUpdateEnabled) {
+            try {
+                val updateResult = mls.selfUpdate(mlsGroupId = welcome.mlsGroupId)
+                mls.mergePendingCommit(mlsGroupId = welcome.mlsGroupId)
+                // Confirm the commit reached the relay — an unpropagated self-update
+                // advances our epoch locally while other members stay behind, which
+                // desyncs decryption in both directions.
+                publishAndVerifyCommit(updateResult.evolutionEventJson)
+                Timber.i("Post-join self-update completed for group ${welcome.mlsGroupId}")
+            } catch (e: Exception) {
+                // Non-fatal: the join succeeded and we are usable at the Welcome's
+                // epoch. The self-update commit could not be confirmed on the relay,
+                // so the group may be desynced until the next successful commit.
+                Timber.e("Post-join self-update failed to confirm on relay for group ${welcome.mlsGroupId}: ${e.message}")
+            }
+        } else {
+            Timber.i("Post-join self-update skipped for group ${welcome.mlsGroupId} -- staying at Welcome epoch")
         }
 
         // Clear matching pending invite now that we've joined

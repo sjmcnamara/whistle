@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.6.5 — chat thread cache (no empty-flash on re-entry)** (bugfix). See ROADMAP.md for next steps.
+Current version: **v1.6.6 — formation-fork fix (disable post-join self-update; failed commits stay retryable)** (bugfix). See ROADMAP.md for next steps.

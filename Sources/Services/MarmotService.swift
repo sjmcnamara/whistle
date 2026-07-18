@@ -58,6 +58,16 @@ final class MarmotService: ObservableObject {
     /// Tracks consecutive MLS failures per group — not persisted, resets on launch.
     let healthTracker = GroupHealthTracker()
 
+    /// The post-join self-update — an immediate key rotation right after
+    /// accepting a Welcome (MIP-02 hardening) — is disabled. It advanced the
+    /// joiner to a new epoch during the fragile just-joined window before the
+    /// admin's subscription had settled; the admin never converged on that
+    /// epoch, so the group forked at formation and every subsequent message
+    /// failed to decrypt. The joiner now stays at the Welcome's shared epoch.
+    /// Re-enable only once a dropped commit is guaranteed recoverable (see the
+    /// catch-up handling in `handleIncomingEvent` / `catchUpGroup`).
+    private let postJoinSelfUpdateEnabled = false
+
     /// Subscription task for cancellation support.
     private var subscriptionTask: Task<Void, Error>?
 
@@ -692,37 +702,36 @@ final class MarmotService: ObservableObject {
                 settings.lastEventTimestamp = eventTs
             }
         } catch let error as MLSService.MLSError {
-            // MLS errors (not initialised, epoch mismatch) are expected for
-            // events from groups we don't belong to — log at warning so
-            // Welcome-processing failures are visible in standard logs.
-            //
-            // Mark non-gift-wrap events as processed so we don't retry them.
-            // Gift-wraps (Welcomes) should be retryable — a transient MLS
-            // error shouldn't permanently prevent joining a group.
+            // MLS-layer failures (not initialised, epoch mismatch) are for groups
+            // we DO belong to. Deliberately NOT marked processed: a commit we
+            // couldn't apply yet (out of order, or arriving before we'd settled)
+            // must stay eligible so `catchUpGroup` can re-fetch and re-apply it.
+            // Marking it processed here is what made forks permanent — a single
+            // dropped commit could never be retried by any recovery path.
             if kind == MarmotKind.giftWrap,
                error.localizedDescription.contains("No matching key package") {
                 settings?.pendingGiftWrapEventIds.insert(eventId)
                 WhistleLogger.marmot.info("Queued gift-wrap \(eventId) for retry after key package refresh")
             }
-
-            if kind != MarmotKind.giftWrap {
-                settings?.processedEventIds.insert(eventId)
-            }
             WhistleLogger.marmot.warning("MLS error processing event kind \(kind): \(error.localizedDescription)")
         } catch {
-            // MDK errors like "group not found" are expected for events from
-            // groups we don't belong to (kind-445 filter is relay-wide).
             if kind == MarmotKind.giftWrap,
                String(describing: error).contains("No matching key package") {
                 settings?.pendingGiftWrapEventIds.insert(eventId)
                 WhistleLogger.marmot.info("Queued gift-wrap \(eventId) for retry after key package refresh")
             }
 
-            if kind != MarmotKind.giftWrap {
+            let msg = String(describing: error)
+            // The relay-wide kind-445 filter delivers events for groups we're not
+            // in; those throw "group not found" and can never apply, so mark them
+            // processed to avoid re-scanning. A failure for one of OUR groups (a
+            // commit we can't yet apply, an undecryptable message) is left
+            // unrecorded so catch-up can re-apply it once we're able.
+            let isForeignGroup = msg.contains("group not found") || msg.contains("not found")
+            if kind != MarmotKind.giftWrap, isForeignGroup {
                 settings?.processedEventIds.insert(eventId)
             }
-            let msg = String(describing: error)
-            if msg.contains("group not found") || msg.contains("not found") {
+            if isForeignGroup {
                 WhistleLogger.marmot.debug("MDK skipped event kind \(kind): \(msg)")
             } else {
                 lastError = error.localizedDescription
@@ -799,21 +808,26 @@ final class MarmotService: ObservableObject {
         }
         await refreshGroups()
 
-        // Post-join self-update: immediately rotate key material so we
-        // are not relying on the Welcome's initial key package (MIP-02).
-        do {
-            let updateResult = try await mls.selfUpdate(groupId: welcome.mlsGroupId)
-            try await mls.mergePendingCommit(groupId: welcome.mlsGroupId)
-            // Confirm the commit reached the relay — an unpropagated self-update
-            // advances our epoch locally while other members stay behind, which
-            // desyncs decryption in both directions.
-            try await publishAndVerifyCommits(updateResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
-            WhistleLogger.marmot.info("Post-join self-update completed for group \(welcome.mlsGroupId)")
-        } catch {
-            // Non-fatal: the join succeeded and we are usable at the Welcome's
-            // epoch. The self-update commit could not be confirmed on the relay,
-            // so the group may be desynced until the next successful commit.
-            WhistleLogger.marmot.error("Post-join self-update failed to confirm on relay for group \(welcome.mlsGroupId): \(error)")
+        // Post-join self-update: immediately rotate key material so we are not
+        // relying on the Welcome's initial key package (MIP-02). Disabled — it
+        // forks the group at formation; see `postJoinSelfUpdateEnabled`.
+        if postJoinSelfUpdateEnabled {
+            do {
+                let updateResult = try await mls.selfUpdate(groupId: welcome.mlsGroupId)
+                try await mls.mergePendingCommit(groupId: welcome.mlsGroupId)
+                // Confirm the commit reached the relay — an unpropagated self-update
+                // advances our epoch locally while other members stay behind, which
+                // desyncs decryption in both directions.
+                try await publishAndVerifyCommits(updateResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+                WhistleLogger.marmot.info("Post-join self-update completed for group \(welcome.mlsGroupId)")
+            } catch {
+                // Non-fatal: the join succeeded and we are usable at the Welcome's
+                // epoch. The self-update commit could not be confirmed on the relay,
+                // so the group may be desynced until the next successful commit.
+                WhistleLogger.marmot.error("Post-join self-update failed to confirm on relay for group \(welcome.mlsGroupId): \(error)")
+            }
+        } else {
+            WhistleLogger.marmot.info("Post-join self-update skipped for group \(welcome.mlsGroupId) — staying at Welcome epoch")
         }
 
         // Clear matching pending invite now that we've joined

@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.6] — 2026-07-18
+
+### Fixed
+- **New groups no longer fork at formation** (iOS & Android): creating a group and having someone join left both devices listing each other as members but unable to decrypt a single message or location in either direction (`Failed to decrypt message with any exporter secret`). Cause: right after accepting the Welcome, the joiner performed an immediate key rotation ("post-join self-update", MIP-02 hardening) that advanced it to a new MLS epoch during the fragile just-joined window — before the admin's subscription had settled — so the admin never converged on that epoch and the group forked permanently. The post-join self-update is now disabled; a joiner stays at the Welcome's shared epoch, which both sides agree on. (A safe rotation can be reintroduced once commit convergence is guaranteed.)
+- **A dropped MLS commit no longer forks a group forever** (iOS & Android): when processing an incoming group event (kind 445) failed, it was marked permanently "processed" and skipped by every recovery path — the live subscription, soft resync (catch-up), *and* hard re-invite all honoured that flag, so a single missed or out-of-order commit stranded the device on a stale epoch with no way back. Failures for groups we belong to are now left retryable, so soft resync can re-fetch and re-apply a missed commit and catch the epoch up. (Events for groups we're not in — delivered by the relay-wide kind-445 filter — are still marked processed to avoid re-scanning.)
+
+---
+
 ## [1.6.5] — 2026-07-17
 
 ### Fixed
