@@ -713,6 +713,19 @@ class MarmotService @Inject constructor(
             rumorEventJson = rumorJson
         )
 
+        // A Welcome for a group we're already an active member of is a duplicate
+        // -- the admin gift-wraps the Welcome per rumor and it can be redelivered.
+        // Without this guard the second copy is misclassified as "unsolicited"
+        // (the pending-invite marker was cleared on the first join) and resurfaces
+        // as a phantom "Group invitation received" prompt while we're already in
+        // the group. Ignore it and clear any stale pending state.
+        if (mls.getGroup(welcome.mlsGroupId)?.isActive == true) {
+            pendingWelcomeStore.remove(welcome.mlsGroupId)
+            pendingInviteStore.remove(groupHint = welcome.mlsGroupId)
+            Timber.i("Ignoring duplicate Welcome for group ${welcome.mlsGroupId} -- already an active member")
+            return
+        }
+
         // Check if user consented via an invite code
         val hasPendingInvite = pendingInviteStore.pendingInvites.value.any {
             it.groupHint == welcome.mlsGroupId

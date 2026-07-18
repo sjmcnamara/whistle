@@ -771,6 +771,22 @@ final class MarmotService: ObservableObject {
             rumorEventJson: rumorJson
         )
 
+        // A Welcome for a group we're already an active member of is a duplicate
+        // — the admin gift-wraps the Welcome per rumor and it can be redelivered.
+        // Without this guard the second copy is misclassified as "unsolicited"
+        // (the pending-invite marker was cleared on the first join) and resurfaces
+        // as a phantom "Group invitation received" prompt while we're already in
+        // the group. Ignore it and clear any stale pending state.
+        if let existing = try? await mls.getGroup(mlsGroupId: welcome.mlsGroupId),
+           existing.isActive {
+            await MainActor.run {
+                pendingWelcomeStore?.remove(mlsGroupId: welcome.mlsGroupId)
+                pendingInviteStore?.remove(groupHint: welcome.mlsGroupId)
+            }
+            WhistleLogger.marmot.info("Ignoring duplicate Welcome for group \(welcome.mlsGroupId) — already an active member")
+            return
+        }
+
         // Check if user consented via an invite code
         let hasPendingInvite = pendingInviteStore?.pendingInvites.contains(where: {
             $0.groupHint == welcome.mlsGroupId
