@@ -76,8 +76,12 @@ class MarmotService @Inject constructor(
     private val _groups = MutableStateFlow<List<Group>>(emptyList())
     val groups: StateFlow<List<Group>> = _groups.asStateFlow()
 
-    private val _lastChatMessageGroupId = MutableStateFlow<String?>(null)
-    val lastChatMessageGroupId: StateFlow<String?> = _lastChatMessageGroupId.asStateFlow()
+    // (groupId, nonce). Carries a monotonic nonce so two messages from the SAME
+    // group emit distinct values — a plain StateFlow<String?> conflates equal
+    // consecutive values, so a second message from an already-open chat would
+    // not notify collectors and the thread wouldn't refresh live.
+    private val _lastChatMessageGroupId = MutableStateFlow<Pair<String, Long>?>(null)
+    val lastChatMessageGroupId: StateFlow<Pair<String, Long>?> = _lastChatMessageGroupId.asStateFlow()
 
     private val _lastJoinedGroupId = MutableStateFlow<String?>(null)
     val lastJoinedGroupId: StateFlow<String?> = _lastJoinedGroupId.asStateFlow()
@@ -899,7 +903,7 @@ class MarmotService @Inject constructor(
                         "chat" -> {
                             refreshGroups()
                             withContext(Dispatchers.Main) {
-                                _lastChatMessageGroupId.value = message.mlsGroupId
+                                _lastChatMessageGroupId.value = message.mlsGroupId to System.currentTimeMillis()
                             }
                             Timber.d("Chat message in group ${message.mlsGroupId} from ${message.senderPubkey.take(8)}")
                         }
@@ -916,7 +920,7 @@ class MarmotService @Inject constructor(
                     // Fallback: treat as plain chat text
                     refreshGroups()
                     withContext(Dispatchers.Main) {
-                        _lastChatMessageGroupId.value = message.mlsGroupId
+                        _lastChatMessageGroupId.value = message.mlsGroupId to System.currentTimeMillis()
                     }
                     Timber.d("Plain chat message in group ${message.mlsGroupId}")
                 }
