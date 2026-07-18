@@ -102,8 +102,8 @@ class ChatViewModel(
 
         // Observe incoming chat messages for this group
         scope.launch {
-            marmot.lastChatMessageGroupId.collect { updatedGroupId ->
-                if (updatedGroupId == groupId) {
+            marmot.lastChatMessageGroupId.collect { change ->
+                if (change?.first == groupId) {
                     loadMessages()
                 }
             }
