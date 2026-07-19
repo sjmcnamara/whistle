@@ -18,6 +18,9 @@ struct MemberAnnotation: Identifiable {
     /// `true` when Movement Aware is active and the device is stationary.
     /// Only set for the own pin; always `false` for remote members.
     let isStationary: Bool
+    /// Publisher's own update cadence in seconds (from `LocationPayload.interval`).
+    /// Nil for pre-1.2.1 payloads that omit the field.
+    let intervalSeconds: Int?
 }
 
 /// Transforms `LocationCache` entries into `[MemberAnnotation]` for the map.
@@ -115,10 +118,12 @@ final class LocationViewModel: ObservableObject {
                 coordinate: loc.coordinate,
                 displayName: name,
                 isStale: loc.isStale(intervalSeconds: interval),
-                timestamp: loc.payload.date,
+                timestamp: loc.receivedAt, // local-clock anchor; payload.date is the publisher's stamp, which can drift cross-device
+
                 isMe: isMe,
                 nextUpdateDate: isMe ? nextUpdate : nil,
-                isStationary: isMe && stationary
+                isStationary: isMe && stationary,
+                intervalSeconds: loc.payload.interval
             )
         }
 

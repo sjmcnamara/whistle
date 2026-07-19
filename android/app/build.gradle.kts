@@ -14,11 +14,27 @@ android {
         applicationId = "org.findmyfam"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "1.2.0"
+        versionCode = 37
+        versionName = "1.6.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+    }
+
+    signingConfigs {
+        create("release") {
+            // Populated from env vars in CI (.github/workflows/release-android.yml).
+            // Local release builds without these env vars produce an unsigned APK
+            // (warning at build time); the release buildType only wires this
+            // config when ANDROID_KEYSTORE_PATH is present.
+            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (keystorePath != null) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -32,6 +48,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -113,7 +132,7 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.18.1@aar")
 
     // QR code generation (ZXing)
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:core:3.5.4")
 
     // CameraX + ML Kit barcode scanning
     implementation("androidx.camera:camera-core:1.6.1")
@@ -127,9 +146,9 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk:1.13.16")
+    testImplementation("io.mockk:mockk:1.14.9")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
-    testImplementation("org.json:json:20231013")
+    testImplementation("org.json:json:20251224")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }

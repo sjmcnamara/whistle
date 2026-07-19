@@ -15,6 +15,7 @@ import org.findmyfam.models.*
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.ChatPayload
 import org.findmyfam.shared.models.InviteCode
+import org.findmyfam.shared.models.JoinRequest
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.shared.models.NicknamePayload
 import org.json.JSONObject
@@ -56,17 +57,31 @@ class MarmotService @Inject constructor(
     private val pendingInviteStore: PendingInviteStore,
     private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
+    val joinRequestStore: JoinRequestStore,
     private val locationCache: LocationCache,
     val healthTracker: GroupHealthTracker,
     private val batteryAlertService: BatteryAlertService
 ) {
+    // The post-join self-update -- an immediate key rotation right after
+    // accepting a Welcome (MIP-02 hardening) -- is disabled. It advanced the
+    // joiner to a new epoch during the fragile just-joined window before the
+    // admin's subscription had settled; the admin never converged on that epoch,
+    // so the group forked at formation and every subsequent message failed to
+    // decrypt. The joiner now stays at the Welcome's shared epoch. Re-enable only
+    // once a dropped commit is guaranteed recoverable (see catch-up handling).
+    private val postJoinSelfUpdateEnabled = false
+
     // --- Published State ---
 
     private val _groups = MutableStateFlow<List<Group>>(emptyList())
     val groups: StateFlow<List<Group>> = _groups.asStateFlow()
 
-    private val _lastChatMessageGroupId = MutableStateFlow<String?>(null)
-    val lastChatMessageGroupId: StateFlow<String?> = _lastChatMessageGroupId.asStateFlow()
+    // (groupId, nonce). Carries a monotonic nonce so two messages from the SAME
+    // group emit distinct values — a plain StateFlow<String?> conflates equal
+    // consecutive values, so a second message from an already-open chat would
+    // not notify collectors and the thread wouldn't refresh live.
+    private val _lastChatMessageGroupId = MutableStateFlow<Pair<String, Long>?>(null)
+    val lastChatMessageGroupId: StateFlow<Pair<String, Long>?> = _lastChatMessageGroupId.asStateFlow()
 
     private val _lastJoinedGroupId = MutableStateFlow<String?>(null)
     val lastJoinedGroupId: StateFlow<String?> = _lastJoinedGroupId.asStateFlow()
@@ -100,7 +115,7 @@ class MarmotService @Inject constructor(
     /**
      * Create and publish a new MLS key package as a kind-30443 event.
      */
-    suspend fun publishKeyPackage(relays: List<String>) {
+    suspend fun publishKeyPackage(relays: List<String>): String {
         val kp = mls.createKeyPackageForEvent(publicKeyHex, relays)
 
         val builder = EventBuilder(kind = Kind(kind = MarmotKind.KEY_PACKAGE), content = kp.keyPackage)
@@ -110,9 +125,13 @@ class MarmotService @Inject constructor(
                 tags.add(Tag.custom(kind = TagKind.Unknown(tag[0]), values = tag.drop(1)))
             }
         }
-        val taggedBuilder = builder.tags(tags = tags)
-        relay.publish(taggedBuilder)
+        // Sign locally so we can both publish AND embed the signed event inline
+        // in a join-request (no separate relay fetch for the admin).
+        val keys = identity.keys.value ?: throw IllegalStateException("No identity — cannot publish key package")
+        val signed = builder.tags(tags = tags).signWithKeys(keys = keys)
+        relay.sendEvent(signed)
         Timber.i("Published key package (kind 30443)")
+        return signed.asJson()
     }
 
     /**
@@ -125,6 +144,42 @@ class MarmotService @Inject constructor(
             .authors(authors = listOf(pk))
             .limit(limit = 1uL)
         return relay.fetchEvents(filter = filter, timeout = java.time.Duration.ofSeconds(10))
+    }
+
+    /**
+     * Fetch a member's key package with exponential-backoff retry, returning its
+     * JSON. The key package may not have propagated to the relay yet (especially
+     * after scanning an invite code, where the publish is deferred). Throws past a
+     * 60s budget, or if no key package is ever seen.
+     */
+    private suspend fun fetchKeyPackageWithRetry(pubkeyHex: String, maxRetries: Int): String {
+        val startTime = System.currentTimeMillis()
+        val globalTimeout = 60_000L
+        Timber.i("Fetching key package for ${pubkeyHex.take(8)}… from ${relay.connectedRelayUrls.value.size} relay(s)")
+
+        var kpEvents: List<Event> = emptyList()
+        for (attempt in 1..maxRetries) {
+            if (System.currentTimeMillis() - startTime > globalTimeout) {
+                throw MarmotException("Operation timed out — could not find key package for this member. Ask them to re-open the app and try again.")
+            }
+            try {
+                kpEvents = fetchKeyPackage(pubkeyHex)
+            } catch (e: Exception) {
+                Timber.w("fetchKeyPackage attempt $attempt failed: ${e.message}")
+                // Continue retrying — relay may be temporarily unavailable
+            }
+            if (kpEvents.isNotEmpty()) {
+                Timber.i("Found key package for ${pubkeyHex.take(8)}… on attempt $attempt")
+                break
+            }
+            if (attempt < maxRetries) {
+                val backoff = min(0.5 * 2.0.pow((attempt - 1).toDouble()), 30.0)
+                Timber.i("Key package not found for ${pubkeyHex.take(8)}… (attempt $attempt/$maxRetries) -- retrying in $backoff s")
+                delay((backoff * 1000).toLong())
+            }
+        }
+        return kpEvents.firstOrNull()?.asJson()
+            ?: throw MarmotException("No key package found for this member. Make sure they have the app open and are connected to the same relay.")
     }
 
     // --- Kind 445: Group Events ---
@@ -170,6 +225,38 @@ class MarmotService @Inject constructor(
             }
         }
         throw MarmotException("Could not verify commit on relay — Welcome not sent to avoid state fork")
+    }
+
+    /**
+     * Publish a commit evolution event and confirm it is retrievable from the
+     * relay before returning, re-publishing across a few rounds if it did not
+     * land.
+     *
+     * A self-update or metadata change merges locally *before* it is published
+     * (old epoch secrets are dropped for forward secrecy), so a commit that
+     * silently fails to reach the relay leaves other members stranded on the
+     * previous epoch — the cause of "Some messages couldn't be decrypted."
+     * Confirming propagation closes that gap. Re-publishing is idempotent:
+     * relays dedupe by event id.
+     */
+    private suspend fun publishAndVerifyCommit(eventJson: String, maxRounds: Int = 2) {
+        var lastError: Exception? = null
+        for (round in 1..maxRounds) {
+            try {
+                publishGroupEvent(eventJson)
+                val event = Event.fromJson(json = eventJson)
+                verifyEventOnRelay(event.id().toHex())
+                return
+            } catch (e: Exception) {
+                lastError = e
+                Timber.w("Commit publish/verify round $round/$maxRounds failed: ${e.message}")
+                if (round < maxRounds) {
+                    val backoff = (min(1.0 * 2.0.pow((round - 1).toDouble()), 10.0) * 1000).toLong()
+                    delay(backoff)
+                }
+            }
+        }
+        throw lastError ?: MarmotException("Could not verify commit on relay")
     }
 
     /**
@@ -233,37 +320,8 @@ class MarmotService @Inject constructor(
             throw MarmotException("Not connected to any relay — check your connection")
         }
 
-        val startTime = System.currentTimeMillis()
-        val globalTimeout = 60_000L
-
         // 1. Fetch the member's key package with retry.
-        //    The invitee's key package may not have propagated yet (especially
-        //    after scanning an invite code where the publish is deferred).
-        Timber.i("Fetching key package for ${pubkeyHex.take(8)}… from ${relay.connectedRelayUrls.value.size} relay(s)")
-        var kpEvents: List<Event> = emptyList()
-        for (attempt in 1..maxRetries) {
-            if (System.currentTimeMillis() - startTime > globalTimeout) {
-                throw MarmotException("Operation timed out — could not find key package for this member. Ask them to re-open the app and try again.")
-            }
-            try {
-                kpEvents = fetchKeyPackage(pubkeyHex)
-            } catch (e: Exception) {
-                Timber.w("fetchKeyPackage attempt $attempt failed: ${e.message}")
-                // Continue retrying — relay may be temporarily unavailable
-            }
-            if (kpEvents.isNotEmpty()) {
-                Timber.i("Found key package for ${pubkeyHex.take(8)}… on attempt $attempt")
-                break
-            }
-            if (attempt < maxRetries) {
-                val backoff = min(0.5 * 2.0.pow((attempt - 1).toDouble()), 30.0)
-                Timber.i("Key package not found for ${pubkeyHex.take(8)}… (attempt $attempt/$maxRetries) -- retrying in $backoff s")
-                delay((backoff * 1000).toLong())
-            }
-        }
-        val kpEvent = kpEvents.firstOrNull()
-            ?: throw MarmotException("No key package found for this member. Make sure they have the app open and are connected to the same relay.")
-        val kpJson = kpEvent.asJson()
+        val kpJson = fetchKeyPackageWithRetry(pubkeyHex, maxRetries)
 
         // 2. MLS addMembers
         val result = mls.addMembers(mlsGroupId = groupId, keyPackageEventsJson = listOf(kpJson))
@@ -298,6 +356,170 @@ class MarmotService @Inject constructor(
         }
 
         Timber.d("Gift-wrapped ${welcomeRumors.size} welcome(s) for $receiverHex")
+    }
+
+    // --- Remove member ---
+
+    /**
+     * Remove a member from a group — verified commit (v1.6.1 anti-fork). An
+     * unconfirmed removal commit would strand the *remaining* members on the old
+     * epoch (they'd still think the removed member is present) while the admin
+     * advanced, desyncing decryption. Clears the member's cached location.
+     */
+    suspend fun removeMember(pubkeyHex: String, groupId: String) {
+        val result = mls.removeMembers(mlsGroupId = groupId, memberPublicKeys = listOf(pubkeyHex))
+        mls.mergePendingCommit(mlsGroupId = groupId)
+        publishAndVerifyCommit(result.evolutionEventJson)
+        locationCache.removeLocation(groupId, pubkeyHex)
+        refreshGroups()
+        Timber.i("Removed member ${pubkeyHex.take(8)}… from group $groupId")
+    }
+
+    // --- Hard resync (fork recovery) ---
+
+    /**
+     * Hard resync: remove a member and immediately re-add them with a fresh key
+     * package, rebuilding their leaf in the ratchet tree. This is the only cure
+     * for a true fork — where the member merged a commit others never got — that
+     * soft catch-up (catchUpGroup) cannot reach, because MDK permanently marks
+     * such a commit PreviouslyFailed and refuses to re-apply it.
+     *
+     * Ordering is deliberate: the key package is fetched FIRST, so we never
+     * remove someone we cannot re-add. The only window the member is out of the
+     * group is between a successful remove and the re-add, with their key package
+     * already in hand. If the re-add fails after removal, this throws so the UI
+     * can offer a retry rather than silently stranding them. Both commits are
+     * verified on the relay (v1.6.1 anti-fork).
+     */
+    suspend fun resyncMember(pubkeyHex: String, groupId: String) {
+        if (pubkeyHex == publicKeyHex) throw MarmotException("Cannot resync yourself")
+        if (relay.connectedRelayUrls.value.isEmpty()) {
+            throw MarmotException("Not connected to any relay — check your connection")
+        }
+
+        // 1. Fetch the fresh key package FIRST — abort before touching the group.
+        val kpJson = fetchKeyPackageWithRetry(pubkeyHex, maxRetries = 10)
+
+        // 2. Remove the member — verified commit. Skip if a previous attempt
+        //    already removed them (re-add failed and the admin tapped Resync
+        //    again) — otherwise removeMembers would throw on a non-member.
+        val stillMember = try {
+            pubkeyHex in mls.getMembers(groupId)
+        } catch (e: Exception) {
+            true
+        }
+        if (stillMember) {
+            val removeResult = mls.removeMembers(mlsGroupId = groupId, memberPublicKeys = listOf(pubkeyHex))
+            mls.mergePendingCommit(mlsGroupId = groupId)
+            publishAndVerifyCommit(removeResult.evolutionEventJson)
+            locationCache.removeLocation(groupId, pubkeyHex)
+            Timber.i("Hard resync: removed ${pubkeyHex.take(8)}… from group $groupId")
+        } else {
+            Timber.i("Hard resync: ${pubkeyHex.take(8)}… already removed — re-adding only")
+        }
+
+        // 3. Re-add with the key package already in hand — verified commit + Welcome.
+        try {
+            val addResult = mls.addMembers(mlsGroupId = groupId, keyPackageEventsJson = listOf(kpJson))
+            mls.mergePendingCommit(mlsGroupId = groupId)
+            publishAndVerifyCommit(addResult.evolutionEventJson)
+            giftWrapAndPublishWelcomes(addResult.welcomeRumorsJson ?: emptyList(), pubkeyHex)
+        } catch (e: Exception) {
+            Timber.e("Hard resync: re-add failed after removing ${pubkeyHex.take(8)}…: ${e.message}")
+            throw MarmotException("Removed the member, but re-adding them failed. Tap Resync again to retry.")
+        }
+
+        refreshGroups()
+        Timber.i("Hard resync complete for ${pubkeyHex.take(8)}… in group $groupId")
+    }
+
+    // --- Batch add (join-requests) ---
+
+    /** Outcome of a batch add: pubkeys now in the group (added, or already members). */
+    data class BatchAddResult(val added: List<String>)
+
+    /**
+     * Add several joiners from their gift-wrapped join-requests in a SINGLE MLS
+     * commit — one epoch bump for the whole batch instead of one per person. Each
+     * request carries the member's signed key package inline, so there's no relay
+     * fetch. Atomic: either the whole commit lands (published, verified, welcomes
+     * routed) or the group is left unchanged (a bad key package fails the batch and
+     * is rolled back; the admin can dismiss it and retry). Mirrors iOS.
+     */
+    suspend fun addMembers(requests: List<JoinRequest>, groupId: String): BatchAddResult {
+        if (requests.isEmpty()) return BatchAddResult(emptyList())
+        if (relay.connectedRelayUrls.value.isEmpty()) {
+            throw MarmotException("Not connected to any relay")
+        }
+
+        val existing = runCatching { mls.getMembers(groupId).toSet() }.getOrDefault(emptySet())
+        val alreadyIn = requests.filter { it.pubkey in existing }.map { it.pubkey }
+        val toAdd = requests.filter { it.pubkey !in existing }
+        if (toAdd.isEmpty()) return BatchAddResult(alreadyIn)
+
+        try {
+            // 1. One commit for all the inline key packages.
+            val result = mls.addMembers(mlsGroupId = groupId, keyPackageEventsJson = toAdd.map { it.keyPackage })
+            mls.mergePendingCommit(mlsGroupId = groupId)
+
+            // 2. Publish + 3. verify the evolution event (MIP-02 anti-fork).
+            val evolutionEventJson = result.evolutionEventJson
+            publishGroupEvent(evolutionEventJson)
+            verifyEventOnRelay(Event.fromJson(json = evolutionEventJson).id().toHex())
+
+            // 4. Route each Welcome to its member by the rumor's `e` tag.
+            routeWelcomes(result.welcomeRumorsJson ?: emptyList(), toAdd)
+
+            refreshGroups()
+            Timber.i("Batch-added ${toAdd.size} member(s) to group $groupId in one commit")
+            return BatchAddResult(alreadyIn + toAdd.map { it.pubkey })
+        } catch (e: Exception) {
+            // Roll back any unmerged pending commit so the group is left unchanged.
+            runCatching { mls.clearPendingCommit(mlsGroupId = groupId) }
+            Timber.e("Batch add to group $groupId failed — rolled back: ${e.message}")
+            throw e
+        }
+    }
+
+    /**
+     * Gift-wrap each Welcome rumor to its intended member. MDK returns one rumor
+     * per added member, tagged with `e` = the key package event id used to add
+     * them; map that id back to the member's pubkey. Falls back to positional
+     * order if a tag is missing.
+     */
+    private suspend fun routeWelcomes(welcomeRumors: List<String>, requests: List<JoinRequest>) {
+        val kpIdToPubkey = HashMap<String, String>()
+        for (req in requests) {
+            runCatching { Event.fromJson(json = req.keyPackage).id().toHex() }.getOrNull()?.let {
+                kpIdToPubkey[it] = req.pubkey
+            }
+        }
+        welcomeRumors.forEachIndexed { index, rumorJson ->
+            val receiverHex = firstETag(rumorJson)?.let { kpIdToPubkey[it] }
+                ?: requests.getOrNull(index)?.pubkey?.also {
+                    Timber.w("Welcome rumor $index: no e-tag match — using positional recipient")
+                }
+            if (receiverHex == null) {
+                Timber.e("Welcome rumor $index: cannot route — skipping")
+                return@forEachIndexed
+            }
+            val rumor = UnsignedEvent.fromJson(json = rumorJson)
+            relay.giftWrap(receiver = PublicKey.parse(publicKey = receiverHex), rumor = rumor, extraTags = emptyList())
+        }
+    }
+
+    /** First `e` tag value (the key package event id) in a rumor's JSON. */
+    internal fun firstETag(rumorJson: String): String? {
+        return try {
+            val tags = JSONObject(rumorJson).optJSONArray("tags") ?: return null
+            for (i in 0 until tags.length()) {
+                val tag = tags.optJSONArray(i) ?: continue
+                if (tag.length() >= 2 && tag.optString(0) == "e") return tag.optString(1)
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
     }
 
     // --- Group Lifecycle ---
@@ -353,8 +575,9 @@ class MarmotService @Inject constructor(
         val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
         mls.mergePendingCommit(mlsGroupId = groupId)
 
-        val evolutionEventJson = result.evolutionEventJson
-        publishGroupEvent(evolutionEventJson)
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        publishAndVerifyCommit(result.evolutionEventJson)
 
         refreshGroups()
         Timber.i("Renamed group $groupId to '$newName'")
@@ -379,7 +602,9 @@ class MarmotService @Inject constructor(
         )
         val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
         mls.mergePendingCommit(mlsGroupId = groupId)
-        publishGroupEvent(result.evolutionEventJson)
+        // Confirm the metadata commit reached the relay — like a self-update it
+        // merges locally first, so an unpropagated commit desyncs the epoch.
+        publishAndVerifyCommit(result.evolutionEventJson)
         refreshGroups()
         Timber.i("Promoted ${pubkeyHex.take(8)} to admin in group $groupId")
     }
@@ -432,11 +657,19 @@ class MarmotService @Inject constructor(
                 Timber.i("Queued gift-wrap $eventId for retry after key package refresh")
             }
 
-            if (kind != MarmotKind.GIFT_WRAP) {
+            // The relay-wide kind-445 filter delivers events for groups we're not
+            // in; those throw "group not found" and can never apply, so mark them
+            // processed to avoid re-scanning. A failure for one of OUR groups (a
+            // commit we can't yet apply, an undecryptable message) is left
+            // unrecorded so catch-up can re-apply it once we're able. Marking it
+            // processed here is what made forks permanent -- a single dropped
+            // commit could never be retried by any recovery path.
+            val isForeignGroup = msg.contains("group not found") || msg.contains("not found")
+            if (kind != MarmotKind.GIFT_WRAP && isForeignGroup) {
                 settings.addProcessedEventId(eventId)
             }
 
-            if (msg.contains("group not found") || msg.contains("not found")) {
+            if (isForeignGroup) {
                 Timber.d("MDK skipped event kind $kind: $msg")
             } else {
                 _lastError.value = msg
@@ -454,6 +687,19 @@ class MarmotService @Inject constructor(
         val rumor = gift.rumor()
         val rumorKind = rumor.kind().asU16()
 
+        // Join-request from an invitee who accepted our invite — queue it for the
+        // admin to batch-add. (Their KeyPackage rides inline in the payload.)
+        if (rumorKind == MarmotKind.JOIN_REQUEST) {
+            try {
+                val request = JoinRequest.fromJson(rumor.content())
+                joinRequestStore.add(request)
+                Timber.i("Received join-request from ${request.pubkey.take(8)}… for group ${request.groupId}")
+            } catch (e: Exception) {
+                Timber.w("Failed to decode join-request rumor — ignoring: ${e.message}")
+            }
+            return
+        }
+
         if (rumorKind != MarmotKind.WELCOME) {
             Timber.d("Gift-wrap contained non-welcome kind $rumorKind, ignoring")
             return
@@ -466,6 +712,19 @@ class MarmotService @Inject constructor(
             wrapperEventId = wrapperEventId,
             rumorEventJson = rumorJson
         )
+
+        // A Welcome for a group we're already an active member of is a duplicate
+        // -- the admin gift-wraps the Welcome per rumor and it can be redelivered.
+        // Without this guard the second copy is misclassified as "unsolicited"
+        // (the pending-invite marker was cleared on the first join) and resurfaces
+        // as a phantom "Group invitation received" prompt while we're already in
+        // the group. Ignore it and clear any stale pending state.
+        if (mls.getGroup(welcome.mlsGroupId)?.isActive == true) {
+            pendingWelcomeStore.remove(welcome.mlsGroupId)
+            pendingInviteStore.remove(groupHint = welcome.mlsGroupId)
+            Timber.i("Ignoring duplicate Welcome for group ${welcome.mlsGroupId} -- already an active member")
+            return
+        }
 
         // Check if user consented via an invite code
         val hasPendingInvite = pendingInviteStore.pendingInvites.value.any {
@@ -502,16 +761,26 @@ class MarmotService @Inject constructor(
         }
         refreshGroups()
 
-        // Post-join self-update: immediately rotate key material so we
-        // are not relying on the Welcome's initial key package (MIP-02).
-        try {
-            val updateResult = mls.selfUpdate(mlsGroupId = welcome.mlsGroupId)
-            mls.mergePendingCommit(mlsGroupId = welcome.mlsGroupId)
-            publishGroupEvent(updateResult.evolutionEventJson)
-            Timber.i("Post-join self-update completed for group ${welcome.mlsGroupId}")
-        } catch (e: Exception) {
-            // Non-fatal: the join succeeded. rotateStaleGroups() will retry later.
-            Timber.w("Post-join self-update failed: ${e.message}")
+        // Post-join self-update: immediately rotate key material so we are not
+        // relying on the Welcome's initial key package (MIP-02). Disabled -- it
+        // forks the group at formation; see postJoinSelfUpdateEnabled.
+        if (postJoinSelfUpdateEnabled) {
+            try {
+                val updateResult = mls.selfUpdate(mlsGroupId = welcome.mlsGroupId)
+                mls.mergePendingCommit(mlsGroupId = welcome.mlsGroupId)
+                // Confirm the commit reached the relay — an unpropagated self-update
+                // advances our epoch locally while other members stay behind, which
+                // desyncs decryption in both directions.
+                publishAndVerifyCommit(updateResult.evolutionEventJson)
+                Timber.i("Post-join self-update completed for group ${welcome.mlsGroupId}")
+            } catch (e: Exception) {
+                // Non-fatal: the join succeeded and we are usable at the Welcome's
+                // epoch. The self-update commit could not be confirmed on the relay,
+                // so the group may be desynced until the next successful commit.
+                Timber.e("Post-join self-update failed to confirm on relay for group ${welcome.mlsGroupId}: ${e.message}")
+            }
+        } else {
+            Timber.i("Post-join self-update skipped for group ${welcome.mlsGroupId} -- staying at Welcome epoch")
         }
 
         // Clear matching pending invite now that we've joined
@@ -647,7 +916,7 @@ class MarmotService @Inject constructor(
                         "chat" -> {
                             refreshGroups()
                             withContext(Dispatchers.Main) {
-                                _lastChatMessageGroupId.value = message.mlsGroupId
+                                _lastChatMessageGroupId.value = message.mlsGroupId to System.currentTimeMillis()
                             }
                             Timber.d("Chat message in group ${message.mlsGroupId} from ${message.senderPubkey.take(8)}")
                         }
@@ -664,7 +933,7 @@ class MarmotService @Inject constructor(
                     // Fallback: treat as plain chat text
                     refreshGroups()
                     withContext(Dispatchers.Main) {
-                        _lastChatMessageGroupId.value = message.mlsGroupId
+                        _lastChatMessageGroupId.value = message.mlsGroupId to System.currentTimeMillis()
                     }
                     Timber.d("Plain chat message in group ${message.mlsGroupId}")
                 }
@@ -713,10 +982,13 @@ class MarmotService @Inject constructor(
                 val newEpoch = mls.getGroup(groupId)?.epoch ?: 0u
                 Timber.i("Key rotation: group $groupId epoch $oldEpoch -> $newEpoch")
 
-                val evolutionEventJson = result.evolutionEventJson
-                publishGroupEvent(evolutionEventJson)
+                // Publish the evolution event so other members advance their
+                // epoch — and confirm it landed. A rotation that merges locally
+                // but never reaches the relay strands other members on the old
+                // epoch, breaking decryption both ways.
+                publishAndVerifyCommit(result.evolutionEventJson)
 
-                Timber.i("Key rotation: published evolution event for group $groupId")
+                Timber.i("Key rotation: published + verified evolution event for group $groupId")
             } catch (e: Exception) {
                 Timber.e("Key rotation failed for group $groupId: $e")
             }
@@ -863,6 +1135,70 @@ class MarmotService @Inject constructor(
         }
     }
 
+    /**
+     * Soft resync: re-fetch recent group (kind-445) events ignoring the normal
+     * `since` high-water mark and re-process them, so a commit this device
+     * never received — because it was offline or its subscription had a gap
+     * while the commit sat on the relay — can finally be applied and the local
+     * epoch caught up. This is why v1.6.1's publish-verify matters: the missed
+     * commit is now reliably retrievable.
+     *
+     * Deliberately does NOT self-update: a self-update from a behind device
+     * cannot heal a fork and would only deepen divergence. Events already seen
+     * (in processedEventIds) are skipped by handleIncomingEvent, so a commit
+     * that was received-but-unprocessable (a true fork) is not retried here —
+     * MDK also permanently marks such a message PreviouslyFailed and refuses to
+     * re-apply it. Both cases need the admin re-invite (hard) path.
+     *
+     * Success is measured by whether the local epoch advanced — i.e. a missed
+     * commit was actually applied — NOT by the health tracker. The 30-day
+     * window can contain an old pre-desync application message that decrypts
+     * fine and would spuriously clear the banner via recordSuccess while the
+     * group stays behind on the current epoch. Epoch delta is the only signal
+     * that reflects real recovery.
+     *
+     * Returns true if a missed commit was applied (the group caught up).
+     */
+    suspend fun catchUpGroup(groupId: String): Boolean {
+        // MPC/background activity may have degraded the socket — a fresh
+        // connection guarantees the one-shot query works.
+        reconnectRelaysIfNeeded()
+
+        val epochBefore = mls.getGroup(groupId)?.epoch ?: 0u
+
+        // Bounded lookback rather than all of history: kind-445 also carries
+        // every location update, so an unbounded fetch would be huge. Any
+        // still-relevant missed commit is recent (well inside the 7-day
+        // rotation interval); 30 days is a generous safety margin.
+        val lookbackSecs = 30L * 24 * 3600
+        val nowSecs = System.currentTimeMillis() / 1000
+        val sinceSecs = (if (nowSecs > lookbackSecs) nowSecs - lookbackSecs else 0L).toULong()
+
+        try {
+            val filter = Filter()
+                .kind(kind = Kind(kind = MarmotKind.GROUP_EVENT))
+                .since(timestamp = Timestamp.fromSecs(secs = sinceSecs))
+            val events = relay.fetchEvents(filter = filter, timeout = java.time.Duration.ofSeconds(10))
+            Timber.i("catchUpGroup($groupId): re-processing ${events.size} group event(s)")
+            for (event in events) {
+                handleIncomingEvent(event)
+            }
+        } catch (e: Exception) {
+            Timber.e("catchUpGroup($groupId) fetch failed: $e")
+        }
+
+        val epochAfter = mls.getGroup(groupId)?.epoch ?: epochBefore
+        val recovered = epochAfter > epochBefore
+        if (recovered) {
+            // A missed commit was applied — we're back on the shared epoch.
+            // Clear any residual failure count that other events re-processed in
+            // the window may have recorded during the pass.
+            healthTracker.recordSuccess(groupId = groupId)
+        }
+        Timber.i("catchUpGroup($groupId): epoch $epochBefore -> $epochAfter, recovered=$recovered")
+        return recovered
+    }
+
     // --- Invite Flow ---
 
     /**
@@ -880,13 +1216,36 @@ class MarmotService @Inject constructor(
     suspend fun acceptInvite(encoded: String) {
         val invite = InviteCode.decode(encoded)
 
-        // Publish our key package to ALL connected relays (not just the invite
-        // relay) so the admin can find it regardless of which relay they query.
-        val allRelays = activeRelayUrls.toMutableList()
-        if (invite.relay !in allRelays) {
-            allRelays.add(invite.relay)
+        // The relay in the invite is the guaranteed common ground with the admin.
+        // Connect to it (Nostr has no global discovery) so our key package AND the
+        // join-request below land where the admin reads — not just on whichever
+        // relays we happened to already be connected to.
+        relay.ensureRelay(invite.relay)
+
+        val allRelays = activeRelayUrls
+        val keyPackageJson = publishKeyPackage(relays = allRelays)
+
+        // Tell the inviter directly that we're ready to join, carrying our key
+        // package inline so they can batch-add us with no separate relay fetch.
+        // Private: it rides inside a NIP-59 gift-wrap to the inviter. Non-fatal on
+        // failure — the admin can still add us by npub the old way.
+        try {
+            val inviterPK = PublicKey.parse(publicKey = invite.inviterNpub)
+            val joinRequest = JoinRequest(
+                groupId = invite.groupId,
+                pubkey = publicKeyHex,
+                keyPackage = keyPackageJson,
+                name = nicknameStore.displayName(publicKeyHex)
+            )
+            val rumor = EventBuilder(
+                kind = Kind(kind = MarmotKind.JOIN_REQUEST),
+                content = joinRequest.toJson()
+            ).build(publicKey = PublicKey.parse(publicKey = publicKeyHex))
+            relay.giftWrap(receiver = inviterPK, rumor = rumor, extraTags = emptyList())
+            Timber.i("Sent join-request to inviter for group ${invite.groupId}")
+        } catch (e: Exception) {
+            Timber.w("Failed to send join-request (admin can still add by npub): ${e.message}")
         }
-        publishKeyPackage(relays = allRelays)
 
         Timber.i("Accepted invite for group ${invite.groupId} from ${invite.inviterNpub} — key package published to ${allRelays.size} relay(s)")
     }

@@ -58,26 +58,77 @@ final class LocationCacheTests: XCTestCase {
     }
 
     // MARK: - Stale detection
+    //
+    // All tests anchor on `receivedAt` (local clock) since the v1.2.1 fix for
+    // cross-device clock skew. `payload.date` (the publisher's stamped time) is
+    // no longer the basis — only the local "when did we last hear from them?"
+    // matters for UI grey-out.
 
     func testStaleLocationDetected() {
-        let oldDate = Date(timeIntervalSinceNow: -7200) // 2 hours ago
-        let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: oldDate)
+        let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: Date())
         let loc = MemberLocation(
             groupId: group1, memberPubkeyHex: alice,
-            payload: payload, receivedAt: Date()
+            payload: payload, receivedAt: Date(timeIntervalSinceNow: -7260) // received 2h 1min ago
         )
-        // With 1-hour interval, 2× = 2 hours → stale
+        // With 1-hour interval, 2× = 2 hours → stale. Use 2h 1min (not exactly
+        // 2h) so the assertion can't flake on the `> threshold` boundary when
+        // both Date() reads land in the same clock tick.
         XCTAssertTrue(loc.isStale(intervalSeconds: 3600))
     }
 
     func testFreshLocationNotStale() {
-        let recentDate = Date()
-        let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: recentDate)
+        let payload = LocationPayload(latitude: 0, longitude: 0, altitude: 0, accuracy: 0, timestamp: Date())
         let loc = MemberLocation(
             groupId: group1, memberPubkeyHex: alice,
-            payload: payload, receivedAt: Date()
+            payload: payload, receivedAt: Date() // received just now
         )
         XCTAssertFalse(loc.isStale(intervalSeconds: 3600))
+    }
+
+    func testPublisherIntervalPreferredOverLocal() {
+        // Publisher is on a 1-hour cadence; local device polls every 10s.
+        // Without payload.interval this would be marked stale within 20s;
+        // with it, the threshold is 2 × 3600 = 2h. receivedAt = 1 min ago.
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(), interval: 3600
+        )
+        let loc = MemberLocation(
+            groupId: group1, memberPubkeyHex: alice,
+            payload: payload, receivedAt: Date(timeIntervalSinceNow: -60)
+        )
+        XCTAssertFalse(loc.isStale(intervalSeconds: 10), "Publisher interval (3600s) must win over local (10s)")
+    }
+
+    func testFallbackToLocalIntervalWhenPayloadIntervalMissing() {
+        // Pre-1.2.1 payload (no interval field) — should still grade against
+        // the local interval. receivedAt = 25s ago, local threshold = 20s → stale.
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(), interval: nil
+        )
+        let loc = MemberLocation(
+            groupId: group1, memberPubkeyHex: alice,
+            payload: payload, receivedAt: Date(timeIntervalSinceNow: -25)
+        )
+        XCTAssertTrue(loc.isStale(intervalSeconds: 10), "Should fall back to local 10s × 2 = 20s threshold")
+    }
+
+    func testStalenessUnaffectedByPublisherClockSkew() {
+        // Regression: previously, isStale used payload.date, so a publisher
+        // device whose clock was 30s behind would always show grey on the
+        // receiver (apparent age 30s > 20s threshold) even if we'd just
+        // received the message. After the fix, receivedAt drives everything.
+        let publisherClockSkew: TimeInterval = -300 // publisher's clock is 5 min behind
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(timeIntervalSinceNow: publisherClockSkew)
+        )
+        let loc = MemberLocation(
+            groupId: group1, memberPubkeyHex: alice,
+            payload: payload, receivedAt: Date() // we just got it
+        )
+        XCTAssertFalse(loc.isStale(intervalSeconds: 10), "Clock skew on the publisher side must not poison local staleness")
     }
 
     // MARK: - Empty state

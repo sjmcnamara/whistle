@@ -18,7 +18,18 @@ data class MemberAnnotation(
     val timestampMs: Long,
     val isMe: Boolean,
     /** True when Movement Aware is active and this device is stationary. Own pin only. */
-    val isStationary: Boolean = false
+    val isStationary: Boolean = false,
+    /**
+     * Publisher's own update cadence in seconds (from `LocationPayload.interval`).
+     * Null for pre-1.2.1 payloads that omit the field.
+     */
+    val intervalSeconds: Int? = null,
+    /**
+     * Estimated wall-clock time (ms) of this member's next publish — own pin
+     * only, drives the count-down on the map pin. Null for other members, which
+     * count up from `timestampMs` instead. Mirrors iOS `nextUpdateDate`.
+     */
+    val nextUpdateMs: Long? = null
 )
 
 /** Simple lat/lon pair — no Google Maps dependency. */
@@ -33,7 +44,9 @@ class LocationViewModel(
     private val nicknameStore: NicknameStore,
     private val intervalSeconds: () -> Int,
     private val myPubkeyHex: () -> String?,
-    private val isStationary: () -> Boolean = { false }
+    private val isStationary: () -> Boolean = { false },
+    /** Estimated wall-clock ms of the own device's next publish (own pin count-down). */
+    private val nextFireMs: () -> Long? = { null }
 ) {
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -78,20 +91,22 @@ class LocationViewModel(
             locs.values.toList()
         }
 
-        val now = System.currentTimeMillis()
         val stationary = isStationary()
+        val nextFire = nextFireMs()
         val annotations = filtered.map { loc ->
             val name = nicknameStore.displayName(loc.memberPubkeyHex)
             val isMe = selfKey != null && loc.memberPubkeyHex == selfKey
-            val isStale = (now - loc.payload.ts * 1000) > interval * 1000L * 2
             MemberAnnotation(
                 id = loc.id,
                 position = LatLon(loc.payload.lat, loc.payload.lon),
                 displayName = name,
-                isStale = isStale,
-                timestampMs = loc.payload.ts * 1000,
+                isStale = loc.isStale(interval),
+                // Local-clock anchor; payload.ts is the publisher's stamp, which can drift cross-device.
+                timestampMs = loc.receivedAt * 1000,
                 isMe = isMe,
-                isStationary = isMe && stationary
+                isStationary = isMe && stationary,
+                intervalSeconds = loc.payload.interval,
+                nextUpdateMs = if (isMe) nextFire else null
             )
         }
 

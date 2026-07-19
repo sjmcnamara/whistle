@@ -6,6 +6,132 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.6.6] — 2026-07-18
+
+### Fixed
+- **New groups no longer fork at formation** (iOS & Android): creating a group and having someone join left both devices listing each other as members but unable to decrypt a single message or location in either direction (`Failed to decrypt message with any exporter secret`). Cause: right after accepting the Welcome, the joiner performed an immediate key rotation ("post-join self-update", MIP-02 hardening) that advanced it to a new MLS epoch during the fragile just-joined window — before the admin's subscription had settled — so the admin never converged on that epoch and the group forked permanently. The post-join self-update is now disabled; a joiner stays at the Welcome's shared epoch, which both sides agree on. (A safe rotation can be reintroduced once commit convergence is guaranteed.)
+- **A dropped MLS commit no longer forks a group forever** (iOS & Android): when processing an incoming group event (kind 445) failed, it was marked permanently "processed" and skipped by every recovery path — the live subscription, soft resync (catch-up), *and* hard re-invite all honoured that flag, so a single missed or out-of-order commit stranded the device on a stale epoch with no way back. Failures for groups we belong to are now left retryable, so soft resync can re-fetch and re-apply a missed commit and catch the epoch up. (Events for groups we're not in — delivered by the relay-wide kind-445 filter — are still marked processed to avoid re-scanning.)
+- **Incoming chat messages now appear live in an open thread** (Android): a message received while you were already viewing that group's chat did not show up until you navigated away and back. The internal "new chat message" signal was a `StateFlow<String?>` keyed on group id, and StateFlow drops a repeat emission of the same value — so a second message from the group you were already looking at notified nobody. It now carries a nonce so every message refreshes the thread. (iOS was unaffected.)
+- **No more phantom "Group invitation received" after joining** (iOS & Android): a freshly-joined member could end up both in the group (map, chat working) *and* showing a pending invitation prompt for the same group — a split brain. The admin gift-wraps the Welcome per rumor and it can be redelivered, and the second copy was misclassified as "unsolicited" because the pending-invite marker had already been cleared by the first join. Incoming Welcomes for a group we're already an active member of are now ignored (clearing any stale pending state) instead of resurfacing as a phantom invite.
+
+---
+
+## [1.6.5] — 2026-07-17
+
+### Fixed
+- **Group chat no longer reloads from scratch on every visit** (iOS & Android): leaving a chat and returning showed an empty thread that then had to re-decrypt and repaint from MDK. The chat view-model is created per-group and destroyed when the chat is popped off the navigation stack, so each return started from an empty message list. Loaded threads are now held in an in-memory `ChatMessageCache` keyed by group, and a re-entered chat seeds itself from that cache synchronously — so the thread renders instantly. The background refresh now *merges* the newest page into what's shown (de-duplicated, by message id) instead of replacing it, so any older history paged in with "Load earlier messages" survives the refresh rather than being dropped. The cache is purely in-memory (the durable store remains MDK's encrypted SQLite DB) and is cleared on logout.
+
+---
+
+## [1.6.4] — 2026-07-10
+
+### Fixed
+- **"Load earlier messages" in group chat** (iOS & Android): paging older chat history was unreliable and often did nothing. Two compounding bugs: (1) the paging offset was advanced by the number of *displayed chat bubbles*, but it indexes the raw message store — which is dominated by frequent location updates — so successive pages overlapped and barely progressed (sometimes not at all, and could duplicate messages); (2) the chat view scrolled back to the newest message on *any* change, including when older messages were prepended, so even a successful load snapped away from what it just loaded. The offset now advances by the raw page size, `loadMore` keeps paging until it surfaces at least one older chat message (bounded), results are de-duplicated, and the view holds position on prepend (only auto-scrolling to the bottom when a message is actually sent or received). On Android the one-shot auto-trigger that could get permanently stuck is replaced with an explicit, reliable button.
+
+### Added
+- **Hard group resync** (iOS & Android): admins get a **Resync** action on each member row in Group Details for the true-fork case that soft catch-up can't reach (a commit the member merged that others never got — MDK marks it `previouslyFailed` and won't re-apply). Behind a confirmation, it removes the member and immediately re-adds them with a fresh key package, rebuilding their leaf in the MLS ratchet tree. Ordering is deliberate — the key package is fetched first, so a member is never removed unless they can be re-added; if the re-add still fails, the error prompts a retry rather than leaving them stranded. Both the remove and re-add commits are verified on the relay (the v1.6.1 anti-fork check). This completes the resync story started in v1.6.2: soft catch-up for a missed commit, hard re-invite for a genuine fork.
+
+### Fixed
+- **Remove-member commit now verified on relay** (iOS & Android): the standalone "Remove member" admin action published its removal commit fire-and-forget — the same gap v1.6.1 closed for self-update and metadata commits, but on the removal path. In a group of three or more, a dropped removal commit stranded the remaining members on the old epoch and desynced decryption. Removal now routes through the same relay-verified publish.
+
+---
+
+## [1.6.2] — 2026-07-09
+
+### Added
+- **Soft group resync** (iOS & Android): the in-chat decryption banner is now actionable. Tapping **Resync** re-fetches and re-processes the group's recent MLS commits (a bounded 30-day window, ignoring the normal `since` high-water mark) so a commit this device never received — because it was offline or its subscription had a gap while the commit sat on the relay — is finally applied and the epoch catches up. The banner clears automatically on success. Deliberately does not self-update (a self-update from a behind device cannot heal a fork). If catch-up does not resolve it — the true-fork case — the banner switches to directing the user to ask an admin to re-invite them (the hard-resync path, planned next).
+
+---
+
+## [1.6.1] — 2026-07-06
+
+### Fixed
+- **MLS commits now verified on relay** (iOS & Android): epoch-advancing commits that merge locally before publishing — self-update key rotation (post-join and the periodic 7-day rotation) and group-metadata changes (promote-to-admin, rename) — were published fire-and-forget. If the kind-445 commit failed to reach the relay, the sender's epoch advanced locally (old epoch secrets dropped for forward secrecy) while other members stayed behind, desyncing decryption in both directions and surfacing "Some messages couldn't be decrypted. A member may need to be re-invited to resync." All these paths now confirm the commit is retrievable from the relay after publishing (re-publishing if it did not land), matching the MIP-02 anti-fork check already used when adding members.
+
+---
+
+## [1.6.0] — 2026-06-29
+
+### Added
+- **Group avatar** (iOS & Android): tap the group icon in Group Details to set a personal photo from your library. The avatar appears in the group list row in place of the default icon. Local and per-device — not shared with other members, no protocol changes. Long-press the hero circle to remove the photo.
+
+---
+
+## [1.5.0] — 2026-06-24
+
+### Added
+- **Join requests** (iOS & Android): when an invitee accepts an invite link, the app automatically gift-wraps a join-request (Nostr kind 1080) directly to the inviter, carrying the invitee's MLS KeyPackage inline. Nothing leaks to relays — the request rides inside a NIP-59 kind-1059 gift-wrap.
+- **Pending-joiners list** (iOS & Android): the group admin sees a "Ready to Join" section in Group Details listing everyone who has sent a join request and is waiting to be added. Each row shows the invitee's display name and when the request arrived.
+- **"Add all" batch add** (iOS & Android): a single button collects all pending KeyPackages and calls `addMembers([…])` once, producing one MLS epoch bump and one kind-445 commit instead of N sequential commits. Each invitee receives an individual Welcome. Partial-failure rule: anyone whose KeyPackage is in hand is added immediately; latecomers stay pending and are retried on their next launch.
+- **Group Details redesign** (iOS): the Group Details screen is rebuilt with a cleaner layout — pending joiners surface prominently at the top so admins can act without scrolling past the full member list.
+
+### Fixed
+- **`ChatViewModel` `@StateObject` crash** (iOS): `ChatViewModel` was declared `@ObservedObject` in a parent view that created it inline, causing SwiftUI to tear it down and recreate it on every parent re-render, dropping message subscriptions and sometimes crashing. Moved to `@StateObject` so SwiftUI owns the lifetime.
+
+---
+
+## [1.4.1] — 2026-06-12
+
+### Fixed
+- **App update could wipe group membership** (iOS & Android): `MLSService` deleted and recreated the MLS database on *any* `newMdk` failure. The intent was to discard a pre-v0.9 *unencrypted* database, but the catch-all also fired when a perfectly healthy *encrypted* database failed to open transiently — e.g. the Keychain/Keystore not yet readable on a background launch before first unlock — silently destroying every group. (This was originally removed in an earlier fix, then reintroduced when SQLCipher encryption was switched on.) The recreate path is now gated on a check that the on-disk file is a genuine plaintext SQLite database (SQLCipher encrypts the header, so a healthy encrypted DB never carries the SQLite magic); any other open failure now fails loudly without deleting, so a later launch can retry and recover.
+- **iOS device never went stationary until pause toggled** (iOS): with Movement Aware on, opening the app while already sitting still left the pin flagged "moving" indefinitely — the standing-man badge and "Currently stationary" never appeared unless the user toggled location sharing off then on. `CMMotionActivityManager` is edge-triggered (it fires only when the activity *changes*), so a device that was already stationary at launch received no callback; toggling pause restarted monitoring and happened to deliver a transition. Startup now seeds the initial state from recent motion history via `queryActivityStarting`, so the device goes stationary on its own. Complements the v1.3.1 fix for the inverse "stuck at 4× while moving" case.
+- **Map pins showed no staleness counter** (Android): on the OSM map, member pins displayed only the avatar and name — the relative-time line iOS shows below the name was missing entirely, so there was no at-a-glance "how fresh is this?" without tapping into the detail sheet. Pins now carry a live counter matching iOS `MemberPinView`: other members count **up** since last seen ("2 min ago"), and your own pin counts **down** to its next scheduled publish ("in 30s"), derived from the last fire time and the effective (motion-adjusted) cadence. The counter ticks once a second.
+
+---
+
+## [1.4.0] — 2026-06-12
+
+### Added
+- **Whistle button** (iOS & Android): a circular broadcast-icon button on the map that force-publishes your location to every active group immediately, bypassing the update timer, the motion-aware backoff, and the stationary multiplier. A one-shot override that even fires while sharing is paused (a single send; it stays paused afterwards). Requests a fresh fix and falls back to the last known location if none arrives; the icon swaps to a spinner while sending, a checkmark on success, and a warning if it can't get a location. For the "I need them to see where I am right now" moment without waiting for the next scheduled update. The stamped `LocationPayload.interval` still reflects the normal cadence, so a manual whistle doesn't skew receivers' staleness grading.
+
+---
+
+## [1.3.1] — 2026-06-11
+
+### Fixed
+- **Motion-adaptive backoff could get stuck at 4× while moving** (iOS): with Movement Aware on, a device that went stationary (multiplier → 4×) and then started moving could keep publishing at the slowed cadence indefinitely — e.g. a 15-min interval stayed at the stationary 1-hour rate, so the pin showed the stationary badge and stopped updating even while walking. `CMMotionActivityManager` is edge-triggered (it delivers a callback when the activity *changes*, not continuously), but `MotionService` only re-evaluated the 30 s moving-debounce *inside* that callback. During steady walking only the initial "walking" callback arrived, so the elapsed-time check never ran again and `isStationary` never flipped back. The debounce is now driven by a one-shot timer that fires after 30 s of sustained motion regardless of further activity callbacks, and is cancelled the moment a stationary reading arrives. Matches Android, which was already timer-driven and unaffected.
+
+---
+
+## [1.3.0] — 2026-06-10
+
+_UX polish — smoothing over rough edges surfaced during 1.2.x on-device testing._
+
+### Added
+- **Member detail sheet** (iOS & Android): tapping a member's map pin opens a bottom sheet with their nickname, last-seen time (anchored on local `receivedAt`), and the publisher's update cadence (e.g. "every 10 sec" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in v1.2.1 without crowding the map — answers "why is mom's pin always grey?" for the curious, hidden for the 95% case. Own pin also shows "Currently stationary" while Movement Aware is active.
+
+### Changed
+- **Group chat header is now tappable** (iOS & Android): tapping the group title or member-list strip in the chat view opens group detail (invite codes, member management). The small info icon to the right remains as a secondary affordance, so the existing tap target is preserved.
+- **Custom map pins** (Android): replaced osmdroid's default red marker with a custom-drawn pin matching the iOS `MemberPinView` — a white-ringed avatar circle (blue when fresh, grey when stale) with a person glyph, the member's display name labelled below with a white halo for legibility over tiles, and the orange stationary badge composited into the same bitmap (rather than a separate offset marker that could drift out of alignment). Rendered at device density so it stays crisp at any DPI.
+
+### Fixed
+- **Spurious EXIT_STILL no longer drops the 4× backoff** (Android): `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS behaviour. Previously, a phone bumped on a desk could fire an `EXIT_STILL` transition that immediately cancelled the battery-saving backoff. The reverse direction (entering still) still applies immediately. iOS was already debounced — `MotionService.movingDebounceSeconds` (30 s) — and is unchanged.
+
+---
+
+## [1.2.1] — 2026-06-09
+
+### Fixed
+- **Lock screen & Face ID prompt** (iOS): replaced lingering "FindMyFam" strings on the locked-app screen and the Face ID / passcode prompts with "Whistle". Cosmetic only — no bundle ID, keychain, signing, or install identity changes.
+- **GPS vs Wi-Fi selection** (Android): `LocationService` now keeps the most recent fix from each of `GPS_PROVIDER` and `NETWORK_PROVIDER` and selects per-fire by freshness then accuracy. Previously, a low-accuracy network fix could beat a soon-to-arrive GPS fix to the throttle gate. Stays GMS-free (no `FusedLocationProviderClient` dependency, GrapheneOS-compatible).
+- **Live interval changes propagate on Android**: `AppViewModel` now observes `AppSettings.locationIntervalSecondsFlow` and re-applies the new value to the running `LocationService` (plus throttle reset) instead of snapshotting it at startup. Previously, changing the interval in Settings had no effect until the next app restart. Mirrors the iOS behaviour at `AppViewModel.swift:173`.
+- **Cross-device stale-pin grading** (iOS & Android): `MemberLocation.isStale` now prefers the publisher's own interval (carried in the new `LocationPayload.interval` field) and only falls back to the local device's interval when the field is absent (pre-1.2.1 senders). A member on a 1-hour cadence no longer goes grey within 20s on a device polling every 10s.
+- **Cross-device clock-skew resilience** (iOS & Android): staleness and the on-pin countdown are now anchored on `receivedAt` (local clock) rather than `payload.ts` (publisher's clock). Two devices whose clocks drift by even 30s would previously render each other as permanently grey; now staleness means "we haven't heard from them in a while" rather than "their stamped timestamp looks old." `payload.ts` and `payload.interval` still ride along in the wire format for telemetry/debugging but no longer drive UI staleness.
+- **Self-pin countdown no longer truncates** (iOS): the next-update countdown on the user's own pin rendered as "in 2 min, 5s…" with a shrunk font, because the future-relative form of `Text(date, style: .relative)` is longer than the past-relative form used for peer pins. Switched the label from `minimumScaleFactor(0.7)` to `fixedSize()` so it takes its natural width instead of being squeezed.
+- **Self-pin countdown no longer oscillates up-then-down** (iOS): the countdown is computed as `lastFireDate + (interval × motion multiplier)`, but Core Location doesn't always deliver an update right at the throttle's expiry — so the computed `nextFireDate` could fall into the past for several seconds until the next GPS fix arrived, flipping SwiftUI's `Text(date, style: .relative)` into count-up mode (e.g. `…, 1, 0, 1, 2, 3, 9, 8, 7, …`). Clamped at the viewmodel layer with `max(computed, Date())` so the timer holds at "0 sec" honestly while waiting for the late fix instead of climbing.
+- **Published interval reflects motion multiplier** (iOS & Android): `LocationPayload.interval` now carries `intervalSeconds × motionMultiplier` (via the new `LocationService.effectiveIntervalSeconds`) instead of the user-configured value. Without this, a stationary device on a 10s setting publishes every 40s but stamped `interval: 10`, so receivers using the publisher's interval (above) still saw the pin go grey within 20s of every send. New helper is testable in isolation; tests on both platforms.
+
+### Changed
+- **Internal rename** (iOS): `struct FindMyFamApp` → `WhistleApp` (file renamed too), and `FMFLogger` → `WhistleLogger` swept across 19 files. No user-facing behaviour change; bundle ID `org.findmyfam.app` deliberately untouched.
+- **`LocationPayload` schema**: added optional `interval` field (publisher's own update cadence in seconds). Schema version stays at `1` — older clients ignore the unknown field, and newer clients accept payloads without it. Fully backward and forward compatible.
+- **Settings → About → Version row** (iOS & Android): now shows the build number alongside the marketing version, e.g. `1.2.1(24)`. Makes TestFlight / sideload-vs-release builds visually distinguishable without digging into device info.
+
+### Docs
+- **Architecture wiki**: corrected the `LocationService` line — Android uses raw `LocationManager`, not `FusedLocationProvider`. Noted OSM via osmdroid is the deliberate (GMS-free) choice, not a Google Maps fallback.
+- **ROADMAP**: added an "Optional Google Maps on Android" entry to the Deferred section, framed as a future product-flavor option rather than a fallback.
+
+---
+
 ## [1.2.0] — 2026-05-13
 
 ### Added

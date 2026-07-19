@@ -26,6 +26,24 @@ For Android: `cd android && ./gradlew assembleDebug` / `./gradlew test`.
 
 Both platforms share `CHANGELOG.md` and `ROADMAP.md`.
 
+## Cutting an Android release
+
+Tagging `vX.Y.Z` and pushing the tag triggers `.github/workflows/release-android.yml`, which builds a signed APK and creates the GitHub release.
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The workflow expects four repo secrets:
+
+- `ANDROID_KEYSTORE_B64` — base64 of `whistle-release.jks` (`base64 -i whistle-release.jks | pbcopy` on macOS)
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS` — e.g. `whistle-release`
+- `ANDROID_KEY_PASSWORD` — usually the same as the keystore password
+
+The release attaches both a versioned APK (`whistle-vX.Y.Z.apk`) and a stable `whistle.apk` so `releases/latest/download/whistle.apk` always points at the most recent build. The keystore is generational — if lost, existing Android installs can never be updated.
+
 ## Key architecture
 
 ```
@@ -53,7 +71,7 @@ MDKBindings:
   revision: <commit>
 ```
 
-Currently tracking `branch: main` of mdk-swift (MDK 0.8.0). mdk-swift has no tags yet; switch to `revision:` once a tag is published.
+Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.8.0). We previously tracked `branch: main` but upstream silently added a required `disappearingMessageSecs` parameter to `createGroup` and friends; the CI mdk-swift cache hid it until CodeQL (which fresh-clones) exposed the break. Bump the pin deliberately when adopting a newer MDK; switch to a tag once mdk-swift publishes one.
 
 **Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". `./scripts/build.sh` handles this automatically: it clones `vendor/mdk-swift` with the system git (LFS-aware) on first run, patches `project.yml`, runs xcodegen, then restores `project.yml` so the working tree stays clean.
 
@@ -92,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.2.0 — Low Battery Alerts** (shipped). See ROADMAP.md for next steps.
+Current version: **v1.6.6 — formation-fork fix (disable post-join self-update; failed commits stay retryable)** (bugfix). See ROADMAP.md for next steps.

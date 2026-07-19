@@ -21,6 +21,21 @@ class MotionAdaptiveTest {
         assertEquals(4.0, MotionService.STATIONARY_MULTIPLIER, 0.0)
     }
 
+    @Test
+    fun `moving debounce is 30 seconds`() {
+        // Mirrors iOS MotionService.movingDebounceSeconds. Long enough to outlast
+        // a spurious EXIT_STILL — phone bumped on a desk, indoor noise — so the
+        // 4× backoff isn't dropped on a single noisy reading.
+        assertEquals(30L, MotionService.MOVING_DEBOUNCE_SECONDS)
+    }
+
+    @Test
+    fun `moving debounce exceeds a typical poll interval`() {
+        // The debounce window should be substantial relative to typical intervals
+        // (10s default) so that the multiplier can't be dropped mid-cycle.
+        assertTrue(MotionService.MOVING_DEBOUNCE_SECONDS > 10L)
+    }
+
     // MARK: - shouldFire maths (tested via the formula directly)
 
     @Test
@@ -89,5 +104,32 @@ class MotionAdaptiveTest {
             val isStationary = type == DetectedActivity.STILL
             assertFalse("Activity type $type should not be stationary", isStationary)
         }
+    }
+
+    // MARK: - effectiveIntervalSeconds (drives LocationPayload.interval)
+
+    @Test
+    fun `effectiveIntervalSeconds with 1x multiplier equals configured`() {
+        assertEquals(10, org.findmyfam.services.LocationService.effectiveIntervalSeconds(10, 1.0))
+        assertEquals(3600, org.findmyfam.services.LocationService.effectiveIntervalSeconds(3600, 1.0))
+    }
+
+    @Test
+    fun `effectiveIntervalSeconds with stationary 4x multiplier multiplies configured`() {
+        // Regression: 1.2.1 originally shipped interval=settings.locationIntervalSeconds,
+        // ignoring the motion multiplier — so a stationary device on a 10s setting
+        // published every 40s but stamped interval=10, and iOS receivers marked it
+        // stale within 20s of every send.
+        assertEquals(40, org.findmyfam.services.LocationService.effectiveIntervalSeconds(10, MotionService.STATIONARY_MULTIPLIER))
+        assertEquals(14400, org.findmyfam.services.LocationService.effectiveIntervalSeconds(3600, MotionService.STATIONARY_MULTIPLIER))
+    }
+
+    @Test
+    fun `effectiveIntervalSeconds rounds non-integer products`() {
+        // Future-proofing: if a non-integer multiplier is ever introduced,
+        // round-to-nearest is the right semantic (truncation would bias slow).
+        assertEquals(15, org.findmyfam.services.LocationService.effectiveIntervalSeconds(10, 1.5))
+        assertEquals(15, org.findmyfam.services.LocationService.effectiveIntervalSeconds(10, 1.49)) // 14.9 → 15
+        assertEquals(14, org.findmyfam.services.LocationService.effectiveIntervalSeconds(10, 1.44)) // 14.4 → 14
     }
 }

@@ -364,9 +364,67 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.6.0 — Group avatar ✅
+_Released 2026-06-29_
+
+- **Group avatar** (iOS & Android): tap the group icon in Group Details to pick a photo from the library. Shown in the group list row, local/per-device only. Long-press hero circle to remove.
+
+### v1.5.0 — Group onboarding ✅
+_Released 2026-06-24_
+
+- **Join requests** (iOS & Android): invitees gift-wrap a join-request (kind 1080) directly to the inviter carrying their MLS KeyPackage inline. Private by construction — rides inside a NIP-59 kind-1059 gift-wrap; nothing on a public relay leaks membership intent.
+- **Pending-joiners list** (iOS & Android): admins see a "Ready to Join" list in Group Details showing who has sent a request and when.
+- **"Add all" batch add** (iOS & Android): one button calls `addMembers([…])` for all pending KeyPackages — a single MLS epoch bump, one kind-445, N Welcomes. Laggards stay pending and retry on next launch.
+- **Group Details redesign** (iOS): cleaner layout with pending joiners surfaced at the top.
+- **`ChatViewModel` `@StateObject` fix** (iOS): was `@ObservedObject` in a parent that created it inline, causing SwiftUI to tear it down on every re-render.
+
+### v1.4.1 — Bugfixes ✅
+_Released 2026-06-12_
+
+- **App update could wipe group membership** (iOS & Android): `MLSService` deleted and recreated the MLS database on *any* `newMdk` failure — intended for a pre-v0.9 unencrypted DB, but the catch-all also fired when a healthy *encrypted* DB failed to open transiently (e.g. Keychain/Keystore not yet readable on a background launch), silently destroying every group. The recreate path is now gated on a plaintext-SQLite header check; any other failure fails loudly without deleting so a later launch can recover.
+- **iOS device never went stationary until pause toggled** (iOS): `CMMotionActivityManager` is edge-triggered, so opening the app while already still produced no callback and `isStationary` stuck at false. `startMonitoring()` now seeds the initial state from recent motion history via `queryActivityStarting`. Complements the v1.3.1 fix for the inverse case.
+- **Map pins showed no staleness counter** (Android): OSM pins now carry a live relative-time counter matching iOS `MemberPinView` — others count up ("2 min ago"), own pin counts down ("in 30s").
+
+### v1.4.0 — Manual Whistle ✅
+_Released 2026-06-12_
+
+- **Whistle button** (iOS & Android): circular broadcast-icon button that force-publishes location to every active group immediately, bypassing the update timer, motion-aware backoff, and stationary multiplier. One-shot override that fires even while paused (stays paused afterwards). Fresh fix with last-known fallback; icon swaps to spinner/checkmark/warning for feedback. Stamped `LocationPayload.interval` still reflects the normal cadence so receivers' staleness grading isn't skewed.
+
+### v1.3.1 — Motion backoff bugfix ✅
+_Released 2026-06-11_
+
+- **Motion-adaptive backoff stuck at 4× while moving** (iOS): `MotionService` only re-evaluated the 30 s moving-debounce inside a `CMMotionActivityManager` callback, but that API is edge-triggered — during steady walking only the initial callback arrives, so `isStationary` never flipped back and the device kept publishing at the slowed (e.g. 1-hour) cadence. Debounce is now driven by a one-shot timer. Android was already timer-driven and unaffected.
+
+### v1.3.0 — UX Polish ✅
+_Smoothing over rough edges surfaced during 1.2.x on-device testing — released 2026-06-10_
+
+- **Member detail sheet** (iOS & Android): tapping a member's map pin opens a bottom sheet with nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence (e.g. "every 10 sec" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Own pin also shows "Currently stationary" while Movement Aware is active.
+- **Tappable group chat header** (iOS & Android): tapping the group title or the member-list strip in the chat view now opens the group detail (invite codes, member management). The small info icon to the right stays as a secondary affordance.
+- **Debounce stationary→moving on Android**: `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS `movingDebounceSeconds` (which already debounced this direction). A spurious `EXIT_STILL` — phone bumped on a desk, indoor motion noise — no longer immediately cancels the battery-saving backoff. iOS was already correct; no iOS change in this release.
+
+---
+
 ### Deferred
 
-- **Push Notifications via MIP-05**: MIP-05 defines a notification server that watches kind 445 group events and delivers a silent APNs/FCM push to wake the app. MDK 0.8.0 ships the Rust primitives. Blocked on deciding whether to run Whistle infrastructure — the notification server needs APNs credentials and learns which device tokens belong to which groups. Revisit when the app moves beyond TestFlight.
+- **Share stationary state in the location payload** _(parity feature)_: the Movement Aware "stationary" indicator (standing-man badge + "Currently stationary" in the detail sheet) is currently computed locally from the device's own motion sensor and is hard-gated to the own pin — it is **not** carried in `LocationPayload`, so a member viewing someone else never sees their stationary state. Receivers can already infer the slowdown from the `interval` field (which reflects the motion-adjusted 4× cadence), but not the explicit badge. To make it cross-device, add an **optional** `stationary` boolean to `LocationPayload` on both platforms (backward-compatible, exactly as `interval` was added in v1.2.1), serialize it for the own broadcast, and read it for non-self members. Deferred from v1.4.1 as it extends the wire protocol — a feature, not a bugfix.
+
+- **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
+    - **Nearby Share** (`NearbyShareCoordinator`) — MultipeerConnectivity peer-to-peer invite exchange with no relay connectivity. Android equivalent would use Nearby Connections or custom BLE. _Parity matters._
+    - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
+    - **NFC tag read/write** (`NFCReadCoordinator` / `NFCWriteCoordinator`) — tap-to-join via NFC stickers. **Candidate to drop** rather than port — niche use, low demand.
+
+- **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
+
+- **Push Notifications via MIP-05** _(parked)_: MIP-05 specifies a privacy-preserving push pipeline. Devices encrypt their APNs/FCM tokens to a notification server's pubkey (probabilistic encryption with ephemeral keys, no cross-group linkability) and gossip the encrypted tokens to group members via kinds 447/448/449. To deliver a push, the sending client gift-wraps a `kind:446` rumor with the bundled tokens (plus decoys) and publishes it to the server's inbox relays; the server decrypts each token and dispatches a silent content-available push.
+
+    **Why parked**: iOS ties APNs credentials to our bundle ID, so we have to run the notification server ourselves — there's no generic third-party operator. That means committing to small but real infra (VPS uptime, APNs `.p8`, Firebase project, monitoring, reproducible-build hygiene so users can trust the deployment). Not worth it for TestFlight-only scale; revisit when we commit to Play Store / App Store distribution.
+
+    **Phased plan when we pick this up**:
+    1. **MDK UniFFI bindings** — `crates/mdk-core/src/mip05/` exists in MDK 0.8.0 (encrypt/decrypt, rumor builders, batching), but `mdk-uniffi` doesn't expose it yet. Contribute upstream the way we did for keyring (PR #252). Reconcile the spec-vs-impl padding-size drift (spec: 280-byte encrypted token, impl: 1084).
+    2. **Notification server** — minimal stateless Rust service: subscribe to inbox relays for `kind:1059` addressed to its pubkey, unwrap → decrypt token → dispatch APNs/FCM. Open source, deployable to fly.io / small VPS, reproducible builds.
+    3. **Client token gossip** — local token store keyed by MLS leaf index; handlers for kinds 447/448/449; refresh on join / token change / 25-35 day periodic; auto-cleanup on MLS Remove.
+    4. **Notification trigger** — on outbound chat / location / battery-alert send, collect active-leaf tokens + decoys (self ±50%, 10-20% from other groups, min 3), shuffle, gift-wrap as `kind:446` rumor + `kind:13` seal + `kind:1059` wrap, publish to server inbox relays.
+    5. **Platform integration** — APNs registration via `UNUserNotificationCenter` on iOS; FCM via Firebase SDK on Android. Ship behind an opt-in setting initially.
 
 ---
 
@@ -405,6 +463,25 @@ master
   └── feature/motion-adaptive             ✅ merged (v1.1.4)
   └── feature/v1.1.5-android-parity      ✅ merged
   └── feature/v1.2-low-battery-alerts    ✅ merged
+  └── feature/v1.3-ux-polish             ✅ merged
+  └── bugfix/v1.3.1                       ✅ merged
+  └── chore/ci-mdk-cache-key              ✅ merged
+  └── feature/v1.4-manual-whistle         ✅ merged
+  └── bugfix/v1.4.1                       ✅ merged
+  └── chore/ci-slsa-hygiene               ✅ merged
+  └── feature/v1.5-join-requests-pr1      ✅ merged
+  └── feature/v1.5-join-requests-pr2a     ✅ merged
+  └── feature/v1.5-join-requests-pr3      ✅ merged
+  └── feature/v1.5-join-requests-pr2b     ✅ merged
+  └── feature/v1.5-group-details-ux       ✅ merged
+  └── feature/v1.5-local-group-avatar     ✅ merged (v1.6.0)
+  └── bugfix/v1.6.1-selfupdate-verify-relay ✅ merged (v1.6.1 — verify MLS commits reach the relay)
+  └── feature/v1.6.2-soft-resync          ✅ merged (v1.6.2 — banner-triggered catch-up)
+  └── fix/v1.6.2-resync-epoch-detection   ✅ merged (v1.6.2 follow-up — epoch-delta success check)
+  └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
+  └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
+  └── bugfix/v1.6.5                        ✅ merged (v1.6.5 — in-memory chat thread cache; no empty-flash on re-entry)
+  └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
 ```
 
 ---

@@ -4,19 +4,22 @@ import CoreLocation
 
 final class MemberLocationTests: XCTestCase {
 
+    /// `ageSeconds` controls `receivedAt` (the basis of staleness as of v1.2.1
+    /// — see MemberLocation.isStale). The payload's own timestamp is held at
+    /// `Date()` since it no longer drives the UI freshness decision.
     func makeLocation(ageSeconds: TimeInterval = 0) -> MemberLocation {
-        let payloadDate = Date().addingTimeInterval(-ageSeconds)
         let payload = LocationPayload(
             latitude: 51.5074,
             longitude: -0.1278,
             altitude: 0.0,
             accuracy: 10.0,
-            timestamp: payloadDate
+            timestamp: Date()
         )
         return MemberLocation(
             groupId: "groupAbc",
             memberPubkeyHex: "abcdefgh12345678",
-            payload: payload
+            payload: payload,
+            receivedAt: Date().addingTimeInterval(-ageSeconds)
         )
     }
 

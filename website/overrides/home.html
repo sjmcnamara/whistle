@@ -1,0 +1,54 @@
+{% extends "main.html" %}
+
+{#-
+  Home template — adds the hero above the article content.
+  Activate by setting `template: home.html` in the page's frontmatter.
+-#}
+
+{% block hero %}
+  <section class="w-hero" data-md-component="hero">
+    <div class="w-hero__inner">
+      <div class="w-hero__eyebrow">
+        <span aria-hidden="true"></span>
+        <span>E2EE · Open source · Zero servers</span>
+      </div>
+      <h1 class="w-hero__title">
+        Location sharing,
+        <span class="w-hl">without the ick.</span>
+      </h1>
+      <p class="w-hero__sub">
+        Most "find my family" apps are advertising platforms wearing a safety jacket.
+        Whistle isn't. No accounts, no servers, no tracking and no permission required.
+        Your location stays on your phone, encrypted and safely shared with the people <em>you</em> choose.
+      </p>
+      <div class="w-hero__cta">
+        <span class="w-install">
+          <span class="w-install__label">Install Whistle</span>
+          <a href="https://testflight.apple.com/join/z8EhxM5g" class="w-install__opt" data-platform="ios" rel="noopener">
+            <span class="w-install__platform">iOS</span>
+            <span class="w-install__sep" aria-hidden="true">·</span>
+            <span>TestFlight</span>
+          </a>
+          <a href="https://github.com/sjmcnamara/whistle/releases/latest/download/whistle.apk" class="w-install__opt" data-platform="android" rel="noopener">
+            <span class="w-install__platform">Android</span>
+            <span class="w-install__sep" aria-hidden="true">·</span>
+            <span>APK</span>
+          </a>
+        </span>
+        <a href="how-it-works/" class="w-btn w-btn--ghost">
+          How it works
+        </a>
+        <a href="#04-why-it-matters" class="w-btn w-btn--ghost">
+          Why it matters
+        </a>
+        <a href="{{ config.repo_url }}" class="w-btn w-btn--ghost">
+          Source on GitHub
+        </a>
+        <span class="w-meta">
+          <span class="w-dot" aria-hidden="true"></span>
+          v1.6.6
+        </span>
+      </div>
+    </div>
+  </section>
+{% endblock %}

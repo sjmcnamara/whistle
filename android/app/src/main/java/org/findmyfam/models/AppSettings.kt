@@ -80,12 +80,20 @@ class AppSettings @Inject constructor(
 
     // --- Location ---
 
-    var locationIntervalSeconds: Int
-        get() {
-            val v = prefs.getInt(KEY_LOCATION_INTERVAL, 0)
-            return if (v == 0) AppDefaults.defaultLocationIntervalSeconds else v
+    private val _locationIntervalSecondsFlow = MutableStateFlow(
+        prefs.getInt(KEY_LOCATION_INTERVAL, 0).let { v ->
+            if (v == 0) AppDefaults.defaultLocationIntervalSeconds else v
         }
-        set(value) { prefs.edit().putInt(KEY_LOCATION_INTERVAL, value).apply() }
+    )
+    /** Observable interval — emits on every setter call so services can re-apply throttling at runtime. */
+    val locationIntervalSecondsFlow: StateFlow<Int> = _locationIntervalSecondsFlow
+
+    var locationIntervalSeconds: Int
+        get() = _locationIntervalSecondsFlow.value
+        set(value) {
+            prefs.edit().putInt(KEY_LOCATION_INTERVAL, value).apply()
+            _locationIntervalSecondsFlow.value = value
+        }
 
     var isLocationPaused: Boolean
         get() = prefs.getBoolean(KEY_LOCATION_PAUSED, false)

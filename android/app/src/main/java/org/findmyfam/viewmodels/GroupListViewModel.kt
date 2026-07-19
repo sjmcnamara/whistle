@@ -100,7 +100,8 @@ class GroupListViewModel @Inject constructor(
         // Persisting here means refreshItems can use a chat-only timestamp rather than
         // MDK's lastMessageAt, which advances for location/nickname events too.
         viewModelScope.launch {
-            marmotService.lastChatMessageGroupId.collect { groupId ->
+            marmotService.lastChatMessageGroupId.collect { change ->
+                val groupId = change?.first
                 if (groupId != null) {
                     settings.recordChatMessage(groupId)
                     _groups.value = _groups.value.map {

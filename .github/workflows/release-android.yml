@@ -1,0 +1,128 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v1.2.0)'
+        required: true
+
+# Least privilege at the top level; the publishing job opts into contents:write,
+# and the provenance job opts into the scopes the SLSA generator needs.
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the GitHub release + upload assets
+    outputs:
+      tag: ${{ steps.stage.outputs.tag }}
+      hashes: ${{ steps.stage.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Decode keystore
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 secret is not set"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "${RUNNER_TEMP}/whistle-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=${RUNNER_TEMP}/whistle-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Stage release assets
+        id: stage
+        run: |
+          APK_IN=android/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$APK_IN" ]; then
+            echo "::error::Expected APK not found at $APK_IN"
+            exit 1
+          fi
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          OUT="whistle-${TAG}.apk"
+          cp "$APK_IN" "$OUT"
+          sha256sum "$OUT" | tee "${OUT}.sha256"
+          # Also stage a stable filename for the website's "latest" CTA
+          cp "$OUT" whistle.apk
+          sha256sum whistle.apk | tee whistle.apk.sha256
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "versioned=$OUT" >> "$GITHUB_OUTPUT"
+          # Base64-encoded subject list for SLSA provenance (attests both the
+          # versioned APK and the stable whistle.apk).
+          echo "hashes=$(sha256sum "$OUT" whistle.apk | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK signature
+        run: |
+          BUILD_TOOLS=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          "$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner" verify --verbose "${{ steps.stage.outputs.versioned }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.stage.outputs.tag }}" \
+            "${{ steps.stage.outputs.versioned }}" \
+            "${{ steps.stage.outputs.versioned }}.sha256" \
+            whistle.apk whistle.apk.sha256 \
+            --generate-notes \
+            --title "${{ steps.stage.outputs.tag }}"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: whistle-${{ steps.stage.outputs.tag }}-apk
+          path: |
+            ${{ steps.stage.outputs.versioned }}
+            ${{ steps.stage.outputs.versioned }}.sha256
+
+  # SLSA build provenance: keyless (Fulcio/Rekor via GitHub OIDC) attestation of
+  # the released APKs, uploaded to the release as a `.intoto.jsonl` artifact.
+  # Verify with: slsa-verifier verify-artifact whistle-<tag>.apk \
+  #   --provenance-path <name>.intoto.jsonl --source-uri github.com/sjmcnamara/whistle
+  #
+  # NOTE: the SLSA generator MUST be referenced by version tag, not by commit SHA
+  # — it resolves its own ref to build the provenance and fails when pinned by
+  # hash. This is a documented exception to our pin-by-SHA convention.
+  provenance:
+    needs: [build-and-publish]
+    permissions:
+      actions: read       # read the workflow path for the provenance
+      id-token: write     # keyless signing via GitHub OIDC
+      contents: write     # attach the provenance to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build-and-publish.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ needs.build-and-publish.outputs.tag }}

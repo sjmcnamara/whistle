@@ -183,7 +183,8 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                         marmot = viewModel.marmotService,
                         mls = viewModel.mls,
                         nicknameStore = viewModel.nicknameStore,
-                        myPubkeyHex = viewModel.identity.publicKeyHex ?: ""
+                        myPubkeyHex = viewModel.identity.publicKeyHex ?: "",
+                        messageCache = viewModel.chatMessageCache
                     )
                 }
 
@@ -236,10 +237,13 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     .filter { it.state == "active" && it.mlsGroupId !in pendingLeaves }
                     .map { GroupOption(id = it.mlsGroupId, name = it.name) }
 
+                val whistleState by viewModel.whistleState.collectAsState()
                 FamilyMapScreen(
                     locationViewModel = locationViewModel,
                     groups = activeGroups,
                     onPermissionGranted = { viewModel.onLocationPermissionGranted() },
+                    whistleState = whistleState,
+                    onWhistle = { viewModel.whistle() },
                     modifier = Modifier.fillMaxSize()
                 )
             }

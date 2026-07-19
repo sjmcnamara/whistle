@@ -27,7 +27,7 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
     /// Connect to the given relays using the provided signing keys.
     func connect(keys: Keys, relays: [RelayConfig]) async {
         guard !relays.isEmpty else {
-            FMFLogger.relay.warning("No relays configured — skipping connect")
+            WhistleLogger.relay.warning("No relays configured — skipping connect")
             return
         }
 
@@ -42,9 +42,9 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
                 let url = try RelayUrl.parse(url: relay.url)
                 _ = try await newClient.addRelay(url: url)
                 added.append(relay.url)
-                FMFLogger.relay.debug("Added relay: \(relay.url)")
+                WhistleLogger.relay.debug("Added relay: \(relay.url)")
             } catch {
-                FMFLogger.relay.warning("Skipping relay \(relay.url): \(error)")
+                WhistleLogger.relay.warning("Skipping relay \(relay.url): \(error)")
             }
         }
 
@@ -54,7 +54,7 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
         self.connectedRelayURLs = added
         self.connectionState   = added.isEmpty ? .failed("No relays connected") : .connected
 
-        FMFLogger.relay.info("Connected to \(added.count) relay(s)")
+        WhistleLogger.relay.info("Connected to \(added.count) relay(s)")
     }
 
     /// Disconnect from all relays.
@@ -63,7 +63,27 @@ final class RelayService: ObservableObject, RelayServiceProtocol {
         client             = nil
         connectedRelayURLs = []
         connectionState    = .disconnected
-        FMFLogger.relay.info("Disconnected from all relays")
+        WhistleLogger.relay.info("Disconnected from all relays")
+    }
+
+    /// Add and connect a single relay (e.g. an invite's relay hint) to the
+    /// existing client so subsequent publishes and gift-wraps reach it. No-op if
+    /// already connected or if we have no client yet. `addRelay` is idempotent.
+    func ensureRelay(_ url: String) async {
+        guard let client else {
+            WhistleLogger.relay.warning("ensureRelay(\(url)) skipped — not connected")
+            return
+        }
+        guard !connectedRelayURLs.contains(url) else { return }
+        do {
+            let relayUrl = try RelayUrl.parse(url: url)
+            _ = try await client.addRelay(url: relayUrl)
+            try await client.connectRelay(url: relayUrl)
+            connectedRelayURLs.append(url)
+            WhistleLogger.relay.info("Ensured relay connected: \(url)")
+        } catch {
+            WhistleLogger.relay.warning("ensureRelay(\(url)) failed: \(error)")
+        }
     }
 
     /// Publish a pre-built event to all connected relays.

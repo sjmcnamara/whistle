@@ -75,6 +75,28 @@ class RelayService @Inject constructor() {
     }
 
     /**
+     * Add and connect a single relay (e.g. an invite's relay hint) to the
+     * existing client so subsequent publishes/gift-wraps reach it. No-op if
+     * already connected or if there's no client yet. addRelay is idempotent.
+     */
+    suspend fun ensureRelay(url: String) {
+        val c = client ?: run {
+            Timber.w("ensureRelay($url) skipped — not connected")
+            return
+        }
+        if (_connectedRelayUrls.value.contains(url)) return
+        try {
+            val relayUrl = RelayUrl.parse(url)
+            c.addRelay(url = relayUrl)
+            c.connectRelay(url = relayUrl)
+            _connectedRelayUrls.value = _connectedRelayUrls.value + url
+            Timber.i("Ensured relay connected: $url")
+        } catch (e: Exception) {
+            Timber.w("ensureRelay($url) failed: ${e.message}")
+        }
+    }
+
+    /**
      * Publish a pre-built event to all connected relays.
      */
     suspend fun publish(builder: EventBuilder): String {

@@ -10,6 +10,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.delay
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -38,7 +40,9 @@ class AppViewModel @Inject constructor(
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,
+    val joinRequestStore: JoinRequestStore,
     val locationCache: LocationCache,
+    val chatMessageCache: ChatMessageCache,
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
     val motionService: MotionService,
@@ -50,7 +54,8 @@ class AppViewModel @Inject constructor(
         nicknameStore = nicknameStore,
         intervalSeconds = { settings.locationIntervalSeconds },
         myPubkeyHex = { identity.publicKeyHex },
-        isStationary = { settings.isMotionAdaptiveEnabled && motionService.isStationary.value }
+        isStationary = { settings.isMotionAdaptiveEnabled && motionService.isStationary.value },
+        nextFireMs = { locationService.nextFireTimeMs() }
     )
 
     enum class StartupPhase {
@@ -62,6 +67,15 @@ class AppViewModel @Inject constructor(
 
     private val _mlsError = MutableStateFlow<String?>(null)
     val mlsError: StateFlow<String?> = _mlsError.asStateFlow()
+
+    enum class WhistleState { IDLE, SENDING, SENT, FAILED }
+
+    /** Drives the map's "Whistle" button feedback (manual force-publish). */
+    private val _whistleState = MutableStateFlow(WhistleState.IDLE)
+    val whistleState: StateFlow<WhistleState> = _whistleState.asStateFlow()
+
+    /** True while a manual whistle is in flight; the next broadcast flips to SENT. */
+    private var pendingWhistle = false
 
     private var didStart = false
 
@@ -195,6 +209,19 @@ class AppViewModel @Inject constructor(
      */
     private fun wireLocationPipeline() {
         locationService.intervalSeconds = settings.locationIntervalSeconds
+
+        // Mirror iOS AppViewModel.swift:173 — observe interval changes and
+        // re-apply at runtime, otherwise the user can change the setting in
+        // Settings and the running LocationService keeps publishing at the
+        // value snapshot at startup. drop(1) skips the initial replay.
+        viewModelScope.launch {
+            settings.locationIntervalSecondsFlow.drop(1).collect { newInterval ->
+                locationService.intervalSeconds = newInterval
+                locationService.resetThrottle()
+                Timber.i("Interval changed to ${newInterval}s, throttle reset")
+            }
+        }
+
         locationService.onLocationUpdate = fun(location) {
             val fuzzRadius = settings.locationFuzzMeters
             val lat: Double
@@ -219,7 +246,8 @@ class AppViewModel @Inject constructor(
                 alt = location.altitude,
                 acc = if (fuzzRadius > 0) max(location.accuracy.toDouble(), fuzzRadius.toDouble()) else location.accuracy.toDouble(),
                 ts = System.currentTimeMillis() / 1000,
-                batt = battery
+                batt = battery,
+                interval = locationService.effectiveIntervalSeconds // reflects motion multiplier so receivers grade staleness against real cadence
             )
             val myPubkey = identity.publicKeyHex ?: return
             val groups = marmotService.groups.value.filter { it.isActive }
@@ -235,6 +263,14 @@ class AppViewModel @Inject constructor(
                     }
                 }
             }
+
+            // A manual whistle resolves to SENT as soon as its forced fix is
+            // broadcast (the timeout in whistle() only fires if none arrives).
+            if (pendingWhistle) {
+                pendingWhistle = false
+                _whistleState.value = WhistleState.SENT
+                scheduleWhistleReset()
+            }
         }
         // Observe motion state: update multiplier and refresh map badge.
         viewModelScope.launch {
@@ -249,6 +285,40 @@ class AppViewModel @Inject constructor(
             locationService.startUpdating()
             if (settings.isMotionAdaptiveEnabled) {
                 motionService.startMonitoring()
+            }
+        }
+    }
+
+    /**
+     * Force an immediate location publish, ignoring the throttle, motion
+     * backoff, and pause state. Drives the map's "Whistle" button.
+     */
+    fun whistle() {
+        if (_whistleState.value == WhistleState.SENDING) return
+        _whistleState.value = WhistleState.SENDING
+        pendingWhistle = true
+        locationService.requestImmediateUpdate()
+
+        // Resolve the button state even if no fix arrives (denied, no signal,
+        // no active groups). The forced broadcast flips this to SENT first if
+        // it lands; otherwise we report failure.
+        viewModelScope.launch {
+            delay(12_000)
+            if (pendingWhistle) {
+                pendingWhistle = false
+                _whistleState.value = WhistleState.FAILED
+                scheduleWhistleReset()
+            }
+        }
+    }
+
+    /** Return the button to rest a short moment after a terminal result. */
+    private fun scheduleWhistleReset() {
+        viewModelScope.launch {
+            delay(2_000)
+            val s = _whistleState.value
+            if (s == WhistleState.SENT || s == WhistleState.FAILED) {
+                _whistleState.value = WhistleState.IDLE
             }
         }
     }
@@ -333,7 +403,9 @@ class AppViewModel @Inject constructor(
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
+        joinRequestStore.removeAll()
         locationCache.clear()
+        chatMessageCache.clear()
 
         // Clear settings — including pendingLeaveRequests and chat timestamps
         settings.lastEventTimestamp = 0u

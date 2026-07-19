@@ -1,5 +1,6 @@
 package org.findmyfam.ui.groups
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,6 +37,8 @@ fun GroupChatScreen(
     val isSending by chatViewModel.isSending.collectAsState()
     val memberNames by chatViewModel.memberNames.collectAsState()
     val error by chatViewModel.error.collectAsState()
+    val isResyncing by chatViewModel.isResyncing.collectAsState()
+    val resyncDidNotResolve by chatViewModel.resyncDidNotResolve.collectAsState()
     val focusManager = LocalFocusManager.current
 
     val listState = rememberLazyListState()
@@ -47,8 +50,10 @@ fun GroupChatScreen(
         chatViewModel.loadMemberNames()
     }
 
-    // Scroll to bottom on new messages
-    LaunchedEffect(messages.size) {
+    // Scroll to bottom only when a message is appended (the last id changes) —
+    // NOT when older messages are prepended by loadMore, which would otherwise
+    // snap the view back to the bottom and hide what was just loaded.
+    LaunchedEffect(messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
@@ -58,7 +63,9 @@ fun GroupChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(
+                        modifier = Modifier.clickable(onClick = onDetail)
+                    ) {
                         Text(
                             text = groupName,
                             fontSize = 17.sp
@@ -92,18 +99,40 @@ fun GroupChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Epoch mismatch warning banner
+            // Epoch mismatch warning banner — tap Resync to catch up on a
+            // missed commit; if that doesn't clear it, point at admin re-invite.
             if (isUnhealthy) {
+                val bannerText = when {
+                    isResyncing -> "Resyncing…"
+                    resyncDidNotResolve -> "Still out of sync. Ask a group admin to re-invite you to resync."
+                    else -> "Some messages couldn't be decrypted. Tap Resync to catch up."
+                }
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Encryption key mismatch detected. Messages may not be delivered.",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 12.sp,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                    ) {
+                        Text(
+                            text = bannerText,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isResyncing) {
+                            CircularProgressIndicator(
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        } else if (!resyncDidNotResolve) {
+                            TextButton(onClick = { chatViewModel.resync() }) {
+                                Text("Resync", fontSize = 12.sp)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -115,11 +144,30 @@ fun GroupChatScreen(
                     .fillMaxWidth(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                // Load more trigger
-                item {
-                    if (chatViewModel.hasMore) {
-                        LaunchedEffect(Unit) {
-                            chatViewModel.loadMore()
+                // Load earlier messages — explicit, so it can't get stuck the way
+                // a one-shot LaunchedEffect trigger did.
+                if (chatViewModel.hasMore) {
+                    item {
+                        val isLoadingMore by chatViewModel.isLoadingMore.collectAsState()
+                        TextButton(
+                            onClick = {
+                                val prevSize = messages.size
+                                coroutineScope.launch {
+                                    chatViewModel.loadMore()
+                                    val added = chatViewModel.messages.value.size - prevSize
+                                    // Hold position: keep the previously-top message
+                                    // in view, with the newly loaded ones above it.
+                                    if (added > 0) listState.scrollToItem(added + 1)
+                                }
+                            },
+                            enabled = !isLoadingMore,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isLoadingMore) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text("Load earlier messages", fontSize = 12.sp)
+                            }
                         }
                     }
                 }

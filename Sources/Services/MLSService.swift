@@ -30,27 +30,38 @@ actor MLSService {
         dbKeyId: String = "mdk.db.key"
     ) throws {
         guard !isInitialised else {
-            FMFLogger.mls.debug("MLSService already initialised, skipping")
+            WhistleLogger.mls.debug("MLSService already initialised, skipping")
             return
         }
 
         let path = Self.defaultDBPath()
         let dbExists = FileManager.default.fileExists(atPath: path)
 
-        FMFLogger.mls.info("MLSService init — dbExists=\(dbExists), path=\(path)")
+        WhistleLogger.mls.info("MLSService init — dbExists=\(dbExists), path=\(path)")
 
         do {
             mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
         } catch {
-            // Existing DB is unencrypted (pre-v0.9) or corrupt — delete and recreate.
-            FMFLogger.mls.warning("newMdk failed (\(error)) — deleting stale DB and retrying")
+            // newMdk failed to open an existing DB. ONLY recreate if the file is a
+            // genuine pre-v0.9 *plaintext* SQLite database — it cannot be opened with
+            // SQLCipher and is safe to discard. Any other failure on an encrypted DB is
+            // almost always transient (e.g. the Keychain isn't yet readable on a
+            // background launch before first unlock), and deleting would silently wipe
+            // every group, so fail loudly and let a later launch retry.
+            // (Regression history: 6cfab3c removed an unconditional delete for exactly
+            // this reason; dbea127 reintroduced it when SQLCipher was switched on.)
+            guard Self.isUnencryptedLegacyDatabase(at: path) else {
+                WhistleLogger.mls.error("newMdk failed on an encrypted DB — NOT deleting (would lose groups): \(error)")
+                throw error
+            }
+            WhistleLogger.mls.warning("Detected pre-v0.9 unencrypted DB — deleting and recreating encrypted: \(error)")
             Self.deleteDatabase(at: path)
             mdk = try newMdk(dbPath: path, serviceId: serviceId, dbKeyId: dbKeyId, config: nil)
         }
 
         isInitialised = true
         let groupCount = (try? mdk?.getGroups().count) ?? -1
-        FMFLogger.mls.info("MLSService initialised (encrypted), \(groupCount) group(s)")
+        WhistleLogger.mls.info("MLSService initialised (encrypted), \(groupCount) group(s)")
     }
 
     /// Tear down the MLS state entirely so a new identity can start fresh.
@@ -62,7 +73,21 @@ actor MLSService {
         isInitialised = false
         mdk = nil
         Self.deleteDatabase(at: Self.defaultDBPath())
-        FMFLogger.mls.info("MLS database reset for identity replacement")
+        WhistleLogger.mls.info("MLS database reset for identity replacement")
+    }
+
+    /// True only when the file at `path` is a plaintext SQLite database — i.e. a
+    /// pre-v0.9 database created before SQLCipher encryption was enabled. SQLCipher
+    /// encrypts the whole file including the header, so a healthy encrypted DB never
+    /// starts with the SQLite magic. This lets us safely recreate a legacy plaintext
+    /// DB while refusing to delete a healthy encrypted one that merely failed to open
+    /// (e.g. transient keyring/Keychain unavailability).
+    static func isUnencryptedLegacyDatabase(at path: String) -> Bool {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return false }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: 16), header.count == 16 else { return false }
+        // SQLite file-format magic string: "SQLite format 3\0"
+        return header == Data("SQLite format 3\u{0}".utf8)
     }
 
     /// Securely delete the database file and any related WAL/SHM files.
@@ -106,7 +131,7 @@ actor MLSService {
     func initialiseInMemory() throws {
         mdk = try newMdkWithKey(dbPath: ":memory:", encryptionKey: Data(count: 32), config: nil)
         isInitialised = true
-        FMFLogger.mls.debug("MLSService initialised in memory (test mode)")
+        WhistleLogger.mls.debug("MLSService initialised in memory (test mode)")
     }
 
     // MARK: - Key Packages (kind 30443)
@@ -156,7 +181,7 @@ actor MLSService {
             relays: relays,
             admins: [creatorPublicKeyHex]
         )
-        FMFLogger.mls.info("Group created: \(result.group.mlsGroupId) epoch=\(result.group.epoch)")
+        WhistleLogger.mls.info("Group created: \(result.group.mlsGroupId) epoch=\(result.group.epoch)")
         return result
     }
 
@@ -164,7 +189,7 @@ actor MLSService {
     /// before sending messages or performing further mutations.
     func mergePendingCommit(groupId: String) throws {
         try instance().mergePendingCommit(mlsGroupId: groupId)
-        FMFLogger.mls.debug("Merged pending commit: group=\(groupId)")
+        WhistleLogger.mls.debug("Merged pending commit: group=\(groupId)")
     }
 
     func clearPendingCommit(groupId: String) throws {
@@ -181,7 +206,7 @@ actor MLSService {
             mlsGroupId: groupId,
             keyPackageEventsJson: keyPackageEventsJson
         )
-        FMFLogger.mls.info("Members added to group \(groupId)")
+        WhistleLogger.mls.info("Members added to group \(groupId)")
         return result
     }
 
@@ -195,7 +220,7 @@ actor MLSService {
             mlsGroupId: groupId,
             memberPublicKeys: memberPublicKeys
         )
-        FMFLogger.mls.info("Removed \(memberPublicKeys.count) member(s) from group \(groupId)")
+        WhistleLogger.mls.info("Removed \(memberPublicKeys.count) member(s) from group \(groupId)")
         return result
     }
 
@@ -203,7 +228,7 @@ actor MLSService {
     /// Caller must `mergePendingCommit` and publish the result.
     func updateGroupData(groupId: String, update: GroupDataUpdate) throws -> UpdateGroupResult {
         let result = try instance().updateGroupData(mlsGroupId: groupId, update: update)
-        FMFLogger.mls.info("Updated group data for \(groupId)")
+        WhistleLogger.mls.info("Updated group data for \(groupId)")
         return result
     }
 
@@ -211,7 +236,7 @@ actor MLSService {
     /// Produces a new epoch. Caller must `mergePendingCommit` and publish the result.
     func selfUpdate(groupId: String) throws -> UpdateGroupResult {
         let result = try instance().selfUpdate(mlsGroupId: groupId)
-        FMFLogger.mls.info("Self-updated group \(groupId) → epoch \(result.mlsGroupId)")
+        WhistleLogger.mls.info("Self-updated group \(groupId) → epoch \(result.mlsGroupId)")
         return result
     }
 
@@ -293,12 +318,12 @@ actor MLSService {
 
     func acceptWelcome(_ welcome: Welcome) throws {
         try instance().acceptWelcome(welcome: welcome)
-        FMFLogger.mls.info("Accepted welcome for group \(welcome.mlsGroupId)")
+        WhistleLogger.mls.info("Accepted welcome for group \(welcome.mlsGroupId)")
     }
 
     func declineWelcome(_ welcome: Welcome) throws {
         try instance().declineWelcome(welcome: welcome)
-        FMFLogger.mls.info("Declined welcome for group \(welcome.mlsGroupId)")
+        WhistleLogger.mls.info("Declined welcome for group \(welcome.mlsGroupId)")
     }
 
     func getPendingWelcomes() throws -> [Welcome] {
@@ -343,7 +368,7 @@ actor MLSService {
                 let old = oldPath + suffix, new = newPath + suffix
                 if fm.fileExists(atPath: old) { try? fm.moveItem(atPath: old, toPath: new) }
             }
-            FMFLogger.mls.info("Migrated MLS database: findmyfam-mdk.db → whistle.db")
+            WhistleLogger.mls.info("Migrated MLS database: findmyfam-mdk.db → whistle.db")
         }
 
         return newPath

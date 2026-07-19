@@ -79,32 +79,18 @@ class LocationViewModelTest {
         assertEquals(2, vm.annotations.value.size)
     }
 
-    @Test
-    fun annotations_staleWhenOlderThan2xInterval() {
-        // interval = 60s, so > 120s ago is stale
-        val staleTs = System.currentTimeMillis() / 1000 - 180 // 3 minutes ago
-        cache.update(group1, otherPubkey, freshPayload(ts = staleTs))
-        val annotation = vm.annotations.value.first()
-        assertTrue("Expected stale annotation", annotation.isStale)
-    }
+    // Note: staleness is now anchored on receivedAt (local clock) rather than
+    // payload.ts, which cache.update doesn't expose for override. Staleness
+    // test cases live in MemberLocationTest where MemberLocation can be
+    // constructed directly with an explicit receivedAt.
 
     @Test
-    fun annotations_freshWhenWithin2xInterval() {
-        val freshTs = System.currentTimeMillis() / 1000 - 30 // 30s ago, interval=60
-        cache.update(group1, otherPubkey, freshPayload(ts = freshTs))
+    fun annotations_freshOnCacheUpdateAreNotStale() {
+        // Smoke test that the viewmodel wires through to the model correctly —
+        // freshly-cached members render as not stale at any reasonable interval.
+        cache.update(group1, otherPubkey, freshPayload())
         val annotation = vm.annotations.value.first()
-        assertFalse("Expected fresh annotation", annotation.isStale)
-    }
-
-    @Test
-    fun annotations_exactlyAt2xInterval_isNotStale() {
-        // Boundary: exactly 2x interval should not be stale (> not >=)
-        val boundaryTs = System.currentTimeMillis() / 1000 - 120
-        cache.update(group1, otherPubkey, freshPayload(ts = boundaryTs))
-        val annotation = vm.annotations.value.first()
-        // At exactly 2x, the condition is (now - ts) > interval*2, so it depends on
-        // millisecond rounding. Just verify it doesn't crash.
-        assertNotNull(annotation)
+        assertFalse("Just-cached payload should not be stale", annotation.isStale)
     }
 
     @Test
@@ -179,5 +165,31 @@ class LocationViewModelTest {
         cache.update(group1, myPubkey, freshPayload(ts = epochSec))
         val annotation = vm.annotations.value.first()
         assertEquals(epochSec * 1000, annotation.timestampMs)
+    }
+
+    @Test
+    fun annotations_ownPinCarriesNextUpdate_othersNull() {
+        val nextFire = 9_999_999L
+        val withNextFire = LocationViewModel(
+            locationCache = cache,
+            nicknameStore = nicknameStore,
+            intervalSeconds = { 60 },
+            myPubkeyHex = { myPubkey },
+            nextFireMs = { nextFire }
+        )
+        cache.update(group1, myPubkey, freshPayload())
+        cache.update(group1, otherPubkey, freshPayload())
+
+        val me = withNextFire.annotations.value.first { it.isMe }
+        val other = withNextFire.annotations.value.first { !it.isMe }
+        assertEquals("Own pin drives the count-down", nextFire, me.nextUpdateMs)
+        assertNull("Other members count up from timestamp instead", other.nextUpdateMs)
+    }
+
+    @Test
+    fun annotations_nextUpdateNull_whenNoFireYet() {
+        // Default constructor (used in setUp) has nextFireMs returning null.
+        cache.update(group1, myPubkey, freshPayload())
+        assertNull(vm.annotations.value.first { it.isMe }.nextUpdateMs)
     }
 }

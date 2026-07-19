@@ -61,11 +61,13 @@ final class MarmotServiceTests: XCTestCase {
     // MARK: - Kind 443 — Key Package Publishing
 
     func testPublishKeyPackageCallsRelay() async throws {
-        try await sut.publishKeyPackage(relays: ["wss://relay.damus.io"])
+        let json = try await sut.publishKeyPackage(relays: ["wss://relay.damus.io"])
 
-        // MockRelayService.publish captures builders
-        XCTAssertEqual(mockRelay.publishedBuilders.count, 1,
-                       "publishKeyPackage should call relay.publish once")
+        // publishKeyPackage now signs locally and sends a pre-signed event so the
+        // signed JSON can be embedded inline in a join-request.
+        XCTAssertEqual(mockRelay.sentEvents.count, 1,
+                       "publishKeyPackage should send one signed event")
+        XCTAssertFalse(json.isEmpty, "publishKeyPackage should return the signed event JSON")
     }
 
     func testFetchKeyPackageBuildsCorrectFilter() async throws {
@@ -185,17 +187,61 @@ final class MarmotServiceTests: XCTestCase {
     }
 
     func testAcceptInvitePublishesKeyPackage() async throws {
+        // Invalid inviter npub: the join-request send fails soft (caught), but the
+        // key package publish must still happen.
         let invite = InviteCode(
             relay: "wss://nos.lol",
             inviterNpub: "npub1test",
             groupId: "some-group"
         )
-        let encoded = invite.encode()
+        try await sut.acceptInvite(invite.encode())
 
-        try await sut.acceptInvite(encoded)
+        XCTAssertEqual(mockRelay.sentEvents.count, 1,
+                       "acceptInvite should publish a (signed) key package")
+        XCTAssertTrue(mockRelay.ensuredRelays.contains("wss://nos.lol"),
+                      "acceptInvite should connect to the invite's relay")
+    }
 
-        XCTAssertEqual(mockRelay.publishedBuilders.count, 1,
-                       "acceptInvite should publish a key package")
+    func testAcceptInviteSendsJoinRequestToInviter() async throws {
+        let inviterKeys = Keys.generate()
+        let inviterNpub = try inviterKeys.publicKey().toBech32()
+        let invite = InviteCode(relay: "wss://nos.lol", inviterNpub: inviterNpub, groupId: "some-group")
+
+        try await sut.acceptInvite(invite.encode())
+
+        XCTAssertEqual(mockRelay.giftWrappedRumors.count, 1, "should gift-wrap one join-request")
+        let wrap = try XCTUnwrap(mockRelay.giftWrappedRumors.first)
+        XCTAssertEqual(wrap.receiverHex, try inviterKeys.publicKey().toHex(),
+                       "join-request must be addressed to the inviter")
+
+        let rumor = try UnsignedEvent.fromJson(json: wrap.rumorJson)
+        XCTAssertEqual(rumor.kind().asU16(), MarmotKind.joinRequest)
+        let jr = try JoinRequest.from(jsonString: rumor.content())
+        XCTAssertEqual(jr.groupId, "some-group")
+        XCTAssertEqual(jr.pubkey, pubHex)
+        XCTAssertFalse(jr.keyPackage.isEmpty, "join-request must carry the KeyPackage inline")
+    }
+
+    // MARK: - Batch add (join-requests)
+
+    func testFirstETagExtractsKeyPackageEventId() {
+        let json = #"{"kind":444,"content":"x","tags":[["e","kp-event-id-123"],["relays","wss://r"]]}"#
+        XCTAssertEqual(MarmotService.firstETag(inRumorJson: json), "kp-event-id-123")
+    }
+
+    func testFirstETagNilWhenNoETag() {
+        let json = #"{"kind":444,"content":"x","tags":[["relays","wss://r"],["encoding","base64"]]}"#
+        XCTAssertNil(MarmotService.firstETag(inRumorJson: json))
+    }
+
+    func testFirstETagNilOnMalformedJson() {
+        XCTAssertNil(MarmotService.firstETag(inRumorJson: "not json"))
+        XCTAssertNil(MarmotService.firstETag(inRumorJson: #"{"tags":"oops"}"#))
+    }
+
+    func testAddMembersEmptyReturnsEmpty() async throws {
+        let result = try await sut.addMembers([], toGroup: "any-group")
+        XCTAssertTrue(result.added.isEmpty)
     }
 
     // MARK: - Gift Wrap

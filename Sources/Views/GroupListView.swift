@@ -199,6 +199,7 @@ struct GroupListView: View {
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
                 pendingLeaveStore: appViewModel.pendingLeaveStore,
+                messageCache: appViewModel.chatMessageCache,
                 isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
             )
         } else {
@@ -268,35 +269,34 @@ private struct GroupChatContainer: View {
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
     let pendingLeaveStore: PendingLeaveStore
+    let messageCache: ChatMessageCache
     var isUnhealthy: Bool = false
 
     @State private var showDetail = false
 
     var body: some View {
-        let chatVM = ChatViewModel(
-            groupId: group.id,
-            marmot: marmot,
-            mls: mls,
-            nicknameStore: nicknameStore,
-            myPubkeyHex: myPubkeyHex
-        )
-        let detailVM = GroupDetailViewModel(
+        GroupChatView(
             groupId: group.id,
             marmot: marmot,
             mls: mls,
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex,
-            pendingLeaveStore: pendingLeaveStore
-        )
-
-        GroupChatView(
-            viewModel: chatVM,
+            messageCache: messageCache,
             groupName: group.name,
             onInfoTap: { showDetail = true },
             isUnhealthy: isUnhealthy
         )
         .navigationDestination(isPresented: $showDetail) {
-            GroupDetailView(viewModel: detailVM)
+            // GroupDetailView owns its VM via @StateObject, so this re-evaluating
+            // body never swaps in a blank instance.
+            GroupDetailView(
+                groupId: group.id,
+                marmot: marmot,
+                mls: mls,
+                nicknameStore: nicknameStore,
+                myPubkeyHex: myPubkeyHex,
+                pendingLeaveStore: pendingLeaveStore
+            )
         }
     }
 }

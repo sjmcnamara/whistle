@@ -2,14 +2,34 @@ import SwiftUI
 
 /// Chat thread for a single group — shows messages with a bottom input bar.
 struct GroupChatView: View {
-    @ObservedObject var viewModel: ChatViewModel
+    // Owned via @StateObject so a parent body re-render (e.g. marmot.groups
+    // changing after an add) doesn't swap in a fresh blank ChatViewModel and
+    // reset the thread. See GroupDetailView for the same fix.
+    @StateObject private var viewModel: ChatViewModel
     let groupName: String
     let onInfoTap: () -> Void
     var isUnhealthy: Bool = false
     @State private var title: String
 
-    init(viewModel: ChatViewModel, groupName: String, onInfoTap: @escaping () -> Void, isUnhealthy: Bool = false) {
-        self.viewModel = viewModel
+    init(
+        groupId: String,
+        marmot: MarmotService,
+        mls: MLSService,
+        nicknameStore: NicknameStore,
+        myPubkeyHex: String,
+        messageCache: ChatMessageCache,
+        groupName: String,
+        onInfoTap: @escaping () -> Void,
+        isUnhealthy: Bool = false
+    ) {
+        _viewModel = StateObject(wrappedValue: ChatViewModel(
+            groupId: groupId,
+            marmot: marmot,
+            mls: mls,
+            nicknameStore: nicknameStore,
+            myPubkeyHex: myPubkeyHex,
+            messageCache: messageCache
+        ))
         self.groupName = groupName
         self.onInfoTap = onInfoTap
         self.isUnhealthy = isUnhealthy
@@ -29,18 +49,24 @@ struct GroupChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    Text(groupName)
-                        .font(.headline)
-                    if !viewModel.memberNames.isEmpty {
-                        Text(viewModel.memberNames)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                Button(action: onInfoTap) {
+                    VStack(spacing: 2) {
+                        Text(groupName)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        if !viewModel.memberNames.isEmpty {
+                            Text(viewModel.memberNames)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
+                    .multilineTextAlignment(.center)
+                    .contentShape(Rectangle())
                 }
-                .multilineTextAlignment(.center)
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens group details")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onInfoTap) {
@@ -63,13 +89,39 @@ struct GroupChatView: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.white)
-            Text("Some messages couldn't be decrypted. A member may need to be re-invited to resync.")
+            Text(bannerMessage)
                 .font(.caption)
                 .foregroundStyle(.white)
+            Spacer(minLength: 8)
+            if viewModel.isResyncing {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+            } else if !viewModel.resyncDidNotResolve {
+                Button("Resync") {
+                    Task { await viewModel.resync() }
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.2), in: Capsule())
+                .buttonStyle(.plain)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.red.opacity(0.85))
+    }
+
+    private var bannerMessage: String {
+        if viewModel.isResyncing {
+            return "Resyncing…"
+        }
+        if viewModel.resyncDidNotResolve {
+            return "Still out of sync. Ask a group admin to re-invite you to resync."
+        }
+        return "Some messages couldn't be decrypted. Tap Resync to catch up."
     }
 
     private var messageList: some View {
@@ -77,11 +129,25 @@ struct GroupChatView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     if viewModel.hasMore {
-                        Button("Load earlier messages") {
-                            Task { await viewModel.loadMore() }
+                        Button {
+                            // Anchor on the current top message so the view holds
+                            // position after older messages prepend, instead of
+                            // staying pinned to the bottom.
+                            let anchorId = viewModel.messages.first?.id
+                            Task {
+                                await viewModel.loadMore()
+                                if let anchorId { proxy.scrollTo(anchorId, anchor: .top) }
+                            }
+                        } label: {
+                            if viewModel.isLoadingMore {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Text("Load earlier messages")
+                            }
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .disabled(viewModel.isLoadingMore)
                         .padding()
                     }
 
@@ -93,7 +159,10 @@ struct GroupChatView: View {
                 .padding(.vertical, 8)
             }
             .defaultScrollAnchor(.bottom)
-            .onChange(of: viewModel.messages.count) {
+            // Key on the last message id, not the count: this fires when a
+            // message is appended (sent/received) but NOT when older messages are
+            // prepended by loadMore — so "load earlier" no longer snaps to bottom.
+            .onChange(of: viewModel.messages.last?.id) {
                 if let lastId = viewModel.messages.last?.id {
                     withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
                 }

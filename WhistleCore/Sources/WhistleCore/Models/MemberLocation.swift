@@ -32,10 +32,22 @@ public struct MemberLocation: Identifiable, Equatable {
         CLLocationCoordinate2D(latitude: payload.lat, longitude: payload.lon)
     }
 
-    /// True when the location is older than 2× the configured update interval.
+    /// True when we haven't received a fresh location from this member in
+    /// more than 2× their update interval.
+    ///
+    /// Anchors on `receivedAt` (local clock) rather than `payload.date`
+    /// (publisher's clock) so cross-device clock skew doesn't corrupt the
+    /// UI — semantically, "stale" means "we haven't heard from them in a
+    /// while," which is what users actually care about.
+    ///
+    /// Prefers the publisher's own `payload.interval` (added in v1.2.1) so a
+    /// member on a slow cadence isn't flagged stale just because the local
+    /// device polls more often. Falls back to `intervalSeconds` for pre-1.2.1
+    /// payloads that omit the field.
     public func isStale(intervalSeconds: Int) -> Bool {
-        let threshold = TimeInterval(intervalSeconds * 2)
-        return Date().timeIntervalSince(payload.date) > threshold
+        let basis = payload.interval ?? intervalSeconds
+        let threshold = TimeInterval(basis * 2)
+        return Date().timeIntervalSince(receivedAt) > threshold
     }
 
     /// Short display name (first 8 hex chars). Nicknames are added in v0.5.

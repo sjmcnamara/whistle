@@ -29,6 +29,11 @@ android/app/              ← Android app (Kotlin / Jetpack Compose)
 - `MarmotService`: Protocol orchestration (Nostr + MLS event handling)
 - `MLSService`: MLS group and crypto operations (wraps MDK via UniFFI)
 - `RelayService`: Relay connectivity, subscriptions, and event publish/fetch
+- `LocationService`: CoreLocation (iOS) / Android `LocationManager` (Android) wrapper; emits position updates at the configured interval. Android subscribes to both `GPS_PROVIDER` and `NETWORK_PROVIDER` and selects per-fix by accuracy and freshness (no FusedLocationProvider — keeps the app GMS-free / GrapheneOS-compatible). Map rendering is OSM via osmdroid for the same reason.
+- `MotionService`: Movement Aware (v1.1.4+) — detects stationary periods and signals `LocationService` to back off 4× while still
+- `BatteryAlertService`: Low Battery Alerts (v1.2.0) — monitors device battery and triggers a tagged location publish + local notification when a configurable threshold is crossed
+- `LocationCache`: in-memory latest-location-per-member, keyed `groupId:pubkeyHex`
+- `NearbyShareCoordinator` (iOS): phone-to-phone invite handoff via MultipeerConnectivity
 - `GroupListViewModel`, `GroupDetailViewModel`, `ChatViewModel`: UI-facing state and actions
 
 ## Shared Core (WhistleCore)
@@ -47,7 +52,7 @@ Android mirrors this via the `:shared` Gradle module (`org.findmyfam.shared`).
 
 - **iOS**: nsec encrypted with AES-GCM using a Secure Enclave-derived key (P-256 ECDH + HKDF). The SE private key never leaves hardware. Falls back to plain Keychain on simulator.
 - **Android**: nsec stored in `EncryptedSharedPreferences` backed by Android Keystore with StrongBox preference for hardware-bound encryption.
-- **MLS database**: SQLCipher encryption via MDK's `keyring-core` (currently falls back to unencrypted pending [mdk#243](https://github.com/marmot-protocol/mdk/issues/243))
+- **MLS database**: SQLCipher-encrypted via MDK's `keyring-core` integration. Active since v1.1.3 / MDK 0.8.0 (Whistle PR #252 contributed the auto-init that unblocked it). On first launch after upgrading from pre-v1.1.3, the old unencrypted database is detected and replaced with a fresh encrypted one.
 
 ### Key Components
 
@@ -77,9 +82,9 @@ When subscribed to multiple relays, the same event may arrive multiple times. De
 
 | Kind | Name | Purpose |
 |------|------|---------|
-| `443` / `30443` | KeyPackage | MLS credential advertisement — published per-user so others can add them to groups |
+| `30443` | KeyPackage | MLS credential advertisement — published per-device so others can add them to groups. Addressable event (latest supersedes previous). Was `443` before MDK 0.8.0 / Whistle v1.1.3. |
 | `444` | Welcome | MLS group invitation — always delivered inside a kind-1059 gift wrap |
-| `445` | Group Event | All in-group traffic: MLS commits, proposals, and application messages (chat, location, nicknames) |
+| `445` | Group Event | All in-group traffic: MLS commits, proposals, and application messages (chat, location, nicknames, leave requests) |
 | `1059` | Gift Wrap | NIP-59 metadata-hiding envelope — used to deliver Welcomes without leaking sender/recipient |
 | `10051` | KeyPackage Relay List | Hints for which relays hold a user's KeyPackage |
 
@@ -112,7 +117,7 @@ All group content (chat messages, location updates, nicknames, leave requests) i
 ┌─────────────────────────────────────────┐
 │  Inner unsigned event                   │
 │  kind: 9 (chat) / 1 (location) / 2     │
-│  content: {"type":"chat","text":"Hi"}   │
+│  content: {"type":"chat","text":"Hi"}   │  ← or location with batt, leaveRequest, etc.
 │  pubkey: sender                         │
 └─────────────────────────────────────────┘
 ```

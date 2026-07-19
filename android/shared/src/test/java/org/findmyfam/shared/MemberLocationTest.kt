@@ -9,19 +9,25 @@ import kotlin.test.assertTrue
 
 class MemberLocationTest {
 
-    private fun makeLocation(tsOffsetSeconds: Long = 0): MemberLocation {
+    /**
+     * `receivedAtOffsetSeconds` controls `receivedAt` (the basis of staleness
+     * as of v1.2.1 — see MemberLocation.isStale). The payload's own timestamp
+     * is held at now since it no longer drives the UI freshness decision.
+     */
+    private fun makeLocation(receivedAtOffsetSeconds: Long = 0): MemberLocation {
         val nowSeconds = System.currentTimeMillis() / 1000
         val payload = LocationPayload(
             lat = 51.5074,
             lon = -0.1278,
             alt = 0.0,
             acc = 10.0,
-            ts = nowSeconds + tsOffsetSeconds
+            ts = nowSeconds
         )
         return MemberLocation(
             groupId = "groupAbc",
             memberPubkeyHex = "abcdefgh12345678",
-            payload = payload
+            payload = payload,
+            receivedAt = nowSeconds + receivedAtOffsetSeconds
         )
     }
 
@@ -39,14 +45,14 @@ class MemberLocationTest {
 
     @Test
     fun `isStale returns true when location is older than 2x interval`() {
-        // Location from 3 hours ago, interval is 1 hour (3600s), threshold is 7200s
-        val loc = makeLocation(tsOffsetSeconds = -10800L)
+        // Received 3 hours ago, interval is 1 hour (3600s), threshold is 7200s
+        val loc = makeLocation(receivedAtOffsetSeconds = -10800L)
         assertTrue(loc.isStale(intervalSeconds = 3600))
     }
 
     @Test
     fun `isStale returns false when location is recent`() {
-        val loc = makeLocation(tsOffsetSeconds = 0L)
+        val loc = makeLocation(receivedAtOffsetSeconds = 0L)
         assertFalse(loc.isStale(intervalSeconds = 3600))
     }
 }

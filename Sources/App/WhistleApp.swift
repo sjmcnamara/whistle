@@ -4,7 +4,7 @@ import Security
 import WhistleCore
 
 @main
-struct FindMyFamApp: App {
+struct WhistleApp: App {
 
     @StateObject private var appViewModel = AppViewModel()
     @StateObject private var appLockService = AppLockService(settings: AppSettings.shared)
@@ -240,7 +240,7 @@ final class AppLockService: ObservableObject {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            context.evaluateAccessControl(access, operation: .useItem, localizedReason: "Unlock FindMyFam") { success, error in
+            context.evaluateAccessControl(access, operation: .useItem, localizedReason: "Unlock Whistle") { success, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -252,7 +252,7 @@ final class AppLockService: ObservableObject {
 
     private func evaluate(context: LAContext, policy: LAPolicy) async throws -> Bool {
         try await withCheckedThrowingContinuation { continuation in
-            context.evaluatePolicy(policy, localizedReason: "Unlock FindMyFam") { success, error in
+            context.evaluatePolicy(policy, localizedReason: "Unlock Whistle") { success, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
@@ -279,7 +279,7 @@ struct AppLockView: View {
                     .font(.system(size: 44, weight: .semibold))
                     .foregroundStyle(.blue)
 
-                Text("FindMyFam Locked")
+                Text("Whistle Locked")
                     .font(.title3.weight(.semibold))
 
                 Text("Use Face ID, Touch ID, or device passcode to continue.")

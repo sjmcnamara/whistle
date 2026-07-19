@@ -37,6 +37,22 @@ final class LocationService: NSObject, ObservableObject {
     /// and the device is stationary. Set by AppViewModel from MotionService.
     var motionMultiplier: Double = 1.0
 
+    /// `intervalSeconds × motionMultiplier`, rounded to seconds.
+    ///
+    /// Reflects the current actual publish cadence — what we'd report in
+    /// `LocationPayload.interval` so receivers grade staleness against the
+    /// real cadence, not the user's configured value. Stationary device on a
+    /// 10s setting → 40s here.
+    var effectiveIntervalSeconds: Int {
+        Self.effectiveIntervalSeconds(configured: intervalSeconds, multiplier: motionMultiplier)
+    }
+
+    /// Pure helper for the cadence formula — exposed for unit tests.
+    /// `nonisolated` so test code can call it off the main actor.
+    nonisolated static func effectiveIntervalSeconds(configured: Int, multiplier: Double) -> Int {
+        Int((Double(configured) * multiplier).rounded())
+    }
+
     // MARK: - Private state
 
     private let manager = CLLocationManager()
@@ -87,14 +103,14 @@ final class LocationService: NSObject, ObservableObject {
         // does nothing on iOS 17+ — no callbacks, no errors.
         guard authorizationStatus == .authorizedWhenInUse ||
               authorizationStatus == .authorizedAlways else {
-            FMFLogger.location.info("startUpdating: not authorized (status=\(self.authorizationStatus.rawValue)) — deferring")
+            WhistleLogger.location.info("startUpdating: not authorized (status=\(self.authorizationStatus.rawValue)) — deferring")
             return
         }
 
         manager.startUpdatingLocation()
         manager.startMonitoringSignificantLocationChanges()
         isUpdating = true
-        FMFLogger.location.info("CLLocationManager started (interval=\(self.intervalSeconds)s)")
+        WhistleLogger.location.info("CLLocationManager started (interval=\(self.intervalSeconds)s)")
     }
 
     /// Stop all location monitoring.
@@ -105,7 +121,7 @@ final class LocationService: NSObject, ObservableObject {
         manager.stopMonitoringSignificantLocationChanges()
         isUpdating = false
         lastFireDate = nil
-        FMFLogger.location.info("Location updates stopped")
+        WhistleLogger.location.info("Location updates stopped")
     }
 
     // MARK: - Throttling
@@ -119,13 +135,52 @@ final class LocationService: NSObject, ObservableObject {
 
     /// Returns `true` if enough time has elapsed since the last callback.
     /// Accounts for `motionMultiplier` when motion-adaptive mode is active.
+    /// A pending force-fire (set by `requestImmediateUpdate()`) bypasses the
+    /// interval entirely — the manual "whistle" ignores timer, backoff, and
+    /// motion-aware state by design.
     private func shouldFire() -> Bool {
+        if forceNextFire { return true }
         guard let last = lastFireDate else { return true }
         return Date().timeIntervalSince(last) >= TimeInterval(intervalSeconds) * motionMultiplier
     }
 
     /// Test-only shim so unit tests can exercise shouldFire() without CLLocation callbacks.
     func testShouldFire() -> Bool { shouldFire() }
+
+    // MARK: - Manual whistle
+
+    /// Set by `requestImmediateUpdate()`; consumed by the next fire. Lets a
+    /// manual update bypass the throttle exactly once.
+    private var forceNextFire = false
+
+    /// Force a single location publish now, ignoring the throttle/backoff.
+    ///
+    /// When updates are already running we fire the freshest fix CoreLocation
+    /// holds immediately (continuous updates keep it current) and also arm
+    /// `forceNextFire` so the next incoming fix bypasses the throttle once.
+    /// When paused/stopped we issue a one-shot `requestLocation()` for a fresh
+    /// fix; `didFailWithError` falls back to the last known fix.
+    func requestImmediateUpdate() {
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            WhistleLogger.location.info("requestImmediateUpdate: not authorized — ignoring")
+            return
+        }
+        forceNextFire = true
+        if isUpdating, let fix = manager.location, fix.horizontalAccuracy >= 0 {
+            WhistleLogger.location.info("Manual whistle: firing freshest fix immediately")
+            fire(fix)
+        } else {
+            WhistleLogger.location.info("Manual whistle: requesting one-shot fix")
+            manager.requestLocation()
+        }
+    }
+
+    /// Commit a fix: stamp the throttle, clear any pending force, deliver it.
+    private func fire(_ location: CLLocation) {
+        lastFireDate = Date()
+        forceNextFire = false
+        onLocationUpdate?(location)
+    }
 }
 
 // MARK: - CLLocationManagerDelegate
@@ -141,7 +196,7 @@ extension LocationService: CLLocationManagerDelegate {
             // start the location updates we previously deferred.
             let isAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
             if isAuthorized && self.wantsUpdating && !self.isUpdating {
-                FMFLogger.location.info("Auth granted — starting deferred location updates")
+                WhistleLogger.location.info("Auth granted — starting deferred location updates")
                 self.manager.startUpdatingLocation()
                 self.manager.startMonitoringSignificantLocationChanges()
                 self.isUpdating = true
@@ -157,22 +212,27 @@ extension LocationService: CLLocationManagerDelegate {
 
             // Negative accuracy means CoreLocation has no valid fix — skip.
             guard location.horizontalAccuracy >= 0 else {
-                FMFLogger.location.debug("didUpdateLocations: invalid fix (acc=\(location.horizontalAccuracy)) — skipping")
+                WhistleLogger.location.debug("didUpdateLocations: invalid fix (acc=\(location.horizontalAccuracy)) — skipping")
                 return
             }
             guard self.shouldFire() else {
-                FMFLogger.location.debug("didUpdateLocations (\(mode)) throttled — count=\(locations.count)")
+                WhistleLogger.location.debug("didUpdateLocations (\(mode)) throttled — count=\(locations.count)")
                 return
             }
-            self.lastFireDate = Date()
-            FMFLogger.location.info("didUpdateLocations (\(mode)) firing — count=\(locations.count) acc=\(String(format: "%.0f", location.horizontalAccuracy))m")
-            self.onLocationUpdate?(location)
+            WhistleLogger.location.info("didUpdateLocations (\(mode)) firing — count=\(locations.count) acc=\(String(format: "%.0f", location.horizontalAccuracy))m")
+            self.fire(location)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            FMFLogger.location.error("Location error: \(error.localizedDescription)")
+            WhistleLogger.location.error("Location error: \(error.localizedDescription)")
+            // A one-shot whistle request that failed still wants to publish —
+            // fall back to the last known fix so the manual update isn't lost.
+            if self.forceNextFire, let fix = manager.location, fix.horizontalAccuracy >= 0 {
+                WhistleLogger.location.info("Manual whistle: one-shot failed, firing last known fix")
+                self.fire(fix)
+            }
         }
     }
 }

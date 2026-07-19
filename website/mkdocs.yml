@@ -1,0 +1,78 @@
+site_name: Whistle
+site_url: https://getwhistle.org/
+site_description: Location sharing without surveillance. End-to-end encrypted, no accounts, no servers.
+site_author: sjmcnamara
+repo_url: https://github.com/sjmcnamara/whistle
+repo_name: sjmcnamara/whistle
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  logo: assets/whistle-bolt.svg
+  favicon: assets/whistle-icon.png
+  font: false   # we load our own webfonts from extra.css so theme/ui swap works
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  palette:
+    # We override Material's palette via CSS variables in extra.css.
+    # The single light scheme is fine; dark mode comes later.
+    - scheme: default
+      primary: custom
+      accent: custom
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/theme-switcher.js
+  - javascripts/platform-hint.js
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - tables
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: "¶"
+
+nav:
+  - Home: index.md
+  - How it works: how-it-works.md
+  - Trust & security: trust.md
+  - Reference:
+    - wiki/index.md
+    - Architecture: wiki/Architecture.md
+    - Protocol specification: wiki/PROTOCOL.md
+    - Joining a group: wiki/Join-and-Invite-Flow.md
+    - Testing & CI: wiki/Testing-and-CI.md
+    - Release checklist: wiki/Release-Checklist.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sjmcnamara/whistle

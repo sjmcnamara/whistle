@@ -40,9 +40,32 @@ class LocationService @Inject constructor(
     /** Multiplier applied when motion-adaptive mode is active and device is stationary. */
     var motionMultiplier: Double = 1.0
 
+    /**
+     * `intervalSeconds × motionMultiplier`, rounded to seconds.
+     *
+     * Reflects the current actual publish cadence — what we report in
+     * `LocationPayload.interval` so receivers grade staleness against the
+     * real cadence, not the user's configured value. Stationary device on a
+     * 10s setting → 40s here.
+     */
+    val effectiveIntervalSeconds: Int
+        get() = effectiveIntervalSeconds(configured = intervalSeconds, multiplier = motionMultiplier)
+
+    companion object {
+        /** Pure helper for the cadence formula — exposed for unit tests. */
+        fun effectiveIntervalSeconds(configured: Int, multiplier: Double): Int =
+            kotlin.math.round(configured * multiplier).toInt()
+    }
+
     private val locationManager: LocationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private var lastFireTime: Long = 0L
+
+    // Per-provider state for accuracy-aware selection. We subscribe to GPS and
+    // NETWORK concurrently; without this, a low-accuracy NETWORK fix could
+    // beat a soon-to-arrive GPS fix to the throttle gate.
+    private var lastGpsFix: Location? = null
+    private var lastNetworkFix: Location? = null
 
     fun updatePermissionStatus(granted: Boolean) {
         _hasPermission.value = granted
@@ -124,25 +147,169 @@ class LocationService @Inject constructor(
         lastFireTime = 0L
     }
 
+    // Set by requestImmediateUpdate(); lets the next fix bypass the throttle once.
+    private var forceNextFire = false
+
+    /**
+     * Force a single location publish now, ignoring the throttle/backoff and
+     * motion-aware multiplier. Drives the map's "Whistle" button.
+     *
+     * Requests a fresh one-shot fix via [LocationManagerCompat.getCurrentLocation]
+     * (works even while continuous updates are stopped, e.g. paused), and falls
+     * back to the best last-known fix if no fresh one arrives. [forceNextFire]
+     * also lets any concurrently-delivered fix skip the throttle gate once.
+     */
+    @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION") // requestSingleUpdate: deprecated in API 30 but valid back to minSdk 26
+    fun requestImmediateUpdate() {
+        if (!_hasPermission.value) {
+            Timber.i("requestImmediateUpdate: no permission — ignoring")
+            return
+        }
+        forceNextFire = true
+
+        // Continuous updates already running: fire the freshest fix we hold now,
+        // and let the next live fix bypass the throttle once via forceNextFire.
+        if (_isUpdating.value) {
+            fireForced(bestLastKnown())
+            return
+        }
+
+        // Paused/stopped: request one fresh fix, falling back to last known.
+        val provider = when {
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> null
+        }
+        if (provider == null) {
+            Timber.w("Manual whistle: no provider enabled — using last known")
+            fireForced(bestLastKnown())
+            return
+        }
+        try {
+            locationManager.requestSingleUpdate(
+                provider,
+                object : LocationListener {
+                    override fun onLocationChanged(location: Location) = fireForced(location)
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
+                    @Deprecated("Deprecated in API")
+                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                },
+                context.mainLooper
+            )
+        } catch (e: Exception) {
+            Timber.w("Manual whistle: single-update failed (${e.message}) — using last known")
+            fireForced(bestLastKnown())
+        }
+    }
+
+    /** Best of the two providers' last-known fixes, or null. */
+    @SuppressLint("MissingPermission")
+    private fun bestLastKnown(): Location? = try {
+        listOfNotNull(
+            locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER),
+            locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER),
+        ).maxByOrNull { it.time }
+    } catch (e: SecurityException) {
+        null
+    }
+
+    /** Publish a forced fix immediately, bypassing the throttle. No-op if null. */
+    private fun fireForced(location: Location?) {
+        if (location == null) {
+            Timber.w("Manual whistle: no fix available")
+            return
+        }
+        lastFireTime = System.currentTimeMillis()
+        forceNextFire = false
+        Timber.i("Manual whistle: firing fix acc=${location.accuracy.toInt()}m provider=${location.provider}")
+        onLocationUpdate?.invoke(location)
+    }
+
     private fun shouldFire(): Boolean {
+        if (forceNextFire) return true
         if (lastFireTime == 0L) return true
         return (System.currentTimeMillis() - lastFireTime) >= intervalSeconds * motionMultiplier * 1000L
+    }
+
+    /**
+     * Estimated wall-clock time (ms) of the next scheduled publish — mirrors
+     * iOS's `nextFireDate`. Null until the first fix fires. Clamped to "now" so
+     * a count-down on the map pin never flips into count-up while we wait for
+     * the next GPS fix to arrive after the throttle has already expired.
+     */
+    fun nextFireTimeMs(): Long? {
+        if (lastFireTime == 0L) return null
+        val effectiveMs = (intervalSeconds * motionMultiplier * 1000.0).toLong()
+        return maxOf(lastFireTime + effectiveMs, System.currentTimeMillis())
     }
 
     // LocationListener
 
     override fun onLocationChanged(location: Location) {
+        when (location.provider) {
+            LocationManager.GPS_PROVIDER -> lastGpsFix = location
+            LocationManager.NETWORK_PROVIDER -> lastNetworkFix = location
+        }
+
+        val now = System.currentTimeMillis()
+        val pick = pickBestFix(
+            gpsAccuracyM = lastGpsFix?.accuracy,
+            gpsTimeMs = lastGpsFix?.time,
+            netAccuracyM = lastNetworkFix?.accuracy,
+            netTimeMs = lastNetworkFix?.time,
+            nowMs = now,
+        )
+        val best = when (pick) {
+            FixPick.GPS -> lastGpsFix
+            FixPick.NETWORK -> lastNetworkFix
+            FixPick.NONE -> null
+        } ?: return
+
         if (!shouldFire()) {
             Timber.d("Location throttled (interval=${intervalSeconds}s)")
             return
         }
-        lastFireTime = System.currentTimeMillis()
-        Timber.i("Location firing — acc=${location.accuracy.toInt()}m provider=${location.provider}")
-        onLocationUpdate?.invoke(location)
+        lastFireTime = now
+        forceNextFire = false
+        Timber.i("Location firing — acc=${best.accuracy.toInt()}m provider=${best.provider}")
+        onLocationUpdate?.invoke(best)
     }
 
     @Deprecated("Deprecated in API")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) {}
+}
+
+internal enum class FixPick { GPS, NETWORK, NONE }
+
+/**
+ * Pick which of two provider fixes to fire. Both-fresh → GPS (typically more
+ * accurate). One-fresh → that one. Neither fresh → better accuracy wins.
+ *
+ * Pure function — testable without Android dependencies. Mirrors how
+ * FusedLocationProviderClient blends GPS and Wi-Fi/cell, but stays GMS-free.
+ */
+internal fun pickBestFix(
+    gpsAccuracyM: Float?,
+    gpsTimeMs: Long?,
+    netAccuracyM: Float?,
+    netTimeMs: Long?,
+    nowMs: Long,
+    freshnessMs: Long = 30_000L,
+): FixPick {
+    val gpsFresh = gpsAccuracyM != null && gpsTimeMs != null && (nowMs - gpsTimeMs) < freshnessMs
+    val netFresh = netAccuracyM != null && netTimeMs != null && (nowMs - netTimeMs) < freshnessMs
+
+    return when {
+        gpsFresh -> FixPick.GPS
+        netFresh -> FixPick.NETWORK
+        gpsAccuracyM != null && netAccuracyM != null ->
+            if (gpsAccuracyM <= netAccuracyM) FixPick.GPS else FixPick.NETWORK
+        gpsAccuracyM != null -> FixPick.GPS
+        netAccuracyM != null -> FixPick.NETWORK
+        else -> FixPick.NONE
+    }
 }

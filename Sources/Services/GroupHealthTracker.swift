@@ -27,7 +27,7 @@ final class GroupHealthTracker: ObservableObject {
 
         if count >= Self.failureThreshold {
             unhealthyGroupIds.insert(groupId)
-            FMFLogger.marmot.warning("Group \(groupId) marked unhealthy after \(count) consecutive failures")
+            WhistleLogger.marmot.warning("Group \(groupId) marked unhealthy after \(count) consecutive failures")
             return true
         }
         return false
@@ -38,9 +38,9 @@ final class GroupHealthTracker: ObservableObject {
         let hadFailures = (failureCounts[groupId] ?? 0) > 0
         failureCounts[groupId] = 0
         if unhealthyGroupIds.remove(groupId) != nil {
-            FMFLogger.marmot.info("Group \(groupId) recovered — removed from unhealthy set")
+            WhistleLogger.marmot.info("Group \(groupId) recovered — removed from unhealthy set")
         } else if hadFailures {
-            FMFLogger.marmot.debug("Group \(groupId) failure count reset after success")
+            WhistleLogger.marmot.debug("Group \(groupId) failure count reset after success")
         }
     }
 

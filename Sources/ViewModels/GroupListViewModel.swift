@@ -201,7 +201,7 @@ final class GroupListViewModel: ObservableObject {
             try await marmot.sendLeaveRequest(groupId: id)
             pendingLeaveStore.add(id)
         } catch {
-            FMFLogger.chat.error("Failed to request leave for group \(id): \(error)")
+            WhistleLogger.chat.error("Failed to request leave for group \(id): \(error)")
         }
     }
 

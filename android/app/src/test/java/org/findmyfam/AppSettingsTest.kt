@@ -116,6 +116,19 @@ class AppSettingsTest {
     }
 
     @Test
+    fun `locationIntervalSecondsFlow emits the current value on setter change`() {
+        // Regression: previously the running LocationService stayed on its
+        // startup-snapshot interval until app restart because nothing observed
+        // setter changes. Mirrors iOS AppViewModel.swift:173.
+        val flow = settings.locationIntervalSecondsFlow
+        assertEquals(AppDefaults.defaultLocationIntervalSeconds, flow.value)
+        settings.locationIntervalSeconds = 10
+        assertEquals(10, flow.value)
+        settings.locationIntervalSeconds = 300
+        assertEquals(300, flow.value)
+    }
+
+    @Test
     fun `isLocationPaused defaults to false`() {
         assertFalse(settings.isLocationPaused)
     }

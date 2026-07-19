@@ -7,7 +7,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
+import android.util.TypedValue
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.layout.*
@@ -24,15 +26,19 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.Warning
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.findmyfam.viewmodels.AppViewModel
 import org.findmyfam.viewmodels.LocationViewModel
 import org.findmyfam.viewmodels.MemberAnnotation
 import java.text.SimpleDateFormat
@@ -46,6 +52,8 @@ fun FamilyMapScreen(
     locationViewModel: LocationViewModel,
     groups: List<GroupOption> = emptyList(),
     onPermissionGranted: () -> Unit,
+    whistleState: AppViewModel.WhistleState = AppViewModel.WhistleState.IDLE,
+    onWhistle: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -114,7 +122,16 @@ fun FamilyMapScreen(
         } else {
             // OSM Map
             val mapViewRef = remember { mutableStateOf<MapView?>(null) }
-            OsmMapView(annotations = annotations, mapViewRef = mapViewRef)
+            var selectedAnnotation by remember { mutableStateOf<MemberAnnotation?>(null) }
+            OsmMapView(
+                annotations = annotations,
+                mapViewRef = mapViewRef,
+                onMarkerTap = { selectedAnnotation = it }
+            )
+
+            selectedAnnotation?.let { ann ->
+                MemberDetailSheet(annotation = ann, onDismiss = { selectedAnnotation = null })
+            }
 
             // Group filter picker
             if (groups.isNotEmpty()) {
@@ -203,6 +220,33 @@ fun FamilyMapScreen(
                 }
             }
 
+            // Whistle button — force a location publish now, ignoring throttle,
+            // motion backoff, and pause state (see AppViewModel.whistle()).
+            FloatingActionButton(
+                onClick = onWhistle,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+                containerColor = if (whistleState == AppViewModel.WhistleState.FAILED)
+                    MaterialTheme.colorScheme.errorContainer
+                else MaterialTheme.colorScheme.primary,
+            ) {
+                when (whistleState) {
+                    AppViewModel.WhistleState.SENDING ->
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    AppViewModel.WhistleState.SENT ->
+                        Icon(Icons.Default.Check, contentDescription = "Sent")
+                    AppViewModel.WhistleState.FAILED ->
+                        Icon(Icons.Default.Warning, contentDescription = "No fix")
+                    AppViewModel.WhistleState.IDLE ->
+                        Icon(Icons.Default.Podcasts, contentDescription = "Whistle")
+                }
+            }
+
             // Empty state overlay
             if (annotations.isEmpty()) {
                 Box(
@@ -231,30 +275,117 @@ fun FamilyMapScreen(
     }
 }
 
-/** Draws a small orange circle with a standing-person glyph (🧍) for the stationary badge. */
-private fun stationaryBadgeDrawable(context: Context): BitmapDrawable {
-    val dp = context.resources.displayMetrics.density
-    val size = (20 * dp).toInt()
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFFF8C00.toInt() // orange
-        style = Paint.Style.FILL
-    }
-    val r = size / 2f
-    canvas.drawCircle(r, r, r, circlePaint)
+/**
+ * Renders a member pin matching iOS's MemberPinView: a white-ringed avatar
+ * circle with a person glyph (blue fresh, grey stale), the display name and a
+ * staleness counter below (each with a white halo), and an orange stationary
+ * badge top-right.
+ *
+ * `counter` is the relative-time line under the name — count-up "2 min ago" for
+ * other members, count-down "in 30s" for the own pin — matching iOS. Pass null
+ * to omit it.
+ *
+ * The bitmap is vertically centred on the avatar circle so the marker can
+ * use ANCHOR_CENTER and the avatar sits exactly on the geo position.
+ */
+private fun memberPinDrawable(
+    context: Context,
+    name: String,
+    counter: String?,
+    isStale: Boolean,
+    isStationary: Boolean
+): BitmapDrawable {
+    val dm = context.resources.displayMetrics
+    val dp = dm.density
+    val avatar = 38f * dp
+    val badge = 16f * dp
+    val gap = 2f * dp
+    val lineGap = 1f * dp
+    val halo = 3f * dp
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = size * 0.6f
-        textAlign = Paint.Align.CENTER
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 11f, dm)
         typeface = Typeface.DEFAULT_BOLD
+        textAlign = Paint.Align.CENTER
     }
-    // Unicode standing person
-    val metrics = textPaint.fontMetrics
-    val textY = r - (metrics.ascent + metrics.descent) / 2f
-    canvas.drawText("🧍", r, textY, textPaint)
+    val fm = textPaint.fontMetrics
+    val textHeight = fm.descent - fm.ascent
+
+    val counterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 10f, dm)
+        textAlign = Paint.Align.CENTER
+    }
+    val cfm = counterPaint.fontMetrics
+    val counterHeight = if (counter != null) cfm.descent - cfm.ascent else 0f
+
+    // Space below the avatar for the name (+ optional counter line); mirrored
+    // above to keep the avatar at the bitmap's vertical centre.
+    val below = gap + textHeight +
+        (if (counter != null) lineGap + counterHeight else 0f) + halo
+
+    val labelWidth = maxOf(
+        textPaint.measureText(name),
+        if (counter != null) counterPaint.measureText(counter) else 0f
+    )
+    val width = maxOf(avatar + badge, labelWidth + 2 * halo).toInt() + 1
+    val height = (avatar + 2 * below).toInt() + 1
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val cx = width / 2f
+    val cy = height / 2f
+    val r = avatar / 2f
+
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+    // White ring + tinted disc
+    fill.color = Color.WHITE
+    canvas.drawCircle(cx, cy, r, fill)
+    fill.color = if (isStale) 0xFF8E8E93.toInt() else 0xFF007AFF.toInt()
+    val inner = r - 1.5f * dp
+    canvas.drawCircle(cx, cy, inner, fill)
+
+    // Person glyph: head + shoulders, clipped to the disc
+    fill.color = Color.WHITE
+    canvas.save()
+    canvas.clipPath(Path().apply { addCircle(cx, cy, inner, Path.Direction.CW) })
+    canvas.drawCircle(cx, cy - 0.30f * inner, 0.32f * inner, fill)
+    canvas.drawCircle(cx, cy + 0.85f * inner, 0.62f * inner, fill)
+    canvas.restore()
+
+    if (isStationary) {
+        val bx = cx + r - badge / 3f
+        val by = cy - r + badge / 3f
+        fill.color = 0xFFFF8C00.toInt()
+        canvas.drawCircle(bx, by, badge / 2f, fill)
+        val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = badge * 0.6f
+            textAlign = Paint.Align.CENTER
+        }
+        val bm = badgePaint.fontMetrics
+        canvas.drawText("🧍", bx, by - (bm.ascent + bm.descent) / 2f, badgePaint)
+    }
+
+    // Name label with a white halo so it stays readable over map tiles
+    val textY = cy + r + gap - fm.ascent
+    textPaint.style = Paint.Style.STROKE
+    textPaint.strokeWidth = halo
+    textPaint.color = Color.WHITE
+    canvas.drawText(name, cx, textY, textPaint)
+    textPaint.style = Paint.Style.FILL
+    textPaint.color = if (isStale) 0xFF6E6E73.toInt() else 0xFF1C1C1E.toInt()
+    canvas.drawText(name, cx, textY, textPaint)
+
+    // Staleness counter, one line below the name (iOS's .secondary relative text)
+    if (counter != null) {
+        val counterY = textY + fm.descent + lineGap - cfm.ascent
+        counterPaint.style = Paint.Style.STROKE
+        counterPaint.strokeWidth = halo
+        counterPaint.color = Color.WHITE
+        canvas.drawText(counter, cx, counterY, counterPaint)
+        counterPaint.style = Paint.Style.FILL
+        counterPaint.color = 0xFF6E6E73.toInt()
+        canvas.drawText(counter, cx, counterY, counterPaint)
+    }
 
     return BitmapDrawable(context.resources, bitmap)
 }
@@ -262,11 +393,23 @@ private fun stationaryBadgeDrawable(context: Context): BitmapDrawable {
 @Composable
 private fun OsmMapView(
     annotations: List<MemberAnnotation>,
-    mapViewRef: MutableState<MapView?> = mutableStateOf(null)
+    mapViewRef: MutableState<MapView?> = mutableStateOf(null),
+    onMarkerTap: (MemberAnnotation) -> Unit = {}
 ) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     // Only auto-fit camera on first annotation load, not on every update
     var hasFittedCamera by remember { mutableStateOf(false) }
+
+    // Tick every second so the per-pin staleness counter stays live. The bitmap
+    // is static once drawn, so we re-render markers on each tick (the family pin
+    // count is small). `now` is read inside `update` to drive its re-execution.
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000L)
+            now = System.currentTimeMillis()
+        }
+    }
 
     AndroidView(
         factory = { ctx ->
@@ -279,31 +422,35 @@ private fun OsmMapView(
             }
         },
         update = { mapView ->
+            // Read `now` so this block re-runs on each tick, refreshing counters.
+            val tickNow = now
             // Update markers without touching the camera
             mapView.overlays.removeAll { it is Marker }
 
             for (ann in annotations) {
+                // Own pin counts down to its next publish; others count up since
+                // last seen — mirrors iOS MemberPinView.
+                val counter = if (ann.isMe && ann.nextUpdateMs != null) {
+                    formatCountdownShort(ann.nextUpdateMs - tickNow)
+                } else {
+                    formatAgeShort(tickNow - ann.timestampMs)
+                }
                 val marker = Marker(mapView).apply {
                     position = GeoPoint(ann.position.latitude, ann.position.longitude)
                     title = ann.displayName
                     snippet = if (ann.isMe) "You • ${timeFormat.format(Date(ann.timestampMs))}"
                               else timeFormat.format(Date(ann.timestampMs))
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    icon = memberPinDrawable(
+                        mapView.context, ann.displayName, counter, ann.isStale, ann.isStationary
+                    )
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     alpha = if (ann.isStale) 0.5f else 1.0f
+                    setOnMarkerClickListener { _, _ ->
+                        onMarkerTap(ann)
+                        true   // suppress default info window
+                    }
                 }
                 mapView.overlays.add(marker)
-
-                // Stationary badge: small orange circle offset above-right of the pin.
-                if (ann.isStationary) {
-                    val badge = Marker(mapView).apply {
-                        position = GeoPoint(ann.position.latitude, ann.position.longitude)
-                        icon = stationaryBadgeDrawable(mapView.context)
-                        setAnchor(-0.1f, 1.4f)
-                        isEnabled = false
-                        title = null
-                    }
-                    mapView.overlays.add(badge)
-                }
             }
 
             // Fit camera only once when first annotations arrive
@@ -334,4 +481,26 @@ private fun OsmMapView(
         },
         modifier = Modifier.fillMaxSize()
     )
+}
+
+/** Count-up since last seen: "5s ago" / "2 min ago" / "1 hr ago" / "3 d ago". */
+private fun formatAgeShort(deltaMs: Long): String {
+    val s = maxOf(0L, deltaMs / 1000)
+    return when {
+        s < 60 -> "${s}s ago"
+        s < 3600 -> "${s / 60} min ago"
+        s < 86_400 -> "${s / 3600} hr ago"
+        else -> "${s / 86_400} d ago"
+    }
+}
+
+/** Count-down to own next publish: "in 5s" / "in 2 min" / "in 1 hr"; "now" when due. */
+private fun formatCountdownShort(deltaMs: Long): String {
+    val s = deltaMs / 1000
+    return when {
+        s <= 0 -> "now"
+        s < 60 -> "in ${s}s"
+        s < 3600 -> "in ${s / 60} min"
+        else -> "in ${s / 3600} hr"
+    }
 }

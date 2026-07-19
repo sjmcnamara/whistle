@@ -33,18 +33,22 @@ struct MemberPinView: View {
                 .font(.caption2.bold())
                 .foregroundStyle(annotation.isStale ? .secondary : .primary)
 
+            // `fixedSize` lets the label expand to its natural width instead
+            // of shrinking + truncating inside the VStack. Future-relative
+            // strings ("in 2 min, 5 sec") are longer than past-relative
+            // ("2 min ago"), so the self pin's countdown otherwise truncated.
             if let next = annotation.nextUpdateDate {
                 Text(next, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .fixedSize()
             } else {
                 Text(annotation.timestamp, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .fixedSize()
             }
         }
     }

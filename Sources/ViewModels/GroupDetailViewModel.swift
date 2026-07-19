@@ -25,6 +25,12 @@ final class GroupDetailViewModel: ObservableObject {
     @Published var isRenaming = false
     @Published private(set) var leaveRequestMembers: Set<String> = []  // pubkeys wanting to leave
 
+    /// Pubkey currently being hard-resynced (remove + re-add), for per-row spinner.
+    @Published private(set) var resyncingMemberPubkey: String?
+
+    /// Invitees who gift-wrapped a join-request for this group, awaiting the admin's add.
+    @Published private(set) var pendingJoiners: [JoinRequest] = []
+
     // MARK: - Item model
 
     struct MemberItem: Identifiable, Equatable {
@@ -79,6 +85,16 @@ final class GroupDetailViewModel: ObservableObject {
 
         // Populate with any pending leave requests received before this view loaded
         leaveRequestMembers = marmot.settings?.pendingLeaveRequests[groupId] ?? []
+
+        // Surface incoming join-requests for this group (fires immediately with
+        // the current contents, then on every update).
+        marmot.joinRequestStore?.$requests
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] all in
+                guard let self else { return }
+                self.pendingJoiners = all.filter { $0.groupId == self.groupId }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Load
@@ -117,7 +133,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to load group detail for \(self.groupId): \(error)")
+            WhistleLogger.chat.error("Failed to load group detail for \(self.groupId): \(error)")
         }
     }
 
@@ -135,7 +151,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to generate invite: \(error)")
+            WhistleLogger.chat.error("Failed to generate invite: \(error)")
         }
     }
 
@@ -168,13 +184,58 @@ final class GroupDetailViewModel: ObservableObject {
 
             // Reload member list
             await load()
-            FMFLogger.chat.info("Added member \(pubkeyHex.prefix(8)) to group \(self.groupId)")
+            WhistleLogger.chat.info("Added member \(pubkeyHex.prefix(8)) to group \(self.groupId)")
 
             // Signal the view to dismiss back to the chat
             didAddMember = true
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to add member: \(error)")
+            WhistleLogger.chat.error("Failed to add member: \(error)")
+        }
+    }
+
+    /// Add a joiner from their gift-wrapped join-request.
+    ///
+    /// Interim: uses the existing single-add (fetches their published key package
+    /// from the relay). A later batch path (PR2b) will use the key package carried
+    /// inline in the request and add everyone in one MLS commit via "Add all".
+    func addPendingJoiner(_ request: JoinRequest) async {
+        isAddingMember = true
+        defer { isAddingMember = false }
+        do {
+            try await marmot.addMember(publicKeyHex: request.pubkey, toGroup: groupId)
+            marmot.joinRequestStore?.remove(groupId: groupId, pubkey: request.pubkey)
+            error = nil
+            await load()
+            WhistleLogger.chat.info("Added pending joiner \(request.pubkey.prefix(8)) to group \(self.groupId)")
+        } catch {
+            self.error = error.localizedDescription
+            WhistleLogger.chat.error("Failed to add pending joiner: \(error)")
+        }
+    }
+
+    /// Discard a join-request without adding (e.g. unrecognised requester).
+    func dismissPendingJoiner(_ request: JoinRequest) {
+        marmot.joinRequestStore?.remove(groupId: groupId, pubkey: request.pubkey)
+    }
+
+    /// Admit every pending joiner in a single MLS commit (one epoch bump for all).
+    func addAllPendingJoiners() async {
+        let toAdd = pendingJoiners
+        guard !toAdd.isEmpty else { return }
+        isAddingMember = true
+        defer { isAddingMember = false }
+        do {
+            let result = try await marmot.addMembers(toAdd, toGroup: groupId)
+            for pubkey in result.added {
+                marmot.joinRequestStore?.remove(groupId: groupId, pubkey: pubkey)
+            }
+            error = nil
+            await load()
+            WhistleLogger.chat.info("Batch-added \(result.added.count) joiner(s) to group \(self.groupId)")
+        } catch {
+            self.error = error.localizedDescription
+            WhistleLogger.chat.error("Failed to batch-add joiners: \(error)")
         }
     }
 
@@ -183,30 +244,17 @@ final class GroupDetailViewModel: ObservableObject {
     /// Remove a member from the group. Only admins can do this.
     func removeMember(pubkeyHex: String) async {
         do {
-            let result = try await mls.removeMembers(
-                groupId: groupId,
-                memberPublicKeys: [pubkeyHex]
-            )
-            try await mls.mergePendingCommit(groupId: groupId)
-
-            // Publish the evolution event
-            let payload = result.publishPayload(relayURLs: marmot.activeRelayURLs)
-            for eventJson in payload.events {
-                try await marmot.publishGroupEvent(eventJson: eventJson)
-            }
-
-            // Reload member list
-            await load()
-            FMFLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
-
-            // Clear only the removed member's location (not all members in group)
-            marmot.locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: pubkeyHex)
+            try await marmot.removeMember(publicKeyHex: pubkeyHex, inGroup: groupId)
 
             // Clear the leave request since it's processed
             marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
+
+            // Reload member list
+            await load()
+            WhistleLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to remove member: \(error)")
+            WhistleLogger.chat.error("Failed to remove member: \(error)")
         }
     }
 
@@ -214,10 +262,28 @@ final class GroupDetailViewModel: ObservableObject {
         do {
             try await marmot.promoteToAdmin(pubkeyHex: pubkeyHex, inGroup: groupId)
             await load()
-            FMFLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
+            WhistleLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to promote member: \(error)")
+            WhistleLogger.chat.error("Failed to promote member: \(error)")
+        }
+    }
+
+    /// Hard resync a member: remove + re-add to rebuild their ratchet-tree leaf,
+    /// curing a fork that soft catch-up cannot. Admin-only. On failure (including
+    /// a re-add that failed after removal), surfaces the error so the UI can
+    /// prompt a retry — tapping Resync again re-adds the now-removed member.
+    func resyncMember(pubkeyHex: String) async {
+        guard resyncingMemberPubkey == nil else { return }
+        resyncingMemberPubkey = pubkeyHex
+        defer { resyncingMemberPubkey = nil }
+        do {
+            try await marmot.resyncMember(publicKeyHex: pubkeyHex, inGroup: groupId)
+            await load()
+            WhistleLogger.chat.info("Hard-resynced \(pubkeyHex.prefix(8)) in group \(self.groupId)")
+        } catch {
+            self.error = error.localizedDescription
+            WhistleLogger.chat.error("Failed to resync member: \(error)")
         }
     }
 
@@ -240,7 +306,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to send leave request: \(error)")
+            WhistleLogger.chat.error("Failed to send leave request: \(error)")
         }
     }
 
@@ -258,7 +324,7 @@ final class GroupDetailViewModel: ObservableObject {
             error = nil
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to rename group: \(error)")
+            WhistleLogger.chat.error("Failed to rename group: \(error)")
         }
     }
 

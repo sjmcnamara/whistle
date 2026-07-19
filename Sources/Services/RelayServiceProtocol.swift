@@ -15,6 +15,9 @@ protocol RelayServiceProtocol: AnyObject {
     func connect(keys: Keys, relays: [RelayConfig]) async
     func disconnect() async
 
+    /// Add and connect a single relay (e.g. an invite's relay hint) to the existing client.
+    func ensureRelay(_ url: String) async
+
     // MARK: - Publishing
 
     /// Build, sign, and publish an event to all connected relays.

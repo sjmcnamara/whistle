@@ -16,6 +16,12 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var error: String?
     @Published private(set) var memberNames: String = ""
 
+    /// Soft-resync (catch-up) state for the decryption banner.
+    @Published private(set) var isResyncing = false
+    /// Set after a resync attempt that ran but did not clear the failures —
+    /// signals the UI to point the user at the admin re-invite (hard) path.
+    @Published private(set) var resyncDidNotResolve = false
+
     // MARK: - Item model
 
     struct ChatMessageItem: Identifiable, Equatable {
@@ -34,13 +40,22 @@ final class ChatViewModel: ObservableObject {
     private let mls: MLSService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
+    private let messageCache: ChatMessageCache
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Pagination
 
     private let pageSize: UInt32 = 50
+    /// Offset into the RAW message store (all inner kinds — chat, location,
+    /// nickname), NOT the count of displayed chat bubbles. Location updates
+    /// dominate the store, so tracking this in displayed-chat units would make
+    /// paging overlap itself and stall.
     private var currentOffset: UInt32 = 0
+    /// Safety cap on raw pages scanned in a single `loadMore` when a chat-sparse
+    /// history is mostly location updates (1000 raw messages / tap).
+    private let maxPagesPerLoadMore = 20
     @Published private(set) var hasMore = false
+    @Published private(set) var isLoadingMore = false
 
     // MARK: - Init
 
@@ -49,13 +64,24 @@ final class ChatViewModel: ObservableObject {
         marmot: MarmotService,
         mls: MLSService,
         nicknameStore: NicknameStore,
-        myPubkeyHex: String
+        myPubkeyHex: String,
+        messageCache: ChatMessageCache
     ) {
         self.groupId = groupId
         self.marmot = marmot
         self.mls = mls
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
+        self.messageCache = messageCache
+
+        // Seed synchronously from the cache so re-entering a chat renders the
+        // last-known thread immediately instead of flashing empty while MDK
+        // reloads. `loadMessages()` (from `.task`) then merges in anything new.
+        if let cached = messageCache.thread(for: groupId) {
+            self.messages = cached.messages
+            self.currentOffset = cached.offset
+            self.hasMore = cached.hasMore
+        }
 
         // Refresh when a new chat message arrives for this group
         marmot.$lastChatMessageGroupId
@@ -98,6 +124,26 @@ final class ChatViewModel: ObservableObject {
                 isMe: msg.isMe
             )
         }
+        persist()
+    }
+
+    // MARK: - Resync
+
+    /// Soft resync triggered from the decryption banner: re-fetch and
+    /// re-process this group's recent commits so a missed epoch advance can be
+    /// applied. On success the health tracker clears the banner automatically;
+    /// on failure we flag the UI to suggest the admin re-invite path.
+    func resync() async {
+        guard !isResyncing else { return }
+        isResyncing = true
+        resyncDidNotResolve = false
+        let recovered = await marmot.catchUpGroup(groupId: groupId)
+        if recovered {
+            await loadMessages()
+        } else {
+            resyncDidNotResolve = true
+        }
+        isResyncing = false
     }
 
     // MARK: - Load messages
@@ -113,49 +159,108 @@ final class ChatViewModel: ObservableObject {
             )
             // MDK returns newest-first; reverse so oldest is at the top
             // and newest at the bottom (natural chat order).
-            messages = mdkMessages.compactMap { mapMessage($0) }.reversed()
-            currentOffset = UInt32(messages.count)
-            hasMore = mdkMessages.count == Int(pageSize)
+            let recent = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
+            let recentRawCount = UInt32(mdkMessages.count)
+
+            if messages.isEmpty {
+                // Cold load: the recent page is the whole thread we know about.
+                messages = recent
+                // Advance by the RAW page size consumed, not the mapped chat
+                // count — the offset indexes the raw store (see `currentOffset`).
+                currentOffset = recentRawCount
+                hasMore = mdkMessages.count == Int(pageSize)
+            } else {
+                // A thread is already showing (seeded from cache, or the user
+                // paged back). Merge the recent page in — picking up new/edited
+                // bubbles — without dropping older pages already loaded, and
+                // leave `hasMore` (the "load earlier" affordance) untouched since
+                // a newest-end refresh says nothing about the start of history.
+                messages = merge(existing: messages, incoming: recent)
+                currentOffset = max(currentOffset, recentRawCount)
+            }
             error = nil
+            persist()
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
+            WhistleLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
         }
     }
 
-    /// Load the next page of older messages (prepend to list).
-    func loadMore() async {
-        guard hasMore else { return }
-        do {
-            let mdkMessages = try await mls.getMessages(
-                groupId: groupId,
-                limit: pageSize,
-                offset: currentOffset,
-                sortOrder: MLSSortOrder.createdAtFirst
-            )
-            // MDK returns newest-first; reverse for chronological order
-            let newItems = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
-            // Prepend older messages at the top
-            messages.insert(contentsOf: newItems, at: 0)
-            currentOffset += UInt32(newItems.count)
-            hasMore = mdkMessages.count == Int(pageSize)
-        } catch {
-            FMFLogger.chat.error("Failed to load more messages: \(error)")
+    /// Union two bubble lists by id (incoming wins, for fresh names/text) and
+    /// sort into chat order (oldest first), tie-breaking on id for stability.
+    private func merge(existing: [ChatMessageItem], incoming: [ChatMessageItem]) -> [ChatMessageItem] {
+        var byId: [String: ChatMessageItem] = [:]
+        for m in existing { byId[m.id] = m }
+        for m in incoming { byId[m.id] = m }
+        return byId.values.sorted { lhs, rhs in
+            lhs.timestamp == rhs.timestamp ? lhs.id < rhs.id : lhs.timestamp < rhs.timestamp
         }
+    }
+
+    /// Write the current thread state back to the shared cache so the next
+    /// visit to this group renders instantly.
+    private func persist() {
+        messageCache.store(
+            groupId: groupId,
+            messages: messages,
+            offset: currentOffset,
+            hasMore: hasMore
+        )
+    }
+
+    /// Load older messages and prepend them. Because location updates dominate
+    /// the raw store, a single raw page can contain zero chat messages — so this
+    /// keeps paging (advancing the raw offset) until it gathers at least one chat
+    /// bubble or reaches the start of history, up to a bounded scan.
+    func loadMore() async {
+        guard hasMore, !isLoadingMore else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        var collected: [ChatMessageItem] = []
+        var pages = 0
+        while hasMore, collected.isEmpty, pages < maxPagesPerLoadMore {
+            pages += 1
+            do {
+                let mdkMessages = try await mls.getMessages(
+                    groupId: groupId,
+                    limit: pageSize,
+                    offset: currentOffset,
+                    sortOrder: MLSSortOrder.createdAtFirst
+                )
+                // Advance by the RAW count so successive pages don't overlap.
+                currentOffset += UInt32(mdkMessages.count)
+                hasMore = mdkMessages.count == Int(pageSize)
+                // Older page → its bubbles belong above anything gathered so far.
+                let mapped = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
+                collected.insert(contentsOf: mapped, at: 0)
+            } catch {
+                WhistleLogger.chat.error("Failed to load more messages: \(error)")
+                return
+            }
+        }
+
+        // Dedupe against what's already shown (guards any overlap) and prepend.
+        let existing = Set(messages.map(\.id))
+        let fresh = collected.filter { !existing.contains($0.id) }
+        if !fresh.isEmpty {
+            messages.insert(contentsOf: fresh, at: 0)
+        }
+        persist()
     }
 
     /// Load member names for display in the chat subtitle.
     func loadMemberNames() async {
         do {
-          FMFLogger.chat.info("Loading member names for group \(self.groupId)")
+          WhistleLogger.chat.info("Loading member names for group \(self.groupId)")
             let pubkeys = try await mls.getMembers(groupId: groupId)
-            FMFLogger.chat.info("Got \(pubkeys.count) pubkeys: \(pubkeys)")
+            WhistleLogger.chat.info("Got \(pubkeys.count) pubkeys: \(pubkeys)")
             let names = pubkeys.map { nicknameStore.displayName(for: $0) }
             memberNames = names.joined(separator: ", ")
-          FMFLogger.chat.info("Member names: \(self.memberNames)")
+          WhistleLogger.chat.info("Member names: \(self.memberNames)")
         } catch {
             memberNames = ""
-            FMFLogger.chat.error("Failed to load member names for group \(self.groupId): \(error)")
+            WhistleLogger.chat.error("Failed to load member names for group \(self.groupId): \(error)")
         }
     }
 
@@ -179,7 +284,7 @@ final class ChatViewModel: ObservableObject {
             await loadMessages()
         } catch {
             self.error = error.localizedDescription
-            FMFLogger.chat.error("Failed to send message: \(error)")
+            WhistleLogger.chat.error("Failed to send message: \(error)")
         }
     }
 

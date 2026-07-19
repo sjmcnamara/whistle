@@ -45,7 +45,7 @@ jobs:
             echo "Coverage data not found — skipping"
           fi
 
-      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+      - uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: WhistleCore/coverage.lcov
@@ -74,18 +74,27 @@ jobs:
           key: derived-data-${{ hashFiles('Sources/**', 'WhistleCore/**', 'WhistleTests/**', 'project.yml') }}
           restore-keys: derived-data-
 
+      # Key the mdk-swift cache on the pinned MDK revision alone, not the whole
+      # project.yml — otherwise every version bump (MARKETING_VERSION /
+      # CURRENT_PROJECT_VERSION) busts the cache and forces a cold LFS re-clone
+      # of the large libmdk_uniffi.a, adding ~minutes to the iOS job.
+      - name: Resolve MDK revision
+        id: mdk-rev
+        run: echo "revision=$(python3 scripts/ci_use_local_mdk.py --print-revision)" >> "$GITHUB_OUTPUT"
+
       - name: Cache mdk-swift
         id: cache-mdk
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: vendor/mdk-swift
-          key: mdk-swift-${{ hashFiles('project.yml') }}
+          key: mdk-swift-${{ steps.mdk-rev.outputs.revision }}
 
-      - name: Clone mdk-swift with LFS
+      - name: Clone mdk-swift with LFS at pinned revision
         if: steps.cache-mdk.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
-          cd vendor/mdk-swift && git lfs pull
+          REV=$(python3 scripts/ci_use_local_mdk.py --print-revision)
+          git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+          cd vendor/mdk-swift && git checkout "$REV" && git lfs pull
 
       - name: Generate Xcode project
         run: |
@@ -114,7 +123,7 @@ jobs:
         run: |
           xcrun xccov view --report --json TestResults.xcresult > coverage.json
 
-      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+      - uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.json
@@ -167,7 +176,7 @@ jobs:
         working-directory: android
         run: ./gradlew :app:createDebugUnitTestCoverageReport
 
-      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+      - uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: android/app/build/reports/coverage/test/debug/report.xml
