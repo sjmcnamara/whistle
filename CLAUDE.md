@@ -7,14 +7,17 @@ Whistle is an open-source, decentralised family location app built on Nostr + ML
 ## Build
 
 ```bash
-./scripts/build.sh          # generate project + build (simulator)
-./scripts/build.sh test     # generate + build + test
-./scripts/build.sh clean    # xcodebuild clean + wipe DerivedData
+./scripts/build.sh               # generate project + build (simulator)
+./scripts/build.sh compile-tests # type-check the test target without running it
+./scripts/build.sh test          # generate + build + test
+./scripts/build.sh clean         # xcodebuild clean + wipe DerivedData
 ```
 
 Requires XcodeGen (`brew install xcodegen`). The script auto-detects the newest available iPhone simulator and handles the mdk-swift vendor clone automatically.
 
-**Intel Mac:** `./scripts/build.sh test` is not supported — mdk-swift only ships arm64 slices and building x86_64-apple-ios requires the full Rust toolchain. Use CI for the test suite; local `./scripts/build.sh` (build only) works fine for development.
+**Intel Mac:** `./scripts/build.sh test` is not supported — mdk-swift only ships arm64 slices and building x86_64-apple-ios requires the full Rust toolchain. Use CI to *run* the suite.
+
+**Always run `./scripts/build.sh compile-tests` before pushing.** Plain `build.sh` only builds the app target, so `WhistleTests` can stop compiling while the build still passes — and that surfaces as a red CI run rather than a local error. `compile-tests` builds the test target for a generic arm64 device, which works on Intel Macs even though running it does not. It catches signature changes that break test call sites (a service turning `async`, a model gaining a field).
 
 For Android: `cd android && ./gradlew assembleDebug` / `./gradlew test`.
 

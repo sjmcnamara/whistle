@@ -55,7 +55,9 @@ final class MemberAvatarStoreTests: XCTestCase {
     // MARK: - Own avatar
 
     func testSetOwnImageStoresAndReturnsBroadcastablePayload() async throws {
-        let payload = try XCTUnwrap(await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey))
+        // `await` cannot live inside XCTUnwrap's autoclosure — hoist it out.
+        let result = await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
+        let payload = try XCTUnwrap(result)
         XCTAssertFalse(payload.isRemoval)
         XCTAssertTrue(payload.isWithinSizeLimit)
         XCTAssertTrue(store.hasImage(for: pubkey))
@@ -63,7 +65,8 @@ final class MemberAvatarStoreTests: XCTestCase {
     }
 
     func testOwnPayloadRoundTripsWhatWasStored() async throws {
-        let set = try XCTUnwrap(await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey))
+        let stored = await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
+        let set = try XCTUnwrap(stored)
         // Re-reading for a join broadcast must yield the same bytes we stored,
         // so a newly joined group sees the same face as everyone else.
         let reread = try XCTUnwrap(store.ownPayload(pubkeyHex: pubkey))
