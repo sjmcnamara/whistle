@@ -46,6 +46,10 @@ else
     DESTINATION="platform=iOS Simulator,name=$SIMULATOR"
 fi
 
+# Snapshot of project.yml taken immediately before ci_use_local_mdk.py rewrites
+# it to point at vendor/mdk-swift. Restored verbatim afterwards.
+PROJECT_YML_BACKUP=""
+
 ensure_local_mdk() {
     local revision
     revision=$(python3 scripts/ci_use_local_mdk.py --print-revision)
@@ -54,12 +58,25 @@ ensure_local_mdk() {
         git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
         (cd vendor/mdk-swift && git checkout "$revision" && git lfs pull)
     fi
+    PROJECT_YML_BACKUP=$(mktemp)
+    cp project.yml "$PROJECT_YML_BACKUP"
     python3 scripts/ci_use_local_mdk.py
 }
 
+# Undo only the local-MDK patch. Restores the exact bytes we saw before
+# patching, so uncommitted edits (e.g. a MARKETING_VERSION bump) survive —
+# a `git checkout -- project.yml` here would silently discard them.
 restore_local_changes() {
-    git checkout -- project.yml 2>/dev/null || true
+    if [ -n "$PROJECT_YML_BACKUP" ] && [ -f "$PROJECT_YML_BACKUP" ]; then
+        cp "$PROJECT_YML_BACKUP" project.yml
+        rm -f "$PROJECT_YML_BACKUP"
+        PROJECT_YML_BACKUP=""
+    fi
 }
+
+# `set -e` means a failing xcodegen would otherwise leave project.yml
+# pointing at vendor/mdk-swift.
+trap restore_local_changes EXIT
 
 case "$COMMAND" in
     build)
