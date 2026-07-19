@@ -69,8 +69,14 @@ final class MemberAvatarStore: ObservableObject {
     ///
     /// The stored copy is the *same* bytes that go on the wire, so what other
     /// members see matches what we show for ourselves.
-    func setOwnImage(data: Data, pubkeyHex: String) -> AvatarPayload? {
-        guard let encoded = Self.encodeForWire(data) else {
+    func setOwnImage(data: Data, pubkeyHex: String) async -> AvatarPayload? {
+        // Encoding decodes a full-size photo, downscales it, and JPEG-encodes it
+        // up to six times hunting for the size cap. This type is @MainActor, so
+        // running that inline blocked the UI for as long as it took — noticeably
+        // for a 12MP camera-roll image. Hand it to a background task.
+        guard let encoded = await Task.detached(priority: .userInitiated, operation: {
+            Self.encodeForWire(data)
+        }).value else {
             WhistleLogger.chat.error("Could not encode avatar within \(AvatarPayload.maxEncodedBytes) bytes")
             return nil
         }
@@ -121,7 +127,7 @@ final class MemberAvatarStore: ObservableObject {
     /// checking the wrong one would let an oversized event reach the relay.
     /// Returns nil if even the lowest quality will not fit, so callers can
     /// refuse rather than publish something a relay may silently drop.
-    static func encodeForWire(_ data: Data) -> Data? {
+    nonisolated static func encodeForWire(_ data: Data) -> Data? {
         guard let raw = UIImage(data: data) else { return nil }
         let img = downscaled(raw, maxDimension: CGFloat(AvatarPayload.targetEdge))
         for quality in stride(from: 0.7, through: 0.2, by: -0.1) {
@@ -140,7 +146,7 @@ final class MemberAvatarStore: ObservableObject {
         dir.appendingPathComponent("\(pubkeyHex).jpg")
     }
 
-    private static func downscaled(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+    nonisolated private static func downscaled(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
         let longest = max(image.size.width, image.size.height)
         guard longest > maxDimension else { return image }
         let scale = maxDimension / longest

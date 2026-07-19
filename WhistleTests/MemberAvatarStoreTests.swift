@@ -54,16 +54,16 @@ final class MemberAvatarStoreTests: XCTestCase {
 
     // MARK: - Own avatar
 
-    func testSetOwnImageStoresAndReturnsBroadcastablePayload() throws {
-        let payload = try XCTUnwrap(store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey))
+    func testSetOwnImageStoresAndReturnsBroadcastablePayload() async throws {
+        let payload = try XCTUnwrap(await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey))
         XCTAssertFalse(payload.isRemoval)
         XCTAssertTrue(payload.isWithinSizeLimit)
         XCTAssertTrue(store.hasImage(for: pubkey))
         XCTAssertNotNil(store.image(for: pubkey))
     }
 
-    func testOwnPayloadRoundTripsWhatWasStored() throws {
-        let set = try XCTUnwrap(store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey))
+    func testOwnPayloadRoundTripsWhatWasStored() async throws {
+        let set = try XCTUnwrap(await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey))
         // Re-reading for a join broadcast must yield the same bytes we stored,
         // so a newly joined group sees the same face as everyone else.
         let reread = try XCTUnwrap(store.ownPayload(pubkeyHex: pubkey))
@@ -74,8 +74,8 @@ final class MemberAvatarStoreTests: XCTestCase {
         XCTAssertNil(store.ownPayload(pubkeyHex: pubkey))
     }
 
-    func testRemoveOwnImageClearsAndYieldsRemovalPayload() throws {
-        _ = store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
+    func testRemoveOwnImageClearsAndYieldsRemovalPayload() async throws {
+        _ = await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
         let payload = store.removeOwnImage(pubkeyHex: pubkey)
         XCTAssertTrue(payload.isRemoval)
         XCTAssertFalse(store.hasImage(for: pubkey))
@@ -109,10 +109,10 @@ final class MemberAvatarStoreTests: XCTestCase {
         XCTAssertFalse(store.hasImage(for: other))
     }
 
-    func testApplyDoesNotAffectOtherMembers() throws {
+    func testApplyDoesNotAffectOtherMembers() async throws {
         let other = String(repeating: "b", count: 64)
         let encoded = try XCTUnwrap(MemberAvatarStore.encodeForWire(imageData(edge: 400)))
-        _ = store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
+        _ = await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
         store.apply(AvatarPayload(base64Image: encoded.base64EncodedString()), from: other)
         store.apply(AvatarPayload(base64Image: ""), from: other)
 
@@ -122,10 +122,10 @@ final class MemberAvatarStoreTests: XCTestCase {
 
     // MARK: - Bulk clear
 
-    func testRemoveAllClearsEveryAvatar() throws {
+    func testRemoveAllClearsEveryAvatar() async throws {
         let other = String(repeating: "b", count: 64)
         let encoded = try XCTUnwrap(MemberAvatarStore.encodeForWire(imageData(edge: 400)))
-        _ = store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
+        _ = await store.setOwnImage(data: imageData(edge: 400), pubkeyHex: pubkey)
         store.apply(AvatarPayload(base64Image: encoded.base64EncodedString()), from: other)
 
         store.removeAll()

@@ -2,6 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    /// Observed directly: `AppViewModel` does not forward this store's changes,
+    /// so without it the avatar row would only refresh when some unrelated
+    /// relay or settings event happened to re-render this view.
+    @EnvironmentObject private var memberAvatars: MemberAvatarStore
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -71,7 +75,7 @@ struct SettingsView: View {
             AvatarPickerRow(
                 pubkeyHex: pubkey,
                 displayName: appViewModel.settings.displayName,
-                image: appViewModel.memberAvatarStore.image(for: pubkey),
+                image: memberAvatars.image(for: pubkey),
                 onPicked: { data in await appViewModel.setOwnAvatar(data: data) },
                 onRemove: { await appViewModel.removeOwnAvatar() }
             )

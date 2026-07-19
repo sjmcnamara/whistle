@@ -866,7 +866,7 @@ final class AppViewModel: ObservableObject {
     @discardableResult
     func setOwnAvatar(data: Data) async -> Bool {
         guard let pubkey = myPubkeyHex else { return false }
-        guard let payload = memberAvatarStore.setOwnImage(data: data, pubkeyHex: pubkey) else {
+        guard let payload = await memberAvatarStore.setOwnImage(data: data, pubkeyHex: pubkey) else {
             return false
         }
         await broadcastAvatar(payload)
