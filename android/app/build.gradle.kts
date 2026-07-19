@@ -132,7 +132,7 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.18.1@aar")
 
     // QR code generation (ZXing)
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:core:3.5.4")
 
     // CameraX + ML Kit barcode scanning
     implementation("androidx.camera:camera-core:1.6.1")
