@@ -49,19 +49,12 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Display name for group chat
-            HStack {
-                Label("Display Name", systemImage: "person.text.rectangle")
-                    .lineLimit(1)
-                    .layoutPriority(1)
-                Spacer()
-                TextField("Your Name", text: Binding(
-                    get: { appViewModel.settings.displayName },
-                    set: { appViewModel.settings.displayName = $0 }
-                ))
-                .multilineTextAlignment(.trailing)
-                .foregroundStyle(.primary)
-            }
+            // Display name for group chat. Extracted so typing doesn't
+            // re-render this whole view — see DisplayNameRow.
+            DisplayNameRow(
+                committedName: appViewModel.settings.displayName,
+                onCommit: { appViewModel.settings.displayName = $0 }
+            )
 
             avatarRow
         }
