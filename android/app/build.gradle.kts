@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
@@ -55,6 +54,8 @@ android {
     }
 
     compileOptions {
+        // With AGP 9 built-in Kotlin, kotlin.compilerOptions.jvmTarget defaults
+        // to android.compileOptions.targetCompatibility, so JVM_17 is inherited.
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -67,12 +68,6 @@ android {
         // androidx.lifecycle lint detector crashes on MDK-generated mdk_uniffi.kt
         // (KaCallableMemberCall class/interface mismatch in NullSafeMutableLiveDataDetector)
         disable += "NullSafeMutableLiveData"
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -100,8 +95,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.7")
 
     // Hilt DI
-    implementation("com.google.dagger:hilt-android:2.58")
-    ksp("com.google.dagger:hilt-compiler:2.58")
+    implementation("com.google.dagger:hilt-android:2.60.1")
+    ksp("com.google.dagger:hilt-compiler:2.60.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
 
     // Coroutines
