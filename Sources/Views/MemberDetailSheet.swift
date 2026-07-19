@@ -30,7 +30,9 @@ struct MemberDetailSheet: View {
 
             row("Last seen", value: lastSeenText, systemImage: "clock")
             row("Publishes", value: cadenceText, systemImage: "arrow.triangle.2.circlepath")
-            if annotation.isStationary {
+            // Only shown when known stationary — an omitted/unknown value
+            // renders nothing rather than claiming the member is moving.
+            if annotation.isStationary == true {
                 row("Motion", value: "Currently stationary", systemImage: "figure.stand")
             }
         }

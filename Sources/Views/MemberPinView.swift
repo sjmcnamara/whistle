@@ -19,7 +19,7 @@ struct MemberPinView: View {
                             .frame(width: 28, height: 28)
                     )
 
-                if annotation.isStationary {
+                if annotation.isStationary == true {
                     Image(systemName: "figure.stand")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(.white)

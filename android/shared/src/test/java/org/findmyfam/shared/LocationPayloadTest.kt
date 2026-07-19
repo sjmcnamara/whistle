@@ -4,6 +4,9 @@ import org.findmyfam.shared.models.LocationPayload
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 
 class LocationPayloadTest {
 
@@ -52,4 +55,51 @@ class LocationPayloadTest {
             LocationPayload.fromJson("not valid json {{")
         }
     }
+
+    // region stationary (v1.7)
+
+    @Test
+    fun `stationary defaults to null`() {
+        assertNull(sample().stationary)
+    }
+
+    @Test
+    fun `stationary is omitted from JSON when null`() {
+        // Must be absent, not "stationary":null — receivers distinguish
+        // "unknown" from an explicit value.
+        assertFalse(sample().toJson().contains("stationary"))
+    }
+
+    @Test
+    fun `stationary round-trips true and false`() {
+        for (value in listOf(true, false)) {
+            val original = sample().copy(batt = 87, interval = 3600, stationary = value)
+            val decoded = LocationPayload.fromJson(original.toJson())
+            assertEquals(value, decoded.stationary)
+            assertEquals(original, decoded)
+        }
+    }
+
+    @Test
+    fun `payload without stationary decodes as null not false`() {
+        // pre-v1.7 clients omit the field. Null means "unknown"; false would
+        // claim the member is known to be moving.
+        val json = """
+            {"type":"location","lat":0,"lon":0,"alt":0,"acc":0,"ts":1700000000,"interval":3600,"v":1}
+        """.trimIndent()
+        val payload = LocationPayload.fromJson(json)
+        assertNull(payload.stationary)
+        assertNotEquals(false, payload.stationary)
+    }
+
+    @Test
+    fun `explicit false is distinct from omitted`() {
+        val explicit = sample().copy(stationary = false)
+        val omitted = sample()
+        assertNotEquals(explicit, omitted)
+        assertEquals(false, LocationPayload.fromJson(explicit.toJson()).stationary)
+        assertNull(LocationPayload.fromJson(omitted.toJson()).stationary)
+    }
+
+    // endregion
 }

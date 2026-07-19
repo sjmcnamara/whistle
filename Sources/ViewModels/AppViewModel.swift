@@ -658,7 +658,10 @@ final class AppViewModel: ObservableObject {
             accuracy: fuzzRadius > 0 ? max(location.horizontalAccuracy, Double(fuzzRadius)) : location.horizontalAccuracy,
             timestamp: Date(), // broadcast time, not acquisition time — avoids stale-pin false positives with imprecise location
             battery: battery,
-            interval: locationService.effectiveIntervalSeconds // reflects motion multiplier so receivers grade staleness against real cadence
+            interval: locationService.effectiveIntervalSeconds, // reflects motion multiplier so receivers grade staleness against real cadence
+            // Only meaningful while Movement Aware is on; otherwise send nil
+            // ("unknown") rather than false, which would claim we're moving.
+            stationary: settings.isMotionAdaptiveEnabled ? motionService.isStationary : nil
         )
 
         // Insert our own location into the cache immediately so the map

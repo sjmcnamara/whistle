@@ -247,7 +247,10 @@ class AppViewModel @Inject constructor(
                 acc = if (fuzzRadius > 0) max(location.accuracy.toDouble(), fuzzRadius.toDouble()) else location.accuracy.toDouble(),
                 ts = System.currentTimeMillis() / 1000,
                 batt = battery,
-                interval = locationService.effectiveIntervalSeconds // reflects motion multiplier so receivers grade staleness against real cadence
+                interval = locationService.effectiveIntervalSeconds, // reflects motion multiplier so receivers grade staleness against real cadence
+                // Only meaningful while Movement Aware is on; otherwise send null
+                // ("unknown") rather than false, which would claim we're moving.
+                stationary = if (settings.isMotionAdaptiveEnabled) motionService.isStationary.value else null
             )
             val myPubkey = identity.publicKeyHex ?: return
             val groups = marmotService.groups.value.filter { it.isActive }

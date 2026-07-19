@@ -130,7 +130,7 @@ fun MemberDetailSheet(
                 )
             }
 
-            if (annotation.isStationary) {
+            if (annotation.isStationary == true) {
                 Spacer(modifier = Modifier.size(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

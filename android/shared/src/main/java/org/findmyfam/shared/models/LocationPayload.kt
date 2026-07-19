@@ -7,12 +7,17 @@ import org.json.JSONObject
  *
  * Schema (inner kind = MarmotKind.LOCATION / 1):
  * { "type": "location", "lat": 0.0, "lon": 0.0, "alt": 0.0, "acc": 10.0,
- *   "ts": 1700000000, "batt": 87, "interval": 3600, "v": 1 }
+ *   "ts": 1700000000, "batt": 87, "interval": 3600, "stationary": true, "v": 1 }
  *
  * `interval` is the publisher's own update cadence in seconds. Receivers use
  * it to decide when a pin is stale (typically > 2 × interval since `ts`).
  * Optional for backward compatibility — pre-1.2.1 clients omit it and
  * receivers fall back to their own local interval.
+ *
+ * `stationary` is the publisher's Movement Aware state at broadcast time.
+ * Optional the same way — pre-1.7 clients omit it, and null means "unknown",
+ * which is distinct from false ("known to be moving"). Receivers must not
+ * render an omitted value as moving.
  */
 data class LocationPayload(
     val type: String = "location",
@@ -26,6 +31,11 @@ data class LocationPayload(
     val batt: Int? = null,
     /** Publisher's own location interval in seconds, or null if pre-1.2.1. */
     val interval: Int? = null,
+    /**
+     * Publisher's Movement Aware state, or null if unknown (pre-1.7 client, or
+     * Movement Aware disabled). Null is not the same as false.
+     */
+    val stationary: Boolean? = null,
     /** Schema version — always 1. */
     val v: Int = 1
 ) {
@@ -40,6 +50,7 @@ data class LocationPayload(
             put("ts", ts)
             batt?.let { put("batt", it) }
             interval?.let { put("interval", it) }
+            stationary?.let { put("stationary", it) }
             put("v", v)
         }.toString()
     }
@@ -60,6 +71,7 @@ data class LocationPayload(
                 ts = obj.getLong("ts"),
                 batt = if (obj.has("batt") && !obj.isNull("batt")) obj.getInt("batt") else null,
                 interval = if (obj.has("interval") && !obj.isNull("interval")) obj.getInt("interval") else null,
+                stationary = if (obj.has("stationary") && !obj.isNull("stationary")) obj.getBoolean("stationary") else null,
                 v = obj.optInt("v", 1)
             )
         }
