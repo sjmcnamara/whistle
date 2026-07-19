@@ -1,6 +1,7 @@
 package org.findmyfam.viewmodels
 
 import android.content.Context
+import android.net.Uri
 import android.os.BatteryManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
+import org.findmyfam.shared.models.AvatarPayload
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.services.*
 import timber.log.Timber
@@ -37,6 +39,7 @@ class AppViewModel @Inject constructor(
     val marmotService: MarmotService,
     val settings: AppSettings,
     val nicknameStore: NicknameStore,
+    val memberAvatarStore: MemberAvatarStore,
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,
@@ -170,6 +173,19 @@ class AppViewModel @Inject constructor(
                                 )
                             } catch (e: Exception) {
                                 Timber.w("Failed to broadcast nickname to group $groupId: ${e.message}")
+                            }
+                        }
+                        // Avatar goes to the new group only — unlike the nickname it is
+                        // never re-announced on launch, so joining is the one chance the
+                        // new group has to learn our face without waiting for a change.
+                        identity.publicKeyHex?.let { pubkey ->
+                            memberAvatarStore.ownPayload(pubkey)?.let { payload ->
+                                try {
+                                    marmotService.sendAvatarUpdate(payload, groupId)
+                                    Timber.i("Auto-broadcast avatar to newly joined group $groupId")
+                                } catch (e: Exception) {
+                                    Timber.w("Failed to broadcast avatar to group $groupId: ${e.message}")
+                                }
                             }
                         }
                         // Reset location throttle so the new group gets a pin immediately
@@ -367,6 +383,45 @@ class AppViewModel @Inject constructor(
     }
 
     /**
+     * Set the local user's avatar from a picked image and announce it to every
+     * active group. Returns false if the image could not be encoded within the
+     * wire size cap, so the UI can tell the user rather than leaving them with
+     * an avatar only they can see.
+     */
+    suspend fun setOwnAvatar(uri: Uri): Boolean {
+        val pubkey = identity.publicKeyHex ?: return false
+        val payload = memberAvatarStore.setOwnImage(uri, pubkey) ?: return false
+        broadcastAvatar(payload)
+        return true
+    }
+
+    /** Clear the local user's avatar and tell every active group to drop it. */
+    suspend fun removeOwnAvatar() {
+        val pubkey = identity.publicKeyHex ?: return
+        broadcastAvatar(memberAvatarStore.removeOwnImage(pubkey))
+    }
+
+    /**
+     * Send an avatar payload to every active group.
+     *
+     * Unlike nicknames this is deliberately *not* re-broadcast on launch: a name
+     * is a few bytes, whereas an avatar is several KB per group per launch.
+     * Change and join are the only triggers.
+     */
+    private suspend fun broadcastAvatar(payload: AvatarPayload) {
+        val groups = marmotService.groups.value.filter { it.isActive }
+        for (group in groups) {
+            try {
+                marmotService.sendAvatarUpdate(payload, group.mlsGroupId)
+            } catch (e: Exception) {
+                Timber.w("Failed to broadcast avatar to group ${group.mlsGroupId}: ${e.message}")
+            }
+        }
+        val action = if (payload.isRemoval) "removal" else "update"
+        Timber.i("Broadcast avatar $action to ${groups.size} group(s)")
+    }
+
+    /**
      * Called when location permission is granted from the UI.
      */
     fun onLocationPermissionGranted() {
@@ -403,6 +458,9 @@ class AppViewModel @Inject constructor(
 
         // Clear stores
         nicknameStore.clearAll()
+        // Member avatars are photographs of real people — they must not survive
+        // an identity burn any more than the groups they came from do.
+        memberAvatarStore.removeAll()
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
