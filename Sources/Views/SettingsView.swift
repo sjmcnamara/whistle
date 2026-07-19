@@ -1,11 +1,8 @@
 import SwiftUI
-import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @Environment(\.openURL) private var openURL
-    @State private var avatarItem: PhotosPickerItem?
-    @State private var avatarTooLarge = false
 
     var body: some View {
         NavigationStack {
@@ -71,49 +68,20 @@ struct SettingsView: View {
     }
 
     /// Picker for the user's own avatar, shown to every member of every group.
+    ///
+    /// Extracted into `AvatarPickerRow` so it takes plain values rather than
+    /// observing `AppViewModel` — see that type for why re-rendering here made
+    /// the photo library reload on a loop.
+    @ViewBuilder
     private var avatarRow: some View {
-        HStack {
-            Label("Photo", systemImage: "person.crop.square")
-                .lineLimit(1)
-                .layoutPriority(1)
-            Spacer()
-
-            if let pubkey = appViewModel.myPubkeyHex {
-                if appViewModel.memberAvatarStore.hasImage(for: pubkey) {
-                    Button(role: .destructive) {
-                        Task { await appViewModel.removeOwnAvatar() }
-                    } label: {
-                        Text("Remove")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.borderless)
-                }
-
-                PhotosPicker(selection: $avatarItem, matching: .images) {
-                    MemberAvatarView(
-                        pubkeyHex: pubkey,
-                        displayName: appViewModel.settings.displayName,
-                        diameter: 36
-                    )
-                }
-                .buttonStyle(.borderless)
-            }
-        }
-        .onChange(of: avatarItem) { (_, item) in
-            guard let item else { return }
-            Task {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                // Failure here means the image could not be squeezed under the
-                // wire cap — tell the user rather than leaving them with an
-                // avatar only they can see.
-                avatarTooLarge = await appViewModel.setOwnAvatar(data: data) == false
-                avatarItem = nil
-            }
-        }
-        .alert("Couldn't share that photo", isPresented: $avatarTooLarge) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("That image couldn't be made small enough to send. Try a different one.")
+        if let pubkey = appViewModel.myPubkeyHex {
+            AvatarPickerRow(
+                pubkeyHex: pubkey,
+                displayName: appViewModel.settings.displayName,
+                hasImage: appViewModel.memberAvatarStore.hasImage(for: pubkey),
+                onPicked: { data in await appViewModel.setOwnAvatar(data: data) },
+                onRemove: { await appViewModel.removeOwnAvatar() }
+            )
         }
     }
 

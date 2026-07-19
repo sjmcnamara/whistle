@@ -37,9 +37,11 @@ struct MemberAvatarView: View {
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
         .overlay(Circle().stroke(.white, lineWidth: 2))
-        // Re-read when any avatar changes — the store hands out plain UIImages
-        // rather than published per-member values, so this is what refreshes us.
-        .id(avatars.revision)
+        // No `.id(avatars.revision)` here. Observing the store via
+        // @EnvironmentObject already re-renders this view (and re-reads
+        // `image(for:)`) whenever `revision` is bumped, so the modifier was
+        // redundant — and `.id()` destroys and rebuilds the view rather than
+        // updating it, which visibly flickered when used as a PhotosPicker label.
     }
 
     // MARK: - Fallback
