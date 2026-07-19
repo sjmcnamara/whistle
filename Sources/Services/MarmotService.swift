@@ -32,6 +32,9 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — receives nickname updates from incoming messages.
     var nicknameStore: NicknameStore?
 
+    /// Injected by AppViewModel — receives avatar updates from incoming messages.
+    var memberAvatarStore: MemberAvatarStore?
+
     /// Injected by AppViewModel — auto-clears pending invites on Welcome receipt.
     var pendingInviteStore: PendingInviteStore?
 
@@ -318,6 +321,19 @@ final class MarmotService: ObservableObject {
     /// Broadcast a nickname update to a group.
     func sendNicknameUpdate(name: String, toGroup groupId: String) async throws {
         let payload = NicknamePayload(name: name)
+        let json = try payload.jsonString()
+        try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.chat)
+    }
+
+    /// Broadcast an avatar update (or removal) to a group.
+    ///
+    /// Refuses to publish an oversized payload: relays may reject the event
+    /// outright, and a rejected send looks identical to a delivered one from
+    /// here, so the failure would be silent.
+    func sendAvatarUpdate(_ payload: AvatarPayload, toGroup groupId: String) async throws {
+        guard payload.isWithinSizeLimit else {
+            throw MarmotError.avatarTooLarge
+        }
         let json = try payload.jsonString()
         try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.chat)
     }
@@ -981,6 +997,12 @@ final class MarmotService: ObservableObject {
                         nicknameStore?.set(name: payload.name, for: message.senderPubkey)
                         WhistleLogger.chat.info("Nickname update: \(message.senderPubkey.prefix(8)) → \(payload.name)")
                     }
+                case "avatar":
+                    if let payload = try? AvatarPayload.from(jsonString: content) {
+                        memberAvatarStore?.apply(payload, from: message.senderPubkey)
+                        let action = payload.isRemoval ? "removed" : "updated"
+                        WhistleLogger.chat.info("Avatar \(action): \(message.senderPubkey.prefix(8))")
+                    }
                 default:
                     WhistleLogger.chat.debug("Unknown chat sub-type '\(type)' in group \(message.mlsGroupId)")
                 }
@@ -1357,6 +1379,7 @@ final class MarmotService: ObservableObject {
         case alreadyMember
         case noRelaysConnected
         case reAddFailed(String)
+        case avatarTooLarge
 
         var errorDescription: String? {
             switch self {
@@ -1370,6 +1393,8 @@ final class MarmotService: ObservableObject {
                 return "This person is already a member of the group"
             case .noRelaysConnected:
                 return "Not connected to any relay — check your connection"
+            case .avatarTooLarge:
+                return "That picture is too large to share. Try a different one."
             case .reAddFailed:
                 return "Removed the member, but re-adding them failed. Tap Resync again to retry."
             }

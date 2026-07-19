@@ -33,6 +33,7 @@ final class AppViewModel: ObservableObject {
 
     /// Local nickname store — maps pubkey hex → display name.
     let nicknameStore: NicknameStore
+    let memberAvatarStore: MemberAvatarStore
 
     /// In-memory cache of loaded chat threads so re-entering a chat renders
     /// instantly instead of flashing empty while MDK reloads.
@@ -127,6 +128,7 @@ final class AppViewModel: ObservableObject {
         UIDevice.current.isBatteryMonitoringEnabled = true
         self.locationCache   = LocationCache()
         self.nicknameStore       = NicknameStore()
+        self.memberAvatarStore   = MemberAvatarStore()
         self.chatMessageCache    = ChatMessageCache()
         self.pendingInviteStore  = PendingInviteStore()
         self.pendingLeaveStore   = PendingLeaveStore()
@@ -421,6 +423,7 @@ final class AppViewModel: ObservableObject {
         )
         marmotService.locationCache = locationCache
         marmotService.nicknameStore = nicknameStore
+        marmotService.memberAvatarStore = memberAvatarStore
         marmotService.pendingInviteStore = pendingInviteStore
         marmotService.pendingLeaveStore = pendingLeaveStore
         marmotService.pendingWelcomeStore = pendingWelcomeStore
@@ -498,6 +501,14 @@ final class AppViewModel: ObservableObject {
                 Task {
                     try? await marmotService.sendNicknameUpdate(name: name, toGroup: groupId)
                     WhistleLogger.chat.info("Auto-broadcast nickname to newly joined group \(groupId)")
+                    // Avatar goes to the new group only — unlike the nickname it is
+                    // never re-announced on launch, so joining is the one chance the
+                    // new group has to learn our face without waiting for a change.
+                    if let pubkey = self.myPubkeyHex,
+                       let payload = self.memberAvatarStore.ownPayload(pubkeyHex: pubkey) {
+                        try? await marmotService.sendAvatarUpdate(payload, toGroup: groupId)
+                        WhistleLogger.chat.info("Auto-broadcast avatar to newly joined group \(groupId)")
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -755,6 +766,9 @@ final class AppViewModel: ObservableObject {
         pendingWelcomeStore.removeAll()
         joinRequestStore.removeAll()
         LocalGroupAvatarStore.shared.removeAll()
+        // Member avatars are photographs of real people — they must not survive
+        // an identity burn any more than the groups they came from do.
+        memberAvatarStore.removeAll()
         locationCache.clear()
         chatMessageCache.clear()
 
@@ -841,5 +855,46 @@ final class AppViewModel: ObservableObject {
             }
         }
         WhistleLogger.chat.info("Broadcast nickname '\(name)' to \(marmot.groups.filter(\.isActive).count) group(s)")
+    }
+
+    // MARK: - Avatar
+
+    /// Set the local user's avatar from picked image data and announce it to
+    /// every active group. Returns false if the image could not be encoded
+    /// within the wire size cap, so the UI can tell the user rather than
+    /// leaving them with an avatar only they can see.
+    @discardableResult
+    func setOwnAvatar(data: Data) async -> Bool {
+        guard let pubkey = myPubkeyHex else { return false }
+        guard let payload = memberAvatarStore.setOwnImage(data: data, pubkeyHex: pubkey) else {
+            return false
+        }
+        await broadcastAvatar(payload)
+        return true
+    }
+
+    /// Clear the local user's avatar and tell every active group to drop it.
+    func removeOwnAvatar() async {
+        guard let pubkey = myPubkeyHex else { return }
+        await broadcastAvatar(memberAvatarStore.removeOwnImage(pubkeyHex: pubkey))
+    }
+
+    /// Send an avatar payload to every active group.
+    ///
+    /// Unlike nicknames this is deliberately *not* re-broadcast on launch: a
+    /// name is a few bytes, whereas an avatar is several KB per group per
+    /// launch. Change and join are the only triggers.
+    private func broadcastAvatar(_ payload: AvatarPayload) async {
+        guard let marmot else { return }
+        let active = marmot.groups.filter(\.isActive)
+        for group in active {
+            do {
+                try await marmot.sendAvatarUpdate(payload, toGroup: group.mlsGroupId)
+            } catch {
+                WhistleLogger.chat.error("Failed to broadcast avatar to group \(group.mlsGroupId): \(error)")
+            }
+        }
+        let action = payload.isRemoval ? "removal" : "update"
+        WhistleLogger.chat.info("Broadcast avatar \(action) to \(active.count) group(s)")
     }
 }
