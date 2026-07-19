@@ -28,6 +28,7 @@ class MemberAnnotationTest {
     fun memberAnnotation_defaultValues() {
         val annotation = MemberAnnotation(
             id = "group:pubkey",
+            memberPubkeyHex = "pubkey",
             position = LatLon(53.3498, -6.2603),
             displayName = "Alice",
             isStale = false,
@@ -43,6 +44,7 @@ class MemberAnnotationTest {
     fun memberAnnotation_staleFlag() {
         val annotation = MemberAnnotation(
             id = "id",
+            memberPubkeyHex = "pubkey",
             position = LatLon(0.0, 0.0),
             displayName = "Bob",
             isStale = true,
@@ -56,6 +58,7 @@ class MemberAnnotationTest {
     fun memberAnnotation_meFlag() {
         val annotation = MemberAnnotation(
             id = "id",
+            memberPubkeyHex = "pubkey",
             position = LatLon(0.0, 0.0),
             displayName = "Me",
             isStale = false,
@@ -67,14 +70,14 @@ class MemberAnnotationTest {
 
     @Test
     fun memberAnnotation_equality() {
-        val a = MemberAnnotation("id", LatLon(1.0, 2.0), "Name", false, 100L, true)
-        val b = MemberAnnotation("id", LatLon(1.0, 2.0), "Name", false, 100L, true)
+        val a = MemberAnnotation("id", "pubkey", LatLon(1.0, 2.0), "Name", false, 100L, true)
+        val b = MemberAnnotation("id", "pubkey", LatLon(1.0, 2.0), "Name", false, 100L, true)
         assertEquals(a, b)
     }
 
     @Test
     fun memberAnnotation_copy() {
-        val original = MemberAnnotation("id", LatLon(1.0, 2.0), "Old", false, 100L, false)
+        val original = MemberAnnotation("id", "pubkey", LatLon(1.0, 2.0), "Old", false, 100L, false)
         val updated = original.copy(displayName = "New")
         assertEquals("Old", original.displayName)
         assertEquals("New", updated.displayName)

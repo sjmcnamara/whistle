@@ -12,6 +12,8 @@ import org.findmyfam.services.NicknameStore
  */
 data class MemberAnnotation(
     val id: String,
+    /** The member's Nostr public key — used to look up their avatar. */
+    val memberPubkeyHex: String,
     val position: LatLon,
     val displayName: String,
     val isStale: Boolean,
@@ -102,6 +104,7 @@ class LocationViewModel(
             val isMe = selfKey != null && loc.memberPubkeyHex == selfKey
             MemberAnnotation(
                 id = loc.id,
+                memberPubkeyHex = loc.memberPubkeyHex,
                 position = LatLon(loc.payload.lat, loc.payload.lon),
                 displayName = name,
                 isStale = loc.isStale(interval),

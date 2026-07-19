@@ -10,14 +10,12 @@ struct MemberPinView: View {
     var body: some View {
         VStack(spacing: 2) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: "person.circle.fill")
-                    .font(.title)
-                    .foregroundStyle(annotation.isStale ? .gray : .blue)
-                    .background(
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 28, height: 28)
-                    )
+                MemberAvatarView(
+                    pubkeyHex: annotation.memberPubkeyHex,
+                    displayName: annotation.displayName,
+                    diameter: 32,
+                    isStale: annotation.isStale
+                )
 
                 if annotation.isStationary == true {
                     Image(systemName: "figure.stand")

@@ -16,6 +16,9 @@ struct WhistleApp: App {
             ZStack {
                 RootView()
                     .environmentObject(appViewModel)
+                    // MemberAvatarView reaches for this directly rather than
+                    // threading it through every intermediate view.
+                    .environmentObject(appViewModel.memberAvatarStore)
 
                 if appViewModel.startupPhase != .ready {
                     SplashView(phase: appViewModel.startupPhase)

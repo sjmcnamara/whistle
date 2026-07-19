@@ -7,6 +7,8 @@ import Combine
 /// Annotation model for map display — one per visible member pin.
 struct MemberAnnotation: Identifiable {
     let id: String                        // same as MemberLocation.id
+    /// The member's Nostr public key — used to look up their avatar.
+    let memberPubkeyHex: String
     let coordinate: CLLocationCoordinate2D
     let displayName: String
     let isStale: Bool
@@ -118,6 +120,7 @@ final class LocationViewModel: ObservableObject {
             let isMe = selfKey != nil && loc.memberPubkeyHex == selfKey
             return MemberAnnotation(
                 id: loc.id,
+                memberPubkeyHex: loc.memberPubkeyHex,
                 coordinate: loc.coordinate,
                 displayName: name,
                 isStale: loc.isStale(intervalSeconds: interval),

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.findmyfam.models.AppSettings
 import org.findmyfam.services.IdentityService
+import org.findmyfam.services.MemberAvatarStore
 import org.findmyfam.services.NicknameStore
 
 @OptIn(ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
@@ -32,7 +33,10 @@ fun SettingsScreen(
     settings: AppSettings,
     identity: IdentityService,
     nicknameStore: NicknameStore,
+    memberAvatarStore: MemberAvatarStore? = null,
     onDisplayNameChanged: (String) -> Unit = {},
+    onAvatarPicked: (Uri) -> Unit = {},
+    onAvatarRemoved: () -> Unit = {},
     onExportKey: () -> Unit = {},
     onImportKey: () -> Unit = {},
     onAdvanced: () -> Unit = {},
@@ -121,6 +125,16 @@ fun SettingsScreen(
                     onDisplayNameChanged(displayName)
                 }
             )
+
+            if (memberAvatarStore != null) {
+                AvatarRow(
+                    store = memberAvatarStore,
+                    pubkeyHex = identity.publicKeyHex,
+                    displayName = displayName,
+                    onPicked = onAvatarPicked,
+                    onRemoved = onAvatarRemoved
+                )
+            }
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
