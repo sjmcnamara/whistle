@@ -1,22 +1,23 @@
 import SwiftUI
 
-/// A member's avatar, falling back to their initials when no image is set.
+/// Purely presentational avatar circle — observes nothing.
 ///
-/// Every member has a display name but only some have an avatar, so the
-/// initials circle is the normal state rather than an error state — it is
-/// styled to look deliberate, not like a missing image.
-struct MemberAvatarView: View {
+/// Kept separate from `MemberAvatarView` so it can be used as a `PhotosPicker`
+/// label. The picker reloads its presented sheet whenever its label view is
+/// invalidated, so the label's subtree must not depend on an `ObservableObject`
+/// (or on anything that resolves lazily, like a disk read during `body`).
+/// Handing this a resolved `UIImage?` makes the label inert.
+struct MemberAvatarThumb: View {
     let pubkeyHex: String
     let displayName: String
+    let image: UIImage?
     var diameter: CGFloat = 32
     /// Greyed out to match a stale map pin.
     var isStale: Bool = false
 
-    @EnvironmentObject private var avatars: MemberAvatarStore
-
     var body: some View {
         Group {
-            if let image = avatars.image(for: pubkeyHex) {
+            if let image {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
@@ -24,9 +25,9 @@ struct MemberAvatarView: View {
                     .opacity(isStale ? 0.6 : 1)
             } else {
                 Circle()
-                    .fill(isStale ? Color.gray : Self.colour(for: pubkeyHex))
+                    .fill(isStale ? Color.gray : MemberAvatarView.colour(for: pubkeyHex))
                     .overlay(
-                        Text(Self.initials(from: displayName))
+                        Text(MemberAvatarView.initials(from: displayName))
                             .font(.system(size: diameter * 0.4, weight: .semibold))
                             .foregroundStyle(.white)
                             .minimumScaleFactor(0.5)
@@ -37,14 +38,44 @@ struct MemberAvatarView: View {
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
         .overlay(Circle().stroke(.white, lineWidth: 2))
+    }
+}
+
+/// A member's avatar, falling back to their initials when no image is set.
+///
+/// Every member has a display name but only some have an avatar, so the
+/// initials circle is the normal state rather than an error state — it is
+/// styled to look deliberate, not like a missing image.
+///
+/// This is the store-connected wrapper: it re-renders when the store publishes.
+/// Use `MemberAvatarThumb` directly anywhere that re-rendering is harmful.
+struct MemberAvatarView: View {
+    let pubkeyHex: String
+    let displayName: String
+    var diameter: CGFloat = 32
+    /// Greyed out to match a stale map pin.
+    var isStale: Bool = false
+
+    @EnvironmentObject private var avatars: MemberAvatarStore
+
+    var body: some View {
+        MemberAvatarThumb(
+            pubkeyHex: pubkeyHex,
+            displayName: displayName,
+            image: avatars.image(for: pubkeyHex),
+            diameter: diameter,
+            isStale: isStale
+        )
         // No `.id(avatars.revision)` here. Observing the store via
         // @EnvironmentObject already re-renders this view (and re-reads
         // `image(for:)`) whenever `revision` is bumped, so the modifier was
         // redundant — and `.id()` destroys and rebuilds the view rather than
-        // updating it, which visibly flickered when used as a PhotosPicker label.
+        // updating it, which visibly flickered when used as a picker label.
     }
 
     // MARK: - Fallback
+
+    static let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green, .brown]
 
     /// Up to two initials from a display name. Falls back to "?" for a name
     /// with no usable letters — a nickname can be an emoji or punctuation.
@@ -57,8 +88,6 @@ struct MemberAvatarView: View {
         }
         return String(words.prefix(2)).uppercased()
     }
-
-    static let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green, .brown]
 
     /// Stable colour derived from the pubkey, so a member keeps the same
     /// initials circle across launches and across devices.

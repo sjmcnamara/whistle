@@ -71,7 +71,7 @@ struct SettingsView: View {
             AvatarPickerRow(
                 pubkeyHex: pubkey,
                 displayName: appViewModel.settings.displayName,
-                hasImage: appViewModel.memberAvatarStore.hasImage(for: pubkey),
+                image: appViewModel.memberAvatarStore.image(for: pubkey),
                 onPicked: { data in await appViewModel.setOwnAvatar(data: data) },
                 onRemove: { await appViewModel.removeOwnAvatar() }
             )

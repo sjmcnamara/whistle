@@ -19,7 +19,10 @@ import PhotosUI
 struct AvatarPickerRow: View {
     let pubkeyHex: String
     let displayName: String
-    let hasImage: Bool
+    /// Resolved by the parent. Passing the image in — rather than letting the
+    /// label read it from the store — keeps the picker's label subtree inert,
+    /// so nothing can invalidate it while the sheet is presented.
+    let image: UIImage?
     let onPicked: (Data) async -> Bool
     let onRemove: () async -> Void
 
@@ -33,7 +36,7 @@ struct AvatarPickerRow: View {
                 .layoutPriority(1)
             Spacer()
 
-            if hasImage {
+            if image != nil {
                 Button(role: .destructive) {
                     Task { await onRemove() }
                 } label: {
@@ -43,9 +46,10 @@ struct AvatarPickerRow: View {
             }
 
             PhotosPicker(selection: $item, matching: .images) {
-                MemberAvatarView(
+                MemberAvatarThumb(
                     pubkeyHex: pubkeyHex,
                     displayName: displayName,
+                    image: image,
                     diameter: 36
                 )
             }
