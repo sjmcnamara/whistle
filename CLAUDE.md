@@ -110,4 +110,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.7.0 — presence & identity (stationary state shared cross-device; Nearby Share removed)** (feature). See ROADMAP.md for next steps.
+Current version: **v1.7.1 — member avatars (shared inline over MLS, initials fallback)** (feature). See ROADMAP.md for next steps.

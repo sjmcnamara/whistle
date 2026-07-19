@@ -364,6 +364,13 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.7.1 — Member avatars ✅
+_Released 2026-07-19_
+
+- **Member avatars** (iOS & Android): a photo set in Settings is shared with every group and shown on your map pin. Carried **inline** as base64 JPEG inside the MLS application message rather than as a blob reference — a family group is small and the image is tiny, so this stays fully end-to-end encrypted with no blob server, consistent with the project's no-servers position. Capped at 16 KB with quality stepped down to fit; an image that cannot fit is refused at pick time rather than published for a relay to silently drop. Empty payload = explicit removal. Wiped on identity burn.
+- **Initials fallback**: members with no photo get a coloured circle, the colour derived from their pubkey via FNV-1a so it is stable across launches and identical on both platforms.
+- **iOS SwiftUI render fixes** surfaced by on-device testing: photo picker reloading on a loop, display-name field re-rendering Settings per keystroke, avatar encoding blocking the main thread. All trace back to `AppViewModel.forwardChildChanges()` re-rendering every observer on any relay event.
+
 ### v1.7.0 — Presence & identity ✅
 _First slice of the v1.7 presence work — released 2026-07-19_
 
@@ -491,6 +498,7 @@ master
   └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
   └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
   └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
+  └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
 ```
 
 ---
