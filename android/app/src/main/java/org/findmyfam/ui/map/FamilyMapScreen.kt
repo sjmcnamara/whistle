@@ -293,7 +293,7 @@ private fun memberPinDrawable(
     name: String,
     counter: String?,
     isStale: Boolean,
-    isStationary: Boolean
+    isStationary: Boolean?
 ): BitmapDrawable {
     val dm = context.resources.displayMetrics
     val dp = dm.density
@@ -352,7 +352,7 @@ private fun memberPinDrawable(
     canvas.drawCircle(cx, cy + 0.85f * inner, 0.62f * inner, fill)
     canvas.restore()
 
-    if (isStationary) {
+    if (isStationary == true) {
         val bx = cx + r - badge / 3f
         val by = cy - r + badge / 3f
         fill.color = 0xFFFF8C00.toInt()

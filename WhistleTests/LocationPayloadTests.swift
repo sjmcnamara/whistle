@@ -125,4 +125,63 @@ final class LocationPayloadTests: XCTestCase {
         XCTAssertNil(payload.interval)
         XCTAssertEqual(payload.v, 1)
     }
+
+    // MARK: - stationary (v1.7)
+
+    func testStationaryDefaultsToNil() {
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(timeIntervalSince1970: 1700000000)
+        )
+        XCTAssertNil(payload.stationary)
+    }
+
+    func testStationaryIsOmittedFromJSONWhenNil() throws {
+        // Must be absent, not `"stationary":null` — receivers distinguish
+        // "unknown" from an explicit value, and an older client parsing a null
+        // should see the same shape it always has.
+        let payload = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(timeIntervalSince1970: 1700000000)
+        )
+        XCTAssertFalse(try payload.jsonString().contains("stationary"))
+    }
+
+    func testStationaryRoundTripTrueAndFalse() throws {
+        for value in [true, false] {
+            let original = LocationPayload(
+                latitude: 51.5, longitude: -0.12, altitude: 10, accuracy: 5,
+                timestamp: Date(timeIntervalSince1970: 1700000000),
+                battery: 87, interval: 3600, stationary: value
+            )
+            let decoded = try LocationPayload.from(jsonString: original.jsonString())
+            XCTAssertEqual(decoded.stationary, value)
+            XCTAssertEqual(original, decoded)
+        }
+    }
+
+    func testDecodeBackwardCompatPayloadWithoutStationary() throws {
+        // pre-v1.7 clients omit the field. It must decode as nil ("unknown"),
+        // never false — false would claim the member is known to be moving.
+        let json = """
+        {"type":"location","lat":0,"lon":0,"alt":0,"acc":0,"ts":1700000000,"interval":3600,"v":1}
+        """
+        let payload = try LocationPayload.from(jsonString: json)
+        XCTAssertNil(payload.stationary)
+        XCTAssertNotEqual(payload.stationary, false)
+    }
+
+    func testStationaryFalseIsDistinctFromOmitted() throws {
+        let explicit = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(timeIntervalSince1970: 1700000000), stationary: false
+        )
+        let omitted = LocationPayload(
+            latitude: 0, longitude: 0, altitude: 0, accuracy: 0,
+            timestamp: Date(timeIntervalSince1970: 1700000000)
+        )
+        XCTAssertNotEqual(explicit, omitted)
+        XCTAssertEqual(try LocationPayload.from(jsonString: explicit.jsonString()).stationary, false)
+        XCTAssertNil(try LocationPayload.from(jsonString: omitted.jsonString()).stationary)
+    }
 }

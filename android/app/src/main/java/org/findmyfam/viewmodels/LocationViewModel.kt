@@ -17,8 +17,12 @@ data class MemberAnnotation(
     val isStale: Boolean,
     val timestampMs: Long,
     val isMe: Boolean,
-    /** True when Movement Aware is active and this device is stationary. Own pin only. */
-    val isStationary: Boolean = false,
+    /**
+     * True when the publisher was stationary at broadcast time. Null means
+     * unknown — Movement Aware off, or a pre-1.7 client that omits the field.
+     * Null must not be rendered as "moving".
+     */
+    val isStationary: Boolean? = null,
     /**
      * Publisher's own update cadence in seconds (from `LocationPayload.interval`).
      * Null for pre-1.2.1 payloads that omit the field.
@@ -104,7 +108,9 @@ class LocationViewModel(
                 // Local-clock anchor; payload.ts is the publisher's stamp, which can drift cross-device.
                 timestampMs = loc.receivedAt * 1000,
                 isMe = isMe,
-                isStationary = isMe && stationary,
+                // Own pin reads the live sensor (fresher than our last broadcast);
+                // remote members come from the wire.
+                isStationary = if (isMe) stationary else loc.payload.stationary,
                 intervalSeconds = loc.payload.interval,
                 nextUpdateMs = if (isMe) nextFire else null
             )

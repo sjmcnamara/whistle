@@ -15,9 +15,12 @@ struct MemberAnnotation: Identifiable {
     let isMe: Bool
     /// Estimated time of next location broadcast — only set for the own pin.
     let nextUpdateDate: Date?
-    /// `true` when Movement Aware is active and the device is stationary.
-    /// Only set for the own pin; always `false` for remote members.
-    let isStationary: Bool
+    // swiftlint:disable discouraged_optional_boolean
+    /// `true` when the publisher was stationary at broadcast time. Nil means
+    /// unknown — Movement Aware off, or a pre-1.7 client that omits the field.
+    /// Nil must not be rendered as "moving"; see `LocationPayload.stationary`.
+    let isStationary: Bool?
+    // swiftlint:enable discouraged_optional_boolean
     /// Publisher's own update cadence in seconds (from `LocationPayload.interval`).
     /// Nil for pre-1.2.1 payloads that omit the field.
     let intervalSeconds: Int?
@@ -122,7 +125,9 @@ final class LocationViewModel: ObservableObject {
 
                 isMe: isMe,
                 nextUpdateDate: isMe ? nextUpdate : nil,
-                isStationary: isMe && stationary,
+                // Own pin reads the live sensor (fresher than our last broadcast);
+                // remote members come from the wire.
+                isStationary: isMe ? stationary : loc.payload.stationary,
                 intervalSeconds: loc.payload.interval
             )
         }
