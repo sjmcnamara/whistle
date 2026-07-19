@@ -155,10 +155,8 @@ final class MarmotService: ObservableObject {
     }
 
     /// Fetch a member's key package with exponential-backoff retry, returning its
-    /// JSON. The invitee's key package may not have propagated to the relay yet
-    /// (especially via NearbyShare, where the publish is deferred until after MPC
-    /// tears down). Throws `.timeout` past a 60s budget, `.noKeyPackageFound` if
-    /// none is ever seen.
+    /// JSON. The invitee's key package may not have propagated to the relay yet.
+    /// Throws `.timeout` past a 60s budget, `.noKeyPackageFound` if none is ever seen.
     private func fetchKeyPackageWithRetry(for memberHex: String, maxRetries: Int) async throws -> String {
         let startTime = Date()
         let globalTimeout: TimeInterval = 60.0
@@ -1134,10 +1132,10 @@ final class MarmotService: ObservableObject {
     }
 
     /// Force a full relay disconnect + reconnect regardless of current state.
-    /// Call after MPC / NearbyShare — the WebSocket may appear connected but
-    /// be in a degraded state where it silently drops incoming events.
+    /// Recovers from a degraded WebSocket that appears connected but silently
+    /// drops incoming events. No callers today — retained for diagnostics use.
     func forceReconnectRelays() async {
-        WhistleLogger.marmot.info("Force-reconnecting relays (post-MPC)")
+        WhistleLogger.marmot.info("Force-reconnecting relays")
         await relay.disconnect()
         if let settings {
             let enabled = settings.relays.filter(\.isEnabled)
@@ -1155,7 +1153,7 @@ final class MarmotService: ObservableObject {
     }
 
     /// One-shot fetch of gift-wrap events that may have been missed by the
-    /// real-time subscription (e.g. during MPC-induced WiFi disruption).
+    /// real-time subscription (e.g. during network disruption or backgrounding).
     /// Safe to call repeatedly — already-processed welcomes will be caught
     /// by the existing MLS error handler and logged at warning level.
     ///
@@ -1165,8 +1163,8 @@ final class MarmotService: ObservableObject {
     /// the cutoff. The pubkey filter already limits results to our events,
     /// and duplicate processing is handled by MLS error recovery.
     func fetchMissedGiftWraps() async {
-        // Ensure relay is connected — MPC activity may have degraded the
-        // WebSocket. A fresh connection guarantees the one-shot query works.
+        // Ensure relay is connected — network transitions may have degraded
+        // the WebSocket. A fresh connection guarantees the one-shot query works.
         await reconnectRelaysIfNeeded()
 
         do {
@@ -1247,7 +1245,7 @@ final class MarmotService: ObservableObject {
     /// Returns true if a missed commit was applied (the group caught up).
     @discardableResult
     func catchUpGroup(groupId: String) async -> Bool {
-        // MPC/background activity may have degraded the socket — a fresh
+        // Background/network activity may have degraded the socket — a fresh
         // connection guarantees the one-shot query works.
         await reconnectRelaysIfNeeded()
 

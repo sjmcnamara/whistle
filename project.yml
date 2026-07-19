@@ -65,10 +65,6 @@ targets:
         NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your family data."
         NSCameraUsageDescription: "Whistle uses the camera to scan QR invite codes."
         NFCReaderUsageDescription: "Whistle uses NFC to receive invite codes by tapping phones together."
-        NSLocalNetworkUsageDescription: "Whistle uses the local network to share invites with nearby family members."
-        NSBonjourServices:
-          - _whistle._tcp
-          - _whistle._udp
         CFBundleURLTypes:
           - CFBundleURLSchemes:
             - whistle

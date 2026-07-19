@@ -8,6 +8,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+- **(iOS) Share Nearby / Join Nearby removed.** The MultipeerConnectivity peer-to-peer invite exchange has been dropped — QR scanning covers the same in-person handoff, it was iOS-only with no Android equivalent, and it was the only join path that skipped explicit member approval (`approveViaNearbyShare` auto-approved on the theory that physical proximity implies consent). Every join now goes through the standard approval flow. The app no longer requests the local-network permission (`NSBonjourServices` / `NSLocalNetworkUsageDescription` removed), so the "Whistle would like to find devices on your local network" prompt is gone from first run.
+
 ### Changed
 - **(Android) Android Gradle Plugin upgraded to 9.2.1.** AGP 9 is a major release that requires Gradle 9.4.1+ (wrapper bumped) and ships **built-in Kotlin support**, so the `org.jetbrains.kotlin.android` plugin is removed from both modules — Kotlin is now provided by AGP itself. Consequences of the migration: the top-level `kotlin { compilerOptions { jvmTarget } }` block is gone (`jvmTarget` now defaults to `compileOptions.targetCompatibility`, i.e. 17); the project's Kotlin 2.3.21 / KSP 2.3.8 are forced onto the classpath via a root `buildscript` block, since AGP 9 otherwise defaults to KGP 2.2.10; Hilt bumped 2.58 → 2.60.1 for AGP 9 compatibility (older Hilt fails with "Could not find the Android Gradle Plugin (AGP) base extension"); and the shared module's test dependency switched from `kotlin-test` to `kotlin-test-junit`, because under built-in Kotlin the plain artifact's JUnit backend auto-selection isn't wired for the Android unit-test source set. No app behaviour change.
 

@@ -326,37 +326,6 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    /// Auto-approve a member received via NearbyShare — no confirmation alert
-    /// needed because the admin physically initiated the invite (proximity = consent).
-    /// Uses more retries than the normal path because the invitee's key package
-    /// publish is deferred until after MPC tears down.
-    func approveViaNearbyShare(_ url: URL) {
-        guard url.scheme == "whistle", url.host == "addmember" else { return }
-        let parts = url.pathComponents.dropFirst()
-        guard parts.count >= 2 else {
-            WhistleLogger.marmot.warning("approveViaNearbyShare: malformed URL \(url)")
-            return
-        }
-        let pubkeyHex = String(parts[parts.startIndex])
-        let groupId = String(parts[parts.index(parts.startIndex, offsetBy: 1)])
-                        .removingPercentEncoding ?? String(parts[parts.index(parts.startIndex, offsetBy: 1)])
-
-        Task {
-            guard let marmot else {
-                approvalError = "App not fully initialised — please wait and try again."
-                return
-            }
-            do {
-                try await marmot.addMember(publicKeyHex: pubkeyHex, toGroup: groupId, maxRetries: 10)
-                WhistleLogger.marmot.info("NearbyShare auto-approved \(pubkeyHex.prefix(8)) into group \(groupId)")
-                approvalSuccess = true
-            } catch {
-                WhistleLogger.marmot.error("NearbyShare auto-approve failed: \(error)")
-                approvalError = errorMessage(for: error)
-            }
-        }
-    }
-
     private func errorMessage(for error: Error) -> String {
         let desc = error.localizedDescription
         // Translate common MarmotError cases into plain English.

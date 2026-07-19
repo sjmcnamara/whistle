@@ -5,9 +5,7 @@ import WhistleCore
 struct InviteShareView: View {
     let inviteCode: String
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appViewModel: AppViewModel
     @State private var copied = false
-    @State private var showNearbyShare = false
 
     /// The `whistle://` URL for this invite (preferred share target).
     private var inviteURL: URL? { try? InviteCode.decode(from: inviteCode).asURL() }
@@ -26,23 +24,13 @@ struct InviteShareView: View {
                     .frame(width: 200, height: 200)
                     .padding()
 
-                // Share Nearby — phone-to-phone via MultipeerConnectivity
-                Button {
-                    showNearbyShare = true
-                } label: {
-                    Label("Share Nearby", systemImage: "wave.3.right.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal, 40)
-
                 // Share via AirDrop / Messages / etc. — shares the whistle:// URL
                 if let url = inviteURL {
                     ShareLink(item: url) {
                         Label("Share via AirDrop / Messages…", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                     .padding(.horizontal, 40)
                 }
 
@@ -67,22 +55,6 @@ struct InviteShareView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
-            }
-            .sheet(isPresented: $showNearbyShare) {
-                NearbyShareView(
-                    role: .advertiser(inviteCode: inviteURL?.absoluteString ?? inviteCode),
-                    displayName: appViewModel.settings.displayName.isEmpty ? UIDevice.current.name : appViewModel.settings.displayName,
-                    onApprovalReceived: { urlString in
-                        // Invitee's npub arrived through the MPC session —
-                        // auto-approve since admin physically initiated the
-                        // NearbyShare invite (proximity = consent). Uses extra
-                        // retries because the invitee's key package publish is
-                        // deferred until after MPC tears down.
-                        if let url = URL(string: urlString) {
-                            appViewModel.approveViaNearbyShare(url)
-                        }
-                    }
-                )
             }
         }
     }
