@@ -79,6 +79,9 @@ struct SettingsView: View {
                 onPicked: { data in await appViewModel.setOwnAvatar(data: data) },
                 onRemove: { await appViewModel.removeOwnAvatar() }
             )
+            // Without this, the closures above defeat SwiftUI's change
+            // detection and the picker re-renders on every relay event.
+            .equatable()
         }
     }
 

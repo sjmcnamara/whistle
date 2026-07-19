@@ -16,7 +16,25 @@ import PhotosUI
 /// Taking `String`/`Bool` inputs means SwiftUI sees unchanged values on a
 /// parent re-render and skips re-evaluating this body, leaving the presented
 /// picker alone.
-struct AvatarPickerRow: View {
+struct AvatarPickerRow: View, Equatable {
+    /// Compares only the value inputs, deliberately ignoring the closures.
+    ///
+    /// SwiftUI's structural comparison can never prove two closures equal, so
+    /// with `onPicked`/`onRemove` as stored properties it treated this view as
+    /// changed on *every* parent re-render — re-evaluating the body and
+    /// reloading the presented picker even though nothing visible had changed.
+    /// Passing a resolved image was not sufficient on its own.
+    ///
+    /// Safe to ignore them: both closures capture `AppViewModel`, a reference
+    /// type, so a stale closure still calls through to the live object.
+    ///
+    /// Must be applied with `.equatable()` at the call site to take effect.
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.pubkeyHex == rhs.pubkeyHex
+            && lhs.displayName == rhs.displayName
+            && lhs.image === rhs.image
+    }
+
     let pubkeyHex: String
     let displayName: String
     /// Resolved by the parent. Passing the image in — rather than letting the
