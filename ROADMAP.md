@@ -364,6 +364,15 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.7.0 — Presence & identity ✅
+_First slice of the v1.7 presence work — released 2026-07-19_
+
+- **Stationary state shared cross-device** (iOS & Android): the Movement Aware stationary indicator (pin badge + "Currently stationary" in the member detail sheet) was computed from the local motion sensor and hard-gated to the own pin, so you could never see another member as stationary. `LocationPayload` now carries an optional `stationary` boolean. Deliberately tri-state — an omitted field means *unknown*, never `false`, so a pre-1.7 client (or one with Movement Aware off) shows no badge rather than being wrongly rendered as moving. Backward-compatible exactly as `interval` was in v1.2.1. Closes the item deferred from v1.4.1.
+- **Share Nearby / Join Nearby removed** (iOS): the MultipeerConnectivity peer-to-peer invite exchange is gone — QR scanning covers the same in-person handoff, and it was iOS-only with no Android equivalent. It was also the only join path that skipped explicit member approval. The local-network permission prompt no longer appears on first run.
+- **`build.sh` no longer discards uncommitted `project.yml` edits**: `restore_local_changes()` ran `git checkout -- project.yml`, silently reverting version bumps made before a build.
+
+_Still to come in v1.7: member avatars over MLS, avatar map pins, shared encrypted group avatar._
+
 ### v1.6.0 — Group avatar ✅
 _Released 2026-06-29_
 
@@ -480,6 +489,8 @@ master
   └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
   └── bugfix/v1.6.5                        ✅ merged (v1.6.5 — in-memory chat thread cache; no empty-flash on re-entry)
   └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
+  └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
+  └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
 ```
 
 ---

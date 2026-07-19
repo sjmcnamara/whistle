@@ -6,7 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.7.0] — 2026-07-19
 
 ### Added
 - **Stationary status now visible for other members** (iOS & Android): the Movement Aware "stationary" indicator — the orange standing-figure badge on the map pin and the "Currently stationary" row in the member detail sheet — previously only ever appeared on your own pin, because the state was read from the local motion sensor and hard-gated to self. It is now carried in `LocationPayload` as an optional `stationary` boolean and rendered for everyone. Backward-compatible in the same way `interval` was in v1.2.1: the field is tri-state, and an omitted value (a pre-1.7 client, or a publisher with Movement Aware switched off) decodes as *unknown* rather than `false`, so an older member shows no badge instead of being wrongly rendered as moving. Your own pin still reads the live sensor, which is fresher than your last broadcast.
