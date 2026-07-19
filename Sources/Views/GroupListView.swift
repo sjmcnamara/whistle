@@ -43,8 +43,7 @@ struct GroupListView: View {
             }) {
                 JoinGroupView(
                     viewModel: viewModel,
-                    initialCode: viewModel.pendingJoinCode,
-                    myPubkeyHex: appViewModel.myPubkeyHex
+                    initialCode: viewModel.pendingJoinCode
                 )
             }
             .refreshable {

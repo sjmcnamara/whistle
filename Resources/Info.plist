@@ -35,17 +35,10 @@
 	<false/>
 	<key>NFCReaderUsageDescription</key>
 	<string>Whistle uses NFC to receive invite codes by tapping phones together.</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_whistle._tcp</string>
-		<string>_whistle._udp</string>
-	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Whistle uses the camera to scan QR invite codes.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Whistle uses Face ID to unlock the app and protect your family data.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Whistle uses the local network to share invites with nearby family members.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Whistle needs background location access to keep your family updated when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

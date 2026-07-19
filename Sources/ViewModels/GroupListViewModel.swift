@@ -205,11 +205,6 @@ final class GroupListViewModel: ObservableObject {
         }
     }
 
-    /// Force relay reconnection after MPC / NearbyShare activity.
-    func forceReconnectRelays() async {
-        await marmot.forceReconnectRelays()
-    }
-
     func joinGroup(inviteCode: String) async throws {
         // Decode first so we can extract the group hint for pending state.
         let invite = try InviteCode.decode(from: inviteCode)

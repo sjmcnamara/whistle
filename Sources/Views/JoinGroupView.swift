@@ -2,20 +2,16 @@ import SwiftUI
 import WhistleCore
 
 /// Sheet for joining a group via invite code.
-/// Accepts a code via: paste, QR scan, nearby share, or deep link pre-fill.
+/// Accepts a code via: paste, QR scan, or deep link pre-fill.
 struct JoinGroupView: View {
     @ObservedObject var viewModel: GroupListViewModel
     var initialCode: String?
-    /// The current user's pubkey hex — used to build the approval-request URL after joining.
-    var myPubkeyHex: String?
     @Environment(\.dismiss) private var dismiss
     @State private var inviteCode = ""
     @State private var isJoining = false
     @State private var error: String?
     @State private var didJoin = false
     @State private var showScanner = false
-    @State private var showNearbyShare = false
-    @State private var joinedViaNearby = false
 
     var body: some View {
         NavigationStack {
@@ -31,12 +27,6 @@ struct JoinGroupView: View {
 
                 // Quick-action buttons
                 Section {
-                    Button {
-                        showNearbyShare = true
-                    } label: {
-                        Label("Join Nearby", systemImage: "wave.3.left.circle.fill")
-                    }
-
                     Button {
                         showScanner = true
                     } label: {
@@ -106,7 +96,7 @@ struct JoinGroupView: View {
                 }
             }
             // Poll for missed gift-wrap events while waiting for the Welcome.
-            // Compensates for WebSocket subscription gaps during MPC sessions.
+            // Compensates for WebSocket subscription gaps on any join path.
             .task(id: didJoin) {
                 guard didJoin else { return }
                 let rawCode = extractCode(from: inviteCode)
@@ -129,54 +119,10 @@ struct JoinGroupView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showNearbyShare, onDismiss: {
-                if joinedViaNearby && !didJoin {
-                    Task {
-                        await viewModel.forceReconnectRelays()
-                        await joinGroup()
-                    }
-                }
-            }) {
-                NearbyShareView(role: .browser, onInviteReceived: { received in
-                    let extracted = extractCode(from: received)
-                    inviteCode = extracted
-                    joinedViaNearby = true
-
-                    do {
-                        try await viewModel.joinGroup(inviteCode: extracted)
-                        Task { @MainActor in
-                            didJoin = true
-                            error = nil
-                        }
-                    } catch {
-                        let joinError = error
-                        Task { @MainActor in
-                            self.error = joinError.localizedDescription
-                        }
-                        return nil
-                    }
-
-                    guard let pubkey = myPubkeyHex,
-                          let groupId = try? InviteCode.decode(from: extracted).groupId else {
-                        return nil
-                    }
-
-                    return InviteCode.approvalURL(pubkeyHex: pubkey, groupId: groupId)
-                })
-            }
         }
     }
 
-    /// Build the `whistle://addmember/` URL to share with the group admin for one-tap approval.
-    private func approvalURL() -> URL? {
-        guard let pubkey = myPubkeyHex else { return nil }
-        // Decode the group ID from the accepted invite code
-        let rawCode = extractCode(from: inviteCode)
-        guard let groupId = try? InviteCode.decode(from: rawCode).groupId else { return nil }
-        return InviteCode.approvalURL(pubkeyHex: pubkey, groupId: groupId)
-    }
-
-        /// Extract the raw base64 invite code from either a `whistle://` URL or a raw string.
+    /// Extract the raw base64 invite code from either a `whistle://` URL or a raw string.
     private func extractCode(from scanned: String) -> String {
         guard let url = URL(string: scanned),
                             url.scheme == "whistle",
