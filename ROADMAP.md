@@ -443,7 +443,18 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
     1. ~~**The confirmation text is factually wrong.**~~ ✅ Fixed — both platforms now state that burning does not remove you from your groups, that other members will still see you, and that you cannot rejoin unless another admin re-adds you.
     2. **The sole-admin case is unrecoverable for everyone else — present it as a choice, not a block.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member.
 
-        A hard block was considered and rejected: someone burning a compromised key must not be trapped. The honest framing is **"promote someone else first, or end this group now"** — name the groups where the user is the only admin, offer to promote a member, and require an explicit acknowledgement that those groups are finished if they proceed. Detection is cheap (`adminPubkeys.count == 1 && adminPubkeys.first == myPubkey` across active groups); the work is the promote-then-burn flow and wording that makes the consequence land without being obstructive.
+        A hard block was considered and rejected: someone burning a compromised key must not be trapped. The honest framing is **"promote someone else first, or end this group now"** — name the groups where the user is the only admin, offer to promote a member, and require an explicit acknowledgement that those groups are finished if they proceed. Detection is cheap (`adminPubkeys.count == 1 && adminPubkeys.first == myPubkey` across active groups).
+
+        **Promotion is already safe to rely on here.** `MarmotService.promoteToAdmin` appends to `adminPubkeys` via an `updateGroupData` commit — unilateral, the promoted member accepts nothing — and calls `publishAndVerifyCommits` before returning. So a successful promote means the commit is *on the relay*, and the new admin will pick it up whenever they next sync, even if they are offline at the moment of the burn. The promotion is durable before local state is destroyed.
+
+        **The failure case is the one to design for.** If `promoteToAdmin` throws (relay unreachable, commit unverified), the promotion did not land and burning at that moment does freeze the group — and that is precisely when someone with a compromised key is in a hurry. So this must not be a single atomic "promote and burn" action:
+
+        - promote succeeded → burn freely; removing the stale leaf is routine admin work for the new admin
+        - promote failed → say plainly that it did not reach the relay and that burning now ends the group, then **still allow the burn**
+
+        Never block. A compromised key is a worse problem than a frozen family group, and the person holding the key is the one best placed to weigh that.
+
+        Post-burn cleanup needs nothing new: the new admin removes the dead leaf with the existing remove-member action (relay-verified since v1.6.4), and if the burned user re-imports, their app publishes a fresh KeyPackage on launch so they can be re-added by npub.
     3. **Offer leave-before-burn.** The correct sequence is to send leave requests, let admins process the removals, then burn. Nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible.
 
     Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
