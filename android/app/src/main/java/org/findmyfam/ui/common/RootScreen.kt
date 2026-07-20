@@ -300,6 +300,7 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
             composable(Routes.DIAGNOSTICS) {
                 DiagnosticsScreen(
                     collector = viewModel.diagnosticsCollector,
+                    onBack = { navController.popBackStack() },
                     modifier = Modifier.fillMaxSize()
                 )
             }

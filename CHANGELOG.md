@@ -11,6 +11,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **Share Diagnostics** (iOS & Android): Advanced Settings → Share Diagnostics produces a snapshot of this device's app and group state — app/build/OS, pinned MDK revision, and per active group the **epoch**, member and admin counts, and health-tracker state — as JSON you can copy or share as a file. Built for diffing: two members' reports placed side by side show a fork as a single differing `epoch` line, which is otherwise invisible from outside the device. Deliberately safe to share in public: no messages, no locations, no nicknames, and public keys and group IDs truncated to an 8-character prefix. A build-guard test fails if any full-length identifier ever reaches the output.
 
+### Fixed
+- **(Android) Diagnostics screen had no visible way back.** The Share Diagnostics screen was the only settings screen with no toolbar — every sibling wraps its content in a `Scaffold`/`TopAppBar` with a back arrow, but this one rendered a bare `Column`, so it relied entirely on the system Back gesture. On a device using gesture navigation with no on-screen Back button it looked stuck. It now has a "Diagnostics" top app bar with a back arrow, matching the rest of Settings. (iOS was unaffected — its `DiagnosticsView` is pushed in a `NavigationStack` and gets the system back button automatically.)
+
 ## [1.7.3] — 2026-07-20
 
 ### Added
