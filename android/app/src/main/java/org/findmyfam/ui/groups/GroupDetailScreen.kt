@@ -151,17 +151,11 @@ fun GroupDetailScreen(
                                     .size(80.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .combinedClickable(
-                                        onClick = {
-                                            avatarPicker.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
-                                        },
-                                        onLongClick = {
-                                            if (LocalGroupAvatarStore.hasImage(viewModel.groupId))
-                                                showAvatarMenu = true
-                                        }
-                                    ),
+                                    // Tap opens the action menu rather than
+                                    // jumping straight into the gallery. Remove
+                                    // used to be long-press only, which nobody
+                                    // discovers. Mirrors the iOS dialog.
+                                    .clickable { showAvatarMenu = true },
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (avatarBitmap != null) {
@@ -190,11 +184,34 @@ fun GroupDetailScreen(
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-                        if (LocalGroupAvatarStore.hasImage(viewModel.groupId)) {
-                            DropdownMenu(
-                                expanded = showAvatarMenu,
-                                onDismissRequest = { showAvatarMenu = false }
-                            ) {
+                        DropdownMenu(
+                            expanded = showAvatarMenu,
+                            onDismissRequest = { showAvatarMenu = false }
+                        ) {
+                            // Mirrors the iOS dialog's message: this photo is
+                            // device-local, unlike the member photo, and that is
+                            // not obvious from the UI.
+                            Text(
+                                "Only you see this photo — it stays on this device.",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (avatarBitmap == null) "Choose Photo" else "Change Photo"
+                                    )
+                                },
+                                leadingIcon = { Icon(Icons.Default.AddAPhoto, contentDescription = null) },
+                                onClick = {
+                                    showAvatarMenu = false
+                                    avatarPicker.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                            )
+                            if (LocalGroupAvatarStore.hasImage(viewModel.groupId)) {
                                 DropdownMenuItem(
                                     text = { Text("Remove Photo") },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },

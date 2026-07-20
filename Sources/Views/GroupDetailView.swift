@@ -128,7 +128,9 @@ struct GroupDetailView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Group photo")
                 .confirmationDialog("Group Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
-                    Button("Change Photo") { showAvatarPicker = true }
+                    Button(avatars.hasImage(for: viewModel.groupId) ? "Change Photo" : "Choose Photo") {
+                        showAvatarPicker = true
+                    }
                     if avatars.hasImage(for: viewModel.groupId) {
                         Button("Remove Photo", role: .destructive) {
                             avatars.removeImage(for: viewModel.groupId)
