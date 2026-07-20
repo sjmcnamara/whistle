@@ -22,6 +22,7 @@ struct GroupDetailView: View {
     @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
     @EnvironmentObject private var appViewModel: AppViewModel
     @State private var pickingForGroup = false
+    @State private var groupPhotoError: String?
 
     /// Show members inline up to this many; beyond it, preview + "See all".
     private let memberPreviewCap = 6
@@ -73,6 +74,17 @@ struct GroupDetailView: View {
         }
         .onChange(of: viewModel.didRequestLeave) { _, left in
             if left { dismiss() }
+        }
+        .alert(
+            "Couldn't set group photo",
+            isPresented: Binding(
+                get: { groupPhotoError != nil },
+                set: { if !$0 { groupPhotoError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { groupPhotoError = nil }
+        } message: {
+            Text(groupPhotoError ?? "")
         }
         .alert("Rename Group", isPresented: $showRename) {
             TextField("Group name", text: $renameText)
@@ -167,7 +179,16 @@ struct GroupDetailView: View {
                     Task {
                         if let data = try? await item.loadTransferable(type: Data.self) {
                             if pickingForGroup {
-                                await appViewModel.setGroupAvatar(data: data, groupId: viewModel.groupId)
+                                // Handle the outcome — a silently dropped result
+                                // made every failure look like "nothing happened".
+                                switch await appViewModel.setGroupAvatar(data: data, groupId: viewModel.groupId) {
+                                case .updated:
+                                    break
+                                case .notAdmin:
+                                    groupPhotoError = "Only a group admin can set the group photo."
+                                case .couldNotEncode:
+                                    groupPhotoError = "That image couldn't be made small enough to share. Try a different one."
+                                }
                             } else {
                                 avatars.setImage(data: data, for: viewModel.groupId)
                             }

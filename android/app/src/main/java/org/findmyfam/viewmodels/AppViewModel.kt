@@ -415,19 +415,32 @@ class AppViewModel @Inject constructor(
     // --- Group photo (admin-only) ---
 
     /**
-     * Set the group's shared photo and announce it. Returns false if the image
-     * could not be encoded within the wire cap, or if we are not an admin.
+     * Outcome of setting a group photo, so the UI can say *why* it failed.
+     *
+     * Deliberately not a Boolean: the first version returned one and the call
+     * site dropped it, so every failure — oversized image, missing admin
+     * rights — looked identical to success with no photo appearing.
      */
-    suspend fun setGroupAvatar(uri: Uri, groupId: String): Boolean {
-        val pubkey = identity.publicKeyHex ?: return false
-        if (!marmotService.isAdmin(pubkey, groupId)) return false
-        val payload = sharedGroupAvatarStore.setImage(uri, groupId) ?: return false
+    enum class GroupAvatarUpdate { UPDATED, NOT_ADMIN, COULD_NOT_ENCODE }
+
+    /** Set the group's shared photo and announce it. */
+    suspend fun setGroupAvatar(uri: Uri, groupId: String): GroupAvatarUpdate {
+        val pubkey = identity.publicKeyHex ?: return GroupAvatarUpdate.NOT_ADMIN
+        if (!marmotService.isAdmin(pubkey, groupId)) {
+            Timber.w("Group avatar rejected locally: not an admin of $groupId")
+            return GroupAvatarUpdate.NOT_ADMIN
+        }
+        val payload = sharedGroupAvatarStore.setImage(uri, groupId)
+        if (payload == null) {
+            Timber.e("Group avatar for $groupId could not be encoded within the size cap")
+            return GroupAvatarUpdate.COULD_NOT_ENCODE
+        }
         try {
             marmotService.sendGroupAvatarUpdate(payload, groupId)
         } catch (e: Exception) {
             Timber.w("Failed to broadcast group avatar for $groupId: ${e.message}")
         }
-        return true
+        return GroupAvatarUpdate.UPDATED
     }
 
     /** Clear the group's shared photo and tell the group to drop it. */

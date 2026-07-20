@@ -89,15 +89,35 @@ fun GroupDetailScreen(
     // Which target the picker result applies to — the group's shared photo or
     // this device's personal override.
     var pickingForGroup by remember { mutableStateOf(false) }
+    var groupPhotoError by remember { mutableStateOf<String?>(null) }
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let {
             if (pickingForGroup) {
-                scope.launch { appViewModel.setGroupAvatar(it, viewModel.groupId) }
+                scope.launch {
+                    // Handle the outcome — a silently dropped result made every
+                    // failure look like "nothing happened".
+                    groupPhotoError = when (appViewModel.setGroupAvatar(it, viewModel.groupId)) {
+                        AppViewModel.GroupAvatarUpdate.UPDATED -> null
+                        AppViewModel.GroupAvatarUpdate.NOT_ADMIN ->
+                            "Only a group admin can set the group photo."
+                        AppViewModel.GroupAvatarUpdate.COULD_NOT_ENCODE ->
+                            "That image couldn't be made small enough to share. Try a different one."
+                    }
+                }
             } else {
                 LocalGroupAvatarStore.setImage(context, viewModel.groupId, it)
             }
         }
         pickingForGroup = false
+    }
+
+    groupPhotoError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { groupPhotoError = null },
+            title = { Text("Couldn't set group photo") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { groupPhotoError = null }) { Text("OK") } }
+        )
     }
 
     LaunchedEffect(Unit) { viewModel.load() }

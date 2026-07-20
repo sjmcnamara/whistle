@@ -898,21 +898,35 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Group photo (admin-only)
 
-    /// Set the group's shared photo and announce it. Returns false if the image
-    /// could not be encoded within the wire cap, or if we are not an admin.
-    @discardableResult
-    func setGroupAvatar(data: Data, groupId: String) async -> Bool {
+    /// Outcome of setting a group photo, so the UI can say *why* it failed.
+    ///
+    /// Deliberately not a Bool: the first version returned one and was marked
+    /// `@discardableResult`, so the call site dropped it and every failure —
+    /// oversized image, missing admin rights — looked identical to success with
+    /// no photo appearing. Callers must now handle the result.
+    enum GroupAvatarUpdate: Equatable {
+        case updated
+        case notAdmin
+        case couldNotEncode
+    }
+
+    /// Set the group's shared photo and announce it.
+    func setGroupAvatar(data: Data, groupId: String) async -> GroupAvatarUpdate {
         guard let marmot, let pubkey = myPubkeyHex,
-              await marmot.isAdmin(pubkey, ofGroup: groupId) else { return false }
+              await marmot.isAdmin(pubkey, ofGroup: groupId) else {
+            WhistleLogger.chat.warning("Group avatar rejected locally: not an admin of \(groupId)")
+            return .notAdmin
+        }
         guard let payload = await sharedGroupAvatarStore.setImage(data: data, for: groupId) else {
-            return false
+            WhistleLogger.chat.error("Group avatar for \(groupId) could not be encoded within the size cap")
+            return .couldNotEncode
         }
         do {
             try await marmot.sendGroupAvatarUpdate(payload, toGroup: groupId)
         } catch {
             WhistleLogger.chat.error("Failed to broadcast group avatar for \(groupId): \(error)")
         }
-        return true
+        return .updated
     }
 
     /// Clear the group's shared photo and tell the group to drop it.
