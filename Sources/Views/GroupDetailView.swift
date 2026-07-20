@@ -170,8 +170,8 @@ struct GroupDetailView: View {
                     Button("Cancel", role: .cancel) { }
                 } message: {
                     Text(viewModel.isAdmin
-                         ? "A group photo is shared with everyone. Your own photo is only on this device and takes precedence."
-                         : "Your own photo is only on this device and takes precedence over the group's.")
+                         ? "A group photo is sent to everyone in the group. Your own photo never leaves this device, and takes precedence over the group's."
+                         : "Your own photo never leaves this device, and takes precedence over the group's.")
                 }
                 .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in
@@ -187,7 +187,7 @@ struct GroupDetailView: View {
                                 case .notAdmin:
                                     groupPhotoError = "Only a group admin can set the group photo."
                                 case .couldNotEncode:
-                                    groupPhotoError = "That image couldn't be made small enough to share. Try a different one."
+                                    groupPhotoError = "Group photos are sent to everyone in the group, so they have to be small. This one couldn't be shrunk enough — try a different image. (Your own photo has no limit, because it never leaves this device.)"
                                 }
                             } else {
                                 avatars.setImage(data: data, for: viewModel.groupId)
