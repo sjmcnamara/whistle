@@ -17,6 +17,7 @@ All event kinds are defined in `MarmotKind` (iOS: `WhistleCore`, Android: `org.f
 | `groupEvent`         | 445   | Group event — all in-group traffic: Commits, Proposals, application messages |
 | `keyPackageRelayList`| 10051 | KeyPackage relay list — advertises which relays hold key packages |
 | `giftWrap`           | 1059  | NIP-59 Gift Wrap outer event kind                        |
+| `joinRequest`        | 1080  | Join-request — Whistle-specific rumor an invitee gift-wraps to the inviter, carrying their KeyPackage inline for batch-add. Rides inside a `kind:1059` gift wrap, so it never reaches relays in the clear. See [JoinRequest](#joinrequest). |
 
 !!! note "KeyPackage migration (v1.1.3 / MDK 0.8.0)"
     Earlier versions of Whistle used `kind:443` for KeyPackages. MDK 0.8.0 moved KeyPackages to `kind:30443` — an [addressable event](https://github.com/nostr-protocol/nips/blob/master/01.md#kinds) — so each device's latest package supersedes the previous one rather than accumulating. Current Whistle builds publish and subscribe to `30443` exclusively.
@@ -50,6 +51,8 @@ Inner kind: `1` (`MarmotKind.location`)
   "acc": 5.0,
   "ts": 1700000000,
   "batt": 87,
+  "interval": 3600,
+  "stationary": true,
   "v": 1
 }
 ```
@@ -63,6 +66,8 @@ Inner kind: `1` (`MarmotKind.location`)
 | `acc`  | Double   | yes      | Horizontal accuracy in metres                        |
 | `ts`   | Int/Long | yes      | Unix timestamp (seconds since epoch)                 |
 | `batt` | Int      | no       | Device battery level `0`–`100`; omitted if unknown. Added in v1.1.5 (Android) / v1.2.0 (iOS & Android parity). Drives Low Battery Alerts. |
+| `interval` | Int/Long | no  | Publisher's own update cadence in seconds. Receivers use it for staleness (typically `> 2 × interval` since `ts`). Omitted by pre-1.2.1 clients, which fall back to their own local interval. |
+| `stationary` | Bool | no    | Publisher's Movement Aware state at broadcast time (v1.7.0). Deliberately tri-state: absent means "unknown" (pre-1.7, or Movement Aware disabled), which is **not** the same as `false` ("known to be moving"). Receivers must not render an omitted value as moving. |
 | `v`    | Int      | yes      | Schema version — always `1`                          |
 
 ### ChatPayload
@@ -104,6 +109,30 @@ Inner kind: `9` (`MarmotKind.chat`), distinguished from a chat message by the `t
 | `name` | String | Display name the sender wants to use  |
 | `ts`   | Int/Long | Unix timestamp (seconds since epoch)|
 | `v`    | Int    | Schema version — always `1`          |
+
+### JoinRequest
+
+Rumor kind: `1080` (`MarmotKind.joinRequest`). Unlike the payloads above, this is **not** carried inside a kind-445 MLS message — it is the content of a NIP-59 gift-wrapped rumor (inside a `kind:1059`) that an invitee sends the inviter right after accepting an invite. It carries the invitee's KeyPackage inline so the admin can batch-add joiners in a single MLS commit without a manual npub exchange or a relay KeyPackage fetch.
+
+```json
+{
+  "type": "join-request",
+  "v": 1,
+  "groupId": "<mlsGroupId hex>",
+  "pubkey": "<invitee pubkey hex>",
+  "keyPackage": "<kind-30443 event JSON>",
+  "name": "Alice"
+}
+```
+
+| Field        | Type   | Required | Description                                                        |
+|--------------|--------|----------|--------------------------------------------------------------------|
+| `type`       | String | yes      | Always `"join-request"`                                            |
+| `v`          | Int    | yes      | Schema version — always `1`                                       |
+| `groupId`    | String | yes      | Target MLS group id (hex); lets an admin of several groups route it |
+| `pubkey`     | String | yes      | Invitee's Nostr public key (hex)                                   |
+| `keyPackage` | String | yes      | The invitee's KeyPackage as a `kind:30443` event JSON string — added directly, with no relay fetch |
+| `name`       | String | no       | Optional display name for the admin's pending-joiners list         |
 
 ---
 

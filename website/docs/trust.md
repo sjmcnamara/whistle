@@ -13,6 +13,10 @@ trusting us. Here's what that means in practice.
   no Whistle backend, no database with your trips in it.
 - **No telemetry.** The app does not phone home. There are no analytics SDKs,
   no crash-reporter that ships your data to a third party, no A/B test framework.
+- **Diagnostics stay on your terms.** The Share Diagnostics feature is always
+  user-initiated and exported locally — never sent automatically. Reports are
+  redacted: no messages, no locations, no names, and identifiers are truncated.
+  It's a manual export you control, not telemetry.
 - **Open source, forever.** Released under the [Unlicense](https://unlicense.org).
   Audit it, fork it, build it yourself.
 

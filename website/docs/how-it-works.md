@@ -34,6 +34,9 @@ let group = try await MLSService.createGroup(
 try await group.invite(member: alice)
 ```
 
+Joining isn't invite-only: a member can also request to join a group, and an
+admin approves the request.
+
 ## Relays carry only noise
 
 Whistle uses [Marmot](https://github.com/marmot-protocol/marmot) to bind
@@ -43,7 +46,7 @@ more.
 
 | Layer | Sees |
 | --- | --- |
-| Your phone | Plaintext locations & messages |
+| Your phone | Plaintext locations, messages & photos (avatars, group image) |
 | Group members' phones | Same |
 | Relay | Encrypted blobs + pubkey routing only |
 | Whistle (us) | Nothing. We run no servers. |

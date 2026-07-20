@@ -88,8 +88,12 @@ Make a group, share it, dissolve it when you're done.
 ## §03 · What you get { .w-section-title }
 
 <ul class="w-features">
-  <li><strong>End-to-end encrypted location &amp; chat</strong><span>Relays carry only
-ciphertext — never plaintext, never your group's membership.</span></li>
+  <li><strong>End-to-end encrypted location, chat &amp; photos</strong><span>Relays carry only
+ciphertext — never the plaintext contents of your group.</span></li>
+  <li><strong>Encrypted photos, inline</strong><span>Member avatars and the admin-set
+group image ride inside the same E2E-encrypted messages — no photo server, no plaintext exception.</span></li>
+  <li><strong>Invite or request to join</strong><span>Share a group directly, or let people
+request to join and have an admin approve them.</span></li>
   <li><strong>No accounts</strong><span>Identity is a keypair on your phone,
 held in the secure enclave. No email, no phone number, no signup.</span></li>
   <li><strong>Multiple groups</strong><span>Family, festival, walk-home circles that

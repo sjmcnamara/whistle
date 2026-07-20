@@ -36,12 +36,15 @@ Create or join an encrypted group, share a live map with your people, and chat �
 - **Family groups** — create or join with a shareable invite code
 - **Live map** — see everyone's location, updated on a configurable interval
 - **Group chat** — built-in encrypted messaging for the whole group
+- **Photos** — set a personal avatar (shown on your map pin) and, as an admin, a shared group photo; both travel inline, end-to-end encrypted, with no blob server
 - **Tap-to-join** — share invites via QR code, NFC tap, or AirDrop
+- **Request & approve** — joiners send an encrypted join request; an admin approves them into the group, no manual key exchange
 - **Whistle** — force an instant location update to your group on demand, ignoring the timer and battery backoff
 - **Pause/resume** — stop sharing your location anytime without leaving the group
 - **Movement aware** — automatically backs off location updates when a device is stationary, resumes normal rate on movement
 - **Low-battery alerts** — notifies the group when a member's battery is critically low
 - **Multiple groups** — belong to more than one circle at a time
+- **Shareable diagnostics** — export a redacted, on-device snapshot to debug sync issues; no messages, locations, or names, and never sent anywhere automatically
 - **Cross-platform** — native iOS and Android apps that interop seamlessly
 - **No accounts** — identity is a Nostr keypair stored on-device
 - **Open protocol** — built on [Nostr](https://nostr.com) + [MLS](https://www.rfc-editor.org/rfc/rfc9420.html) via the [Marmot Protocol](https://github.com/marmot-protocol/marmot); no proprietary server, no lock-in
@@ -73,7 +76,7 @@ Group traffic is published as Marmot-compatible Nostr events:
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
 ### Android
-- Android Studio — latest stable recommended (AGP 8.13)
+- Android Studio — latest stable recommended (AGP 9.2)
 - Android SDK 36+
 - Java 17
 

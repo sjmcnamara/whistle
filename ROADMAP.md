@@ -364,47 +364,29 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
-### v1.8.0 — Share Diagnostics ✅
-_Released 2026-07-20_
+### v1.3.0 — UX Polish ✅
+_Smoothing over rough edges surfaced during 1.2.x on-device testing — released 2026-06-10_
 
-- **Share Diagnostics** (iOS & Android): Advanced Settings → Share Diagnostics exports a deterministic, redacted JSON snapshot of app/build/OS, pinned MDK revision, and per-group epoch/member/admin/health state — built to be diffed so two members' reports reveal a fork as a single differing `epoch` line. Safe to share in public (no messages, locations, or names; identifiers truncated), enforced by a build-guard test.
-- **(Android) Diagnostics screen back button**: the screen now has a `TopAppBar` with a back arrow, matching the other settings screens (it previously relied solely on the system Back gesture).
-- **(iOS & Android) Burn Identity warning corrected**: the confirmation no longer claims burning "leaves all groups" — it deletes local state only and strands a leaf other members keep encrypting to. The zombie-member cleanup (sole-admin handling, leave-before-burn) is roadmapped under Deferred.
+- **Member detail sheet** (iOS & Android): tapping a member's map pin opens a bottom sheet with nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence (e.g. "every 10 sec" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Own pin also shows "Currently stationary" while Movement Aware is active.
+- **Tappable group chat header** (iOS & Android): tapping the group title or the member-list strip in the chat view now opens the group detail (invite codes, member management). The small info icon to the right stays as a secondary affordance.
+- **Debounce stationary→moving on Android**: `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS `movingDebounceSeconds` (which already debounced this direction). A spurious `EXIT_STILL` — phone bumped on a desk, indoor motion noise — no longer immediately cancels the battery-saving backoff. iOS was already correct; no iOS change in this release.
 
-### v1.7.3 — Shared group photo ✅
-_Released 2026-07-20_
+### v1.3.1 — Motion backoff bugfix ✅
+_Released 2026-06-11_
 
-- **Shared group photo** (iOS & Android): admin-set, seen by every member. Carried inline as base64 JPEG inside the MLS application message, reusing the member-avatar encoder and 16 KB ceiling — no blob storage, consistent with the no-servers position.
-- **Admin-only enforced on receive**: MLS guarantees the sender is a member, not an admin, so each client checks the sender against the group's `adminPubkeys` before applying and drops anything else. The UI gate alone would only bind honest clients.
-- **Personal override wins**: the per-device group photo from v1.6.0 sits above the shared one, resolved in a single place (`SharedGroupAvatarStore.resolvedImage`) so the group list and detail screen cannot disagree.
-- **Designated re-announce on join**: the admin with the lexicographically smallest pubkey re-broadcasts on membership change. Sorted key rather than list position, because list order is not guaranteed identical across clients — an index rule could duplicate the send or drop it entirely.
+- **Motion-adaptive backoff stuck at 4× while moving** (iOS): `MotionService` only re-evaluated the 30 s moving-debounce inside a `CMMotionActivityManager` callback, but that API is edge-triggered — during steady walking only the initial callback arrives, so `isStationary` never flipped back and the device kept publishing at the slowed (e.g. 1-hour) cadence. Debounce is now driven by a one-shot timer. Android was already timer-driven and unaffected.
 
-### v1.7.2 — Avatar UX & group rename fix ✅
-_Released 2026-07-20_
+### v1.4.0 — Manual Whistle ✅
+_Released 2026-06-12_
 
-- **Group rename reachable again** (iOS): the hero `PhotosPicker` in Group Details had no explicit frame, so inside a list row its hit region expanded past the circle and swallowed taps meant for the group name and rename pencil. Now a plain button with `.contentShape(Circle())`.
-- **Avatar tap opens a menu** (iOS & Android): Choose/Change Photo, Remove Photo when set, Cancel — replacing a jump straight into the library plus a cramped inline remove link (Settings) and a hidden long-press context menu (group details). Each menu states who sees the photo, since the group photo is device-local and the member photo is shared.
+- **Whistle button** (iOS & Android): circular broadcast-icon button that force-publishes location to every active group immediately, bypassing the update timer, motion-aware backoff, and stationary multiplier. One-shot override that fires even while paused (stays paused afterwards). Fresh fix with last-known fallback; icon swaps to spinner/checkmark/warning for feedback. Stamped `LocationPayload.interval` still reflects the normal cadence so receivers' staleness grading isn't skewed.
 
-### v1.7.1 — Member avatars ✅
-_Released 2026-07-19_
+### v1.4.1 — Bugfixes ✅
+_Released 2026-06-12_
 
-- **Member avatars** (iOS & Android): a photo set in Settings is shared with every group and shown on your map pin. Carried **inline** as base64 JPEG inside the MLS application message rather than as a blob reference — a family group is small and the image is tiny, so this stays fully end-to-end encrypted with no blob server, consistent with the project's no-servers position. Capped at 16 KB with quality stepped down to fit; an image that cannot fit is refused at pick time rather than published for a relay to silently drop. Empty payload = explicit removal. Wiped on identity burn.
-- **Initials fallback**: members with no photo get a coloured circle, the colour derived from their pubkey via FNV-1a so it is stable across launches and identical on both platforms.
-- **iOS SwiftUI render fixes** surfaced by on-device testing: photo picker reloading on a loop, display-name field re-rendering Settings per keystroke, avatar encoding blocking the main thread. All trace back to `AppViewModel.forwardChildChanges()` re-rendering every observer on any relay event.
-
-### v1.7.0 — Presence & identity ✅
-_First slice of the v1.7 presence work — released 2026-07-19_
-
-- **Stationary state shared cross-device** (iOS & Android): the Movement Aware stationary indicator (pin badge + "Currently stationary" in the member detail sheet) was computed from the local motion sensor and hard-gated to the own pin, so you could never see another member as stationary. `LocationPayload` now carries an optional `stationary` boolean. Deliberately tri-state — an omitted field means *unknown*, never `false`, so a pre-1.7 client (or one with Movement Aware off) shows no badge rather than being wrongly rendered as moving. Backward-compatible exactly as `interval` was in v1.2.1. Closes the item deferred from v1.4.1.
-- **Share Nearby / Join Nearby removed** (iOS): the MultipeerConnectivity peer-to-peer invite exchange is gone — QR scanning covers the same in-person handoff, and it was iOS-only with no Android equivalent. It was also the only join path that skipped explicit member approval. The local-network permission prompt no longer appears on first run.
-- **`build.sh` no longer discards uncommitted `project.yml` edits**: `restore_local_changes()` ran `git checkout -- project.yml`, silently reverting version bumps made before a build.
-
-_Still to come in v1.7: member avatars over MLS, avatar map pins, shared encrypted group avatar._
-
-### v1.6.0 — Group avatar ✅
-_Released 2026-06-29_
-
-- **Group avatar** (iOS & Android): tap the group icon in Group Details to pick a photo from the library. Shown in the group list row, local/per-device only. Long-press hero circle to remove.
+- **App update could wipe group membership** (iOS & Android): `MLSService` deleted and recreated the MLS database on *any* `newMdk` failure — intended for a pre-v0.9 unencrypted DB, but the catch-all also fired when a healthy *encrypted* DB failed to open transiently (e.g. Keychain/Keystore not yet readable on a background launch), silently destroying every group. The recreate path is now gated on a plaintext-SQLite header check; any other failure fails loudly without deleting so a later launch can recover.
+- **iOS device never went stationary until pause toggled** (iOS): `CMMotionActivityManager` is edge-triggered, so opening the app while already still produced no callback and `isStationary` stuck at false. `startMonitoring()` now seeds the initial state from recent motion history via `queryActivityStarting`. Complements the v1.3.1 fix for the inverse case.
+- **Map pins showed no staleness counter** (Android): OSM pins now carry a live relative-time counter matching iOS `MemberPinView` — others count up ("2 min ago"), own pin counts down ("in 30s").
 
 ### v1.5.0 — Group onboarding ✅
 _Released 2026-06-24_
@@ -415,29 +397,47 @@ _Released 2026-06-24_
 - **Group Details redesign** (iOS): cleaner layout with pending joiners surfaced at the top.
 - **`ChatViewModel` `@StateObject` fix** (iOS): was `@ObservedObject` in a parent that created it inline, causing SwiftUI to tear it down on every re-render.
 
-### v1.4.1 — Bugfixes ✅
-_Released 2026-06-12_
+### v1.6.0 — Group avatar ✅
+_Released 2026-06-29_
 
-- **App update could wipe group membership** (iOS & Android): `MLSService` deleted and recreated the MLS database on *any* `newMdk` failure — intended for a pre-v0.9 unencrypted DB, but the catch-all also fired when a healthy *encrypted* DB failed to open transiently (e.g. Keychain/Keystore not yet readable on a background launch), silently destroying every group. The recreate path is now gated on a plaintext-SQLite header check; any other failure fails loudly without deleting so a later launch can recover.
-- **iOS device never went stationary until pause toggled** (iOS): `CMMotionActivityManager` is edge-triggered, so opening the app while already still produced no callback and `isStationary` stuck at false. `startMonitoring()` now seeds the initial state from recent motion history via `queryActivityStarting`. Complements the v1.3.1 fix for the inverse case.
-- **Map pins showed no staleness counter** (Android): OSM pins now carry a live relative-time counter matching iOS `MemberPinView` — others count up ("2 min ago"), own pin counts down ("in 30s").
+- **Group avatar** (iOS & Android): tap the group icon in Group Details to pick a photo from the library. Shown in the group list row, local/per-device only. Long-press hero circle to remove.
 
-### v1.4.0 — Manual Whistle ✅
-_Released 2026-06-12_
+### v1.7.0 — Presence & identity ✅
+_First slice of the v1.7 presence work — released 2026-07-19_
 
-- **Whistle button** (iOS & Android): circular broadcast-icon button that force-publishes location to every active group immediately, bypassing the update timer, motion-aware backoff, and stationary multiplier. One-shot override that fires even while paused (stays paused afterwards). Fresh fix with last-known fallback; icon swaps to spinner/checkmark/warning for feedback. Stamped `LocationPayload.interval` still reflects the normal cadence so receivers' staleness grading isn't skewed.
+- **Stationary state shared cross-device** (iOS & Android): the Movement Aware stationary indicator (pin badge + "Currently stationary" in the member detail sheet) was computed from the local motion sensor and hard-gated to the own pin, so you could never see another member as stationary. `LocationPayload` now carries an optional `stationary` boolean. Deliberately tri-state — an omitted field means *unknown*, never `false`, so a pre-1.7 client (or one with Movement Aware off) shows no badge rather than being wrongly rendered as moving. Backward-compatible exactly as `interval` was in v1.2.1. Closes the item deferred from v1.4.1.
+- **Share Nearby / Join Nearby removed** (iOS): the MultipeerConnectivity peer-to-peer invite exchange is gone — QR scanning covers the same in-person handoff, and it was iOS-only with no Android equivalent. It was also the only join path that skipped explicit member approval. The local-network permission prompt no longer appears on first run.
+- **`build.sh` no longer discards uncommitted `project.yml` edits**: `restore_local_changes()` ran `git checkout -- project.yml`, silently reverting version bumps made before a build.
 
-### v1.3.1 — Motion backoff bugfix ✅
-_Released 2026-06-11_
+_Still to come in v1.7: member avatars over MLS, avatar map pins, shared encrypted group avatar._
 
-- **Motion-adaptive backoff stuck at 4× while moving** (iOS): `MotionService` only re-evaluated the 30 s moving-debounce inside a `CMMotionActivityManager` callback, but that API is edge-triggered — during steady walking only the initial callback arrives, so `isStationary` never flipped back and the device kept publishing at the slowed (e.g. 1-hour) cadence. Debounce is now driven by a one-shot timer. Android was already timer-driven and unaffected.
+### v1.7.1 — Member avatars ✅
+_Released 2026-07-19_
 
-### v1.3.0 — UX Polish ✅
-_Smoothing over rough edges surfaced during 1.2.x on-device testing — released 2026-06-10_
+- **Member avatars** (iOS & Android): a photo set in Settings is shared with every group and shown on your map pin. Carried **inline** as base64 JPEG inside the MLS application message rather than as a blob reference — a family group is small and the image is tiny, so this stays fully end-to-end encrypted with no blob server, consistent with the project's no-servers position. Capped at 16 KB with quality stepped down to fit; an image that cannot fit is refused at pick time rather than published for a relay to silently drop. Empty payload = explicit removal. Wiped on identity burn.
+- **Initials fallback**: members with no photo get a coloured circle, the colour derived from their pubkey via FNV-1a so it is stable across launches and identical on both platforms.
+- **iOS SwiftUI render fixes** surfaced by on-device testing: photo picker reloading on a loop, display-name field re-rendering Settings per keystroke, avatar encoding blocking the main thread. All trace back to `AppViewModel.forwardChildChanges()` re-rendering every observer on any relay event.
 
-- **Member detail sheet** (iOS & Android): tapping a member's map pin opens a bottom sheet with nickname, "last seen Xs ago" (anchored on local `receivedAt`), and the publisher's update cadence (e.g. "every 10 sec" / "every 1 hour"). Surfaces the `LocationPayload.interval` field added in 1.2.1 without crowding the map. Own pin also shows "Currently stationary" while Movement Aware is active.
-- **Tappable group chat header** (iOS & Android): tapping the group title or the member-list strip in the chat view now opens the group detail (invite codes, member management). The small info icon to the right stays as a secondary affordance.
-- **Debounce stationary→moving on Android**: `MotionService` now requires 30 s of confirmed non-stationary activity before flipping the multiplier back from 4× to 1×, mirroring the iOS `movingDebounceSeconds` (which already debounced this direction). A spurious `EXIT_STILL` — phone bumped on a desk, indoor motion noise — no longer immediately cancels the battery-saving backoff. iOS was already correct; no iOS change in this release.
+### v1.7.2 — Avatar UX & group rename fix ✅
+_Released 2026-07-20_
+
+- **Group rename reachable again** (iOS): the hero `PhotosPicker` in Group Details had no explicit frame, so inside a list row its hit region expanded past the circle and swallowed taps meant for the group name and rename pencil. Now a plain button with `.contentShape(Circle())`.
+- **Avatar tap opens a menu** (iOS & Android): Choose/Change Photo, Remove Photo when set, Cancel — replacing a jump straight into the library plus a cramped inline remove link (Settings) and a hidden long-press context menu (group details). Each menu states who sees the photo, since the group photo is device-local and the member photo is shared.
+
+### v1.7.3 — Shared group photo ✅
+_Released 2026-07-20_
+
+- **Shared group photo** (iOS & Android): admin-set, seen by every member. Carried inline as base64 JPEG inside the MLS application message, reusing the member-avatar encoder and 16 KB ceiling — no blob storage, consistent with the no-servers position.
+- **Admin-only enforced on receive**: MLS guarantees the sender is a member, not an admin, so each client checks the sender against the group's `adminPubkeys` before applying and drops anything else. The UI gate alone would only bind honest clients.
+- **Personal override wins**: the per-device group photo from v1.6.0 sits above the shared one, resolved in a single place (`SharedGroupAvatarStore.resolvedImage`) so the group list and detail screen cannot disagree.
+- **Designated re-announce on join**: the admin with the lexicographically smallest pubkey re-broadcasts on membership change. Sorted key rather than list position, because list order is not guaranteed identical across clients — an index rule could duplicate the send or drop it entirely.
+
+### v1.8.0 — Share Diagnostics ✅
+_Released 2026-07-20_
+
+- **Share Diagnostics** (iOS & Android): Advanced Settings → Share Diagnostics exports a deterministic, redacted JSON snapshot of app/build/OS, pinned MDK revision, and per-group epoch/member/admin/health state — built to be diffed so two members' reports reveal a fork as a single differing `epoch` line. Safe to share in public (no messages, locations, or names; identifiers truncated), enforced by a build-guard test.
+- **(Android) Diagnostics screen back button**: the screen now has a `TopAppBar` with a back arrow, matching the other settings screens (it previously relied solely on the system Back gesture).
+- **(iOS & Android) Burn Identity warning corrected**: the confirmation no longer claims burning "leaves all groups" — it deletes local state only and strands a leaf other members keep encrypting to. The zombie-member cleanup (sole-admin handling, leave-before-burn) is roadmapped under Deferred.
 
 ---
 

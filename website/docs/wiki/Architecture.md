@@ -33,14 +33,14 @@ android/app/              ← Android app (Kotlin / Jetpack Compose)
 - `MotionService`: Movement Aware (v1.1.4+) — detects stationary periods and signals `LocationService` to back off 4× while still
 - `BatteryAlertService`: Low Battery Alerts (v1.2.0) — monitors device battery and triggers a tagged location publish + local notification when a configurable threshold is crossed
 - `LocationCache`: in-memory latest-location-per-member, keyed `groupId:pubkeyHex`
-- `NearbyShareCoordinator` (iOS): phone-to-phone invite handoff via MultipeerConnectivity
+- `DiagnosticsCollector` (v1.8): assembles a redacted, deterministic `DiagnosticsReport` from live app state for the Share Diagnostics feature (relay/group/epoch health, no location or key material)
 - `GroupListViewModel`, `GroupDetailViewModel`, `ChatViewModel`: UI-facing state and actions
 
 ## Shared Core (WhistleCore)
 
 Cross-cutting protocol constants and models extracted into a Swift package so both the app target and test target can import them:
 
-- `MarmotKind` — Nostr event kind constants (443, 444, 445, 1059, 10051) and inner message kinds (chat, location, leaveRequest)
+- `MarmotKind` — Nostr event kind constants (30443, 444, 445, 1059, 10051, and the Whistle-specific 1080 join-request) and inner message kinds (chat, location, leaveRequest)
 - `AppDefaults` — default relays, intervals, preference keys
 - Shared model types used across services and views
 
@@ -75,8 +75,18 @@ When subscribed to multiple relays, the same event may arrive multiple times. De
 - `PendingInviteStore`: pending joins before Welcome is accepted
 - `PendingLeaveStore`: pending leave requests awaiting admin confirmation
 - `PendingWelcomeStore`: unsolicited Welcomes awaiting user consent
+- `JoinRequestStore`: pending `kind:1080` join-requests, keyed by group, awaiting the admin's batch-add (see [Join and Invite Flow](Join-and-Invite-Flow.md))
 - `NicknameStore`: pubkey-to-display-name mapping
+- `MemberAvatarStore`: member profile photos keyed by pubkey — your own is broadcast to each group as an `AvatarPayload` inside an MLS message, and other members' arrive the same way
+- `SharedGroupAvatarStore`: a group's shared photo, admin-set and broadcast to every member (v1.7.3) as a `GroupAvatarPayload` over MLS
+- `LocalGroupAvatarStore`: purely personal, per-device group picture — never shared or synced; when both exist the local one wins over the shared photo
 - `LocationCache`: latest location by group/member
+
+### Shipped feature notes
+
+- **Member avatars** and the **shared group photo** (v1.7.3) ride inline over MLS as application-message payloads (`AvatarPayload` / `GroupAvatarPayload`), so images never touch a relay in the clear.
+- **Presence / stationary sharing** — the `LocationPayload` carries an optional `stationary` flag (v1.7.0, Movement Aware state) and an optional `interval` (v1.2.1, the publisher's own cadence) alongside the position; receivers use them for staleness and presence.
+- **Share Diagnostics** (v1.8) — `DiagnosticsCollector` produces a redacted `DiagnosticsReport` the user can export to help debug relay/sync issues without leaking location or key material.
 
 ## Event Kinds (Marmot)
 
@@ -85,7 +95,8 @@ When subscribed to multiple relays, the same event may arrive multiple times. De
 | `30443` | KeyPackage | MLS credential advertisement — published per-device so others can add them to groups. Addressable event (latest supersedes previous). Was `443` before MDK 0.8.0 / Whistle v1.1.3. |
 | `444` | Welcome | MLS group invitation — always delivered inside a kind-1059 gift wrap |
 | `445` | Group Event | All in-group traffic: MLS commits, proposals, and application messages (chat, location, nicknames, leave requests) |
-| `1059` | Gift Wrap | NIP-59 metadata-hiding envelope — used to deliver Welcomes without leaking sender/recipient |
+| `1059` | Gift Wrap | NIP-59 metadata-hiding envelope — used to deliver Welcomes and join-requests without leaking sender/recipient |
+| `1080` | Join Request | Whistle-specific gift-wrapped rumor an invitee sends the inviter, carrying their KeyPackage inline so the admin can batch-add joiners in one commit with no relay fetch. Only seen after unwrapping the kind-1059 gift wrap, so it never reaches relays in the clear. |
 | `10051` | KeyPackage Relay List | Hints for which relays hold a user's KeyPackage |
 
 ## Encryption Architecture: NIP-44 + NIP-59 + MLS
@@ -190,11 +201,14 @@ A Welcome is a 1:1 message from admin to invitee. Without gift wrapping, the rel
 
 ### Welcome Delivery Flow (Full Path)
 
+In the current (v1.7+) flow the admin gets the invitee's KeyPackage **inline** from the gift-wrapped `kind:1080` join-request, so step 1 is normally a local read with no relay round-trip; the `kind:30443` relay fetch remains only as a manual fallback. Several joiners are added in a single commit — see [Join and Invite Flow](Join-and-Invite-Flow.md).
+
 ```
 Admin's device                            Relay                         Invitee's device
 ─────────────────                         ─────                         ──────────────────
-1. fetchKeyPackage(invitee)          →    kind 443 query
-                                     ←    invitee's KeyPackage
+1. KeyPackage from join-request      ←    kind-1080 rumor (inline, primary)
+   (fallback: fetchKeyPackage         →    kind 30443 query
+                                       ←    invitee's KeyPackage)
 2. mls.addMembers(keyPackage)
    → MLS Welcome + Commit
 3. publish kind-445 commit           →    stored
