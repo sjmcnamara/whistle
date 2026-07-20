@@ -13,8 +13,8 @@ android {
         applicationId = "org.findmyfam"
         minSdk = 26
         targetSdk = 34
-        versionCode = 41
-        versionName = "1.7.3"
+        versionCode = 42
+        versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

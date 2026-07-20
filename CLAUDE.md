@@ -113,4 +113,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.7.3 — shared group photo (admin-set, inline over MLS)** (feature). See ROADMAP.md for next steps.
+Current version: **v1.8.0 — Share Diagnostics (deterministic, shareable, redacted report)** (feature). See ROADMAP.md for next steps.
