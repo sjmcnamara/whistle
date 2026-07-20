@@ -58,6 +58,15 @@ struct AvatarPickerRow: View, Equatable {
         // valid builder statement, so the lint rule does not apply here.
         // swiftlint:disable:next redundant_discardable_let
         let _ = Self._printChanges()
+        // Dump the actual inputs so we can see *which* one differs when
+        // `@self changed` fires — the three fields `==` compares.
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = print("""
+            AvatarPickerRow inputs: \
+            pubkey=\(pubkeyHex.prefix(8)) \
+            name='\(displayName)' \
+            image=\(image.map { ObjectIdentifier($0).debugDescription } ?? "nil")
+            """)
         #endif
         HStack {
             Label("Photo", systemImage: "person.crop.square")
