@@ -436,6 +436,29 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
 
 ### Deferred
 
+- **Burn Identity leaves zombie members in every group** _(correctness + safety, iOS & Android)_: burning destroys local state only — `mls.resetDatabase()` zero-fills `whistle.db`, taking the ratchet tree, epoch secrets, and the device's leaf private keys with it. It sends no leave request and no removal proposal, so **every other member still has that leaf in their tree and keeps encrypting to it**. The burned user cannot decrypt anything, cannot rejoin, and cannot be recovered by re-importing the same nsec: MLS membership is key material in that database, not a property of the Nostr key.
+
+    Three things to fix, in order of severity:
+
+    1. ~~**The confirmation text is factually wrong.**~~ ✅ Fixed — both platforms now state that burning does not remove you from your groups, that other members will still see you, and that you cannot rejoin unless another admin re-adds you.
+    2. **The sole-admin case is unrecoverable for everyone else — present it as a choice, not a block.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member.
+
+        A hard block was considered and rejected: someone burning a compromised key must not be trapped. The honest framing is **"promote someone else first, or end this group now"** — name the groups where the user is the only admin, offer to promote a member, and require an explicit acknowledgement that those groups are finished if they proceed. Detection is cheap (`adminPubkeys.count == 1 && adminPubkeys.first == myPubkey` across active groups).
+
+        **Promotion is already safe to rely on here.** `MarmotService.promoteToAdmin` appends to `adminPubkeys` via an `updateGroupData` commit — unilateral, the promoted member accepts nothing — and calls `publishAndVerifyCommits` before returning. So a successful promote means the commit is *on the relay*, and the new admin will pick it up whenever they next sync, even if they are offline at the moment of the burn. The promotion is durable before local state is destroyed.
+
+        **The failure case is the one to design for.** If `promoteToAdmin` throws (relay unreachable, commit unverified), the promotion did not land and burning at that moment does freeze the group — and that is precisely when someone with a compromised key is in a hurry. So this must not be a single atomic "promote and burn" action:
+
+        - promote succeeded → burn freely; removing the stale leaf is routine admin work for the new admin
+        - promote failed → say plainly that it did not reach the relay and that burning now ends the group, then **still allow the burn**
+
+        Never block. A compromised key is a worse problem than a frozen family group, and the person holding the key is the one best placed to weigh that.
+
+        Post-burn cleanup needs nothing new: the new admin removes the dead leaf with the existing remove-member action (relay-verified since v1.6.4), and if the burned user re-imports, their app publishes a fresh KeyPackage on launch so they can be re-added by npub.
+    3. **Offer leave-before-burn.** The correct sequence is to send leave requests, let admins process the removals, then burn. Nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible.
+
+    Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
+
 - **Submit Whistle to `awesome-marmot`** _(visibility, low effort)_: [marmot-protocol/awesome-marmot](https://github.com/marmot-protocol/awesome-marmot) is the curated list of Marmot apps and libraries. Whistle belongs under **Applications**, alongside [Haven](https://github.com/mehmetefeumit/Haven-App) (location sharing) and [tubestr-v2](https://github.com/Tubestr/tubestr-v2) (family video sharing). Worth doing once the MLS dependency question below is settled, so the entry describes a project on a supported footing rather than one pinned to a superseded binding.
 
 - **MLS dependency strategy** _(open question, blocks nothing yet)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.

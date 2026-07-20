@@ -13,7 +13,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - **(Android) Diagnostics screen had no visible way back.** The Share Diagnostics screen was the only settings screen with no toolbar — every sibling wraps its content in a `Scaffold`/`TopAppBar` with a back arrow, but this one rendered a bare `Column`, so it relied entirely on the system Back gesture. On a device using gesture navigation with no on-screen Back button it looked stuck. It now has a "Diagnostics" top app bar with a back arrow, matching the rest of Settings. (iOS was unaffected — its `DiagnosticsView` is pushed in a `NavigationStack` and gets the system back button automatically.)
-
+- **(iOS & Android) Burn Identity no longer claims it leaves your groups.** The confirmation said burning would "leave all groups", which is not what happens: it deletes local state only — no leave request, no removal proposal — so every other member keeps you in their group and keeps encrypting to a key you no longer hold. The warning now says so plainly, including that you cannot rejoin unless another admin re-adds you. (MLS membership is key material in the local database, not a property of your Nostr key, so re-importing the same nsec does not bring your groups back.)
 ## [1.7.3] — 2026-07-20
 
 ### Added

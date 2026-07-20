@@ -25,7 +25,7 @@ struct AdvancedSettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will permanently destroy your current identity, leave all groups, and erase all messages. A new identity will be generated. This cannot be undone.")
+            Text("This permanently destroys your identity and erases every group and message on this device. It does not remove you from your groups — other members will still see you, and you won't be able to rejoin unless another admin re-adds you. This cannot be undone.")
         }
     }
 
