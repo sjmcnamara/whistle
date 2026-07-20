@@ -364,6 +364,13 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.8.0 — Share Diagnostics ✅
+_Released 2026-07-20_
+
+- **Share Diagnostics** (iOS & Android): Advanced Settings → Share Diagnostics exports a deterministic, redacted JSON snapshot of app/build/OS, pinned MDK revision, and per-group epoch/member/admin/health state — built to be diffed so two members' reports reveal a fork as a single differing `epoch` line. Safe to share in public (no messages, locations, or names; identifiers truncated), enforced by a build-guard test.
+- **(Android) Diagnostics screen back button**: the screen now has a `TopAppBar` with a back arrow, matching the other settings screens (it previously relied solely on the system Back gesture).
+- **(iOS & Android) Burn Identity warning corrected**: the confirmation no longer claims burning "leaves all groups" — it deletes local state only and strands a leaf other members keep encrypting to. The zombie-member cleanup (sole-admin handling, leave-before-burn) is roadmapped under Deferred.
+
 ### v1.7.3 — Shared group photo ✅
 _Released 2026-07-20_
 
