@@ -236,9 +236,9 @@ fun GroupDetailScreen(
                         ) {
                             Text(
                                 if (viewModel.isAdmin)
-                                    "A group photo is sent to everyone in the group. Your own photo never leaves this device, and takes precedence over the group's."
+                                    "Group photo: sent to everyone. Your own photo: this device only, and takes precedence."
                                 else
-                                    "Your own photo never leaves this device, and takes precedence over the group's.",
+                                    "Your own photo stays on this device and takes precedence over the group's.",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

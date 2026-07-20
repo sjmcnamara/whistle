@@ -169,9 +169,13 @@ struct GroupDetailView: View {
                     }
                     Button("Cancel", role: .cancel) { }
                 } message: {
+                    // Kept short: confirmationDialog is a system action sheet
+                    // whose width is not ours to control, so long copy wraps
+                    // into a cramped block. The full explanation lives in the
+                    // failure alert, which is where it actually matters.
                     Text(viewModel.isAdmin
-                         ? "A group photo is sent to everyone in the group. Your own photo never leaves this device, and takes precedence over the group's."
-                         : "Your own photo never leaves this device, and takes precedence over the group's.")
+                         ? "Group photo: sent to everyone. Your own photo: this device only, and takes precedence."
+                         : "Your own photo stays on this device and takes precedence over the group's.")
                 }
                 .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in
