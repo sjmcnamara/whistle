@@ -144,7 +144,7 @@ struct GroupDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Group photo")
-                .confirmationDialog("Group Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
+                .confirmationDialog("Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
                     if viewModel.isAdmin {
                         Button(sharedAvatars.hasImage(for: viewModel.groupId)
                                ? "Change Group Photo" : "Set Group Photo") {
@@ -174,8 +174,8 @@ struct GroupDetailView: View {
                     // into a cramped block. The full explanation lives in the
                     // failure alert, which is where it actually matters.
                     Text(viewModel.isAdmin
-                         ? "Group photo: sent to everyone. Personal photo: only on this device."
-                         : "A personal photo is only on this device, and takes precedence over the group's.")
+                         ? "The group photo is sent to everyone. A personal photo replaces the group's image on this device only."
+                         : "A personal photo replaces the group's image on this device only.")
                 }
                 .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in

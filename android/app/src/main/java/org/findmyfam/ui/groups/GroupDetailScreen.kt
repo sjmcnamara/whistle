@@ -236,9 +236,9 @@ fun GroupDetailScreen(
                         ) {
                             Text(
                                 if (viewModel.isAdmin)
-                                    "Group photo: sent to everyone. Personal photo: only on this device."
+                                    "The group photo is sent to everyone. A personal photo replaces the group's image on this device only."
                                 else
-                                    "A personal photo is only on this device, and takes precedence over the group's.",
+                                    "A personal photo replaces the group's image on this device only.",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
