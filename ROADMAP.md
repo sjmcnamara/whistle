@@ -422,6 +422,14 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
 
 ### Deferred
 
+- **Submit Whistle to `awesome-marmot`** _(visibility, low effort)_: [marmot-protocol/awesome-marmot](https://github.com/marmot-protocol/awesome-marmot) is the curated list of Marmot apps and libraries. Whistle belongs under **Applications**, alongside [Haven](https://github.com/mehmetefeumit/Haven-App) (location sharing) and [tubestr-v2](https://github.com/Tubestr/tubestr-v2) (family video sharing). Worth doing once the MLS dependency question below is settled, so the entry describes a project on a supported footing rather than one pinned to a superseded binding.
+
+- **MLS dependency strategy** _(open question, blocks nothing yet)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
+
+    The capability still exists — [Haven](https://github.com/mehmetefeumit/Haven-App) consumes exactly those five `cgka-*`/storage/transport crates from v0.9.4 and its CI forbids the `marmot-uniffi`/`marmot-app`/`marmot-account` layers as duplicating its own FFI and identity planes. What no longer exists is a *pre-generated low-level uniffi binding*, which is precisely what Whistle consumes.
+
+    So the options are: stay pinned at 0.8.0 (works today, no upstream security fixes); or follow Haven's shape with a thin Rust core over the `cgka-*` crates exposing our own bindings (real work, but unlocks the convergence engine that targets the v1.6.x fork bugs). Adopting MarmotKit wholesale is a rewrite of the Services layer onto an architecture that owns accounts and transport — incompatible with Whistle driving its own relays and payload schemas.
+
 - **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
     - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
     - **NFC tag read/write** (`NFCReadCoordinator` / `NFCWriteCoordinator`) — tap-to-join via NFC stickers. **Candidate to drop** rather than port — niche use, low demand.
