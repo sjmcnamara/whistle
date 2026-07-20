@@ -441,7 +441,9 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
     Three things to fix, in order of severity:
 
     1. ~~**The confirmation text is factually wrong.**~~ ✅ Fixed — both platforms now state that burning does not remove you from your groups, that other members will still see you, and that you cannot rejoin unless another admin re-adds you.
-    2. **The sole-admin case is unrecoverable for everyone else.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member. This warrants a hard block, not a warning: the person pressing the button is not the one who suffers.
+    2. **The sole-admin case is unrecoverable for everyone else — present it as a choice, not a block.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member.
+
+        A hard block was considered and rejected: someone burning a compromised key must not be trapped. The honest framing is **"promote someone else first, or end this group now"** — name the groups where the user is the only admin, offer to promote a member, and require an explicit acknowledgement that those groups are finished if they proceed. Detection is cheap (`adminPubkeys.count == 1 && adminPubkeys.first == myPubkey` across active groups); the work is the promote-then-burn flow and wording that makes the consequence land without being obstructive.
     3. **Offer leave-before-burn.** The correct sequence is to send leave requests, let admins process the removals, then burn. Nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible.
 
     Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
