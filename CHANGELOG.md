@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.7.3] — 2026-07-20
+
+### Added
+- **Shared group photo** (iOS & Android): an admin can set a photo for a group and every member sees it. Like member avatars it travels **inline** — base64 JPEG inside the MLS application message, end-to-end encrypted, no blob server — and shares the same 16 KB ceiling and encoder.
+
+    **Admin-only is enforced on receive, not just in the UI.** MLS guarantees a message came from a group *member*, not from an admin, so every client independently checks the sender against the group's admin list before applying a group photo and drops anything from a non-admin. Hiding the button would stop honest clients only. (Marmot's own group-image component lives in group state and is changed by a commit, where admin policy is enforced at the protocol layer — but that design presumes Blossom blob storage, which this project deliberately does without. Inline trades protocol-level enforcement for app-layer enforcement and no servers.)
+
+    **Your own photo takes precedence.** The per-device group photo from v1.6.0 still works and now sits above the shared one, so a member who picked their own picture keeps it when an admin changes the group's. The Group Details menu now separates the two: admins get Set/Change/Remove Group Photo, everyone gets Set/Change/Remove My Photo.
+
+    **New members get the photo without waiting.** When membership changes, one admin re-announces it — the one with the lexicographically smallest public key. Every admin sees the same join, so without a rule a three-admin group would send three copies of the image; picking by sorted key rather than list position means every device independently agrees on the same sender.
+
 ## [1.7.2] — 2026-07-20
 
 ### Fixed

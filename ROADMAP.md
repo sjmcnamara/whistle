@@ -364,6 +364,14 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.7.3 — Shared group photo ✅
+_Released 2026-07-20_
+
+- **Shared group photo** (iOS & Android): admin-set, seen by every member. Carried inline as base64 JPEG inside the MLS application message, reusing the member-avatar encoder and 16 KB ceiling — no blob storage, consistent with the no-servers position.
+- **Admin-only enforced on receive**: MLS guarantees the sender is a member, not an admin, so each client checks the sender against the group's `adminPubkeys` before applying and drops anything else. The UI gate alone would only bind honest clients.
+- **Personal override wins**: the per-device group photo from v1.6.0 sits above the shared one, resolved in a single place (`SharedGroupAvatarStore.resolvedImage`) so the group list and detail screen cannot disagree.
+- **Designated re-announce on join**: the admin with the lexicographically smallest pubkey re-broadcasts on membership change. Sorted key rather than list position, because list order is not guaranteed identical across clients — an index rule could duplicate the send or drop it entirely.
+
 ### v1.7.2 — Avatar UX & group rename fix ✅
 _Released 2026-07-20_
 
@@ -514,6 +522,7 @@ master
   └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
   └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
   └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
+  └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
 ```
 
 ---
