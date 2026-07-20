@@ -436,6 +436,16 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
 
 ### Deferred
 
+- **Burn Identity leaves zombie members in every group** _(correctness + safety, iOS & Android)_: burning destroys local state only — `mls.resetDatabase()` zero-fills `whistle.db`, taking the ratchet tree, epoch secrets, and the device's leaf private keys with it. It sends no leave request and no removal proposal, so **every other member still has that leaf in their tree and keeps encrypting to it**. The burned user cannot decrypt anything, cannot rejoin, and cannot be recovered by re-importing the same nsec: MLS membership is key material in that database, not a property of the Nostr key.
+
+    Three things to fix, in order of severity:
+
+    1. **The confirmation text is factually wrong.** Both platforms say burning will "leave all groups". It does not. A user reads that as a clean exit at the moment they are stranding a permanent dead leaf in every group. This is a one-line copy fix and should not wait for the rest.
+    2. **The sole-admin case is unrecoverable for everyone else.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member. This warrants a hard block, not a warning: the person pressing the button is not the one who suffers.
+    3. **Offer leave-before-burn.** The correct sequence is to send leave requests, let admins process the removals, then burn. Nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible.
+
+    Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
+
 - **Submit Whistle to `awesome-marmot`** _(visibility, low effort)_: [marmot-protocol/awesome-marmot](https://github.com/marmot-protocol/awesome-marmot) is the curated list of Marmot apps and libraries. Whistle belongs under **Applications**, alongside [Haven](https://github.com/mehmetefeumit/Haven-App) (location sharing) and [tubestr-v2](https://github.com/Tubestr/tubestr-v2) (family video sharing). Worth doing once the MLS dependency question below is settled, so the entry describes a project on a supported footing rather than one pinned to a superseded binding.
 
 - **MLS dependency strategy** _(open question, blocks nothing yet)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
