@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **(iOS & Android) Burn Identity no longer claims it leaves your groups.** The confirmation said burning would "leave all groups", which is not what happens: it deletes local state only — no leave request, no removal proposal — so every other member keeps you in their group and keeps encrypting to a key you no longer hold. The warning now says so plainly, including that you cannot rejoin unless another admin re-adds you. (MLS membership is key material in the local database, not a property of your Nostr key, so re-importing the same nsec does not bring your groups back.)
+
 ## [1.7.3] — 2026-07-20
 
 ### Added

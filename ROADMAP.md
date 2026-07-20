@@ -440,7 +440,7 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
 
     Three things to fix, in order of severity:
 
-    1. **The confirmation text is factually wrong.** Both platforms say burning will "leave all groups". It does not. A user reads that as a clean exit at the moment they are stranding a permanent dead leaf in every group. This is a one-line copy fix and should not wait for the rest.
+    1. ~~**The confirmation text is factually wrong.**~~ ✅ Fixed — both platforms now state that burning does not remove you from your groups, that other members will still see you, and that you cannot rejoin unless another admin re-adds you.
     2. **The sole-admin case is unrecoverable for everyone else.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member. This warrants a hard block, not a warning: the person pressing the button is not the one who suffers.
     3. **Offer leave-before-burn.** The correct sequence is to send leave requests, let admins process the removals, then burn. Nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible.
 
