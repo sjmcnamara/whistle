@@ -8,6 +8,14 @@ struct SettingsView: View {
     @EnvironmentObject private var memberAvatars: MemberAvatarStore
     @Environment(\.openURL) private var openURL
 
+    #if DEBUG
+    /// Temporary: survives an *update* but is regenerated if SwiftUI replaces
+    /// this view outright. A changing value in the log means the whole subtree
+    /// — including any presented picker — is being torn down and rebuilt, which
+    /// no amount of child-level diffing can prevent.
+    @State private var lifetimeID = UUID().uuidString.prefix(8)
+    #endif
+
     var body: some View {
         #if DEBUG
         // Temporary: part of the picker re-render investigation.
@@ -15,6 +23,8 @@ struct SettingsView: View {
         // valid builder statement, so the lint rule does not apply here.
         // swiftlint:disable:next redundant_discardable_let
         let _ = Self._printChanges()
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = print("SettingsView lifetime: \(lifetimeID)")
         #endif
         NavigationStack {
             List {

@@ -4,6 +4,11 @@ struct RootView: View {
     @EnvironmentObject var appViewModel: AppViewModel
 
     var body: some View {
+        #if DEBUG
+        // Temporary: part of the picker re-render investigation.
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = Self._printChanges()
+        #endif
         TabView {
             chatTab
                 .tabItem {
