@@ -364,6 +364,12 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.7.2 — Avatar UX & group rename fix ✅
+_Released 2026-07-20_
+
+- **Group rename reachable again** (iOS): the hero `PhotosPicker` in Group Details had no explicit frame, so inside a list row its hit region expanded past the circle and swallowed taps meant for the group name and rename pencil. Now a plain button with `.contentShape(Circle())`.
+- **Avatar tap opens a menu** (iOS & Android): Choose/Change Photo, Remove Photo when set, Cancel — replacing a jump straight into the library plus a cramped inline remove link (Settings) and a hidden long-press context menu (group details). Each menu states who sees the photo, since the group photo is device-local and the member photo is shared.
+
 ### v1.7.1 — Member avatars ✅
 _Released 2026-07-19_
 
@@ -421,6 +427,14 @@ _Smoothing over rough edges surfaced during 1.2.x on-device testing — released
 ---
 
 ### Deferred
+
+- **Submit Whistle to `awesome-marmot`** _(visibility, low effort)_: [marmot-protocol/awesome-marmot](https://github.com/marmot-protocol/awesome-marmot) is the curated list of Marmot apps and libraries. Whistle belongs under **Applications**, alongside [Haven](https://github.com/mehmetefeumit/Haven-App) (location sharing) and [tubestr-v2](https://github.com/Tubestr/tubestr-v2) (family video sharing). Worth doing once the MLS dependency question below is settled, so the entry describes a project on a supported footing rather than one pinned to a superseded binding.
+
+- **MLS dependency strategy** _(open question, blocks nothing yet)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
+
+    The capability still exists — [Haven](https://github.com/mehmetefeumit/Haven-App) consumes exactly those five `cgka-*`/storage/transport crates from v0.9.4 and its CI forbids the `marmot-uniffi`/`marmot-app`/`marmot-account` layers as duplicating its own FFI and identity planes. What no longer exists is a *pre-generated low-level uniffi binding*, which is precisely what Whistle consumes.
+
+    So the options are: stay pinned at 0.8.0 (works today, no upstream security fixes); or follow Haven's shape with a thin Rust core over the `cgka-*` crates exposing our own bindings (real work, but unlocks the convergence engine that targets the v1.6.x fork bugs). Adopting MarmotKit wholesale is a rewrite of the Services layer onto an architecture that owns accounts and transport — incompatible with Whistle driving its own relays and payload schemas.
 
 - **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
     - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
@@ -499,6 +513,7 @@ master
   └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
   └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
   └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
+  └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
 ```
 
 ---

@@ -46,6 +46,8 @@ struct AvatarPickerRow: View, Equatable {
 
     @State private var item: PhotosPickerItem?
     @State private var showTooLargeAlert = false
+    @State private var showOptions = false
+    @State private var showPicker = false
 
     var body: some View {
         HStack {
@@ -54,25 +56,35 @@ struct AvatarPickerRow: View, Equatable {
                 .layoutPriority(1)
             Spacer()
 
-            if image != nil {
-                Button(role: .destructive) {
-                    Task { await onRemove() }
-                } label: {
-                    Text("Remove").font(.caption)
-                }
-                .buttonStyle(.borderless)
-            }
-
-            PhotosPicker(selection: $item, matching: .images) {
+            // Tapping the image opens a menu rather than jumping straight into
+            // the library. Removal used to be a separate inline link — small,
+            // easy to mis-tap, and visually noisy next to the thumbnail.
+            Button {
+                showOptions = true
+            } label: {
                 MemberAvatarThumb(
                     pubkeyHex: pubkeyHex,
                     displayName: displayName,
                     image: image,
                     diameter: 36
                 )
+                .contentShape(Circle())
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Your photo")
         }
+        .confirmationDialog("Your Photo", isPresented: $showOptions, titleVisibility: .visible) {
+            Button(image == nil ? "Choose Photo" : "Change Photo") { showPicker = true }
+            if image != nil {
+                Button("Remove Photo", role: .destructive) {
+                    Task { await onRemove() }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Shared with everyone in your groups.")
+        }
+        .photosPicker(isPresented: $showPicker, selection: $item, matching: .images)
         .onChange(of: item) { (_, newItem) in
             guard let newItem else { return }
             Task {
