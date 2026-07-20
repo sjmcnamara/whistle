@@ -101,7 +101,7 @@ fun GroupDetailScreen(
                         AppViewModel.GroupAvatarUpdate.NOT_ADMIN ->
                             "Only a group admin can set the group photo."
                         AppViewModel.GroupAvatarUpdate.COULD_NOT_ENCODE ->
-                            "Group photos are sent to everyone in the group, so they have to be small. This one couldn't be shrunk enough — try a different image. (Your own photo has no limit, because it never leaves this device.)"
+                            "Group photos are sent to everyone, so they have to be small. This one couldn't be shrunk enough — try another image."
                     }
                 }
             } else {
@@ -236,9 +236,9 @@ fun GroupDetailScreen(
                         ) {
                             Text(
                                 if (viewModel.isAdmin)
-                                    "Group photo: sent to everyone. Your own photo: this device only, and takes precedence."
+                                    "Group photo: sent to everyone. Personal photo: only on this device."
                                 else
-                                    "Your own photo stays on this device and takes precedence over the group's.",
+                                    "A personal photo is only on this device, and takes precedence over the group's.",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -269,7 +269,7 @@ fun GroupDetailScreen(
                                 }
                             }
                             DropdownMenuItem(
-                                text = { Text(if (hasLocalPhoto) "Change My Photo" else "Set My Own Photo") },
+                                text = { Text(if (hasLocalPhoto) "Change Personal Photo" else "Set Personal Photo") },
                                 leadingIcon = { Icon(Icons.Default.AddAPhoto, contentDescription = null) },
                                 onClick = {
                                     showAvatarMenu = false
@@ -281,7 +281,7 @@ fun GroupDetailScreen(
                             )
                             if (hasLocalPhoto) {
                                 DropdownMenuItem(
-                                    text = { Text("Remove My Photo") },
+                                    text = { Text("Remove Personal Photo") },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                                     onClick = {
                                         showAvatarMenu = false

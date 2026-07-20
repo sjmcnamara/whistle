@@ -281,7 +281,7 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                         scope.launch {
                             if (!viewModel.setOwnAvatar(uri)) {
                                 avatarError =
-                                    "Your photo is sent to everyone in your groups, so it has to be small. This one couldn't be shrunk enough — try a different image."
+                                    "Your photo is sent to everyone in your groups, so it has to be small. This one couldn't be shrunk enough — try another image."
                             }
                         }
                     },

@@ -158,12 +158,12 @@ struct GroupDetailView: View {
                         }
                     }
                     Button(avatars.hasImage(for: viewModel.groupId)
-                           ? "Change My Photo" : "Set My Own Photo") {
+                           ? "Change Personal Photo" : "Set Personal Photo") {
                         pickingForGroup = false
                         showAvatarPicker = true
                     }
                     if avatars.hasImage(for: viewModel.groupId) {
-                        Button("Remove My Photo", role: .destructive) {
+                        Button("Remove Personal Photo", role: .destructive) {
                             avatars.removeImage(for: viewModel.groupId)
                         }
                     }
@@ -174,8 +174,8 @@ struct GroupDetailView: View {
                     // into a cramped block. The full explanation lives in the
                     // failure alert, which is where it actually matters.
                     Text(viewModel.isAdmin
-                         ? "Group photo: sent to everyone. Your own photo: this device only, and takes precedence."
-                         : "Your own photo stays on this device and takes precedence over the group's.")
+                         ? "Group photo: sent to everyone. Personal photo: only on this device."
+                         : "A personal photo is only on this device, and takes precedence over the group's.")
                 }
                 .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in
@@ -191,7 +191,7 @@ struct GroupDetailView: View {
                                 case .notAdmin:
                                     groupPhotoError = "Only a group admin can set the group photo."
                                 case .couldNotEncode:
-                                    groupPhotoError = "Group photos are sent to everyone in the group, so they have to be small. This one couldn't be shrunk enough — try a different image. (Your own photo has no limit, because it never leaves this device.)"
+                                    groupPhotoError = "Group photos are sent to everyone, so they have to be small. This one couldn't be shrunk enough — try another image."
                                 }
                             } else {
                                 avatars.setImage(data: data, for: viewModel.groupId)

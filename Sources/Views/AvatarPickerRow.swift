@@ -99,7 +99,7 @@ struct AvatarPickerRow: View, Equatable {
         .alert("Couldn't share that photo", isPresented: $showTooLargeAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Your photo is sent to everyone in your groups, so it has to be small. This one couldn't be shrunk enough — try a different image.")
+            Text("Your photo is sent to everyone in your groups, so it has to be small. This one couldn't be shrunk enough — try another image.")
         }
     }
 }
