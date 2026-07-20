@@ -9,6 +9,13 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
+        #if DEBUG
+        // Temporary: part of the picker re-render investigation.
+        // `let _` is required inside a ViewBuilder — a bare `_ =` is not a
+        // valid builder statement, so the lint rule does not apply here.
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = Self._printChanges()
+        #endif
         NavigationStack {
             List {
                 identitySection
