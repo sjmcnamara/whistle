@@ -42,6 +42,18 @@
         <receiver
             android:name=".services.MotionTransitionReceiver"
             android:exported="false" />
+
+        <!-- Shares diagnostics reports as a file. Grants read access to a
+             single cache file per share rather than exposing app storage. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

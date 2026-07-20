@@ -34,6 +34,7 @@ import org.findmyfam.ui.identity.ExportKeyScreen
 import org.findmyfam.ui.identity.IdentityCardScreen
 import org.findmyfam.ui.identity.ImportKeyScreen
 import org.findmyfam.ui.settings.AdvancedSettingsScreen
+import org.findmyfam.ui.settings.DiagnosticsScreen
 import org.findmyfam.ui.settings.SettingsScreen
 
 // Navigation route constants
@@ -45,6 +46,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val QR_SCANNER = "qr_scanner"
     const val ADVANCED_SETTINGS = "settings/advanced"
+    const val DIAGNOSTICS = "settings/diagnostics"
     const val IDENTITY_CARD = "identity/card"
     const val EXPORT_KEY = "identity/export"
     const val IMPORT_KEY = "identity/import"
@@ -295,6 +297,13 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
             }
 
             // Advanced Settings
+            composable(Routes.DIAGNOSTICS) {
+                DiagnosticsScreen(
+                    collector = viewModel.diagnosticsCollector,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
             composable(Routes.ADVANCED_SETTINGS) {
                 val mlsError by viewModel.mlsError.collectAsState()
                 AdvancedSettingsScreen(
@@ -307,6 +316,7 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     onFuzzSettingChanged = { viewModel.locationService.resetThrottle() },
                     onExportKey = { navController.navigate(Routes.EXPORT_KEY) },
                     onImportKey = { navController.navigate(Routes.IMPORT_KEY) },
+                    onDiagnostics = { navController.navigate(Routes.DIAGNOSTICS) },
                     onBurnIdentity = {
                         viewModel.burnIdentity()
                         navController.popBackStack(Routes.GROUP_LIST, inclusive = false)
