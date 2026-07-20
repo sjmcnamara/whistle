@@ -27,11 +27,13 @@ android/.gradle/
 FindMyFamCore/.build/
 .build/
 
+# JetBrains IDE (root and any module)
+.idea/
+
 # Android
 android/.gradle/
 android/app/build/
 android/local.properties
-android/.idea/
 *.apk
 *.aab
 *.iml
