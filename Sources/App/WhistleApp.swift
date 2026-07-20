@@ -19,6 +19,7 @@ struct WhistleApp: App {
                     // MemberAvatarView reaches for this directly rather than
                     // threading it through every intermediate view.
                     .environmentObject(appViewModel.memberAvatarStore)
+                    .environmentObject(appViewModel.sharedGroupAvatarStore)
 
                 if appViewModel.startupPhase != .ready {
                     SplashView(phase: appViewModel.startupPhase)

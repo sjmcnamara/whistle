@@ -35,6 +35,9 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — receives avatar updates from incoming messages.
     var memberAvatarStore: MemberAvatarStore?
 
+    /// Injected by AppViewModel — receives admin-set group photos.
+    var sharedGroupAvatarStore: SharedGroupAvatarStore?
+
     /// Injected by AppViewModel — auto-clears pending invites on Welcome receipt.
     var pendingInviteStore: PendingInviteStore?
 
@@ -321,6 +324,40 @@ final class MarmotService: ObservableObject {
     /// Broadcast a nickname update to a group.
     func sendNicknameUpdate(name: String, toGroup groupId: String) async throws {
         let payload = NicknamePayload(name: name)
+        let json = try payload.jsonString()
+        try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.chat)
+    }
+
+    /// Is this pubkey an admin of the group?
+    ///
+    /// Reads the MLS group state rather than any local cache, so it reflects
+    /// what the ratchet tree actually says.
+    func isAdmin(_ pubkeyHex: String, ofGroup groupId: String) async -> Bool {
+        guard let group = try? await mls.getGroup(mlsGroupId: groupId) else { return false }
+        return group.adminPubkeys.contains(pubkeyHex)
+    }
+
+    /// The admin responsible for re-announcing group state to new joiners.
+    ///
+    /// Every admin sees a join, so without a rule each would re-broadcast the
+    /// group photo and a three-admin group would send three copies. Picks the
+    /// lexicographically smallest admin pubkey rather than the first array
+    /// element: array order is not guaranteed identical across clients, so
+    /// "lowest index" could resolve differently on each device and either
+    /// duplicate the send or drop it entirely.
+    func designatedBroadcaster(forGroup groupId: String) async -> String? {
+        guard let group = try? await mls.getGroup(mlsGroupId: groupId) else { return nil }
+        return group.adminPubkeys.min()
+    }
+
+    /// Broadcast a group photo (or its removal) to a group.
+    ///
+    /// Refuses an oversized payload for the same reason member avatars do: a
+    /// relay rejecting the event looks identical to a delivered one from here.
+    func sendGroupAvatarUpdate(_ payload: GroupAvatarPayload, toGroup groupId: String) async throws {
+        guard payload.isWithinSizeLimit else {
+            throw MarmotError.avatarTooLarge
+        }
         let json = try payload.jsonString()
         try await sendMessage(content: json, toGroup: groupId, kind: MarmotKind.chat)
     }
@@ -906,7 +943,7 @@ final class MarmotService: ObservableObject {
         case .applicationMessage(let message):
             WhistleLogger.marmot.debug("Received application message in group \(message.mlsGroupId)")
             healthTracker.recordSuccess(groupId: message.mlsGroupId)
-            routeApplicationMessage(message)
+            await routeApplicationMessage(message)
 
         case .commit(let groupId):
             let epoch = (try? await mls.getGroup(mlsGroupId: groupId))?.epoch ?? 0
@@ -959,7 +996,7 @@ final class MarmotService: ObservableObject {
     /// Currently supports:
     /// - `MarmotKind.location` (kind 1) → decode `LocationPayload` → `LocationCache`
     /// - All other kinds → logged and ignored.
-    private func routeApplicationMessage(_ message: Message) {
+    private func routeApplicationMessage(_ message: Message) async {
         switch message.kind {
         case MarmotKind.location:
             guard let content = message.plaintextContent else {
@@ -1002,6 +1039,24 @@ final class MarmotService: ObservableObject {
                         memberAvatarStore?.apply(payload, from: message.senderPubkey)
                         let action = payload.isRemoval ? "removed" : "updated"
                         WhistleLogger.chat.info("Avatar \(action): \(message.senderPubkey.prefix(8))")
+                    }
+                case "group_avatar":
+                    // Admin-only, and this is the only thing enforcing it. MLS
+                    // guarantees the sender is a *member*, not an admin, so a
+                    // modified client could send this — every receiver has to
+                    // check independently or the restriction means nothing.
+                    if await isAdmin(message.senderPubkey, ofGroup: message.mlsGroupId) {
+                        if let payload = try? GroupAvatarPayload.from(jsonString: content) {
+                            sharedGroupAvatarStore?.apply(payload, for: message.mlsGroupId)
+                            let action = payload.isRemoval ? "removed" : "updated"
+                            WhistleLogger.chat.info(
+                                "Group avatar \(action) by admin \(message.senderPubkey.prefix(8)) in \(message.mlsGroupId)"
+                            )
+                        }
+                    } else {
+                        WhistleLogger.chat.warning(
+                            "Ignored group avatar from non-admin \(message.senderPubkey.prefix(8)) in \(message.mlsGroupId)"
+                        )
                     }
                 default:
                     WhistleLogger.chat.debug("Unknown chat sub-type '\(type)' in group \(message.mlsGroupId)")

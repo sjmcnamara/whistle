@@ -19,6 +19,9 @@ struct GroupDetailView: View {
     @State private var showAvatarOptions = false
     @State private var showAvatarPicker = false
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
+    @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @State private var pickingForGroup = false
 
     /// Show members inline up to this many; beyond it, preview + "See all".
     private let memberPreviewCap = 6
@@ -103,7 +106,9 @@ struct GroupDetailView: View {
                     showAvatarOptions = true
                 } label: {
                     ZStack(alignment: .bottomTrailing) {
-                        if let img = avatars.image(for: viewModel.groupId) {
+                        if let img = SharedGroupAvatarStore.resolvedImage(
+                            for: viewModel.groupId, local: avatars, shared: sharedAvatars
+                        ) {
                             Image(uiImage: img)
                                 .resizable()
                                 .scaledToFill()
@@ -128,26 +133,47 @@ struct GroupDetailView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Group photo")
                 .confirmationDialog("Group Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
-                    Button(avatars.hasImage(for: viewModel.groupId) ? "Change Photo" : "Choose Photo") {
+                    if viewModel.isAdmin {
+                        Button(sharedAvatars.hasImage(for: viewModel.groupId)
+                               ? "Change Group Photo" : "Set Group Photo") {
+                            pickingForGroup = true
+                            showAvatarPicker = true
+                        }
+                        if sharedAvatars.hasImage(for: viewModel.groupId) {
+                            Button("Remove Group Photo", role: .destructive) {
+                                Task { await appViewModel.removeGroupAvatar(groupId: viewModel.groupId) }
+                            }
+                        }
+                    }
+                    Button(avatars.hasImage(for: viewModel.groupId)
+                           ? "Change My Photo" : "Set My Own Photo") {
+                        pickingForGroup = false
                         showAvatarPicker = true
                     }
                     if avatars.hasImage(for: viewModel.groupId) {
-                        Button("Remove Photo", role: .destructive) {
+                        Button("Remove My Photo", role: .destructive) {
                             avatars.removeImage(for: viewModel.groupId)
                         }
                     }
                     Button("Cancel", role: .cancel) { }
                 } message: {
-                    Text("Only you see this photo — it stays on this device.")
+                    Text(viewModel.isAdmin
+                         ? "A group photo is shared with everyone. Your own photo is only on this device and takes precedence."
+                         : "Your own photo is only on this device and takes precedence over the group's.")
                 }
                 .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in
                     guard let item else { return }
                     Task {
                         if let data = try? await item.loadTransferable(type: Data.self) {
-                            avatars.setImage(data: data, for: viewModel.groupId)
+                            if pickingForGroup {
+                                await appViewModel.setGroupAvatar(data: data, groupId: viewModel.groupId)
+                            } else {
+                                avatars.setImage(data: data, for: viewModel.groupId)
+                            }
                         }
                         pickedAvatar = nil
+                        pickingForGroup = false
                     }
                 }
 
