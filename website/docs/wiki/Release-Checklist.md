@@ -9,14 +9,15 @@ Whistle ships from `master`. Every release goes through a branch, a PR, and revi
 ## Before cutting a release
 
 1. **Confirm the target branch and version number.** Follow [SemVer](https://semver.org/) — features bump minor, fixes bump patch.
-2. **Bump the version in all five places.** They must agree:
-   - `project.yml` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (the latter is the iOS build number)
-   - `android/app/build.gradle.kts` — `versionName` and `versionCode` (Android build number is monotonically increasing)
-   - `CHANGELOG.md` — add a new `## [X.Y.Z] — YYYY-MM-DD` section at the top; follow the existing Keep a Changelog format with platform badges (`(iOS)` / `(Android)` / `(iOS & Android)`)
-   - `CLAUDE.md` — update the `## Roadmap` "Current version:" line so AI agents and contributors see the latest shipped version
-   - `website/overrides/home.html` — update the `v1.X.Y` label in the hero CTA `<span class="w-meta">` block. The APK download link auto-resolves to `releases/latest`, but the displayed version is hardcoded.
-3. **Update `ROADMAP.md`** — mark the completed phase with ✅, document what shipped under it, and (when relevant) update the branch-strategy history at the bottom.
-4. **Regenerate the Xcode project** — `./scripts/build.sh` will run XcodeGen automatically; do this so the version change actually lands in the Xcode build settings.
+2. **Bump the version in all seven places.** They must all agree — miss one and the app, the store listing, or the website goes out stale (the `home.html` hero was found stale for several releases because the list wasn't explicit). Walk every item:
+   1. `project.yml` — `MARKETING_VERSION` **and** `CURRENT_PROJECT_VERSION` (the latter is the iOS build number)
+   2. `android/app/build.gradle.kts` — `versionName` **and** `versionCode` (Android build number is monotonically increasing)
+   3. `CHANGELOG.md` — add a new `## [X.Y.Z] — YYYY-MM-DD` section at the top; follow the existing Keep a Changelog format with platform badges (`(iOS)` / `(Android)` / `(iOS & Android)`)
+   4. `README.md` — update the `## Status` line (e.g. `vX.Y.Z — Production ready. iOS and Android.`)
+   5. `CLAUDE.md` — update the `## Roadmap` "Current version:" line so AI agents and contributors see the latest shipped version
+   6. `ROADMAP.md` — mark the completed phase with ✅, document what shipped under it, and (when relevant) update the branch-strategy history at the bottom
+   7. `website/overrides/home.html` — update the `v1.X.Y` label in the hero CTA `<span class="w-meta">` block. The APK download link auto-resolves to `releases/latest`, but the displayed version is hardcoded.
+3. **Regenerate the Xcode project** — `./scripts/build.sh` will run XcodeGen automatically; do this so the version change actually lands in the Xcode build settings.
 
 ## Validation
 
@@ -36,7 +37,7 @@ Whistle ships from `master`. Every release goes through a branch, a PR, and revi
    ```
 2. **Push the branch** — every CI job listed in [Testing-and-CI.md](Testing-and-CI.md) must pass; they are required merge gates.
 3. **Smoke-test critical flows on a real device** (simulator/emulator isn't enough for background location + push paths):
-   - Create a group, invite via at least one transport (QR / NFC / Nearby / link), accept the invite from a second device
+   - Create a group, invite via at least one transport (QR / NFC / link), accept the invite from a second device
    - Send chat messages, verify locations exchange both directions
    - Leave the group from one device, verify the admin sees + confirms it, then rejoin
    - Toggle relays off/on, add a custom relay, verify reconnect
