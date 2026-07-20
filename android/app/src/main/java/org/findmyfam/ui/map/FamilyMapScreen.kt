@@ -7,11 +7,16 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Path
+import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.TypedValue
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
+import org.findmyfam.shared.models.MemberAvatarFallback
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,6 +51,18 @@ import java.util.*
 
 data class GroupOption(val id: String, val name: String)
 
+/** Mirrors the iOS MemberAvatarView palette, in the same order. */
+private val INITIALS_PALETTE = intArrayOf(
+    0xFF007AFF.toInt(), // blue
+    0xFFAF52DE.toInt(), // purple
+    0xFFFF2D55.toInt(), // pink
+    0xFFFF9500.toInt(), // orange
+    0xFF30B0C7.toInt(), // teal
+    0xFF5856D6.toInt(), // indigo
+    0xFF34C759.toInt(), // green
+    0xFFA2845E.toInt()  // brown
+)
+
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun FamilyMapScreen(
@@ -54,6 +71,7 @@ fun FamilyMapScreen(
     onPermissionGranted: () -> Unit,
     whistleState: AppViewModel.WhistleState = AppViewModel.WhistleState.IDLE,
     onWhistle: () -> Unit = {},
+    avatarFor: (String) -> Bitmap? = { null },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -126,7 +144,8 @@ fun FamilyMapScreen(
             OsmMapView(
                 annotations = annotations,
                 mapViewRef = mapViewRef,
-                onMarkerTap = { selectedAnnotation = it }
+                onMarkerTap = { selectedAnnotation = it },
+                avatarFor = avatarFor
             )
 
             selectedAnnotation?.let { ann ->
@@ -293,7 +312,9 @@ private fun memberPinDrawable(
     name: String,
     counter: String?,
     isStale: Boolean,
-    isStationary: Boolean?
+    isStationary: Boolean?,
+    avatarBitmap: Bitmap? = null,
+    pubkeyHex: String = ""
 ): BitmapDrawable {
     val dm = context.resources.displayMetrics
     val dp = dm.density
@@ -337,20 +358,53 @@ private fun memberPinDrawable(
 
     val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
-    // White ring + tinted disc
+    // White ring
     fill.color = Color.WHITE
     canvas.drawCircle(cx, cy, r, fill)
-    fill.color = if (isStale) 0xFF8E8E93.toInt() else 0xFF007AFF.toInt()
     val inner = r - 1.5f * dp
-    canvas.drawCircle(cx, cy, inner, fill)
 
-    // Person glyph: head + shoulders, clipped to the disc
-    fill.color = Color.WHITE
-    canvas.save()
-    canvas.clipPath(Path().apply { addCircle(cx, cy, inner, Path.Direction.CW) })
-    canvas.drawCircle(cx, cy - 0.30f * inner, 0.32f * inner, fill)
-    canvas.drawCircle(cx, cy + 0.85f * inner, 0.62f * inner, fill)
-    canvas.restore()
+    if (avatarBitmap != null) {
+        // Photo, centre-cropped into the disc.
+        canvas.save()
+        canvas.clipPath(Path().apply { addCircle(cx, cy, inner, Path.Direction.CW) })
+        val side = minOf(avatarBitmap.width, avatarBitmap.height)
+        val src = Rect(
+            (avatarBitmap.width - side) / 2,
+            (avatarBitmap.height - side) / 2,
+            (avatarBitmap.width + side) / 2,
+            (avatarBitmap.height + side) / 2
+        )
+        val dst = RectF(cx - inner, cy - inner, cx + inner, cy + inner)
+        val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            isFilterBitmap = true
+            if (isStale) {
+                // Desaturate to match the grey treatment of a stale pin.
+                colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+            }
+        }
+        canvas.drawBitmap(avatarBitmap, src, dst, imagePaint)
+        canvas.restore()
+    } else {
+        // Initials on a stable per-member colour.
+        fill.color = if (isStale) 0xFF8E8E93.toInt() else {
+            INITIALS_PALETTE[MemberAvatarFallback.colorIndex(pubkeyHex)]
+        }
+        canvas.drawCircle(cx, cy, inner, fill)
+
+        val initialsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = inner * 0.9f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+        val ifm = initialsPaint.fontMetrics
+        canvas.drawText(
+            MemberAvatarFallback.initials(name),
+            cx,
+            cy - (ifm.ascent + ifm.descent) / 2f,
+            initialsPaint
+        )
+    }
 
     if (isStationary == true) {
         val bx = cx + r - badge / 3f
@@ -394,7 +448,8 @@ private fun memberPinDrawable(
 private fun OsmMapView(
     annotations: List<MemberAnnotation>,
     mapViewRef: MutableState<MapView?> = mutableStateOf(null),
-    onMarkerTap: (MemberAnnotation) -> Unit = {}
+    onMarkerTap: (MemberAnnotation) -> Unit = {},
+    avatarFor: (String) -> Bitmap? = { null }
 ) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     // Only auto-fit camera on first annotation load, not on every update
@@ -441,7 +496,8 @@ private fun OsmMapView(
                     snippet = if (ann.isMe) "You • ${timeFormat.format(Date(ann.timestampMs))}"
                               else timeFormat.format(Date(ann.timestampMs))
                     icon = memberPinDrawable(
-                        mapView.context, ann.displayName, counter, ann.isStale, ann.isStationary
+                        mapView.context, ann.displayName, counter, ann.isStale, ann.isStationary,
+                        avatarFor(ann.memberPubkeyHex), ann.memberPubkeyHex
                     )
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     alpha = if (ann.isStale) 0.5f else 1.0f

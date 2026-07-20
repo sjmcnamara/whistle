@@ -4,6 +4,7 @@ set -euo pipefail
 # Famstr build script
 # Usage:
 #   ./scripts/build.sh              # generate + build
+#   ./scripts/build.sh compile-tests # type-check the test target (no run)
 #   ./scripts/build.sh test         # generate + build + test
 #   ./scripts/build.sh clean        # clean build artifacts
 
@@ -96,6 +97,30 @@ case "$COMMAND" in
         echo "✓ Build succeeded"
         ;;
 
+    compile-tests)
+        # Type-check the test target without running it.
+        #
+        # Intel Macs cannot *run* the suite (mdk-swift ships no x86_64 simulator
+        # slice), but they can compile it for a generic arm64 device — which
+        # catches the whole class of failure where WhistleTests stops compiling
+        # and a plain `build.sh` still passes, because that only builds the app
+        # target. Cheaper than discovering it in CI.
+        echo "▸ Generating Xcode project..."
+        ensure_local_mdk
+        xcodegen generate
+        restore_local_changes
+
+        echo "▸ Compiling $SCHEME test target..."
+        xcodebuild build-for-testing \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination 'generic/platform=iOS' \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
+
+        echo "✓ Test target compiles (not run — use CI or an arm64 Mac to execute)"
+        ;;
+
     test)
         # mdk-swift only ships arm64 slices. On Intel Macs the simulator
         # needs x86_64-apple-ios which requires building MDK from Rust source.
@@ -104,7 +129,7 @@ case "$COMMAND" in
             echo "⚠️  Intel Mac detected — mdk-swift has no x86_64 simulator slice."
             echo "   Local simulator tests will fail with missing symbols."
             echo "   Push to CI (arm64 runner) to run the full test suite."
-            echo "   Use './scripts/build.sh' (no 'test') to build and test manually in Xcode."
+            echo "   Use './scripts/build.sh compile-tests' to at least type-check the suite."
             exit 1
         fi
 
@@ -134,7 +159,7 @@ case "$COMMAND" in
         ;;
 
     *)
-        echo "Usage: $0 [build|test|clean]"
+        echo "Usage: $0 [build|compile-tests|test|clean]"
         exit 1
         ;;
 esac

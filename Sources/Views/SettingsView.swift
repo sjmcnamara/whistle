@@ -2,7 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    @Environment(\.openURL) private var openURL
+    /// Observed directly: `AppViewModel` does not forward this store's changes,
+    /// so without it the avatar row would only refresh when some unrelated
+    /// relay or settings event happened to re-render this view.
+    @EnvironmentObject private var memberAvatars: MemberAvatarStore
 
     var body: some View {
         NavigationStack {
@@ -49,19 +52,35 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Display name for group chat
-            HStack {
-                Label("Display Name", systemImage: "person.text.rectangle")
-                    .lineLimit(1)
-                    .layoutPriority(1)
-                Spacer()
-                TextField("Your Name", text: Binding(
-                    get: { appViewModel.settings.displayName },
-                    set: { appViewModel.settings.displayName = $0 }
-                ))
-                .multilineTextAlignment(.trailing)
-                .foregroundStyle(.primary)
-            }
+            // Display name for group chat. Extracted so typing doesn't
+            // re-render this whole view — see DisplayNameRow.
+            DisplayNameRow(
+                committedName: appViewModel.settings.displayName,
+                onCommit: { appViewModel.settings.displayName = $0 }
+            )
+
+            avatarRow
+        }
+    }
+
+    /// Picker for the user's own avatar, shown to every member of every group.
+    ///
+    /// Extracted into `AvatarPickerRow` so it takes plain values rather than
+    /// observing `AppViewModel` — see that type for why re-rendering here made
+    /// the photo library reload on a loop.
+    @ViewBuilder
+    private var avatarRow: some View {
+        if let pubkey = appViewModel.myPubkeyHex {
+            AvatarPickerRow(
+                pubkeyHex: pubkey,
+                displayName: appViewModel.settings.displayName,
+                image: memberAvatars.image(for: pubkey),
+                onPicked: { data in await appViewModel.setOwnAvatar(data: data) },
+                onRemove: { await appViewModel.removeOwnAvatar() }
+            )
+            // Without this, the closures above defeat SwiftUI's change
+            // detection and the picker re-renders on every relay event.
+            .equatable()
         }
     }
 
@@ -122,27 +141,9 @@ struct SettingsView: View {
                     .foregroundStyle(.orange)
             }
         case .denied:
-            Button {
-                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-            } label: {
-                HStack {
-                    Label("Authorization", systemImage: "checkmark.shield")
-                    Spacer()
-                    Text("Denied")
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
+            OpenAppSettingsRow(statusText: "Denied")
         case .authorizedWhenInUse:
-            Button {
-                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-            } label: {
-                HStack {
-                    Label("Authorization", systemImage: "checkmark.shield")
-                    Spacer()
-                    Text("When In Use")
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
+            OpenAppSettingsRow(statusText: "When In Use")
         case .authorizedAlways:
             HStack {
                 Label("Authorization", systemImage: "checkmark.shield")

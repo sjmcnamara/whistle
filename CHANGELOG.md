@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.7.1] — 2026-07-19
+
+### Added
+- **Member avatars** (iOS & Android): set a photo in Settings and it is shared with every group you belong to, appearing on your map pin for other members. Members without a photo get a coloured circle with their initials, derived from their public key so it stays the same across launches and on both platforms. The image travels **inline**, base64-encoded inside the MLS application message — end-to-end encrypted like everything else, with no blob server and no new infrastructure. It is capped at 16 KB (128×128, quality stepped down until it fits) so it comfortably clears relay event limits; an image that cannot be squeezed under the cap is refused at pick time rather than published and silently dropped. Removing your photo propagates as an explicit removal, so it disappears from everyone's map rather than lingering. Avatars are wiped on identity burn.
+
+### Fixed
+- **(iOS) Photo picker no longer reloads on a loop.** Opening the avatar picker and waiting made the photo library visibly reload every couple of seconds. `AppViewModel` republishes on every relay event and `SettingsView` observes it, so ordinary relay traffic re-rendered the view containing the `PhotosPicker`, tearing the presented sheet down and putting it back. The picker now lives in a child view that owns its own state and takes plain values, and its label is inert.
+- **(iOS) Display name field no longer re-renders Settings on every keystroke.** The field wrote straight through to `@Published` settings, so each character re-rendered the whole screen — rebuilding the text field being typed into. It now holds the draft locally and commits on submit or blur, matching Android. Also stops a `UserDefaults` write per keystroke.
+- **(iOS) Avatar encoding moved off the main thread.** Picking a photo decoded a full-size image, downscaled it, and JPEG-encoded it up to six times on the UI thread, stalling the app for large camera-roll photos.
+
 ## [1.7.0] — 2026-07-19
 
 ### Added

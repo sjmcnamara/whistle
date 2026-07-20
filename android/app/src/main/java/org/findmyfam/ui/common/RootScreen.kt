@@ -22,6 +22,7 @@ import androidx.navigation.navArgument
 import org.findmyfam.ui.groups.GroupChatScreen
 import org.findmyfam.ui.groups.GroupDetailScreen
 import org.findmyfam.ui.groups.GroupListScreen
+import kotlinx.coroutines.launch
 import org.findmyfam.viewmodels.AppViewModel
 import org.findmyfam.viewmodels.AppViewModel.StartupPhase
 import org.findmyfam.viewmodels.ChatViewModel
@@ -86,6 +87,7 @@ fun RootScreen(
 @Composable
 private fun MainNavigationScaffold(viewModel: AppViewModel) {
     val navController = rememberNavController()
+    val scope = rememberCoroutineScope()
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
 
@@ -238,12 +240,18 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     .map { GroupOption(id = it.mlsGroupId, name = it.name) }
 
                 val whistleState by viewModel.whistleState.collectAsState()
+                val avatarRevision by viewModel.memberAvatarStore.revision.collectAsState()
                 FamilyMapScreen(
                     locationViewModel = locationViewModel,
                     groups = activeGroups,
                     onPermissionGranted = { viewModel.onLocationPermissionGranted() },
                     whistleState = whistleState,
                     onWhistle = { viewModel.whistle() },
+                    // Keyed on the store's revision so pins redraw when an
+                    // avatar arrives or is removed.
+                    avatarFor = { pubkey ->
+                        avatarRevision.let { viewModel.memberAvatarStore.image(pubkey) }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -254,7 +262,10 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     settings = viewModel.settings,
                     identity = viewModel.identity,
                     nicknameStore = viewModel.nicknameStore,
+                    memberAvatarStore = viewModel.memberAvatarStore,
                     onDisplayNameChanged = { name -> viewModel.broadcastDisplayName(name) },
+                    onAvatarPicked = { uri -> scope.launch { viewModel.setOwnAvatar(uri) } },
+                    onAvatarRemoved = { scope.launch { viewModel.removeOwnAvatar() } },
                     onExportKey = { navController.navigate(Routes.EXPORT_KEY) },
                     onImportKey = { navController.navigate(Routes.IMPORT_KEY) },
                     onAdvanced = { navController.navigate(Routes.ADVANCED_SETTINGS) },

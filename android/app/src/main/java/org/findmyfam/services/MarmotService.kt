@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.findmyfam.models.*
 import org.findmyfam.shared.MarmotKind
+import org.findmyfam.shared.models.AvatarPayload
 import org.findmyfam.shared.models.ChatPayload
 import org.findmyfam.shared.models.InviteCode
 import org.findmyfam.shared.models.JoinRequest
@@ -54,6 +55,7 @@ class MarmotService @Inject constructor(
     private val identity: IdentityService,
     private val settings: AppSettings,
     private val nicknameStore: NicknameStore,
+    private val memberAvatarStore: MemberAvatarStore,
     private val pendingInviteStore: PendingInviteStore,
     private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
@@ -289,6 +291,20 @@ class MarmotService @Inject constructor(
         val payload = NicknamePayload(name = name)
         val json = payload.toJson()
         sendMessage(content = json, groupId = groupId, kind = MarmotKind.CHAT)
+    }
+
+    /**
+     * Broadcast an avatar update (or removal) to a group.
+     *
+     * Refuses to publish an oversized payload: relays may reject the event
+     * outright, and a rejected send looks identical to a delivered one from
+     * here, so the failure would be silent.
+     */
+    suspend fun sendAvatarUpdate(payload: AvatarPayload, groupId: String) {
+        require(payload.isWithinSizeLimit) {
+            "Avatar payload exceeds ${AvatarPayload.MAX_ENCODED_BYTES} bytes"
+        }
+        sendMessage(content = payload.toJson(), groupId = groupId, kind = MarmotKind.CHAT)
     }
 
     // --- Kind 444: Welcome (NIP-59 gift-wrap) ---
@@ -924,6 +940,12 @@ class MarmotService @Inject constructor(
                             val payload = NicknamePayload.fromJson(content)
                             nicknameStore.set(name = payload.name, pubkeyHex = message.senderPubkey)
                             Timber.i("Nickname update: ${message.senderPubkey.take(8)} -> ${payload.name}")
+                        }
+                        "avatar" -> {
+                            val payload = AvatarPayload.fromJson(content)
+                            memberAvatarStore.apply(payload, from = message.senderPubkey)
+                            val action = if (payload.isRemoval) "removed" else "updated"
+                            Timber.i("Avatar $action: ${message.senderPubkey.take(8)}")
                         }
                         else -> {
                             Timber.d("Unknown chat sub-type in group ${message.mlsGroupId}")
