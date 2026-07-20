@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.7.2] — 2026-07-20
+
+### Fixed
+- **(iOS) Renaming a group works again.** The rename pencil beside the group name in Group Details could not be tapped. The hero photo above it was a `PhotosPicker` with no explicit frame, and inside a list row that control's tap region expanded well past the 80pt circle, covering the name and the pencil. The rename sheet itself was fine — it was simply unreachable. The photo is now a plain button confined to the circle.
+
+### Changed
+- **(iOS & Android) Tapping an avatar opens a menu instead of jumping straight to the photo library.** Both the member photo in Settings and the group photo in Group Details now offer Choose/Change Photo and, when one is set, Remove Photo. Previously removal was a cramped inline link next to the Settings thumbnail, and on the group photo it was hidden behind a long-press almost nobody would find. Each menu also states who can see that photo, since the two differ: the group photo stays on your device, the member photo is shared with everyone in your groups.
+
 ## [1.7.1] — 2026-07-19
 
 ### Added

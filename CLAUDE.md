@@ -113,4 +113,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.7.1 — member avatars (shared inline over MLS, initials fallback)** (feature). See ROADMAP.md for next steps.
+Current version: **v1.7.2 — group rename fix + avatar tap-menu** (bugfix). See ROADMAP.md for next steps.

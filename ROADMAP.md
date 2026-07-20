@@ -364,6 +364,12 @@ _Notifies family members when someone's battery is critically low — released 2
 
 ---
 
+### v1.7.2 — Avatar UX & group rename fix ✅
+_Released 2026-07-20_
+
+- **Group rename reachable again** (iOS): the hero `PhotosPicker` in Group Details had no explicit frame, so inside a list row its hit region expanded past the circle and swallowed taps meant for the group name and rename pencil. Now a plain button with `.contentShape(Circle())`.
+- **Avatar tap opens a menu** (iOS & Android): Choose/Change Photo, Remove Photo when set, Cancel — replacing a jump straight into the library plus a cramped inline remove link (Settings) and a hidden long-press context menu (group details). Each menu states who sees the photo, since the group photo is device-local and the member photo is shared.
+
 ### v1.7.1 — Member avatars ✅
 _Released 2026-07-19_
 
@@ -507,6 +513,7 @@ master
   └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
   └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
   └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
+  └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
 ```
 
 ---
