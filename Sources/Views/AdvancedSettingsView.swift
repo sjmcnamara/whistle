@@ -15,6 +15,7 @@ struct AdvancedSettingsView: View {
             locationPrivacySection
             relaysSection
             connectionSection
+            diagnosticsSection
             dangerSection
         }
         .navigationTitle("Advanced")
@@ -197,6 +198,18 @@ struct AdvancedSettingsView: View {
     }
 
     // MARK: - Danger zone
+
+    /// Placed just above the danger zone: it is the thing to reach for when
+    /// something is wrong, and the thing to try before anything destructive.
+    private var diagnosticsSection: some View {
+        Section("Diagnostics") {
+            NavigationLink {
+                DiagnosticsView()
+            } label: {
+                Label("Share Diagnostics", systemImage: "stethoscope")
+            }
+        }
+    }
 
     private var dangerSection: some View {
         Section {

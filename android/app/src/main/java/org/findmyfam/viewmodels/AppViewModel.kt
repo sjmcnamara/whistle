@@ -42,6 +42,7 @@ class AppViewModel @Inject constructor(
     val nicknameStore: NicknameStore,
     val memberAvatarStore: MemberAvatarStore,
     val sharedGroupAvatarStore: SharedGroupAvatarStore,
+    val diagnosticsCollector: DiagnosticsCollector,
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,

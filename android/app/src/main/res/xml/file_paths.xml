@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Diagnostics reports are written here before sharing. Cache rather than
+         files/ so the OS can reclaim them; they are regenerated on demand. -->
+    <cache-path name="diagnostics" path="diagnostics/" />
+</paths>

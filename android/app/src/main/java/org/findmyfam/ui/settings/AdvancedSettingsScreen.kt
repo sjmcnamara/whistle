@@ -34,6 +34,7 @@ fun AdvancedSettingsScreen(
     onExportKey: () -> Unit = {},
     onImportKey: () -> Unit = {},
     onBurnIdentity: () -> Unit = {},
+    onDiagnostics: () -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -312,6 +313,22 @@ fun AdvancedSettingsScreen(
             )
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Diagnostics — placed just above the danger zone: it is the thing
+            // to reach for when something is wrong, and to try before anything
+            // destructive.
+            SectionHeader("Diagnostics")
+
+            OutlinedButton(
+                onClick = onDiagnostics,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Share Diagnostics")
+            }
 
             // Danger zone
             SectionHeader("Danger Zone")
