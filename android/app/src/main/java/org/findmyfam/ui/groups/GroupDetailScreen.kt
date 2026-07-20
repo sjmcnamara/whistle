@@ -26,6 +26,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import org.findmyfam.viewmodels.AppViewModel
+import kotlinx.coroutines.launch
 import org.findmyfam.services.LocalGroupAvatarStore
 import org.findmyfam.ui.common.QrScannerScreen
 import org.findmyfam.viewmodels.GroupDetailViewModel
@@ -67,11 +70,54 @@ fun GroupDetailScreen(
     val resyncingPubkey by viewModel.resyncingMemberPubkey.collectAsState()
 
     val context = LocalContext.current
-    val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
-    val avatarBitmap = remember(avatarRevision) { LocalGroupAvatarStore.image(viewModel.groupId) }
+    val appViewModel: AppViewModel = hiltViewModel()
+    val scope = rememberCoroutineScope()
+    val localRevision by LocalGroupAvatarStore.revision.collectAsState()
+    val sharedRevision by appViewModel.sharedGroupAvatarStore.revision.collectAsState()
+    // Personal override wins over the group's shared photo — resolved in one
+    // place so this and the group list cannot drift apart.
+    val avatarBitmap = remember(localRevision, sharedRevision) {
+        appViewModel.sharedGroupAvatarStore.resolvedImage(viewModel.groupId)
+    }
+    val hasSharedPhoto = remember(sharedRevision) {
+        appViewModel.sharedGroupAvatarStore.hasImage(viewModel.groupId)
+    }
+    val hasLocalPhoto = remember(localRevision) {
+        LocalGroupAvatarStore.hasImage(viewModel.groupId)
+    }
     var showAvatarMenu by remember { mutableStateOf(false) }
+    // Which target the picker result applies to — the group's shared photo or
+    // this device's personal override.
+    var pickingForGroup by remember { mutableStateOf(false) }
+    var groupPhotoError by remember { mutableStateOf<String?>(null) }
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { LocalGroupAvatarStore.setImage(context, viewModel.groupId, it) }
+        uri?.let {
+            if (pickingForGroup) {
+                scope.launch {
+                    // Handle the outcome — a silently dropped result made every
+                    // failure look like "nothing happened".
+                    groupPhotoError = when (appViewModel.setGroupAvatar(it, viewModel.groupId)) {
+                        AppViewModel.GroupAvatarUpdate.UPDATED -> null
+                        AppViewModel.GroupAvatarUpdate.NOT_ADMIN ->
+                            "Only a group admin can set the group photo."
+                        AppViewModel.GroupAvatarUpdate.COULD_NOT_ENCODE ->
+                            "Group photos are sent to everyone, so they have to be small. This one couldn't be shrunk enough — try another image."
+                    }
+                }
+            } else {
+                LocalGroupAvatarStore.setImage(context, viewModel.groupId, it)
+            }
+        }
+        pickingForGroup = false
+    }
+
+    groupPhotoError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { groupPhotoError = null },
+            title = { Text("Couldn't set group photo") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { groupPhotoError = null }) { Text("OK") } }
+        )
     }
 
     LaunchedEffect(Unit) { viewModel.load() }
@@ -188,36 +234,58 @@ fun GroupDetailScreen(
                             expanded = showAvatarMenu,
                             onDismissRequest = { showAvatarMenu = false }
                         ) {
-                            // Mirrors the iOS dialog's message: this photo is
-                            // device-local, unlike the member photo, and that is
-                            // not obvious from the UI.
                             Text(
-                                "Only you see this photo — it stays on this device.",
+                                if (viewModel.isAdmin)
+                                    "The group photo is sent to everyone. A personal photo replaces the group's image on this device only."
+                                else
+                                    "A personal photo replaces the group's image on this device only.",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        if (avatarBitmap == null) "Choose Photo" else "Change Photo"
+                            if (viewModel.isAdmin) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(if (hasSharedPhoto) "Change Group Photo" else "Set Group Photo")
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Groups, contentDescription = null) },
+                                    onClick = {
+                                        showAvatarMenu = false
+                                        pickingForGroup = true
+                                        avatarPicker.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
+                                )
+                                if (hasSharedPhoto) {
+                                    DropdownMenuItem(
+                                        text = { Text("Remove Group Photo") },
+                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                        onClick = {
+                                            showAvatarMenu = false
+                                            scope.launch { appViewModel.removeGroupAvatar(viewModel.groupId) }
+                                        }
                                     )
-                                },
+                                }
+                            }
+                            DropdownMenuItem(
+                                text = { Text(if (hasLocalPhoto) "Change Personal Photo" else "Set Personal Photo") },
                                 leadingIcon = { Icon(Icons.Default.AddAPhoto, contentDescription = null) },
                                 onClick = {
                                     showAvatarMenu = false
+                                    pickingForGroup = false
                                     avatarPicker.launch(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                     )
                                 }
                             )
-                            if (LocalGroupAvatarStore.hasImage(viewModel.groupId)) {
+                            if (hasLocalPhoto) {
                                 DropdownMenuItem(
-                                    text = { Text("Remove Photo") },
+                                    text = { Text("Remove Personal Photo") },
                                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                                     onClick = {
-                                        LocalGroupAvatarStore.removeImage(viewModel.groupId)
                                         showAvatarMenu = false
+                                        LocalGroupAvatarStore.removeImage(viewModel.groupId)
                                     }
                                 )
                             }

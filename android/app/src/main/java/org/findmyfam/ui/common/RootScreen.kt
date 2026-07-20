@@ -88,6 +88,10 @@ fun RootScreen(
 private fun MainNavigationScaffold(viewModel: AppViewModel) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
+    // Surfaced when picking a member photo fails — iOS has always alerted here
+    // and Android silently dropped the result, so an oversized image simply
+    // did nothing.
+    var avatarError by remember { mutableStateOf<String?>(null) }
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
 
@@ -96,6 +100,15 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
 
     // Only show bottom bar on top-level destinations
     val showBottomBar = currentRoute in listOf(Routes.GROUP_LIST, Routes.MAP, Routes.SETTINGS)
+
+    avatarError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { avatarError = null },
+            title = { Text("Couldn't set your photo") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { avatarError = null }) { Text("OK") } }
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -264,7 +277,14 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     nicknameStore = viewModel.nicknameStore,
                     memberAvatarStore = viewModel.memberAvatarStore,
                     onDisplayNameChanged = { name -> viewModel.broadcastDisplayName(name) },
-                    onAvatarPicked = { uri -> scope.launch { viewModel.setOwnAvatar(uri) } },
+                    onAvatarPicked = { uri ->
+                        scope.launch {
+                            if (!viewModel.setOwnAvatar(uri)) {
+                                avatarError =
+                                    "Your photo is sent to everyone in your groups, so it has to be small. This one couldn't be shrunk enough — try another image."
+                            }
+                        }
+                    },
                     onAvatarRemoved = { scope.launch { viewModel.removeOwnAvatar() } },
                     onExportKey = { navController.navigate(Routes.EXPORT_KEY) },
                     onImportKey = { navController.navigate(Routes.IMPORT_KEY) },

@@ -34,6 +34,7 @@ final class AppViewModel: ObservableObject {
     /// Local nickname store — maps pubkey hex → display name.
     let nicknameStore: NicknameStore
     let memberAvatarStore: MemberAvatarStore
+    let sharedGroupAvatarStore: SharedGroupAvatarStore
 
     /// In-memory cache of loaded chat threads so re-entering a chat renders
     /// instantly instead of flashing empty while MDK reloads.
@@ -129,6 +130,7 @@ final class AppViewModel: ObservableObject {
         self.locationCache   = LocationCache()
         self.nicknameStore       = NicknameStore()
         self.memberAvatarStore   = MemberAvatarStore()
+        self.sharedGroupAvatarStore = SharedGroupAvatarStore()
         self.chatMessageCache    = ChatMessageCache()
         self.pendingInviteStore  = PendingInviteStore()
         self.pendingLeaveStore   = PendingLeaveStore()
@@ -424,6 +426,7 @@ final class AppViewModel: ObservableObject {
         marmotService.locationCache = locationCache
         marmotService.nicknameStore = nicknameStore
         marmotService.memberAvatarStore = memberAvatarStore
+        marmotService.sharedGroupAvatarStore = sharedGroupAvatarStore
         marmotService.pendingInviteStore = pendingInviteStore
         marmotService.pendingLeaveStore = pendingLeaveStore
         marmotService.pendingWelcomeStore = pendingWelcomeStore
@@ -489,6 +492,19 @@ final class AppViewModel: ObservableObject {
 
         // --- Everything below runs after the splash dismisses. ---
         // The UI is now interactive; these are background housekeeping tasks.
+
+        // Re-announce the group photo when membership changes, so a new joiner
+        // sees it without waiting for the next edit. Guarded to the designated
+        // admin inside — every admin observes the same change.
+        marmotService.$lastGroupMembershipChangeId
+            .compactMap { $0?.0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] groupId in
+                Task { [weak self] in
+                    await self?.rebroadcastGroupAvatarIfDesignated(groupId: groupId)
+                }
+            }
+            .store(in: &cancellables)
 
         // Auto-broadcast display name when we join a group via welcome
         marmotService.$lastJoinedGroupId
@@ -769,6 +785,7 @@ final class AppViewModel: ObservableObject {
         // Member avatars are photographs of real people — they must not survive
         // an identity burn any more than the groups they came from do.
         memberAvatarStore.removeAll()
+        sharedGroupAvatarStore.removeAll()
         locationCache.clear()
         chatMessageCache.clear()
 
@@ -877,6 +894,69 @@ final class AppViewModel: ObservableObject {
     func removeOwnAvatar() async {
         guard let pubkey = myPubkeyHex else { return }
         await broadcastAvatar(memberAvatarStore.removeOwnImage(pubkeyHex: pubkey))
+    }
+
+    // MARK: - Group photo (admin-only)
+
+    /// Outcome of setting a group photo, so the UI can say *why* it failed.
+    ///
+    /// Deliberately not a Bool: the first version returned one and was marked
+    /// `@discardableResult`, so the call site dropped it and every failure —
+    /// oversized image, missing admin rights — looked identical to success with
+    /// no photo appearing. Callers must now handle the result.
+    enum GroupAvatarUpdate: Equatable {
+        case updated
+        case notAdmin
+        case couldNotEncode
+    }
+
+    /// Set the group's shared photo and announce it.
+    func setGroupAvatar(data: Data, groupId: String) async -> GroupAvatarUpdate {
+        guard let marmot, let pubkey = myPubkeyHex,
+              await marmot.isAdmin(pubkey, ofGroup: groupId) else {
+            WhistleLogger.chat.warning("Group avatar rejected locally: not an admin of \(groupId)")
+            return .notAdmin
+        }
+        guard let payload = await sharedGroupAvatarStore.setImage(data: data, for: groupId) else {
+            WhistleLogger.chat.error("Group avatar for \(groupId) could not be encoded within the size cap")
+            return .couldNotEncode
+        }
+        do {
+            try await marmot.sendGroupAvatarUpdate(payload, toGroup: groupId)
+        } catch {
+            WhistleLogger.chat.error("Failed to broadcast group avatar for \(groupId): \(error)")
+        }
+        return .updated
+    }
+
+    /// Clear the group's shared photo and tell the group to drop it.
+    func removeGroupAvatar(groupId: String) async {
+        guard let marmot, let pubkey = myPubkeyHex,
+              await marmot.isAdmin(pubkey, ofGroup: groupId) else { return }
+        let payload = sharedGroupAvatarStore.removeImagePayload(for: groupId)
+        do {
+            try await marmot.sendGroupAvatarUpdate(payload, toGroup: groupId)
+        } catch {
+            WhistleLogger.chat.error("Failed to broadcast group avatar removal for \(groupId): \(error)")
+        }
+    }
+
+    /// Re-announce the group photo when membership changes, so a new joiner
+    /// sees it without waiting for the next edit.
+    ///
+    /// Only the designated admin sends. Every admin observes the same membership
+    /// change, so without this a three-admin group would push three copies of
+    /// the image to every member.
+    private func rebroadcastGroupAvatarIfDesignated(groupId: String) async {
+        guard let marmot, let pubkey = myPubkeyHex,
+              await marmot.designatedBroadcaster(forGroup: groupId) == pubkey,
+              let payload = sharedGroupAvatarStore.payload(for: groupId) else { return }
+        do {
+            try await marmot.sendGroupAvatarUpdate(payload, toGroup: groupId)
+            WhistleLogger.chat.info("Re-announced group avatar to \(groupId) after membership change")
+        } catch {
+            WhistleLogger.chat.error("Group avatar re-announce failed for \(groupId): \(error)")
+        }
     }
 
     /// Send an avatar payload to every active group.

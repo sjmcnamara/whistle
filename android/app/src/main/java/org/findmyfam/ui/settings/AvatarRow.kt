@@ -140,7 +140,7 @@ fun AvatarRow(
             // obvious from the UI and differs between the two: this one is
             // shared with every group you are in.
             Text(
-                "Shared with everyone in your groups.",
+                "Sent to everyone in your groups.",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

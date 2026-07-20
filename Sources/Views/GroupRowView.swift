@@ -8,11 +8,14 @@ struct GroupRowView: View {
     var hasAdminAction: Bool = false
 
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
+    @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack(alignment: .topTrailing) {
-                if let img = avatars.image(for: group.id) {
+                if let img = SharedGroupAvatarStore.resolvedImage(
+                    for: group.id, local: avatars, shared: sharedAvatars
+                ) {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()

@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
 import org.findmyfam.shared.models.AvatarPayload
+import org.findmyfam.shared.models.GroupAvatarPayload
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.services.*
 import timber.log.Timber
@@ -40,6 +41,7 @@ class AppViewModel @Inject constructor(
     val settings: AppSettings,
     val nicknameStore: NicknameStore,
     val memberAvatarStore: MemberAvatarStore,
+    val sharedGroupAvatarStore: SharedGroupAvatarStore,
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,
@@ -158,6 +160,15 @@ class AppViewModel @Inject constructor(
                 marmotService.fetchMissedGiftWraps()
             } catch (e: Exception) {
                 Timber.w(e, "fetchMissedGiftWraps failed (non-fatal)")
+            }
+
+            // Re-announce the group photo when membership changes, so a new
+            // joiner sees it without waiting for the next edit. Guarded to the
+            // designated admin inside — every admin observes the same change.
+            viewModelScope.launch {
+                marmotService.lastGroupMembershipChangeId.collect { change ->
+                    change?.let { rebroadcastGroupAvatarIfDesignated(it.first) }
+                }
             }
 
             // Broadcast display name and trigger immediate location send for newly joined groups
@@ -401,6 +412,69 @@ class AppViewModel @Inject constructor(
         broadcastAvatar(memberAvatarStore.removeOwnImage(pubkey))
     }
 
+    // --- Group photo (admin-only) ---
+
+    /**
+     * Outcome of setting a group photo, so the UI can say *why* it failed.
+     *
+     * Deliberately not a Boolean: the first version returned one and the call
+     * site dropped it, so every failure — oversized image, missing admin
+     * rights — looked identical to success with no photo appearing.
+     */
+    enum class GroupAvatarUpdate { UPDATED, NOT_ADMIN, COULD_NOT_ENCODE }
+
+    /** Set the group's shared photo and announce it. */
+    suspend fun setGroupAvatar(uri: Uri, groupId: String): GroupAvatarUpdate {
+        val pubkey = identity.publicKeyHex ?: return GroupAvatarUpdate.NOT_ADMIN
+        if (!marmotService.isAdmin(pubkey, groupId)) {
+            Timber.w("Group avatar rejected locally: not an admin of $groupId")
+            return GroupAvatarUpdate.NOT_ADMIN
+        }
+        val payload = sharedGroupAvatarStore.setImage(uri, groupId)
+        if (payload == null) {
+            Timber.e("Group avatar for $groupId could not be encoded within the size cap")
+            return GroupAvatarUpdate.COULD_NOT_ENCODE
+        }
+        try {
+            marmotService.sendGroupAvatarUpdate(payload, groupId)
+        } catch (e: Exception) {
+            Timber.w("Failed to broadcast group avatar for $groupId: ${e.message}")
+        }
+        return GroupAvatarUpdate.UPDATED
+    }
+
+    /** Clear the group's shared photo and tell the group to drop it. */
+    suspend fun removeGroupAvatar(groupId: String) {
+        val pubkey = identity.publicKeyHex ?: return
+        if (!marmotService.isAdmin(pubkey, groupId)) return
+        val payload = sharedGroupAvatarStore.removeImagePayload(groupId)
+        try {
+            marmotService.sendGroupAvatarUpdate(payload, groupId)
+        } catch (e: Exception) {
+            Timber.w("Failed to broadcast group avatar removal for $groupId: ${e.message}")
+        }
+    }
+
+    /**
+     * Re-announce the group photo when membership changes, so a new joiner sees
+     * it without waiting for the next edit.
+     *
+     * Only the designated admin sends. Every admin observes the same membership
+     * change, so without this a three-admin group would push three copies of
+     * the image to every member.
+     */
+    private suspend fun rebroadcastGroupAvatarIfDesignated(groupId: String) {
+        val pubkey = identity.publicKeyHex ?: return
+        if (marmotService.designatedBroadcaster(groupId) != pubkey) return
+        val payload = sharedGroupAvatarStore.payload(groupId) ?: return
+        try {
+            marmotService.sendGroupAvatarUpdate(payload, groupId)
+            Timber.i("Re-announced group avatar to $groupId after membership change")
+        } catch (e: Exception) {
+            Timber.w("Group avatar re-announce failed for $groupId: ${e.message}")
+        }
+    }
+
     /**
      * Send an avatar payload to every active group.
      *
@@ -461,6 +535,7 @@ class AppViewModel @Inject constructor(
         // Member avatars are photographs of real people — they must not survive
         // an identity burn any more than the groups they came from do.
         memberAvatarStore.removeAll()
+        sharedGroupAvatarStore.removeAll()
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()

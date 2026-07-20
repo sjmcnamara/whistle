@@ -163,21 +163,6 @@ class MemberAvatarStore @Inject constructor(
      * Returns null if even the lowest quality will not fit, so callers can
      * refuse rather than publish something a relay may silently drop.
      */
-    fun encodeForWire(bitmap: Bitmap): ByteArray? {
-        val scaled = downscale(bitmap)
-        for (quality in QUALITY_STEPS) {
-            val out = ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
-            val bytes = out.toByteArray()
-            if (Base64.getEncoder().encodeToString(bytes).toByteArray(Charsets.UTF_8).size
-                <= AvatarPayload.MAX_ENCODED_BYTES
-            ) {
-                return bytes
-            }
-        }
-        return null
-    }
-
     private fun decodeUpright(uri: Uri): Bitmap? {
         val rotation = context.contentResolver.openInputStream(uri)?.use { stream ->
             val exif = ExifInterface(stream)
@@ -200,6 +185,26 @@ class MemberAvatarStore @Inject constructor(
         }
     }
 
+    // endregion
+
+    private fun fileFor(pubkeyHex: String) = File(dir, "$pubkeyHex.jpg")
+
+    companion object {
+    fun encodeForWire(bitmap: Bitmap): ByteArray? {
+        val scaled = downscale(bitmap)
+        for (quality in QUALITY_STEPS) {
+            val out = ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
+            val bytes = out.toByteArray()
+            if (Base64.getEncoder().encodeToString(bytes).toByteArray(Charsets.UTF_8).size
+                <= AvatarPayload.MAX_ENCODED_BYTES
+            ) {
+                return bytes
+            }
+        }
+        return null
+    }
+
     private fun downscale(src: Bitmap): Bitmap {
         val longest = maxOf(src.width, src.height)
         if (longest <= AvatarPayload.TARGET_EDGE) return src
@@ -212,11 +217,6 @@ class MemberAvatarStore @Inject constructor(
         )
     }
 
-    // endregion
-
-    private fun fileFor(pubkeyHex: String) = File(dir, "$pubkeyHex.jpg")
-
-    companion object {
         /** Mirrors the iOS quality ladder in MemberAvatarStore.encodeForWire. */
         private val QUALITY_STEPS = listOf(70, 60, 50, 40, 30, 20)
     }

@@ -19,6 +19,10 @@ struct GroupDetailView: View {
     @State private var showAvatarOptions = false
     @State private var showAvatarPicker = false
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
+    @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @State private var pickingForGroup = false
+    @State private var groupPhotoError: String?
 
     /// Show members inline up to this many; beyond it, preview + "See all".
     private let memberPreviewCap = 6
@@ -71,6 +75,17 @@ struct GroupDetailView: View {
         .onChange(of: viewModel.didRequestLeave) { _, left in
             if left { dismiss() }
         }
+        .alert(
+            "Couldn't set group photo",
+            isPresented: Binding(
+                get: { groupPhotoError != nil },
+                set: { if !$0 { groupPhotoError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { groupPhotoError = nil }
+        } message: {
+            Text(groupPhotoError ?? "")
+        }
         .alert("Rename Group", isPresented: $showRename) {
             TextField("Group name", text: $renameText)
             Button("Save") { Task { await viewModel.renameGroup(to: renameText) } }
@@ -103,7 +118,9 @@ struct GroupDetailView: View {
                     showAvatarOptions = true
                 } label: {
                     ZStack(alignment: .bottomTrailing) {
-                        if let img = avatars.image(for: viewModel.groupId) {
+                        if let img = SharedGroupAvatarStore.resolvedImage(
+                            for: viewModel.groupId, local: avatars, shared: sharedAvatars
+                        ) {
                             Image(uiImage: img)
                                 .resizable()
                                 .scaledToFill()
@@ -127,27 +144,61 @@ struct GroupDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Group photo")
-                .confirmationDialog("Group Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
-                    Button(avatars.hasImage(for: viewModel.groupId) ? "Change Photo" : "Choose Photo") {
+                .confirmationDialog("Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
+                    if viewModel.isAdmin {
+                        Button(sharedAvatars.hasImage(for: viewModel.groupId)
+                               ? "Change Group Photo" : "Set Group Photo") {
+                            pickingForGroup = true
+                            showAvatarPicker = true
+                        }
+                        if sharedAvatars.hasImage(for: viewModel.groupId) {
+                            Button("Remove Group Photo", role: .destructive) {
+                                Task { await appViewModel.removeGroupAvatar(groupId: viewModel.groupId) }
+                            }
+                        }
+                    }
+                    Button(avatars.hasImage(for: viewModel.groupId)
+                           ? "Change Personal Photo" : "Set Personal Photo") {
+                        pickingForGroup = false
                         showAvatarPicker = true
                     }
                     if avatars.hasImage(for: viewModel.groupId) {
-                        Button("Remove Photo", role: .destructive) {
+                        Button("Remove Personal Photo", role: .destructive) {
                             avatars.removeImage(for: viewModel.groupId)
                         }
                     }
                     Button("Cancel", role: .cancel) { }
                 } message: {
-                    Text("Only you see this photo — it stays on this device.")
+                    // Kept short: confirmationDialog is a system action sheet
+                    // whose width is not ours to control, so long copy wraps
+                    // into a cramped block. The full explanation lives in the
+                    // failure alert, which is where it actually matters.
+                    Text(viewModel.isAdmin
+                         ? "The group photo is sent to everyone. A personal photo replaces the group's image on this device only."
+                         : "A personal photo replaces the group's image on this device only.")
                 }
                 .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in
                     guard let item else { return }
                     Task {
                         if let data = try? await item.loadTransferable(type: Data.self) {
-                            avatars.setImage(data: data, for: viewModel.groupId)
+                            if pickingForGroup {
+                                // Handle the outcome — a silently dropped result
+                                // made every failure look like "nothing happened".
+                                switch await appViewModel.setGroupAvatar(data: data, groupId: viewModel.groupId) {
+                                case .updated:
+                                    break
+                                case .notAdmin:
+                                    groupPhotoError = "Only a group admin can set the group photo."
+                                case .couldNotEncode:
+                                    groupPhotoError = "Group photos are sent to everyone, so they have to be small. This one couldn't be shrunk enough — try another image."
+                                }
+                            } else {
+                                avatars.setImage(data: data, for: viewModel.groupId)
+                            }
                         }
                         pickedAvatar = nil
+                        pickingForGroup = false
                     }
                 }
 
