@@ -6,7 +6,6 @@ struct SettingsView: View {
     /// so without it the avatar row would only refresh when some unrelated
     /// relay or settings event happened to re-render this view.
     @EnvironmentObject private var memberAvatars: MemberAvatarStore
-    @Environment(\.openURL) private var openURL
 
     #if DEBUG
     /// Temporary: survives an *update* but is regenerated if SwiftUI replaces
@@ -159,27 +158,9 @@ struct SettingsView: View {
                     .foregroundStyle(.orange)
             }
         case .denied:
-            Button {
-                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-            } label: {
-                HStack {
-                    Label("Authorization", systemImage: "checkmark.shield")
-                    Spacer()
-                    Text("Denied")
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
+            OpenAppSettingsRow(statusText: "Denied")
         case .authorizedWhenInUse:
-            Button {
-                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-            } label: {
-                HStack {
-                    Label("Authorization", systemImage: "checkmark.shield")
-                    Spacer()
-                    Text("When In Use")
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
+            OpenAppSettingsRow(statusText: "When In Use")
         case .authorizedAlways:
             HStack {
                 Label("Authorization", systemImage: "checkmark.shield")
