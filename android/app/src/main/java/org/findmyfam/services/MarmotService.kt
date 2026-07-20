@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.findmyfam.models.*
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.AvatarPayload
+import org.findmyfam.shared.models.GroupAvatarPayload
 import org.findmyfam.shared.models.ChatPayload
 import org.findmyfam.shared.models.InviteCode
 import org.findmyfam.shared.models.JoinRequest
@@ -56,6 +57,7 @@ class MarmotService @Inject constructor(
     private val settings: AppSettings,
     private val nicknameStore: NicknameStore,
     private val memberAvatarStore: MemberAvatarStore,
+    private val sharedGroupAvatarStore: SharedGroupAvatarStore,
     private val pendingInviteStore: PendingInviteStore,
     private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
@@ -300,6 +302,41 @@ class MarmotService @Inject constructor(
      * outright, and a rejected send looks identical to a delivered one from
      * here, so the failure would be silent.
      */
+    /**
+     * Is this pubkey an admin of the group?
+     *
+     * Reads MLS group state rather than any local cache, so it reflects what
+     * the ratchet tree actually says.
+     */
+    suspend fun isAdmin(pubkeyHex: String, groupId: String): Boolean =
+        mls.getGroup(groupId)?.adminPubkeys?.contains(pubkeyHex) == true
+
+    /**
+     * The admin responsible for re-announcing group state to new joiners.
+     *
+     * Every admin sees a join, so without a rule each would re-broadcast the
+     * group photo and a three-admin group would send three copies. Picks the
+     * lexicographically smallest admin pubkey rather than the first list
+     * element: list order is not guaranteed identical across clients, so
+     * "lowest index" could resolve differently on each device and either
+     * duplicate the send or drop it entirely.
+     */
+    suspend fun designatedBroadcaster(groupId: String): String? =
+        mls.getGroup(groupId)?.adminPubkeys?.minOrNull()
+
+    /**
+     * Broadcast a group photo (or its removal) to a group.
+     *
+     * Refuses an oversized payload for the same reason member avatars do: a
+     * relay rejecting the event looks identical to a delivered one from here.
+     */
+    suspend fun sendGroupAvatarUpdate(payload: GroupAvatarPayload, groupId: String) {
+        require(payload.isWithinSizeLimit) {
+            "Group avatar payload exceeds ${GroupAvatarPayload.MAX_ENCODED_BYTES} bytes"
+        }
+        sendMessage(content = payload.toJson(), groupId = groupId, kind = MarmotKind.CHAT)
+    }
+
     suspend fun sendAvatarUpdate(payload: AvatarPayload, groupId: String) {
         require(payload.isWithinSizeLimit) {
             "Avatar payload exceeds ${AvatarPayload.MAX_ENCODED_BYTES} bytes"
@@ -940,6 +977,25 @@ class MarmotService @Inject constructor(
                             val payload = NicknamePayload.fromJson(content)
                             nicknameStore.set(name = payload.name, pubkeyHex = message.senderPubkey)
                             Timber.i("Nickname update: ${message.senderPubkey.take(8)} -> ${payload.name}")
+                        }
+                        "group_avatar" -> {
+                            // Admin-only, and this is the only thing enforcing
+                            // it. MLS guarantees the sender is a *member*, not
+                            // an admin, so a modified client could send this —
+                            // every receiver has to check independently or the
+                            // restriction means nothing.
+                            if (isAdmin(message.senderPubkey, message.mlsGroupId)) {
+                                val payload = GroupAvatarPayload.fromJson(content)
+                                sharedGroupAvatarStore.apply(payload, message.mlsGroupId)
+                                val action = if (payload.isRemoval) "removed" else "updated"
+                                Timber.i(
+                                    "Group avatar $action by admin ${message.senderPubkey.take(8)} in ${message.mlsGroupId}"
+                                )
+                            } else {
+                                Timber.w(
+                                    "Ignored group avatar from non-admin ${message.senderPubkey.take(8)} in ${message.mlsGroupId}"
+                                )
+                            }
                         }
                         "avatar" -> {
                             val payload = AvatarPayload.fromJson(content)

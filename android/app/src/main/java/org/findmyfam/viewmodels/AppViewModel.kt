@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
 import org.findmyfam.shared.models.AvatarPayload
+import org.findmyfam.shared.models.GroupAvatarPayload
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.services.*
 import timber.log.Timber
@@ -40,6 +41,7 @@ class AppViewModel @Inject constructor(
     val settings: AppSettings,
     val nicknameStore: NicknameStore,
     val memberAvatarStore: MemberAvatarStore,
+    val sharedGroupAvatarStore: SharedGroupAvatarStore,
     val pendingInviteStore: PendingInviteStore,
     val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,
@@ -158,6 +160,15 @@ class AppViewModel @Inject constructor(
                 marmotService.fetchMissedGiftWraps()
             } catch (e: Exception) {
                 Timber.w(e, "fetchMissedGiftWraps failed (non-fatal)")
+            }
+
+            // Re-announce the group photo when membership changes, so a new
+            // joiner sees it without waiting for the next edit. Guarded to the
+            // designated admin inside — every admin observes the same change.
+            viewModelScope.launch {
+                marmotService.lastGroupMembershipChangeId.collect { change ->
+                    change?.let { rebroadcastGroupAvatarIfDesignated(it.first) }
+                }
             }
 
             // Broadcast display name and trigger immediate location send for newly joined groups
@@ -401,6 +412,56 @@ class AppViewModel @Inject constructor(
         broadcastAvatar(memberAvatarStore.removeOwnImage(pubkey))
     }
 
+    // --- Group photo (admin-only) ---
+
+    /**
+     * Set the group's shared photo and announce it. Returns false if the image
+     * could not be encoded within the wire cap, or if we are not an admin.
+     */
+    suspend fun setGroupAvatar(uri: Uri, groupId: String): Boolean {
+        val pubkey = identity.publicKeyHex ?: return false
+        if (!marmotService.isAdmin(pubkey, groupId)) return false
+        val payload = sharedGroupAvatarStore.setImage(uri, groupId) ?: return false
+        try {
+            marmotService.sendGroupAvatarUpdate(payload, groupId)
+        } catch (e: Exception) {
+            Timber.w("Failed to broadcast group avatar for $groupId: ${e.message}")
+        }
+        return true
+    }
+
+    /** Clear the group's shared photo and tell the group to drop it. */
+    suspend fun removeGroupAvatar(groupId: String) {
+        val pubkey = identity.publicKeyHex ?: return
+        if (!marmotService.isAdmin(pubkey, groupId)) return
+        val payload = sharedGroupAvatarStore.removeImagePayload(groupId)
+        try {
+            marmotService.sendGroupAvatarUpdate(payload, groupId)
+        } catch (e: Exception) {
+            Timber.w("Failed to broadcast group avatar removal for $groupId: ${e.message}")
+        }
+    }
+
+    /**
+     * Re-announce the group photo when membership changes, so a new joiner sees
+     * it without waiting for the next edit.
+     *
+     * Only the designated admin sends. Every admin observes the same membership
+     * change, so without this a three-admin group would push three copies of
+     * the image to every member.
+     */
+    private suspend fun rebroadcastGroupAvatarIfDesignated(groupId: String) {
+        val pubkey = identity.publicKeyHex ?: return
+        if (marmotService.designatedBroadcaster(groupId) != pubkey) return
+        val payload = sharedGroupAvatarStore.payload(groupId) ?: return
+        try {
+            marmotService.sendGroupAvatarUpdate(payload, groupId)
+            Timber.i("Re-announced group avatar to $groupId after membership change")
+        } catch (e: Exception) {
+            Timber.w("Group avatar re-announce failed for $groupId: ${e.message}")
+        }
+    }
+
     /**
      * Send an avatar payload to every active group.
      *
@@ -461,6 +522,7 @@ class AppViewModel @Inject constructor(
         // Member avatars are photographs of real people — they must not survive
         // an identity burn any more than the groups they came from do.
         memberAvatarStore.removeAll()
+        sharedGroupAvatarStore.removeAll()
         pendingInviteStore.removeAll()
         pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
