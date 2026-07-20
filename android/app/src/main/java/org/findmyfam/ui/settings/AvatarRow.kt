@@ -20,10 +20,14 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +70,8 @@ fun AvatarRow(
         store.image(it)
     }
 
+    var showOptions by remember { mutableStateOf(false) }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri -> uri?.let(onPicked) }
@@ -73,11 +79,10 @@ fun AvatarRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                launcher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            }
+            // Tapping opens a menu rather than jumping straight into the
+            // gallery, and removal lives there instead of as a cramped inline
+            // link next to the thumbnail. Mirrors the iOS confirmation dialog.
+            .clickable { showOptions = true }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -92,8 +97,6 @@ fun AvatarRow(
         Spacer(modifier = Modifier.weight(1f))
 
         if (bitmap != null) {
-            TextButton(onClick = onRemoved) { Text("Remove") }
-            Spacer(modifier = Modifier.width(8.dp))
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Your avatar",
@@ -120,5 +123,33 @@ fun AvatarRow(
                 )
             }
         }
+    }
+
+    if (showOptions) {
+        AlertDialog(
+            onDismissRequest = { showOptions = false },
+            title = { Text("Your Photo") },
+            text = { Text("Shared with everyone in your groups.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showOptions = false
+                    launcher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }) {
+                    Text(if (bitmap == null) "Choose Photo" else "Change Photo")
+                }
+            },
+            dismissButton = {
+                if (bitmap != null) {
+                    TextButton(onClick = {
+                        showOptions = false
+                        onRemoved()
+                    }) {
+                        Text("Remove Photo")
+                    }
+                }
+            }
+        )
     }
 }

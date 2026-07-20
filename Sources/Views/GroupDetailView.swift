@@ -16,6 +16,8 @@ struct GroupDetailView: View {
     @State private var showRename = false
     @State private var renameText = ""
     @State private var pickedAvatar: PhotosPickerItem?
+    @State private var showAvatarOptions = false
+    @State private var showAvatarPicker = false
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
 
     /// Show members inline up to this many; beyond it, preview + "See all".
@@ -89,9 +91,17 @@ struct GroupDetailView: View {
     private var heroSection: some View {
         Section {
             VStack(spacing: 10) {
-                // Tap to set a personal (local, per-device) group photo. Not shared
-                // with other members — see LocalGroupAvatarStore.
-                PhotosPicker(selection: $pickedAvatar, matching: .images) {
+                // Tap to manage a personal (local, per-device) group photo. Not
+                // shared with other members — see LocalGroupAvatarStore.
+                //
+                // A plain Button rather than a PhotosPicker: inside a List row a
+                // PhotosPicker's hit region expanded past the circle and swallowed
+                // taps meant for the group name and its rename pencil below,
+                // making rename unreachable. The explicit frame and contentShape
+                // confine the tap target to the circle itself.
+                Button {
+                    showAvatarOptions = true
+                } label: {
                     ZStack(alignment: .bottomTrailing) {
                         if let img = avatars.image(for: viewModel.groupId) {
                             Image(uiImage: img)
@@ -112,18 +122,23 @@ struct GroupDetailView: View {
                             .symbolRenderingMode(.palette)
                             .foregroundStyle(.white, .blue)
                     }
+                    .frame(width: 80, height: 80)
+                    .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Set group photo")
-                .contextMenu {
+                .accessibilityLabel("Group photo")
+                .confirmationDialog("Group Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
+                    Button("Change Photo") { showAvatarPicker = true }
                     if avatars.hasImage(for: viewModel.groupId) {
-                        Button(role: .destructive) {
+                        Button("Remove Photo", role: .destructive) {
                             avatars.removeImage(for: viewModel.groupId)
-                        } label: {
-                            Label("Remove Photo", systemImage: "trash")
                         }
                     }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("Only you see this photo — it stays on this device.")
                 }
+                .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
                 .onChange(of: pickedAvatar) { _, item in
                     guard let item else { return }
                     Task {
