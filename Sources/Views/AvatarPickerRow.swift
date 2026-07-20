@@ -48,26 +48,6 @@ struct AvatarPickerRow: View, Equatable {
     @State private var showTooLargeAlert = false
 
     var body: some View {
-        #if DEBUG
-        // Temporary instrumentation for the picker re-render investigation.
-        // SwiftUI prints which dependency invalidated this view — `@self` means
-        // the struct's own values changed, `@identity` means it was replaced
-        // outright, and a named property means that specific dependency fired.
-        // Remove once the cause is confirmed.
-        // `let _` is required inside a ViewBuilder — a bare `_ =` is not a
-        // valid builder statement, so the lint rule does not apply here.
-        // swiftlint:disable:next redundant_discardable_let
-        let _ = Self._printChanges()
-        // Dump the actual inputs so we can see *which* one differs when
-        // `@self changed` fires — the three fields `==` compares.
-        // swiftlint:disable:next redundant_discardable_let
-        let _ = print("""
-            AvatarPickerRow inputs: \
-            pubkey=\(pubkeyHex.prefix(8)) \
-            name='\(displayName)' \
-            image=\(image.map { ObjectIdentifier($0).debugDescription } ?? "nil")
-            """)
-        #endif
         HStack {
             Label("Photo", systemImage: "person.crop.square")
                 .lineLimit(1)
