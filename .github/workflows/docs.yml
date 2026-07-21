@@ -31,6 +31,11 @@ jobs:
           cache-dependency-path: website/requirements.txt
       - run: pip install -r requirements.txt
       - run: mkdocs build --strict
+      # MkDocs strips dot-directories, so place the RFC 9116 security.txt into
+      # the built site directly (canonical /.well-known/ path). Runs after the
+      # build, which wipes site/.
+      - name: Publish security.txt (RFC 9116)
+        run: install -D .well-known/security.txt site/.well-known/security.txt
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5
         with:
           path: website/site
