@@ -10,7 +10,7 @@ struct RootView: View {
                     Label("Chat", systemImage: "bubble.left.and.bubble.right.fill")
                 }
 
-            FamilyMapView(viewModel: appViewModel.locationViewModel)
+            MapView(viewModel: appViewModel.locationViewModel)
                 .tabItem {
                     Label("Map", systemImage: "map.fill")
                 }

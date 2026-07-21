@@ -34,7 +34,7 @@ class LocationFixPickTest {
 
     @Test
     fun `both fresh — GPS wins even when NETWORK is more accurate`() {
-        // A fresh GPS fix is almost always the right choice for family location;
+        // A fresh GPS fix is almost always the right choice for a location update;
         // GPS chipsets tend to over-report accuracy when partially obstructed,
         // but a real GPS fix is still preferable to a Wi-Fi triangulation.
         assertEquals(FixPick.GPS, pickBestFix(50f, now - fresh, 20f, now - fresh, now))

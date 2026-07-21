@@ -65,7 +65,7 @@ private val INITIALS_PALETTE = intArrayOf(
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun FamilyMapScreen(
+fun MapScreen(
     locationViewModel: LocationViewModel,
     groups: List<GroupOption> = emptyList(),
     onPermissionGranted: () -> Unit,
@@ -281,7 +281,7 @@ fun FamilyMapScreen(
                         )
                     ) {
                         Text(
-                            text = "No family locations yet. Locations will appear as group members share their positions.",
+                            text = "No locations yet. Locations will appear as group members share their positions.",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
