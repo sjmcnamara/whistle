@@ -26,7 +26,7 @@ final class AppViewModel: ObservableObject {
     /// Shared in-memory cache of group members' latest locations.
     let locationCache: LocationCache
 
-    /// View-model for the family map — observes `locationCache`.
+    /// View-model for the map — observes `locationCache`.
     let locationViewModel: LocationViewModel
 
     // MARK: - Chat & Nicknames (v0.5)

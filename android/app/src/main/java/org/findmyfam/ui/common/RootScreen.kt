@@ -28,7 +28,7 @@ import org.findmyfam.viewmodels.AppViewModel.StartupPhase
 import org.findmyfam.viewmodels.ChatViewModel
 import org.findmyfam.viewmodels.GroupDetailViewModel
 import org.findmyfam.viewmodels.GroupListViewModel
-import org.findmyfam.ui.map.FamilyMapScreen
+import org.findmyfam.ui.map.MapScreen
 import org.findmyfam.ui.map.GroupOption
 import org.findmyfam.ui.identity.ExportKeyScreen
 import org.findmyfam.ui.identity.IdentityCardScreen
@@ -256,7 +256,7 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
 
                 val whistleState by viewModel.whistleState.collectAsState()
                 val avatarRevision by viewModel.memberAvatarStore.revision.collectAsState()
-                FamilyMapScreen(
+                MapScreen(
                     locationViewModel = locationViewModel,
                     groups = activeGroups,
                     onPermissionGranted = { viewModel.onLocationPermissionGranted() },

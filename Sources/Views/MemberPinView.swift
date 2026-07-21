@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Custom map annotation view for a family member's location pin.
+/// Custom map annotation view for a group member's location pin.
 ///
 /// - **Blue** = fresh location
 /// - **Grey** = stale (older than 2× the update interval)

@@ -1,11 +1,11 @@
 import SwiftUI
 import MapKit
 
-/// Live family map showing member location pins.
+/// Live map showing group member location pins.
 ///
 /// Uses the iOS 17 `Map { }` content builder API with `Annotation` views
 /// for each member. A toolbar picker allows filtering by group.
-struct FamilyMapView: View {
+struct MapView: View {
     private enum MapMode: String {
         case standard
         case satellite
@@ -228,7 +228,7 @@ struct FamilyMapView: View {
                 .foregroundStyle(.secondary)
             Text("No locations yet")
                 .font(.headline)
-            Text("Family members' locations will appear here once they start sharing.")
+            Text("Group members' locations will appear here once they start sharing.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
