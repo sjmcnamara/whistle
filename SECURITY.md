@@ -17,6 +17,21 @@ Report security issues by email to **getwhistle@proton.me**. Because Whistle
 handles real-time location data and uses end-to-end encrypted group messaging,
 we treat all credible reports seriously and aim to respond quickly.
 
+### Encrypting your report
+
+The report address is a Proton Mail address with a published OpenPGP key, so
+you can — and for anything sensitive, should — encrypt your report end-to-end.
+
+- **Fingerprint:** `C8C5 5288 CDEF 60C5 956D 3211 6CC9 6B66 6ECA 571A`
+- **Key:** [`getwhistle-pubkey.asc`](getwhistle-pubkey.asc) in this repository, or fetch it from Proton's keyserver:
+  ```
+  curl "https://api.protonmail.ch/pks/lookup?op=get&search=getwhistle@proton.me"
+  ```
+
+Proton publishes this key to its keyserver (and via WKD), so most OpenPGP-capable
+mail clients discover and use it automatically when you compose to the address.
+**Verify the fingerprint above before trusting a fetched key.**
+
 ### What to include
 
 - A clear description of the vulnerability and its potential impact
