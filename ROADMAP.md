@@ -1,6 +1,6 @@
 # Whistle Roadmap
 
-An open-source, decentralized family location app powered by Nostr.
+An open-source, decentralized group location sharing app powered by Nostr.
 No accounts. No servers. No permissions needed.
 
 ---

@@ -13,7 +13,7 @@ Only the latest release is actively supported with security fixes.
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report security issues by email to **findmyfam@proton.me**. Because Whistle
+Report security issues by email to **getwhistle@proton.me**. Because Whistle
 handles real-time location data and uses end-to-end encrypted group messaging,
 we treat all credible reports seriously and aim to respond quickly.
 
