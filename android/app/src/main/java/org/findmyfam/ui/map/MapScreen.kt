@@ -52,7 +52,7 @@ import java.util.*
 data class GroupOption(val id: String, val name: String)
 
 /** Mirrors the iOS MemberAvatarView palette, in the same order. */
-private val INITIALS_PALETTE = intArrayOf(
+internal val INITIALS_PALETTE = intArrayOf(
     0xFF007AFF.toInt(), // blue
     0xFFAF52DE.toInt(), // purple
     0xFFFF2D55.toInt(), // pink
@@ -149,7 +149,11 @@ fun MapScreen(
             )
 
             selectedAnnotation?.let { ann ->
-                MemberDetailSheet(annotation = ann, onDismiss = { selectedAnnotation = null })
+                MemberDetailSheet(
+                    annotation = ann,
+                    avatarBitmap = avatarFor(ann.memberPubkeyHex),
+                    onDismiss = { selectedAnnotation = null }
+                )
             }
 
             // Group filter picker

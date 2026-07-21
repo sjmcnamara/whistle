@@ -11,9 +11,12 @@ struct MemberDetailSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(annotation.isStale ? .gray : .blue)
+                MemberAvatarView(
+                    pubkeyHex: annotation.memberPubkeyHex,
+                    displayName: annotation.displayName,
+                    diameter: 44,
+                    isStale: annotation.isStale
+                )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(annotation.displayName)
                         .font(.title3.bold())
