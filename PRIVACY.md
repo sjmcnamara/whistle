@@ -36,4 +36,4 @@ You have ultimate control over your device's data. At any time, you can:
 If we ever change the way this app operates (for example, if we introduce a feature that requires us to temporarily process data), we will update this policy and request your explicit permission before any changes take effect.
 
 ## 7. Contact Us
-If you have any questions about this privacy policy or how Whistle protects your data, please contact us at: **[Insert Contact Email / Website Support URL]**
+If you have any questions about this privacy policy or how Whistle protects your data, please **[contact us.](mailto:getwhistle@proton.me)**
