@@ -1,6 +1,10 @@
 package org.findmyfam.ui.map
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,9 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -22,10 +26,15 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.findmyfam.shared.models.MemberAvatarFallback
 import org.findmyfam.viewmodels.MemberAnnotation
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
@@ -41,6 +50,7 @@ import kotlin.math.max
 @Composable
 fun MemberDetailSheet(
     annotation: MemberAnnotation,
+    avatarBitmap: Bitmap? = null,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -55,11 +65,11 @@ fun MemberDetailSheet(
                 .padding(bottom = 24.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = null,
-                    tint = if (annotation.isStale) Color.Gray else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(36.dp)
+                MemberAvatarHeader(
+                    pubkeyHex = annotation.memberPubkeyHex,
+                    displayName = annotation.displayName,
+                    bitmap = avatarBitmap,
+                    isStale = annotation.isStale
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -178,4 +188,52 @@ internal fun formatCadence(seconds: Int): String {
     val remMinutes = (seconds % 3600) / 60
     if (remMinutes == 0) return if (hours == 1) "1 hour" else "$hours hours"
     return "$hours hr $remMinutes min"
+}
+
+/**
+ * The member's avatar for the detail-sheet header: their shared photo if we
+ * have one, otherwise the same initials-in-a-coloured-circle fallback the map
+ * pin uses ([INITIALS_PALETTE] + [MemberAvatarFallback]). Dimmed when stale,
+ * mirroring the pin's grey treatment.
+ */
+@Composable
+private fun MemberAvatarHeader(
+    pubkeyHex: String,
+    displayName: String,
+    bitmap: Bitmap?,
+    isStale: Boolean
+) {
+    val diameter = 44.dp
+    val staleAlpha = if (isStale) 0.5f else 1f
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(diameter)
+                .clip(CircleShape)
+                .alpha(staleAlpha)
+        )
+    } else {
+        val color = if (isStale) {
+            Color.Gray
+        } else {
+            Color(INITIALS_PALETTE[MemberAvatarFallback.colorIndex(pubkeyHex)])
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(diameter)
+                .clip(CircleShape)
+                .background(color)
+        ) {
+            Text(
+                text = MemberAvatarFallback.initials(displayName),
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
 }
