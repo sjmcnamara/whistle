@@ -1,0 +1,27 @@
+name: ClusterFuzzLite batch fuzzing
+on:
+  schedule:
+    - cron: '0 3 * * *'   # daily full run
+  workflow_dispatch: {}    # manual kick
+permissions: read-all
+concurrency:
+  group: cflite-batch
+  cancel-in-progress: true
+jobs:
+  BatchFuzzing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        with:
+          language: swift
+          sanitizer: address
+      - name: Run Fuzzers
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 600
+          mode: 'batch'
+          sanitizer: address

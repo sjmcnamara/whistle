@@ -20,6 +20,8 @@ It’s a private, encrypted group network designed to keep people connected with
 
 Share your location when it matters, with the people who need it. Stop when it doesn’t.
 
+**Website:** [getwhistle.org](https://getwhistle.org) — overview, how it works, and the full documentation.
+
 ## Who it's for
 
 **The family circle** — quiet reassurance that someone got home safe, or is on their way, without the ping of a constant text. No history being archived. Shared in the moment, then gone.
@@ -111,4 +113,4 @@ v1.8.0 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for f
 
 ## Wiki
 
-Project operational docs live in [website/docs/wiki/](website/docs/wiki/index.md) — also rendered as the "Reference" section of the Whistle site.
+Project operational docs live in [website/docs/wiki/](website/docs/wiki/index.md) — also rendered as the "Reference" section of the Whistle site at [getwhistle.org](https://getwhistle.org).

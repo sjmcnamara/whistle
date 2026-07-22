@@ -90,6 +90,7 @@ public struct LocationPayload: Codable, Equatable {
     /// Decode from a JSON string received in an MLS message.
     public static func from(jsonString: String) throws -> LocationPayload {
         let data = Data(jsonString.utf8)
+        try JSONNestingGuard.validate(data)
         return try JSONDecoder().decode(LocationPayload.self, from: data)
     }
 }
