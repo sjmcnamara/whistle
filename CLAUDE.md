@@ -84,7 +84,7 @@ Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.
 
 ## Known test failures (pre-existing, not ours)
 
-None currently known. All tests should pass on simulator.
+None currently known. All 438 iOS tests should pass on simulator.
 
 Note: the avatar `downscaled` helpers (`MemberAvatarStore`, `LocalGroupAvatarStore`) render at `format.scale = 1` so output is exactly `targetEdge` pixels. Before v1.8.1 they produced `targetEdge × screen-scale` pixels (e.g. 384px on a @3x device for a 128pt target), which made `MemberAvatarStoreTests.testEncodeDownscalesToTargetEdge` fail on any @2x/@3x simulator. If it regresses, check the renderer scale.
 
