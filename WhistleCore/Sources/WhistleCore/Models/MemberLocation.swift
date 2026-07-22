@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(CoreLocation)
 import CoreLocation
+#endif
 
 /// Latest known location for a group member, stored in `LocationCache`.
 public struct MemberLocation: Identifiable, Equatable {
@@ -27,10 +29,16 @@ public struct MemberLocation: Identifiable, Equatable {
         self.receivedAt = receivedAt
     }
 
+    #if canImport(CoreLocation)
     /// CoreLocation coordinate for MapKit.
+    ///
+    /// Guarded so WhistleCore stays buildable on Linux (where the fuzz targets
+    /// in `Fuzzing/` link the package under the OSS-Fuzz toolchain). CoreLocation
+    /// is Apple-only; nothing in the decode paths this package fuzzes touches it.
     public var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: payload.lat, longitude: payload.lon)
     }
+    #endif
 
     /// True when we haven't received a fresh location from this member in
     /// more than 2× their update interval.
