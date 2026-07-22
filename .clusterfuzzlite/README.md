@@ -23,12 +23,21 @@ Each harness only asserts *no crash* — a `throw` on garbage is correct. A cras
 
 ## Layout
 
-- `Dockerfile` / `build.sh` — build the `Fuzzing/` package on the OSS-Fuzz Swift
-  toolchain and copy `Fuzz_*` binaries to `$OUT`.
-- Harnesses live in `../Fuzzing/` (a standalone SwiftPM package, deliberately
-  outside the app build and `swift test` CI so the libFuzzer link never leaks in).
+- `harnesses/Fuzz_*.swift` — one libFuzzer entry (`@_cdecl("LLVMFuzzerTestOneInput")`)
+  per target. They reference WhistleCore's public types with **no** `import`,
+  because `build.sh` compiles each harness together with the WhistleCore sources
+  as a single module (see below).
+- `Dockerfile` / `build.sh` — compile each fuzzer with `swiftc` on the OSS-Fuzz
+  Swift toolchain and drop the `Fuzz_*` binaries in `$OUT`.
 - Workflows: `.github/workflows/cflite_pr.yml` (per-PR, changed code) and
   `cflite_batch.yml` (scheduled + manual full run).
+
+`build.sh` uses a direct `swiftc` invocation rather than SwiftPM because a Swift
+fuzzer is awkward for SwiftPM on this toolchain: an executable target emits a
+`<target>_main` shim that `-parse-as-library` (in the OSS-Fuzz `$SWIFTFLAGS`)
+suppresses; a library target won't link a binary; and a `main.swift` file
+auto-promotes back to an executable target. Compiling the small, Foundation-only
+WhistleCore package straight into each fuzzer sidesteps all of that.
 
 ## Reproducing a crash
 
@@ -43,9 +52,9 @@ docker build -t whistle-cflite -f .clusterfuzzlite/Dockerfile .
 # then run the built Fuzz_<Target> binary from $OUT against crash-testcase
 ```
 
-Locally on Linux you can also build the `Fuzzing/` package directly with the
-OSS-Fuzz flags (`precompile_swift` sets `$SWIFTFLAGS`), then run
-`.build/debug/Fuzz_<Target> path/to/crash-testcase`.
+Locally on Linux you can also run `.clusterfuzzlite/build.sh` inside the base
+image (it writes `Fuzz_<Target>` binaries to `$OUT`), then run
+`$OUT/Fuzz_<Target> path/to/crash-testcase`.
 
 ## When a bug is found
 

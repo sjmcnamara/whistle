@@ -1,5 +1,7 @@
 import Foundation
-import WhistleCore
+
+// No `import WhistleCore`: build.sh compiles this file together with the
+// WhistleCore sources as one module, so its public types are in scope directly.
 
 /// Fuzzes the invite-code decode path: an attacker-supplied string arriving via
 /// deep link / QR / pasteboard, base64-decoded then JSON-decoded into an
@@ -10,7 +12,6 @@ public func LLVMFuzzerTestOneInput(_ start: UnsafePointer<UInt8>, _ count: Int) 
     let data = Data(bytes: start, count: count)
     let input = String(decoding: data, as: UTF8.self)
     _ = try? InviteCode.decode(from: input)
-    // Also exercise the URL entry point (whistle://invite/<code> and raw).
     if let url = URL(string: input) {
         _ = try? InviteCode.from(url: url)
     }

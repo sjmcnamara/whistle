@@ -1,5 +1,6 @@
 import Foundation
-import WhistleCore
+
+// No `import WhistleCore`: compiled in-module with the WhistleCore sources.
 
 /// Fuzzes `LocationPayload.from(jsonString:)` — the decode applied to the inner
 /// payload of a kind-445 MLS message after decryption. A malicious but

@@ -1,5 +1,6 @@
 import Foundation
-import WhistleCore
+
+// No `import WhistleCore`: compiled in-module with the WhistleCore sources.
 
 /// Fuzzes `JoinRequest.from(jsonString:)` — the decode applied to a join-request
 /// rumor after unwrapping its NIP-59 gift wrap. An attacker can craft the

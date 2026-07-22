@@ -1,22 +1,34 @@
 #!/bin/bash -eu
 # Build Whistle's Swift fuzz targets for ClusterFuzzLite / OSS-Fuzz.
 #
-# The fuzz targets live in the standalone `Fuzzing/` SwiftPM package so they
-# never touch the app build or the `swift test` CI path.
-#
-# Recipe mirrors OSS-Fuzz's swift-nio project, which targets this same
-# base-builder-swift image: source `precompile_swift` (it exports the correct
-# $SWIFTFLAGS for the image's toolchain — including -sanitize=fuzzer and
-# -parse-as-library) and build with `swift build $SWIFTFLAGS`. Each fuzz
-# target's entry file must be named `main.swift` so SwiftPM emits the
-# `<target>_main` symbol its executable-product main shim links against.
+# WhistleCore is a small, Foundation-only Swift package, so rather than fight
+# SwiftPM's executable-target-vs-libFuzzer main() conflict (an executable target
+# emits a `<target>_main` shim that -parse-as-library suppresses; a library
+# target won't link a binary; a main.swift file auto-promotes back to an
+# executable target on tools >= 5.4), we compile each fuzzer directly with
+# swiftc: all WhistleCore sources plus one harness, as a single module, linked
+# into a libFuzzer executable via -sanitize=fuzzer. The harnesses therefore
+# reference WhistleCore's public types WITHOUT an `import` (same module).
 
 . precompile_swift
-cd "$SRC/whistle/Fuzzing"
 
-swift build -c debug $SWIFTFLAGS
+cd "$SRC/whistle"
+CORE_SRCS=$(find WhistleCore/Sources/WhistleCore -name '*.swift')
 
-cd .build/debug/
-find . -maxdepth 1 -type f -name "Fuzz_*" -executable | while read -r bin; do
-  cp "$bin" "$OUT/$(basename "$bin")"
+if [ "${SANITIZER:-address}" = "coverage" ]; then
+  SAN="-sanitize=fuzzer -profile-generate -profile-coverage-mapping"
+else
+  SAN="-sanitize=fuzzer,${SANITIZER:-address}"
+fi
+
+for target in InviteCode LocationPayload ChatPayload JoinRequest; do
+  # shellcheck disable=SC2086
+  swiftc \
+    $SAN \
+    -parse-as-library \
+    -static-stdlib \
+    -Xcc -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
+    $CORE_SRCS \
+    ".clusterfuzzlite/harnesses/Fuzz_${target}.swift" \
+    -o "$OUT/Fuzz_${target}"
 done

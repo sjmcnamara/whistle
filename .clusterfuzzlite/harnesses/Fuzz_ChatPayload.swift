@@ -1,5 +1,6 @@
 import Foundation
-import WhistleCore
+
+// No `import WhistleCore`: compiled in-module with the WhistleCore sources.
 
 /// Fuzzes `ChatPayload.from(jsonString:)` — the inner-payload decode for chat
 /// messages carried in kind-445 MLS events. Untrusted post-decrypt input from
