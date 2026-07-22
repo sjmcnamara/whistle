@@ -76,6 +76,8 @@ MDKBindings:
 
 Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.8.0). We previously tracked `branch: main` but upstream silently added a required `disappearingMessageSecs` parameter to `createGroup` and friends; the CI mdk-swift cache hid it until CodeQL (which fresh-clones) exposed the break. Bump the pin deliberately when adopting a newer MDK; switch to a tag once mdk-swift publishes one.
 
+**Stay on 0.8.0 — this is the maintainer-recommended version, not just our inertia.** MDK 0.9 is a complete restructure (merged with whitenoise-rs); `mdk-swift`/`mdk-kotlin` were last updated May 2026 and expose the account/chat layer, not the low-level MLS primitives we call (`processMessage`, `selfUpdate`, `addMembers`). Per Danny (mdk#938, 2026-07-22): the Swift/Kotlin bindings *will* resume once the rewrite settles, raw-event send/view (our exact non-chat use case) is planned, and consumers should stick with 0.8 until they announce. Do **not** chase `main` or hand-roll FFI over the `cgka-*` crates in the meantime — wait for the announcement. Tracking issue: https://github.com/marmot-protocol/mdk/issues/938
+
 **Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". `./scripts/build.sh` handles this automatically: it clones `vendor/mdk-swift` with the system git (LFS-aware) on first run, patches `project.yml`, runs xcodegen, then restores `project.yml` so the working tree stays clean.
 
 `vendor/` is gitignored. CI does the same thing. Re-run `./scripts/build.sh` after deleting `vendor/mdk-swift` or switching to a branch with a different MDK reference.
