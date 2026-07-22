@@ -553,6 +553,7 @@ master
   └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
   └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
   └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
+  └── bugfix/v1.8.1                         🔧 in progress (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale)
 ```
 
 ---
