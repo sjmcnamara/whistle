@@ -67,6 +67,7 @@ data class AvatarPayload(
 
         /** Decode from a JSON string received in an MLS message. */
         fun fromJson(json: String): AvatarPayload {
+            org.findmyfam.shared.JsonDepthGuard.validate(json)
             val obj = JSONObject(json)
             return AvatarPayload(
                 type = obj.optString("type", "avatar"),

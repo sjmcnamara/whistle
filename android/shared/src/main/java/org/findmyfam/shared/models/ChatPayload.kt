@@ -39,6 +39,7 @@ data class ChatPayload(
     companion object {
         /** Decode from a JSON string received in an MLS message. */
         fun fromJson(json: String): ChatPayload {
+            org.findmyfam.shared.JsonDepthGuard.validate(json)
             val obj = JSONObject(json)
             return ChatPayload(
                 type = obj.optString("type", "chat"),

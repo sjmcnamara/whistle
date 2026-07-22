@@ -304,11 +304,12 @@ class ChatViewModel(
 
         // Only map "chat" type messages (skip nickname broadcasts, etc.)
         try {
+            org.findmyfam.shared.JsonDepthGuard.validate(content)
             val json = JSONObject(content)
             val type = json.optString("type", "chat")
             if (type != "chat") return null
         } catch (_: Exception) {
-            // Not JSON -- treat as plain text
+            // Not JSON, or rejected as too deeply nested -- treat as plain text
         }
 
         // Try parsing as ChatPayload for rich metadata, fall back to raw text

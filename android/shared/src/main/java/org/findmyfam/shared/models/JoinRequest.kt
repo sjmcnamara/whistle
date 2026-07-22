@@ -44,6 +44,7 @@ data class JoinRequest(
     companion object {
         /** Decode from a gift-wrapped rumor's JSON content. */
         fun fromJson(json: String): JoinRequest {
+            org.findmyfam.shared.JsonDepthGuard.validate(json)
             val obj = JSONObject(json)
             return JoinRequest(
                 type = obj.optString("type", "join-request"),
