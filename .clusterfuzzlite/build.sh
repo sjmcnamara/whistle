@@ -2,24 +2,29 @@
 # Build Whistle's Swift fuzz targets for ClusterFuzzLite / OSS-Fuzz.
 #
 # The fuzz targets live in the standalone `Fuzzing/` SwiftPM package so they
-# never touch the app build or the `swift test` CI path. Each is an executable
-# with no main(); libFuzzer supplies main() via `-sanitize=fuzzer`, hence
-# `-parse-as-library`. $SANITIZER is set by the OSS-Fuzz infra (address by
-# default; coverage builds skip the sanitizer runtime).
+# never touch the app build or the `swift test` CI path.
+#
+# Flag construction mirrors OSS-Fuzz's swift-protobuf project. The key detail:
+# use SwiftPM's *native* `--sanitize=fuzzer` (double-dash `swift build` flag),
+# NOT `-Xswiftc -sanitize=fuzzer`. The native flag makes SwiftPM link each
+# executable target as a libFuzzer binary and suppresses the `<target>_main`
+# entry shim that otherwise collides with libFuzzer's own main().
 
+. precompile_swift
 cd "$SRC/whistle/Fuzzing"
 
-SANITIZER_FLAG="-sanitize=fuzzer,${SANITIZER:-address}"
-if [ "${SANITIZER:-}" = "coverage" ]; then
-  # Coverage builds instrument for libFuzzer but must not link a sanitizer rt.
-  SANITIZER_FLAG="-sanitize=fuzzer"
+export SWIFTFLAGS="-Xswiftc -static-stdlib --static-swift-stdlib"
+if [ "$SANITIZER" = "coverage" ]; then
+  export SWIFTFLAGS="$SWIFTFLAGS -Xswiftc -profile-generate -Xswiftc -profile-coverage-mapping --sanitize=fuzzer"
+else
+  export SWIFTFLAGS="$SWIFTFLAGS --sanitize=fuzzer --sanitize=$SANITIZER"
+  for f in $CFLAGS; do export SWIFTFLAGS="$SWIFTFLAGS -Xcc=$f"; done
+  for f in $CXXFLAGS; do export SWIFTFLAGS="$SWIFTFLAGS -Xcxx=$f"; done
 fi
 
-swift build -c debug \
-  -Xswiftc "$SANITIZER_FLAG" \
-  -Xswiftc -parse-as-library
+swift build -c debug $SWIFTFLAGS
 
-BIN_DIR="$(swift build -c debug --show-bin-path)"
-for target in Fuzz_InviteCode Fuzz_LocationPayload Fuzz_ChatPayload Fuzz_JoinRequest; do
-  cp "$BIN_DIR/$target" "$OUT/$target"
+cd .build/debug/
+find . -maxdepth 1 -type f -name "Fuzz_*" -executable | while read -r bin; do
+  cp "$bin" "$OUT/$(basename "$bin")"
 done

@@ -30,11 +30,14 @@ Each harness only asserts *no crash* — a `throw` on garbage is correct. A cras
 - Workflows: `.github/workflows/cflite_pr.yml` (per-PR, changed code) and
   `cflite_batch.yml` (scheduled + manual full run).
 
-## Reproducing a crash locally (Apple Silicon or Linux)
+## Reproducing a crash locally
+
+libFuzzer for the Swift target triple is only offered on Linux in the current
+toolchain, so reproduce on Linux (or a Linux container):
 
 ```bash
 cd Fuzzing
-swift build -c debug -Xswiftc -sanitize=fuzzer,address -Xswiftc -parse-as-library
+swift build -c debug --sanitize=fuzzer --sanitize=address --static-swift-stdlib
 .build/debug/Fuzz_LocationPayload path/to/crash-testcase
 ```
 
