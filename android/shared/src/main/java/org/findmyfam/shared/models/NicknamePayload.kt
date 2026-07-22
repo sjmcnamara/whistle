@@ -36,6 +36,7 @@ data class NicknamePayload(
     companion object {
         /** Decode from a JSON string received in an MLS message. */
         fun fromJson(json: String): NicknamePayload {
+            org.findmyfam.shared.JsonDepthGuard.validate(json)
             val obj = JSONObject(json)
             return NicknamePayload(
                 type = obj.optString("type", "nickname"),

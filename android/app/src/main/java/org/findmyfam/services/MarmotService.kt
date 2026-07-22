@@ -564,6 +564,7 @@ class MarmotService @Inject constructor(
     /** First `e` tag value (the key package event id) in a rumor's JSON. */
     internal fun firstETag(rumorJson: String): String? {
         return try {
+            org.findmyfam.shared.JsonDepthGuard.validate(rumorJson)
             val tags = JSONObject(rumorJson).optJSONArray("tags") ?: return null
             for (i in 0 until tags.length()) {
                 val tag = tags.optJSONArray(i) ?: continue
@@ -943,6 +944,16 @@ class MarmotService @Inject constructor(
     private suspend fun routeApplicationMessage(message: Message) {
         val content = message.plaintextContent ?: run {
             Timber.w("Application message missing content in group ${message.mlsGroupId}")
+            return
+        }
+
+        // Reject pathologically nested JSON before any org.json parse below.
+        // A hostile member could otherwise crash every recipient (StackOverflowError,
+        // which the try/catch(Exception) blocks below do NOT catch). See JsonDepthGuard.
+        try {
+            org.findmyfam.shared.JsonDepthGuard.validate(content)
+        } catch (e: org.findmyfam.shared.JsonDepthGuard.TooDeeplyNestedException) {
+            Timber.w("Rejected deeply-nested application message in group ${message.mlsGroupId}: ${e.message}")
             return
         }
 
@@ -1359,6 +1370,7 @@ class MarmotService @Inject constructor(
 val Message.plaintextContent: String?
     get() {
         return try {
+            org.findmyfam.shared.JsonDepthGuard.validate(eventJson)
             val json = JSONObject(eventJson)
             if (json.has("content")) json.getString("content") else null
         } catch (_: Exception) { null }
@@ -1370,6 +1382,7 @@ val Message.plaintextContent: String?
 val Message.innerKind: Int?
     get() {
         return try {
+            org.findmyfam.shared.JsonDepthGuard.validate(eventJson)
             val json = JSONObject(eventJson)
             if (json.has("kind")) json.getInt("kind") else null
         } catch (_: Exception) { null }

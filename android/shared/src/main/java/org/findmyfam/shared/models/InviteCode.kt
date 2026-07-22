@@ -44,7 +44,9 @@ data class InviteCode(
          */
         fun decode(encoded: String): InviteCode {
             val jsonBytes = Base64.getDecoder().decode(encoded)
-            val obj = JSONObject(String(jsonBytes, Charsets.UTF_8))
+            val json = String(jsonBytes, Charsets.UTF_8)
+            org.findmyfam.shared.JsonDepthGuard.validate(json)
+            val obj = JSONObject(json)
             return InviteCode(
                 relay = obj.getString("relay"),
                 inviterNpub = obj.getString("inviterNpub"),
