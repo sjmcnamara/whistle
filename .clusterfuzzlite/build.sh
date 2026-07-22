@@ -4,23 +4,15 @@
 # The fuzz targets live in the standalone `Fuzzing/` SwiftPM package so they
 # never touch the app build or the `swift test` CI path.
 #
-# Flag construction mirrors OSS-Fuzz's swift-protobuf project. The key detail:
-# use SwiftPM's *native* `--sanitize=fuzzer` (double-dash `swift build` flag),
-# NOT `-Xswiftc -sanitize=fuzzer`. The native flag makes SwiftPM link each
-# executable target as a libFuzzer binary and suppresses the `<target>_main`
-# entry shim that otherwise collides with libFuzzer's own main().
+# Recipe mirrors OSS-Fuzz's swift-nio project, which targets this same
+# base-builder-swift image: source `precompile_swift` (it exports the correct
+# $SWIFTFLAGS for the image's toolchain — including -sanitize=fuzzer and
+# -parse-as-library) and build with `swift build $SWIFTFLAGS`. Each fuzz
+# target's entry file must be named `main.swift` so SwiftPM emits the
+# `<target>_main` symbol its executable-product main shim links against.
 
 . precompile_swift
 cd "$SRC/whistle/Fuzzing"
-
-export SWIFTFLAGS="-Xswiftc -static-stdlib --static-swift-stdlib"
-if [ "$SANITIZER" = "coverage" ]; then
-  export SWIFTFLAGS="$SWIFTFLAGS -Xswiftc -profile-generate -Xswiftc -profile-coverage-mapping --sanitize=fuzzer"
-else
-  export SWIFTFLAGS="$SWIFTFLAGS --sanitize=fuzzer --sanitize=$SANITIZER"
-  for f in $CFLAGS; do export SWIFTFLAGS="$SWIFTFLAGS -Xcc=$f"; done
-  for f in $CXXFLAGS; do export SWIFTFLAGS="$SWIFTFLAGS -Xcxx=$f"; done
-fi
 
 swift build -c debug $SWIFTFLAGS
 

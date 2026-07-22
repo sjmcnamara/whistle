@@ -4,11 +4,12 @@ import PackageDescription
 // Separate package so the fuzz executables (which must link the libFuzzer
 // engine via `-sanitize=fuzzer`) never enter the main WhistleCore build or the
 // `swift test` CI path. `.clusterfuzzlite/build.sh` builds this package on the
-// OSS-Fuzz Swift toolchain with `swift build --sanitize=fuzzer`; see
+// OSS-Fuzz Swift toolchain via precompile_swift + swift build $SWIFTFLAGS; see
 // .clusterfuzzlite/README.md.
 //
-// Each target has no `main` — SwiftPM's native `--sanitize=fuzzer` links
-// libFuzzer's main() into these executable targets.
+// Each target's entry file is main.swift (required so SwiftPM's
+// executable-product main shim resolves the target_main symbol); it defines
+// @_cdecl("LLVMFuzzerTestOneInput") and libFuzzer drives it.
 let package = Package(
     name: "WhistleFuzzing",
     // Match WhistleCore's floor so local `swift build` on macOS links; ignored
