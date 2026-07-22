@@ -43,6 +43,7 @@ public struct ChatPayload: Codable, Equatable {
     /// Decode from a JSON string received in an MLS message.
     public static func from(jsonString: String) throws -> ChatPayload {
         let data = Data(jsonString.utf8)
+        try JSONNestingGuard.validate(data)
         return try JSONDecoder().decode(ChatPayload.self, from: data)
     }
 }
