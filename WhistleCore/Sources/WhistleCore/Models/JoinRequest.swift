@@ -58,6 +58,7 @@ public struct JoinRequest: Codable, Equatable {
     /// Decode from a gift-wrapped rumor's JSON content.
     public static func from(jsonString: String) throws -> JoinRequest {
         let data = Data(jsonString.utf8)
+        try JSONNestingGuard.validate(data)
         return try JSONDecoder().decode(JoinRequest.self, from: data)
     }
 }

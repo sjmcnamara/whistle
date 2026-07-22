@@ -39,6 +39,7 @@ public struct InviteCode: Codable, Equatable {
         guard let data = Data(base64Encoded: encoded) else {
             throw InviteError.invalidBase64
         }
+        try JSONNestingGuard.validate(data)
         return try JSONDecoder().decode(InviteCode.self, from: data)
     }
 

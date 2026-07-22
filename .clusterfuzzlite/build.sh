@@ -32,3 +32,18 @@ for target in InviteCode LocationPayload ChatPayload JoinRequest; do
     ".clusterfuzzlite/harnesses/Fuzz_${target}.swift" \
     -o "$OUT/Fuzz_${target}"
 done
+
+# Seed corpus: the deeply-nested-JSON crash that motivated JSONNestingGuard, so
+# every run re-exercises the guard. 513 '[' bytes — the raw form for the three
+# jsonString decoders, base64-wrapped for InviteCode (which base64-decodes
+# first). Best-effort: skip if zip is unavailable rather than fail the build.
+if command -v zip >/dev/null 2>&1; then
+  SEED_DIR="$(mktemp -d)"
+  printf '[%.0s' $(seq 1 513) > "$SEED_DIR/nested-raw"
+  base64 -w0 "$SEED_DIR/nested-raw" > "$SEED_DIR/nested-b64" 2>/dev/null \
+    || base64 "$SEED_DIR/nested-raw" | tr -d '\n' > "$SEED_DIR/nested-b64"
+  for target in LocationPayload ChatPayload JoinRequest; do
+    zip -qj "$OUT/Fuzz_${target}_seed_corpus.zip" "$SEED_DIR/nested-raw"
+  done
+  zip -qj "$OUT/Fuzz_InviteCode_seed_corpus.zip" "$SEED_DIR/nested-b64"
+fi

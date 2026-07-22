@@ -56,6 +56,16 @@ Locally on Linux you can also run `.clusterfuzzlite/build.sh` inside the base
 image (it writes `Fuzz_<Target>` binaries to `$OUT`), then run
 `$OUT/Fuzz_<Target> path/to/crash-testcase`.
 
+## Findings
+
+- **2026-07-22 — deeply-nested JSON crash (fixed).** `Fuzz_LocationPayload`
+  crashed on 513 nested `[` in ~2s: Foundation's JSON scanner recurses per
+  bracket with no depth cap and overflows the stack (reproduced on Apple
+  Foundation too, so it hit the shipping iOS app). Since the decoders run on
+  post-decrypt payloads, a hostile group member could remotely crash every
+  recipient. Fixed by `JSONNestingGuard` (WhistleCore) + Android parity, with
+  regression tests and this input seeded into the corpus.
+
 ## When a bug is found
 
 1. Add the crashing testcase as a regression test in
