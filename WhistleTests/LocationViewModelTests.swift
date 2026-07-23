@@ -120,13 +120,13 @@ final class LocationViewModelTests: XCTestCase {
         let me = vm.annotations.first { $0.isMe }
         let other = vm.annotations.first { !$0.isMe }
         XCTAssertEqual(me?.nextUpdateDate, nextFire, "Own pin drives the count-down")
-        XCTAssertNil(other?.nextUpdateDate ?? nil, "Other members do not carry a next-update date")
+        XCTAssertNil(other?.nextUpdateDate, "Other members do not carry a next-update date")
     }
 
     func testNextUpdateNilWhenNoFireYet() {
         cache.update(groupId: group1, memberPubkeyHex: myPubkey, payload: makePayload())
         let vm = makeVM(nextFire: nil)
         vm.refresh()
-        XCTAssertNil(vm.annotations.first { $0.isMe }?.nextUpdateDate ?? nil)
+        XCTAssertNil(vm.annotations.first { $0.isMe }?.nextUpdateDate)
     }
 }
