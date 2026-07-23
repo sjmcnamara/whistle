@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.1] — 2026-07-22
+
+### Fixed
+- **(iOS) Avatars were encoded at up to 9× the intended pixel count.** The avatar downscaler built a `UIGraphicsImageRenderer` at the target *point* size without pinning `format.scale`, so on a Retina device it rendered at the screen scale — a 128 pt target became a 384 px JPEG on a @3x phone. The image still fit under the 16 KB wire cap (so nothing failed visibly), but every member and shared-group avatar travelled larger than designed, and personal group thumbnails were stored oversized on disk. The renderer now pins `scale = 1` so output is exactly the target pixel dimensions. Android was unaffected — it scales in pixels via `Bitmap.createScaledBitmap`. (Present since member avatars shipped in v1.7.1.)
+
 ## [1.8.0] — 2026-07-20
 
 ### Added

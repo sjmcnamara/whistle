@@ -151,7 +151,12 @@ final class MemberAvatarStore: ObservableObject {
         guard longest > maxDimension else { return image }
         let scale = maxDimension / longest
         let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // Render at scale 1 so the output is exactly `newSize` *pixels*, not
+        // newSize × screen-scale. Without this a @3x device produces a 384px
+        // JPEG for a 128pt target — 9× the pixels and needless wire bytes.
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }
