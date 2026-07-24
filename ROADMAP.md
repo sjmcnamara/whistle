@@ -439,6 +439,13 @@ _Released 2026-07-20_
 - **(Android) Diagnostics screen back button**: the screen now has a `TopAppBar` with a back arrow, matching the other settings screens (it previously relied solely on the system Back gesture).
 - **(iOS & Android) Burn Identity warning corrected**: the confirmation no longer claims burning "leaves all groups" — it deletes local state only and strands a leaf other members keep encrypting to. The zombie-member cleanup (sole-admin handling, leave-before-burn) is roadmapped under Deferred.
 
+### v1.8.1 — Avatar oversampling fix ✅
+_Released 2026-07-23_
+
+- **(iOS) Avatars encoded at up to 9× the intended pixel count**: the avatar downscaler built its `UIGraphicsImageRenderer` at the target *point* size without pinning `format.scale`, so on a Retina device it rendered at the screen scale — a 128 pt target became a 384 px JPEG on a @3x phone. Still fit under the 16 KB wire cap, so nothing failed visibly, but every member and shared-group avatar travelled larger than designed. Renderer now pins `scale = 1`. Present since member avatars shipped in v1.7.1. Android was unaffected (scales in pixels via `Bitmap.createScaledBitmap`).
+- **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.1/43 alongside the iOS fix — no Android behavior change in this release.
+- **Test coverage backfill**: added unit tests for recently-shipped services (`AppSettings`, `ChatMessageCache`, `DiagnosticsCollector`, `LocationViewModel`, avatar stores, `BatteryAlertService`) and closed several iOS↔Android test parity gaps.
+
 ---
 
 ### Deferred
@@ -553,8 +560,8 @@ master
   └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
   └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
   └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
-  └── bugfix/v1.8.1                         🔧 in progress (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale)
-  └── chore/test-coverage-parity            🧪 in progress (backfill tests for recently-shipped services + iOS↔Android test parity; stacked on bugfix/v1.8.1)
+  └── bugfix/v1.8.1                         ✅ merged (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale; Android version bump for lockstep)
+  └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
 ```
 
 ---
