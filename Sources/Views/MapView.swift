@@ -26,6 +26,7 @@ struct MapView: View {
                         coordinate: annotation.coordinate
                     ) {
                         MemberPinView(annotation: annotation)
+                            .environmentObject(appViewModel.memberAvatarStore)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedAnnotation = annotation
