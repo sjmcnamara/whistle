@@ -1,5 +1,4 @@
 import SwiftUI
-import PhotosUI
 
 /// Group management — a WhatsApp-style hero header (icon + name + rename) over
 /// Settings-style grouped sections: pending joiners, invite actions, members
@@ -15,14 +14,9 @@ struct GroupDetailView: View {
     @State private var showLeaveConfirmation = false
     @State private var showRename = false
     @State private var renameText = ""
-    @State private var pickedAvatar: PhotosPickerItem?
-    @State private var showAvatarOptions = false
-    @State private var showAvatarPicker = false
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
     @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
     @EnvironmentObject private var appViewModel: AppViewModel
-    @State private var pickingForGroup = false
-    @State private var groupPhotoError: String?
 
     /// Show members inline up to this many; beyond it, preview + "See all".
     private let memberPreviewCap = 6
@@ -75,17 +69,6 @@ struct GroupDetailView: View {
         .onChange(of: viewModel.didRequestLeave) { _, left in
             if left { dismiss() }
         }
-        .alert(
-            "Couldn't set group photo",
-            isPresented: Binding(
-                get: { groupPhotoError != nil },
-                set: { if !$0 { groupPhotoError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { groupPhotoError = nil }
-        } message: {
-            Text(groupPhotoError ?? "")
-        }
         .alert("Rename Group", isPresented: $showRename) {
             TextField("Group name", text: $renameText)
             Button("Save") { Task { await viewModel.renameGroup(to: renameText) } }
@@ -106,101 +89,35 @@ struct GroupDetailView: View {
     private var heroSection: some View {
         Section {
             VStack(spacing: 10) {
-                // Tap to manage a personal (local, per-device) group photo. Not
-                // shared with other members — see LocalGroupAvatarStore.
+                // Tap to manage the shared group photo (admin) or a personal
+                // (local, per-device) one — see LocalGroupAvatarStore.
                 //
-                // A plain Button rather than a PhotosPicker: inside a List row a
-                // PhotosPicker's hit region expanded past the circle and swallowed
-                // taps meant for the group name and its rename pencil below,
-                // making rename unreachable. The explicit frame and contentShape
-                // confine the tap target to the circle itself.
-                Button {
-                    showAvatarOptions = true
-                } label: {
-                    ZStack(alignment: .bottomTrailing) {
-                        if let img = SharedGroupAvatarStore.resolvedImage(
-                            for: viewModel.groupId, local: avatars, shared: sharedAvatars
-                        ) {
-                            Image(uiImage: img)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 80, height: 80)
-                                .clipShape(Circle())
-                        } else {
-                            ZStack {
-                                Circle().fill(Color.blue.opacity(0.12)).frame(width: 80, height: 80)
-                                Image(systemName: "person.3.fill")
-                                    .font(.system(size: 34))
-                                    .foregroundStyle(.blue)
-                            }
-                        }
-                        Image(systemName: "camera.circle.fill")
-                            .font(.system(size: 24))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .blue)
+                // Extracted into its own Equatable view so the picker survives
+                // this screen's relay-driven re-renders; see the type's docs.
+                GroupAvatarPickerButton(
+                    groupId: viewModel.groupId,
+                    isAdmin: viewModel.isAdmin,
+                    hasSharedImage: sharedAvatars.hasImage(for: viewModel.groupId),
+                    hasLocalImage: avatars.hasImage(for: viewModel.groupId),
+                    image: SharedGroupAvatarStore.resolvedImage(
+                        for: viewModel.groupId, local: avatars, shared: sharedAvatars
+                    ),
+                    onPickedGroup: { data in
+                        await appViewModel.setGroupAvatar(data: data, groupId: viewModel.groupId)
+                    },
+                    onRemoveGroup: {
+                        await appViewModel.removeGroupAvatar(groupId: viewModel.groupId)
+                    },
+                    onPickedLocal: { data in
+                        avatars.setImage(data: data, for: viewModel.groupId)
+                    },
+                    onRemoveLocal: {
+                        avatars.removeImage(for: viewModel.groupId)
                     }
-                    .frame(width: 80, height: 80)
-                    .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Group photo")
-                .confirmationDialog("Photo", isPresented: $showAvatarOptions, titleVisibility: .visible) {
-                    if viewModel.isAdmin {
-                        Button(sharedAvatars.hasImage(for: viewModel.groupId)
-                               ? "Change Group Photo" : "Set Group Photo") {
-                            pickingForGroup = true
-                            showAvatarPicker = true
-                        }
-                        if sharedAvatars.hasImage(for: viewModel.groupId) {
-                            Button("Remove Group Photo", role: .destructive) {
-                                Task { await appViewModel.removeGroupAvatar(groupId: viewModel.groupId) }
-                            }
-                        }
-                    }
-                    Button(avatars.hasImage(for: viewModel.groupId)
-                           ? "Change Personal Photo" : "Set Personal Photo") {
-                        pickingForGroup = false
-                        showAvatarPicker = true
-                    }
-                    if avatars.hasImage(for: viewModel.groupId) {
-                        Button("Remove Personal Photo", role: .destructive) {
-                            avatars.removeImage(for: viewModel.groupId)
-                        }
-                    }
-                    Button("Cancel", role: .cancel) { }
-                } message: {
-                    // Kept short: confirmationDialog is a system action sheet
-                    // whose width is not ours to control, so long copy wraps
-                    // into a cramped block. The full explanation lives in the
-                    // failure alert, which is where it actually matters.
-                    Text(viewModel.isAdmin
-                         ? "The group photo is sent to everyone. A personal photo replaces the group's image on this device only."
-                         : "A personal photo replaces the group's image on this device only.")
-                }
-                .photosPicker(isPresented: $showAvatarPicker, selection: $pickedAvatar, matching: .images)
-                .onChange(of: pickedAvatar) { _, item in
-                    guard let item else { return }
-                    Task {
-                        if let data = try? await item.loadTransferable(type: Data.self) {
-                            if pickingForGroup {
-                                // Handle the outcome — a silently dropped result
-                                // made every failure look like "nothing happened".
-                                switch await appViewModel.setGroupAvatar(data: data, groupId: viewModel.groupId) {
-                                case .updated:
-                                    break
-                                case .notAdmin:
-                                    groupPhotoError = "Only a group admin can set the group photo."
-                                case .couldNotEncode:
-                                    groupPhotoError = "Group photos are sent to everyone, so they have to be small. This one couldn't be shrunk enough — try another image."
-                                }
-                            } else {
-                                avatars.setImage(data: data, for: viewModel.groupId)
-                            }
-                        }
-                        pickedAvatar = nil
-                        pickingForGroup = false
-                    }
-                }
+                )
+                // Without this, the closures above defeat SwiftUI's change
+                // detection and the picker re-renders on every relay event.
+                .equatable()
 
                 HStack(spacing: 6) {
                     Text(viewModel.groupName.isEmpty ? "Unnamed Group" : viewModel.groupName)
