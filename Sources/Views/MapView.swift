@@ -26,6 +26,7 @@ struct MapView: View {
                         coordinate: annotation.coordinate
                     ) {
                         MemberPinView(annotation: annotation)
+                            .environmentObject(appViewModel.memberAvatarStore)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedAnnotation = annotation
@@ -144,9 +145,9 @@ struct MapView: View {
     private var currentMapStyle: MapStyle {
         switch mapMode {
         case .standard:
-            return .standard(elevation: .realistic)
+            return .standard(elevation: .flat)
         case .satellite:
-            return .imagery(elevation: .realistic)
+            return .imagery(elevation: .flat)
         }
     }
 
