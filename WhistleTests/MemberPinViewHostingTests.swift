@@ -25,6 +25,10 @@ import CoreLocation
 @MainActor
 final class MemberPinViewHostingTests: XCTestCase {
 
+    // swiftlint:disable discouraged_optional_boolean
+    // Mirrors `MemberAnnotation.isStationary`, which is deliberately tri-state:
+    // nil means unknown (Movement Aware off, or a pre-1.7 client). The model
+    // suppresses the same rule for the same reason.
     private func annotation(
         isStale: Bool = false,
         isStationary: Bool? = nil,
@@ -43,6 +47,7 @@ final class MemberPinViewHostingTests: XCTestCase {
             intervalSeconds: 300
         )
     }
+    // swiftlint:enable discouraged_optional_boolean
 
     /// Lays the pin out exactly as MapKit does — a bare hosting view with no
     /// environment — and returns the size it resolved to.
