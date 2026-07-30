@@ -117,4 +117,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.8.1 — iOS avatar oversampling fix + Android version lockstep** (bugfix). See ROADMAP.md for next steps.
+Current version: **v1.8.2 — iOS group photo picker reload fix** (bugfix). See ROADMAP.md for next steps.

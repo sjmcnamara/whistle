@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.2] — 2026-07-29
+
+### Fixed
+- **(iOS) The photo library reloaded over and over while setting a group photo.** Opening the picker from Group Details left it unusable: every couple of seconds it tore itself down and re-presented, resetting the scroll position before a photo could be chosen. `GroupDetailView` observes `AppViewModel`, which republishes on every settings, location, and relay change, and the `.photosPicker` modifier sat inline in the hero header — so ordinary relay traffic arriving in the background re-presented the picker underneath the user. The picker is now an `Equatable` subview (`GroupAvatarPickerButton`) that takes plain values and closures, so SwiftUI skips re-evaluating it on an unchanged parent re-render and the presented sheet is left alone. This is the same fix `AvatarPickerRow` received for the Settings avatar picker in v1.7.2; the group photo path had never been given it. Both views' equality contracts are now pinned by tests, which is what was missing when the bug came back. Android was unaffected — it launches the picker as a separate activity, which recomposition cannot tear down.
+
 ## [1.8.1] — 2026-07-22
 
 ### Fixed

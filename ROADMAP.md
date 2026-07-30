@@ -446,6 +446,13 @@ _Released 2026-07-23_
 - **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.1/43 alongside the iOS fix — no Android behavior change in this release.
 - **Test coverage backfill**: added unit tests for recently-shipped services (`AppSettings`, `ChatMessageCache`, `DiagnosticsCollector`, `LocationViewModel`, avatar stores, `BatteryAlertService`) and closed several iOS↔Android test parity gaps.
 
+### v1.8.2 — Group photo picker reload fix ✅
+_Released 2026-07-29_
+
+- **(iOS) Photo library reloaded repeatedly while setting a group photo**: `GroupDetailView` observes `AppViewModel`, whose `forwardChildChanges()` republishes on every settings/location/relay change, and the `.photosPicker` modifier sat inline in the hero header — so background relay traffic tore down and re-presented the picker every couple of seconds, resetting scroll position before a photo could be picked. Extracted `GroupAvatarPickerButton` as an `Equatable` view taking plain values and closures, applied with `.equatable()`. Same fix `AvatarPickerRow` got in v1.7.2, never applied to the group photo path. Android unaffected (picker is a separate activity).
+- **Equality contracts pinned by tests**: `AvatarPickerEquatableTests` asserts both picker views compare equal across distinct closure instances and still register each value input — the missing guard that let this regress silently.
+- **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.2/44 — no Android behavior change in this release.
+
 ---
 
 ### Deferred
@@ -562,6 +569,7 @@ master
   └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
   └── bugfix/v1.8.1                         ✅ merged (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale; Android version bump for lockstep)
   └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
+  └── bugfix/v1.8.2-group-photo-picker-reload ✅ merged (extract GroupAvatarPickerButton as an Equatable view so relay-driven re-renders stop re-presenting the picker; pin both pickers' == contracts)
 ```
 
 ---
