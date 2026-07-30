@@ -446,6 +446,15 @@ _Released 2026-07-23_
 - **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.1/43 alongside the iOS fix — no Android behavior change in this release.
 - **Test coverage backfill**: added unit tests for recently-shipped services (`AppSettings`, `ChatMessageCache`, `DiagnosticsCollector`, `LocationViewModel`, avatar stores, `BatteryAlertService`) and closed several iOS↔Android test parity gaps.
 
+### v1.8.2 — Map pin crash + group photo picker reload ✅
+_Released 2026-07-30_
+
+- **(iOS) Crash while panning/zooming the map**: map pins rendered `MemberAvatarView`, which reaches for `MemberAvatarStore` via `@EnvironmentObject`. MapKit hosts `Annotation` content in its own `_UIHostingView` with none of the root environment, built from `MKAnnotationManager.updateVisibleAnnotations` (a timer callback outside SwiftUI's update pass) — so the lookup trapped and killed the app with `EXC_BREAKPOINT` in `EnvironmentObject.error()`. `MemberPinView` now takes a resolved `UIImage?` from `MapView` and reads nothing from the environment. Latent since v1.7.1, reported from the field on 1.8.1 / iOS 26.6. Android was structurally immune (`MapScreen` already passes a resolved bitmap per pin). Supersedes the unreleased #187, which fixed the same crash by re-injecting the store per pin — this removes the environment dependency instead of re-supplying it.
+- **(iOS) 3D map terrain restored**: #187's speculative `.realistic` → `.flat` elevation change is reverted. It was made before the root cause was confirmed and is unrelated to it; `.flat` only ever existed on unreleased master.
+- **(iOS) Photo library reloaded repeatedly while setting a group photo**: `GroupDetailView` observes `AppViewModel`, whose `forwardChildChanges()` republishes on every settings/location/relay change, and the `.photosPicker` modifier sat inline in the hero header — so background relay traffic tore down and re-presented the picker every couple of seconds, resetting scroll position before a photo could be picked. Extracted `GroupAvatarPickerButton` as an `Equatable` view taking plain values and closures, applied with `.equatable()`. Same fix `AvatarPickerRow` got in v1.7.2, never applied to the group photo path. Android unaffected (picker is a separate activity).
+- **Regression guards for both**: `AvatarPickerEquatableTests` asserts both picker views compare equal across distinct closure instances and still register each value input — the missing guard that let the picker bug regress silently. `MemberPinViewHostingTests` hosts the map pin with an empty environment and forces layout, reproducing MapKit's exact sequence, so a reintroduced environment read fails in CI instead of on a phone.
+- **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.2/44 — no Android behavior change in this release.
+
 ---
 
 ### Deferred
@@ -562,6 +571,7 @@ master
   └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
   └── bugfix/v1.8.1                         ✅ merged (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale; Android version bump for lockstep)
   └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
+  └── bugfix/v1.8.2-group-photo-picker-reload ✅ merged (map pin EnvironmentObject crash: pass a resolved avatar into MemberPinView; extract GroupAvatarPickerButton as an Equatable view so relay-driven re-renders stop re-presenting the picker)
 ```
 
 ---

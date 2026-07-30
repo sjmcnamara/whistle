@@ -12,6 +12,11 @@ struct MapView: View {
     }
 
     @EnvironmentObject var appViewModel: AppViewModel
+    /// Observed here rather than inside the pin. The pin is hosted by MapKit
+    /// outside this view's environment, so it cannot reach the store itself —
+    /// see `MemberPinView`. Observing it here also keeps pins live: a bumped
+    /// `revision` re-renders this body, which re-resolves every pin's image.
+    @EnvironmentObject private var memberAvatars: MemberAvatarStore
     @ObservedObject var viewModel: LocationViewModel
     @State private var position: MapCameraPosition = .automatic
     @State private var mapMode: MapMode = .standard
@@ -25,8 +30,16 @@ struct MapView: View {
                         "",
                         coordinate: annotation.coordinate
                     ) {
-                        MemberPinView(annotation: annotation)
-                            .environmentObject(appViewModel.memberAvatarStore)
+                        // No `.environmentObject(...)` here — #187 re-injected
+                        // the store to stop the same crash, which worked but
+                        // left a trap-on-missing dependency inside the hosting
+                        // view that had already lost the environment once. The
+                        // pin now takes a resolved image and reads nothing from
+                        // the environment, so there is nothing left to lose.
+                        MemberPinView(
+                            annotation: annotation,
+                            avatarImage: memberAvatars.image(for: annotation.memberPubkeyHex)
+                        )
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedAnnotation = annotation
@@ -142,12 +155,18 @@ struct MapView: View {
         }
     }
 
+    /// 3D terrain is deliberately back on. #187 switched both cases to `.flat`
+    /// while hunting the repeated-zoom-out crash, on the theory that MapKit's
+    /// realistic terrain renderer was causing GPU-memory instability. The root
+    /// cause turned out to be a missing `@EnvironmentObject` in the annotation
+    /// hosting view (see `MemberPinView`) and had nothing to do with terrain,
+    /// so the visual downgrade was buying nothing.
     private var currentMapStyle: MapStyle {
         switch mapMode {
         case .standard:
-            return .standard(elevation: .flat)
+            return .standard(elevation: .realistic)
         case .satellite:
-            return .imagery(elevation: .flat)
+            return .imagery(elevation: .realistic)
         }
     }
 

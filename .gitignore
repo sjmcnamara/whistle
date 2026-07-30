@@ -46,3 +46,8 @@ website/site/
 
 # Claude Code
 .claude/
+
+# Editor swap files
+*.swp
+*.swo
+*~
