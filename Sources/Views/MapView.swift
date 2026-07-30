@@ -155,12 +155,18 @@ struct MapView: View {
         }
     }
 
+    /// 3D terrain is deliberately back on. #187 switched both cases to `.flat`
+    /// while hunting the repeated-zoom-out crash, on the theory that MapKit's
+    /// realistic terrain renderer was causing GPU-memory instability. The root
+    /// cause turned out to be a missing `@EnvironmentObject` in the annotation
+    /// hosting view (see `MemberPinView`) and had nothing to do with terrain,
+    /// so the visual downgrade was buying nothing.
     private var currentMapStyle: MapStyle {
         switch mapMode {
         case .standard:
-            return .standard(elevation: .flat)
+            return .standard(elevation: .realistic)
         case .satellite:
-            return .imagery(elevation: .flat)
+            return .imagery(elevation: .realistic)
         }
     }
 
