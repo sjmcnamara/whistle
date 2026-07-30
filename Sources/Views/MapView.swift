@@ -30,6 +30,12 @@ struct MapView: View {
                         "",
                         coordinate: annotation.coordinate
                     ) {
+                        // No `.environmentObject(...)` here — #187 re-injected
+                        // the store to stop the same crash, which worked but
+                        // left a trap-on-missing dependency inside the hosting
+                        // view that had already lost the environment once. The
+                        // pin now takes a resolved image and reads nothing from
+                        // the environment, so there is nothing left to lose.
                         MemberPinView(
                             annotation: annotation,
                             avatarImage: memberAvatars.image(for: annotation.memberPubkeyHex)
@@ -152,9 +158,9 @@ struct MapView: View {
     private var currentMapStyle: MapStyle {
         switch mapMode {
         case .standard:
-            return .standard(elevation: .realistic)
+            return .standard(elevation: .flat)
         case .satellite:
-            return .imagery(elevation: .realistic)
+            return .imagery(elevation: .flat)
         }
     }
 
