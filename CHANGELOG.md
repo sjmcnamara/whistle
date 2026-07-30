@@ -6,9 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [1.8.2] — 2026-07-29
+## [1.8.2] — 2026-07-30
 
 ### Fixed
+- **(iOS) The app crashed while panning or zooming the map.** Every map pin renders a member avatar, and the avatar view reached for its `MemberAvatarStore` through `@EnvironmentObject`. MapKit hosts `Annotation` content in its own `_UIHostingView`, which does **not** carry the environment applied at the app root — and it builds that view from `MKAnnotationManager.updateVisibleAnnotations`, a timer callback outside SwiftUI's update pass. The lookup found nothing and trapped, terminating the app with `EXC_BREAKPOINT` in `EnvironmentObject.error()`. Map pins now take a resolved image, passed in by `MapView` where the environment is valid, and read nothing from the environment themselves. Latent since member avatars shipped in v1.7.1; observed crashing on iOS 26.6. Android was unaffected — `MapScreen` already takes an `avatarFor: (String) -> Bitmap?` and hands each pin a resolved bitmap, which is the shape iOS now matches. (Pin layout is now covered by tests that host it with an empty environment, the same way MapKit does.)
 - **(iOS) The photo library reloaded over and over while setting a group photo.** Opening the picker from Group Details left it unusable: every couple of seconds it tore itself down and re-presented, resetting the scroll position before a photo could be chosen. `GroupDetailView` observes `AppViewModel`, which republishes on every settings, location, and relay change, and the `.photosPicker` modifier sat inline in the hero header — so ordinary relay traffic arriving in the background re-presented the picker underneath the user. The picker is now an `Equatable` subview (`GroupAvatarPickerButton`) that takes plain values and closures, so SwiftUI skips re-evaluating it on an unchanged parent re-render and the presented sheet is left alone. This is the same fix `AvatarPickerRow` received for the Settings avatar picker in v1.7.2; the group photo path had never been given it. Both views' equality contracts are now pinned by tests, which is what was missing when the bug came back. Android was unaffected — it launches the picker as a separate activity, which recomposition cannot tear down.
 
 ## [1.8.1] — 2026-07-22

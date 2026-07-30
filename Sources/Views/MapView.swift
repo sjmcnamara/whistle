@@ -12,6 +12,11 @@ struct MapView: View {
     }
 
     @EnvironmentObject var appViewModel: AppViewModel
+    /// Observed here rather than inside the pin. The pin is hosted by MapKit
+    /// outside this view's environment, so it cannot reach the store itself —
+    /// see `MemberPinView`. Observing it here also keeps pins live: a bumped
+    /// `revision` re-renders this body, which re-resolves every pin's image.
+    @EnvironmentObject private var memberAvatars: MemberAvatarStore
     @ObservedObject var viewModel: LocationViewModel
     @State private var position: MapCameraPosition = .automatic
     @State private var mapMode: MapMode = .standard
@@ -25,7 +30,10 @@ struct MapView: View {
                         "",
                         coordinate: annotation.coordinate
                     ) {
-                        MemberPinView(annotation: annotation)
+                        MemberPinView(
+                            annotation: annotation,
+                            avatarImage: memberAvatars.image(for: annotation.memberPubkeyHex)
+                        )
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedAnnotation = annotation
