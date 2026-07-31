@@ -455,6 +455,16 @@ _Released 2026-07-30_
 - **Regression guards for both**: `AvatarPickerEquatableTests` asserts both picker views compare equal across distinct closure instances and still register each value input — the missing guard that let the picker bug regress silently. `MemberPinViewHostingTests` hosts the map pin with an empty environment and forces layout, reproducing MapKit's exact sequence, so a reintroduced environment read fails in CI instead of on a phone.
 - **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.2/44 — no Android behavior change in this release.
 
+### v1.8.3 — Relay connection status accuracy ✅
+_Released 2026-07-31_
+
+- **(iOS & Android) Unreachable relays reported as connected**: `RelayService.connect` built `connectedRelayURLs` from the relays it had successfully *added* to the client. Adding only registers a URL — `Client.connect()` returns as soon as the background connection tasks are spawned — so the list was written before any socket opened and never corrected. A dead host, a typo, or an address the device cannot resolve at all (a `.onion` relay with no Tor proxy) showed a green dot in Advanced Settings indefinitely, and `MarmotService` counted it toward the relay set gating member adds and resyncs. Status now comes from `Client.relays()` filtered on `Relay.isConnected()`; `connect` waits up to 5s for sockets before reporting, and Advanced Settings re-reads status every 5s so the dots track background drops and reconnects.
+- **`Client.connect()` kept over `tryConnect()`**: `tryConnect` reports failures synchronously but explicitly schedules no retries, which would strand a phone that briefly loses signal. The wait-then-read-status approach gets accurate reporting without giving up automatic reconnection.
+- **Relay-gated operations re-check before failing**: an accurate list can legitimately be empty for a moment while relays reconnect, so the three `MarmotService` sites that gate on it (add member, resync member, batch add) go through a new `hasConnectedRelays()` that re-reads live status before throwing. Without this, making the status honest would have converted a false "connected" into a false "not connected".
+- **URL normalisation**: `RelayUrl.parse` normalises (it can append a trailing slash), so registered relays are tracked as a `RelayUrl` → settings-string map. Callers compare against their own settings strings, and would otherwise never match.
+- **Regression guards**: `RelayServiceStatusTests` covers the no-client, no-registered-relay, unparseable-URL, and disconnect paths, plus the consumer contract that the published list means *connected*, not *registered*. Tests deliberately avoid the network.
+- Found while assessing whether Whistle could talk to `.onion` relays — it cannot today (neither binding ships a Tor `ConnectionMode`), but the silent-failure mode that investigation exposed was not onion-specific.
+
 ---
 
 ### Deferred
@@ -572,6 +582,7 @@ master
   └── bugfix/v1.8.1                         ✅ merged (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale; Android version bump for lockstep)
   └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
   └── bugfix/v1.8.2-group-photo-picker-reload ✅ merged (map pin EnvironmentObject crash: pass a resolved avatar into MemberPinView; extract GroupAvatarPickerButton as an Equatable view so relay-driven re-renders stop re-presenting the picker)
+  └── bugfix/relay-connection-status        ✅ merged (v1.8.3 — derive relay status from live sockets instead of registration; hasConnectedRelays() re-check on the MarmotService gates)
 ```
 
 ---
