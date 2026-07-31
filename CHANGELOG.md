@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **(iOS & Android) Relays that could never be reached were shown as connected.** `RelayService.connect` built its connected-relay list from the relays it had successfully *added* to the Nostr client. Adding a relay only registers a URL: `Client.connect()` returns as soon as it has spawned the background connection tasks, so the list was written before any socket had opened — and never corrected afterwards. A dead host, a typo'd URL, or an address the device cannot resolve at all (a `.onion` relay, with no Tor proxy configured) therefore showed a green dot in Advanced Settings indefinitely, and `MarmotService` counted it toward the relay set it gates member adds and resyncs on. Connection state is now read from the SDK's live per-relay status, `connect` waits up to 5s for sockets to open before reporting, and the settings screen re-reads status every 5s while it is open so the dots reflect background drops and reconnects. `ensureRelay` no longer marks an invite-hint relay connected merely because it was registered.
+
+    `Client.connect()` is kept in preference to `tryConnect()`: `tryConnect` surfaces failures synchronously but schedules no retries, which would leave a phone that briefly loses signal permanently disconnected from that relay.
+
+### Changed
+- **(iOS & Android) Relay-gated operations re-check connectivity before failing.** Adding, resyncing, and batch-adding members previously read a cached relay list; now that the list reflects real socket state it can legitimately be empty for a moment while relays reconnect, so those three call sites go through a new `hasConnectedRelays()` that re-reads live status before throwing "not connected to any relay".
+
 ## [1.8.2] — 2026-07-30
 
 ### Fixed

@@ -391,8 +391,10 @@ final class MarmotService: ObservableObject {
             throw MarmotError.alreadyMember
         }
 
-        // Pre-flight: verify relay connectivity
-        guard !relay.connectedRelayURLs.isEmpty else {
+        // Pre-flight: verify relay connectivity. `hasConnectedRelays` re-reads
+        // live status when the cached list is empty, so a relay that reconnected
+        // in the background does not fail this check.
+        guard await relay.hasConnectedRelays() else {
             throw MarmotError.noRelaysConnected
         }
 
@@ -484,7 +486,7 @@ final class MarmotService: ObservableObject {
     /// them. Both commits are verified on the relay (v1.6.1 anti-fork).
     func resyncMember(publicKeyHex memberHex: String, inGroup groupId: String) async throws {
         guard memberHex != publicKeyHex else { throw MarmotError.alreadyMember }
-        guard !relay.connectedRelayURLs.isEmpty else { throw MarmotError.noRelaysConnected }
+        guard await relay.hasConnectedRelays() else { throw MarmotError.noRelaysConnected }
 
         // 1. Fetch the fresh key package FIRST — abort before touching the group.
         let kpJson = try await fetchKeyPackageWithRetry(for: memberHex, maxRetries: 10)
@@ -539,7 +541,7 @@ final class MarmotService: ObservableObject {
     @discardableResult
     func addMembers(_ requests: [JoinRequest], toGroup groupId: String) async throws -> BatchAddResult {
         guard !requests.isEmpty else { return BatchAddResult(added: []) }
-        guard !relay.connectedRelayURLs.isEmpty else { throw MarmotError.noRelaysConnected }
+        guard await relay.hasConnectedRelays() else { throw MarmotError.noRelaysConnected }
 
         let existing = (try? await mls.getMembers(groupId: groupId)).map(Set.init) ?? []
         let alreadyIn = requests.filter { existing.contains($0.pubkey) }.map { $0.pubkey }

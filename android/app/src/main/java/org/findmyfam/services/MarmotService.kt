@@ -368,8 +368,10 @@ class MarmotService @Inject constructor(
             Timber.w("Could not check existing members (non-fatal): ${e.message}")
         }
 
-        // Pre-flight: verify relay connectivity
-        if (relay.connectedRelayUrls.value.isEmpty()) {
+        // Pre-flight: verify relay connectivity. hasConnectedRelays re-reads live
+        // status when the cached list is empty, so a relay that reconnected in the
+        // background does not fail this check.
+        if (!relay.hasConnectedRelays()) {
             throw MarmotException("Not connected to any relay — check your connection")
         }
 
@@ -446,7 +448,7 @@ class MarmotService @Inject constructor(
      */
     suspend fun resyncMember(pubkeyHex: String, groupId: String) {
         if (pubkeyHex == publicKeyHex) throw MarmotException("Cannot resync yourself")
-        if (relay.connectedRelayUrls.value.isEmpty()) {
+        if (!relay.hasConnectedRelays()) {
             throw MarmotException("Not connected to any relay — check your connection")
         }
 
@@ -501,7 +503,7 @@ class MarmotService @Inject constructor(
      */
     suspend fun addMembers(requests: List<JoinRequest>, groupId: String): BatchAddResult {
         if (requests.isEmpty()) return BatchAddResult(emptyList())
-        if (relay.connectedRelayUrls.value.isEmpty()) {
+        if (!relay.hasConnectedRelays()) {
             throw MarmotException("Not connected to any relay")
         }
 
