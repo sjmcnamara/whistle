@@ -23,11 +23,17 @@ For Android: `cd android && ./gradlew assembleDebug` / `./gradlew test`.
 
 ## Version bumping
 
-**iOS**: edit `project.yml` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (build number). Then add a CHANGELOG entry and update the README status line.
+Edit **every** item in this list — it is the complete set, and a partial bump ships an inconsistent release:
 
-**Android**: `android/app/build.gradle.kts` — `versionName` and `versionCode`.
+1. `project.yml` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (iOS build number)
+2. `android/app/build.gradle.kts` — `versionName` and `versionCode`
+3. `CHANGELOG.md` — new entry at the top, matching `MARKETING_VERSION`
+4. `README.md` — the status line
+5. `ROADMAP.md` — release entry plus a branch-history line
 
-Both platforms share `CHANGELOG.md` and `ROADMAP.md`.
+The **website version is automatic** — do not hand-edit it. `website/overrides/home.html` renders `{{ config.extra.app_version }}`, which `.github/workflows/docs.yml` injects from `project.yml`'s `MARKETING_VERSION` at build time; `project.yml` is in that workflow's `paths` trigger so a bump redeploys the site on its own. The site's Android APK link points at `releases/latest/download/whistle.apk` and likewise needs no edit. (Both used to be hand-maintained and were repeatedly missed — that is why they are generated now.)
+
+Releasing is a separate step from bumping: merging does not publish. See the `android-release` skill for tagging.
 
 ## MDK (Marmot Dev Kit) dependency
 

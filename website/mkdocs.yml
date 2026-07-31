@@ -73,6 +73,10 @@ nav:
     - Release checklist: wiki/Release-Checklist.md
 
 extra:
+  # Injected by .github/workflows/docs.yml from project.yml's MARKETING_VERSION,
+  # so the site version can never drift from the app version. Local builds
+  # without APP_VERSION set show "dev".
+  app_version: !ENV [APP_VERSION, "dev"]
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/sjmcnamara/whistle
