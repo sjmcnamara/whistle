@@ -45,6 +45,7 @@ final class MockRelayService: RelayServiceProtocol {
 
     var connectCallCount = 0
     var disconnectCallCount = 0
+    var refreshConnectedRelaysCallCount = 0
     var subscribeFilters: [Filter] = []
     var handleNotificationsCalled = false
 
@@ -58,6 +59,27 @@ final class MockRelayService: RelayServiceProtocol {
     func disconnect() async {
         disconnectCallCount += 1
         connectionState = .disconnected
+        connectedRelayURLs = []
+    }
+
+    /// Simulated live status: relays here are reported as connected by the next
+    /// `refreshConnectedRelays()`. `nil` leaves `connectedRelayURLs` untouched,
+    /// which keeps existing tests that set it directly working unchanged.
+    var reachableRelayURLs: [String]?
+
+    func refreshConnectedRelays() async {
+        refreshConnectedRelaysCallCount += 1
+        guard let reachableRelayURLs else { return }
+        connectedRelayURLs = reachableRelayURLs.sorted()
+        connectionState = reachableRelayURLs.isEmpty
+            ? .failed("No relays connected")
+            : .connected
+    }
+
+    func hasConnectedRelays() async -> Bool {
+        if !connectedRelayURLs.isEmpty { return true }
+        await refreshConnectedRelays()
+        return !connectedRelayURLs.isEmpty
     }
 
     /// Relay URLs passed to `ensureRelay(_:)`, for assertions.
