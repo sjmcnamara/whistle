@@ -89,4 +89,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.8.3 — relay connection status accuracy** (bugfix). See ROADMAP.md for next steps.
+Current version: **v1.8.4 — Android applicationId rename** (chore). See ROADMAP.md for next steps.
