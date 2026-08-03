@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.4] — 2026-08-03
+
+### Changed
+- **(Android) `applicationId` moved from `org.findmyfam` to `org.getwhistle.whistle`.** `org.findmyfam` predates the app's rename to Whistle and was never updated. Android treats `applicationId` as the app's permanent identity — Play, F-Droid, and the [Zapstore](https://zapstore.dev) listing being set up all key off it — so this was the last point it could move without becoming a breaking change for a published store listing. Existing sideloaded installs of `whistle.apk` will not receive this build as an update; they must uninstall the old `org.findmyfam` install and install the new one, which resets local app data (the encrypted MLS database) and requires rejoining groups. The Kotlin package name (`org.findmyfam`) and app class (`FindMyFamApp`) are unchanged — only the Gradle `applicationId` moved, not the `namespace`.
+
 ## [1.8.3] — 2026-07-31
 
 ### Fixed

@@ -583,6 +583,7 @@ master
   └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
   └── bugfix/v1.8.2-group-photo-picker-reload ✅ merged (map pin EnvironmentObject crash: pass a resolved avatar into MemberPinView; extract GroupAvatarPickerButton as an Equatable view so relay-driven re-renders stop re-presenting the picker)
   └── bugfix/relay-connection-status        ✅ merged (v1.8.3 — derive relay status from live sockets instead of registration; hasConnectedRelays() re-check on the MarmotService gates)
+  └── chore/v1.8.4-android-package-rename   ✅ merged (v1.8.4 — Android applicationId org.findmyfam → org.getwhistle.whistle, ahead of Zapstore listing; namespace/package name unchanged)
 ```
 
 ---
