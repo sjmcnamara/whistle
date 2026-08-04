@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.5] — 2026-08-04
+
+### Fixed
+- **(iOS & Android) New members didn't see the group avatar until an admin manually resynced them.** The group avatar travels as an ordinary MLS application message rather than group state, so MLS forward secrecy means a newly-added member can never decrypt whatever avatar message was sent before they joined — the only remedy is the admin re-announcing it as a fresh message after each membership change. That re-announce (`rebroadcastGroupAvatarIfDesignated`) was wired to fire only when the admin's own client re-observed its just-published add-commit coming back over the live relay subscription — asynchronous and not guaranteed to arrive or be classified in time. `addMember`, `addMembers`, and `resyncMember` now trigger the re-announce directly at the point the commit is made, instead of depending on that self-echo.
+- **(iOS & Android) Rejoining via hard resync showed a stale "Inactive" group entry alongside a duplicate "Accept" invitation for the same group.** `resyncMember`'s remove-then-re-add produces a fresh Welcome that never goes through the invite-code path, so it was misclassified as an unsolicited invite from a stranger requiring approval — even though the Welcome's own cryptographic validity already proves it came from a real admin re-adding a known member. Such a Welcome is now auto-accepted as a resume. Separately, the group list didn't re-render when a new pending welcome arrived (only new MDK group state triggered the filter that hides a group with a pending welcome from the main list), so the old inactive row could remain visible until an unrelated event refreshed it; the list now reacts to pending-welcome changes immediately.
+
 ## [1.8.4] — 2026-08-03
 
 ### Changed

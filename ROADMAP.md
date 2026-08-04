@@ -465,6 +465,13 @@ _Released 2026-07-31_
 - **Regression guards**: `RelayServiceStatusTests` covers the no-client, no-registered-relay, unparseable-URL, and disconnect paths, plus the consumer contract that the published list means *connected*, not *registered*. Tests deliberately avoid the network.
 - Found while assessing whether Whistle could talk to `.onion` relays — it cannot today (neither binding ships a Tor `ConnectionMode`), but the silent-failure mode that investigation exposed was not onion-specific.
 
+### v1.8.5 — Group avatar sync on join + resync duplicate-invite fix ✅
+_Released 2026-08-04_
+
+- **(iOS & Android) New members didn't see the group avatar until manually resynced**: the group avatar travels as a plain MLS application message, not group state, so MLS forward secrecy makes it structurally undecryptable by anyone who joined after it was sent — the designated admin is meant to re-announce it on every membership change (`rebroadcastGroupAvatarIfDesignated`), but that only fired when the admin's own client happened to re-observe its just-published add-commit come back over the live relay subscription. `addMember`, `addMembers`, and `resyncMember` now trigger the re-announce directly instead of depending on that asynchronous self-echo.
+- **(iOS & Android) Hard resync showed a stale "Inactive" row plus a duplicate "Accept" invitation for the same group**: `resyncMember`'s remove-then-re-add issues a fresh Welcome outside the invite-code path, so it was misclassified as unsolicited and required approval even though the Welcome's cryptographic validity already proves a real admin sent it. Such a Welcome for a group we have any local record of (active or not) is now auto-accepted as a resume. The group list also now reacts immediately when a pending welcome is added or resolved, instead of waiting for an unrelated MDK group-state event to re-run the filter that hides pending-welcome groups from the main list.
+- Found while investigating a real cross-platform join: an Android admin created a group, set an avatar, and invited an iOS member who saw the group but not the avatar until the admin resynced them — which incidentally fixed the avatar but surfaced the duplicate-entry bug on the confirm-rejoin step.
+
 ---
 
 ### Deferred
