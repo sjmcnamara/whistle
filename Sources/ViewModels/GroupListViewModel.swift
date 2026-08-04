@@ -128,6 +128,20 @@ final class GroupListViewModel: ObservableObject {
         .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
         .sink { [weak self] _ in self?.objectWillChange.send() }
         .store(in: &cancellables)
+
+        // A change here only signals SwiftUI to redraw — it doesn't recompute
+        // `groups`, whose pendingWelcomeIds filter only runs inside refreshItems.
+        // Without this, a group added to pendingWelcomeStore (e.g. by a resync
+        // re-add) keeps showing its stale prior entry — inactive row AND a new
+        // "Accept" row for the same group — until an unrelated marmot.$groups
+        // emission happens to rerun the filter.
+        pendingWelcomeStore.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                Task { await self.refreshItems(from: self.marmot.groups) }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Refresh
