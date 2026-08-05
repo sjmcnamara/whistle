@@ -532,66 +532,7 @@ _Released 2026-08-04_
 Each phase = `feature/vX.Y-description` branch off `master`.
 PR per phase → review → merge to `master`.
 Bug-fix releases use `bugfix/v0.x.y` branches.
-
-```
-master
-  └── feature/v0.1-foundation           ✅ merged
-  └── feature/v0.2-mls-bridge           ✅ merged
-  └── feature/v0.3-marmot-event-kinds   ✅ merged
-  └── feature/v0.4-location-layer       ✅ merged
-  └── feature/v0.5-group-chat-ux        ✅ merged
-  └── bugfix/v0.5.1                     ✅ merged
-  └── feature/v0.6-reliability          ✅ merged
-  └── feature/v0.7-tap-to-share         ✅ merged
-  └── feature/v0.8.1-app-lock           ✅ merged
-  └── feature/v0.8.2-identity-import-export  ✅ merged
-  └── feature/v0.8.3-key-lifecycle-hardening ✅ merged
-  └── feature/android-v0.8.3            ✅ merged
-  └── release/0.8.6                     ✅ merged
-  └── feature/v0.9-mls-db-encryption   ✅ merged
-  └── feature/v0.9.1-settings-split    ✅ merged
-  └── feature/v0.9.2-splash-appearance ✅ merged
-  └── security/v0.9.3-mip02-commit-ordering ✅ merged
-  └── feature/v0.9.4-ux-fixes            ✅ merged
-  └── feature/v1.0-production-readiness  ✅ merged
-  └── feature/v1.0.1-ux-fixes           ✅ merged
-  └── feature/v1.0.2-test-coverage      ✅ merged
-  └── feature/v1.1.1-onboarding         ✅ merged
-  └── feature/v1.1.2-settings-deep-links ✅ merged
-  └── feature/v1.1.3-sqlcipher-activation ✅ merged
-  └── feature/motion-adaptive             ✅ merged (v1.1.4)
-  └── feature/v1.1.5-android-parity      ✅ merged
-  └── feature/v1.2-low-battery-alerts    ✅ merged
-  └── feature/v1.3-ux-polish             ✅ merged
-  └── bugfix/v1.3.1                       ✅ merged
-  └── chore/ci-mdk-cache-key              ✅ merged
-  └── feature/v1.4-manual-whistle         ✅ merged
-  └── bugfix/v1.4.1                       ✅ merged
-  └── chore/ci-slsa-hygiene               ✅ merged
-  └── feature/v1.5-join-requests-pr1      ✅ merged
-  └── feature/v1.5-join-requests-pr2a     ✅ merged
-  └── feature/v1.5-join-requests-pr3      ✅ merged
-  └── feature/v1.5-join-requests-pr2b     ✅ merged
-  └── feature/v1.5-group-details-ux       ✅ merged
-  └── feature/v1.5-local-group-avatar     ✅ merged (v1.6.0)
-  └── bugfix/v1.6.1-selfupdate-verify-relay ✅ merged (v1.6.1 — verify MLS commits reach the relay)
-  └── feature/v1.6.2-soft-resync          ✅ merged (v1.6.2 — banner-triggered catch-up)
-  └── fix/v1.6.2-resync-epoch-detection   ✅ merged (v1.6.2 follow-up — epoch-delta success check)
-  └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
-  └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
-  └── bugfix/v1.6.5                        ✅ merged (v1.6.5 — in-memory chat thread cache; no empty-flash on re-entry)
-  └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
-  └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
-  └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
-  └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
-  └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
-  └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
-  └── bugfix/v1.8.1                         ✅ merged (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale; Android version bump for lockstep)
-  └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
-  └── bugfix/v1.8.2-group-photo-picker-reload ✅ merged (map pin EnvironmentObject crash: pass a resolved avatar into MemberPinView; extract GroupAvatarPickerButton as an Equatable view so relay-driven re-renders stop re-presenting the picker)
-  └── bugfix/relay-connection-status        ✅ merged (v1.8.3 — derive relay status from live sockets instead of registration; hasConnectedRelays() re-check on the MarmotService gates)
-  └── chore/v1.8.4-android-package-rename   ✅ merged (v1.8.4 — Android applicationId org.findmyfam → org.getwhistle.whistle, ahead of Zapstore listing; namespace/package name unchanged)
-```
+Other housekeeping uses `chore/description`. Full branch history lives in `git log`, not here.
 
 ---
 
