@@ -129,4 +129,42 @@ final class LocationViewModelTests: XCTestCase {
         vm.refresh()
         XCTAssertNil(vm.annotations.first { $0.isMe }?.nextUpdateDate)
     }
+
+    // MARK: - Self pin dedup across groups
+    //
+    // LocationCache keys on "groupId:pubkeyHex", so a member of two groups has
+    // two separate cache entries for themself. The "all groups" map view must
+    // collapse those to a single pin rather than showing the device twice at
+    // slightly different coordinates.
+
+    func testSelfPinDedupedAcrossGroups() {
+        cache.update(groupId: group1, memberPubkeyHex: myPubkey, payload: makePayload(lat: 1, lon: 1))
+        cache.update(groupId: group2, memberPubkeyHex: myPubkey, payload: makePayload(lat: 2, lon: 2))
+        cache.update(groupId: group1, memberPubkeyHex: otherPubkey, payload: makePayload())
+        let vm = makeVM()
+        vm.refresh()
+
+        XCTAssertEqual(vm.annotations.filter { $0.isMe }.count, 1, "Own pin should appear once, not once per group")
+        XCTAssertEqual(vm.annotations.count, 2, "Own pin (deduped) + the other member")
+    }
+
+    func testSelfPinDedupePicksFreshestEntry() {
+        cache.update(groupId: group1, memberPubkeyHex: myPubkey, payload: makePayload(lat: 1, lon: 1))
+        cache.update(groupId: group2, memberPubkeyHex: myPubkey, payload: makePayload(lat: 2, lon: 2))
+        let vm = makeVM()
+        vm.refresh()
+
+        let me = vm.annotations.first { $0.isMe }
+        XCTAssertEqual(me?.coordinate.latitude, 2, "The later cache write should win, not group iteration order")
+    }
+
+    func testSelfPinNotDedupedWhenFilteredToOneGroup() {
+        cache.update(groupId: group1, memberPubkeyHex: myPubkey, payload: makePayload(lat: 1, lon: 1))
+        cache.update(groupId: group2, memberPubkeyHex: myPubkey, payload: makePayload(lat: 2, lon: 2))
+        let vm = makeVM()
+        vm.selectedGroupId = group1
+
+        XCTAssertEqual(vm.annotations.filter { $0.isMe }.count, 1)
+        XCTAssertEqual(vm.annotations.first { $0.isMe }?.coordinate.latitude, 1, "Filtering to group1 shows group1's own entry, not group2's")
+    }
 }

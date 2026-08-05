@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.6] — 2026-08-05
+
+### Fixed
+- **(iOS) A member of two or more groups saw their own location pinned twice on the "All Groups" map, at slightly different coordinates.** `LocationCache` keys entries by `"groupId:pubkeyHex"`, so belonging to two groups produces two separate cache entries for yourself. The map view built one annotation per cache entry with no deduplication, so both showed up as pins. The two entries normally track each other via `broadcastLocation()` writing the same fresh payload into every group, but `LocationCache.update()` had no ordering guard, so an out-of-order relay echo of your own event in one group could leave that group's entry pointing at a stale coordinate — the visible symptom was two pins with slightly different GPS. `LocationViewModel.refresh()` now collapses to the single freshest self entry when showing all groups, and `LocationCache.update()` ignores an incoming payload older than what's already cached for that key.
+
 ## [1.8.5] — 2026-08-04
 
 ### Fixed

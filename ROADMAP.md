@@ -472,6 +472,12 @@ _Released 2026-08-04_
 - **(iOS & Android) Hard resync showed a stale "Inactive" row plus a duplicate "Accept" invitation for the same group**: `resyncMember`'s remove-then-re-add issues a fresh Welcome outside the invite-code path, so it was misclassified as unsolicited and required approval even though the Welcome's cryptographic validity already proves a real admin sent it. Such a Welcome for a group we have any local record of (active or not) is now auto-accepted as a resume. The group list also now reacts immediately when a pending welcome is added or resolved, instead of waiting for an unrelated MDK group-state event to re-run the filter that hides pending-welcome groups from the main list.
 - Found while investigating a real cross-platform join: an Android admin created a group, set an avatar, and invited an iOS member who saw the group but not the avatar until the admin resynced them — which incidentally fixed the avatar but surfaced the duplicate-entry bug on the confirm-rejoin step.
 
+### v1.8.6 — Duplicate self-pin on the multi-group map ✅
+_Released 2026-08-05_
+
+- **(iOS) A member of two or more groups saw their own location pinned twice on the "All Groups" map, at slightly different coordinates**: `LocationCache` keys entries by `"groupId:pubkeyHex"`, so belonging to two groups produces two separate cache entries for yourself, and `LocationViewModel.refresh()` built one annotation per entry with no dedup step. The two entries normally track each other, since `broadcastLocation()` writes an identical fresh payload into every active group on each fix — but `LocationCache.update()` had no ordering guard, so an out-of-order relay echo of your own event in one group could leave that group's entry pointing at a stale coordinate, which is what produced the visible drift between the two pins. `refresh()` now collapses to the single freshest self entry when showing all groups (a specific-group filter still shows exactly that group's entry), and `update()` ignores an incoming payload older than what is already cached for that key.
+- **Android parity gap**: `android/app/src/main/java/org/findmyfam/services/LocationCache.kt` has the same key scheme and the same missing ordering guard, so the underlying divergence can occur there too — not fixed here since it wasn't the reported symptom, but worth folding into a parity pass.
+
 ---
 
 ### Deferred
