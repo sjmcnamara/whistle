@@ -29,7 +29,7 @@ Edit **every** item in this list — it is the complete set, and a partial bump 
 2. `android/app/build.gradle.kts` — `versionName` and `versionCode`
 3. `CHANGELOG.md` — new entry at the top, matching `MARKETING_VERSION`
 4. `README.md` — the status line
-5. `ROADMAP.md` — release entry plus a branch-history line
+5. `ROADMAP.md` — release entry
 
 The **website version is automatic** — do not hand-edit it. `website/overrides/home.html` renders `{{ config.extra.app_version }}`, which `.github/workflows/docs.yml` injects from `project.yml`'s `MARKETING_VERSION` at build time; `project.yml` is in that workflow's `paths` trigger so a bump redeploys the site on its own. The site's Android APK link points at `releases/latest/download/whistle.apk` and likewise needs no edit. (Both used to be hand-maintained and were repeatedly missed — that is why they are generated now.)
 

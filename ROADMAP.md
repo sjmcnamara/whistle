@@ -499,13 +499,11 @@ _Released 2026-08-04_
 
     Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
 
-- **Submit Whistle to `awesome-marmot`** _(visibility, low effort)_: [marmot-protocol/awesome-marmot](https://github.com/marmot-protocol/awesome-marmot) is the curated list of Marmot apps and libraries. Whistle belongs under **Applications**, alongside [Haven](https://github.com/mehmetefeumit/Haven-App) (location sharing) and [tubestr-v2](https://github.com/Tubestr/tubestr-v2) (family video sharing). Worth doing once the MLS dependency question below is settled, so the entry describes a project on a supported footing rather than one pinned to a superseded binding.
+- ~~**Submit Whistle to `awesome-marmot`**~~ ✅ Done — [Whistle listed under Applications](https://github.com/marmot-protocol/awesome-marmot) alongside Haven and tubestr-v2, PR merged 2026-07-22.
 
-- **MLS dependency strategy** _(open question, blocks nothing yet)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
+- **MLS dependency strategy** _(open question, blocks nothing yet — parked pending upstream announcement)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, merged into a rewrite with whitenoise-rs, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
 
-    The capability still exists — [Haven](https://github.com/mehmetefeumit/Haven-App) consumes exactly those five `cgka-*`/storage/transport crates from v0.9.4 and its CI forbids the `marmot-uniffi`/`marmot-app`/`marmot-account` layers as duplicating its own FFI and identity planes. What no longer exists is a *pre-generated low-level uniffi binding*, which is precisely what Whistle consumes.
-
-    So the options are: stay pinned at 0.8.0 (works today, no upstream security fixes); or follow Haven's shape with a thin Rust core over the `cgka-*` crates exposing our own bindings (real work, but unlocks the convergence engine that targets the v1.6.x fork bugs). Adopting MarmotKit wholesale is a rewrite of the Services layer onto an architecture that owns accounts and transport — incompatible with Whistle driving its own relays and payload schemas.
+    **Confirmed directly with upstream** (Danny, mdk maintainer, [mdk#938](https://github.com/marmot-protocol/mdk/issues/938), 2026-07-22): mdk-swift/mdk-kotlin *will* resume once the rewrite settles, raw-event send/view (our exact non-chat use case) is explicitly planned, and consumers in our position should stay on 0.8 until they announce readiness. **Do not chase `main` or hand-roll FFI over the `cgka-*` crates** — that was the live option before this response; it's now superseded by "wait for the announcement." [Haven](https://github.com/mehmetefeumit/Haven-App) still proves the low-level capability is consumable (it drives `cgka-session`/`cgka-engine`/`cgka-traits`/`storage-sqlite`/`transport-nostr-peeler` directly, forbidding the account/app layers in its own CI), so that path remains available if upstream goes quiet for an extended period — but it is not the current plan. Issue left open to track the announcement; offered to test Swift/Kotlin bindings against a non-chat consumer once ready. See `CLAUDE.md` MDK section for the pin details and full context — this entry should stay in sync with it rather than duplicate the analysis.
 
 - **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
     - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
@@ -525,6 +523,8 @@ _Released 2026-08-04_
     4. **Notification trigger** — on outbound chat / location / battery-alert send, collect active-leaf tokens + decoys (self ±50%, 10-20% from other groups, min 3), shuffle, gift-wrap as `kind:446` rumor + `kind:13` seal + `kind:1059` wrap, publish to server inbox relays.
     5. **Platform integration** — APNs registration via `UNUserNotificationCenter` on iOS; FCM via Firebase SDK on Android. Ship behind an opt-in setting initially.
 
+- **Dependabot backlog needs a coordinated Kotlin/AGP pass** _(maintenance, low urgency but growing)_: 10 Dependabot PRs (#174–#183) have sat unmerged since 2026-07-23 — 5 Android Gradle bumps, 5 GitHub Actions bumps. The Actions ones (#174, #176–#179) are independent and safe to merge individually. The Kotlin-related Android ones (#180 `kotlin-gradle-plugin`, #182 `kotlin-test-junit`, plus #181 `play-services-location`, #183 `ksp`) are not: the last AGP 9 upgrade (2026-07-19, PR #150) needed a coordinated bump of Kotlin 2.3.21 + KSP 2.3.8 pinned together via the root `buildscript` block, because Dependabot bumping Kotlin alone mismatches AGP's bundled KGP and breaks the Compose compiler. Bumping #180/#182 individually will likely repeat that failure — batch them with a matching KSP version rather than merging one at a time.
+
 ---
 
 ## Branch Strategy
@@ -532,66 +532,7 @@ _Released 2026-08-04_
 Each phase = `feature/vX.Y-description` branch off `master`.
 PR per phase → review → merge to `master`.
 Bug-fix releases use `bugfix/v0.x.y` branches.
-
-```
-master
-  └── feature/v0.1-foundation           ✅ merged
-  └── feature/v0.2-mls-bridge           ✅ merged
-  └── feature/v0.3-marmot-event-kinds   ✅ merged
-  └── feature/v0.4-location-layer       ✅ merged
-  └── feature/v0.5-group-chat-ux        ✅ merged
-  └── bugfix/v0.5.1                     ✅ merged
-  └── feature/v0.6-reliability          ✅ merged
-  └── feature/v0.7-tap-to-share         ✅ merged
-  └── feature/v0.8.1-app-lock           ✅ merged
-  └── feature/v0.8.2-identity-import-export  ✅ merged
-  └── feature/v0.8.3-key-lifecycle-hardening ✅ merged
-  └── feature/android-v0.8.3            ✅ merged
-  └── release/0.8.6                     ✅ merged
-  └── feature/v0.9-mls-db-encryption   ✅ merged
-  └── feature/v0.9.1-settings-split    ✅ merged
-  └── feature/v0.9.2-splash-appearance ✅ merged
-  └── security/v0.9.3-mip02-commit-ordering ✅ merged
-  └── feature/v0.9.4-ux-fixes            ✅ merged
-  └── feature/v1.0-production-readiness  ✅ merged
-  └── feature/v1.0.1-ux-fixes           ✅ merged
-  └── feature/v1.0.2-test-coverage      ✅ merged
-  └── feature/v1.1.1-onboarding         ✅ merged
-  └── feature/v1.1.2-settings-deep-links ✅ merged
-  └── feature/v1.1.3-sqlcipher-activation ✅ merged
-  └── feature/motion-adaptive             ✅ merged (v1.1.4)
-  └── feature/v1.1.5-android-parity      ✅ merged
-  └── feature/v1.2-low-battery-alerts    ✅ merged
-  └── feature/v1.3-ux-polish             ✅ merged
-  └── bugfix/v1.3.1                       ✅ merged
-  └── chore/ci-mdk-cache-key              ✅ merged
-  └── feature/v1.4-manual-whistle         ✅ merged
-  └── bugfix/v1.4.1                       ✅ merged
-  └── chore/ci-slsa-hygiene               ✅ merged
-  └── feature/v1.5-join-requests-pr1      ✅ merged
-  └── feature/v1.5-join-requests-pr2a     ✅ merged
-  └── feature/v1.5-join-requests-pr3      ✅ merged
-  └── feature/v1.5-join-requests-pr2b     ✅ merged
-  └── feature/v1.5-group-details-ux       ✅ merged
-  └── feature/v1.5-local-group-avatar     ✅ merged (v1.6.0)
-  └── bugfix/v1.6.1-selfupdate-verify-relay ✅ merged (v1.6.1 — verify MLS commits reach the relay)
-  └── feature/v1.6.2-soft-resync          ✅ merged (v1.6.2 — banner-triggered catch-up)
-  └── fix/v1.6.2-resync-epoch-detection   ✅ merged (v1.6.2 follow-up — epoch-delta success check)
-  └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
-  └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
-  └── bugfix/v1.6.5                        ✅ merged (v1.6.5 — in-memory chat thread cache; no empty-flash on re-entry)
-  └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
-  └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
-  └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
-  └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
-  └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
-  └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
-  └── bugfix/v1.8.1                         ✅ merged (iOS avatar encoder: render at scale=1 so output is exactly targetEdge px, not ×screen-scale; Android version bump for lockstep)
-  └── chore/test-coverage-parity            ✅ merged (backfill tests for recently-shipped services + iOS↔Android test parity)
-  └── bugfix/v1.8.2-group-photo-picker-reload ✅ merged (map pin EnvironmentObject crash: pass a resolved avatar into MemberPinView; extract GroupAvatarPickerButton as an Equatable view so relay-driven re-renders stop re-presenting the picker)
-  └── bugfix/relay-connection-status        ✅ merged (v1.8.3 — derive relay status from live sockets instead of registration; hasConnectedRelays() re-check on the MarmotService gates)
-  └── chore/v1.8.4-android-package-rename   ✅ merged (v1.8.4 — Android applicationId org.findmyfam → org.getwhistle.whistle, ahead of Zapstore listing; namespace/package name unchanged)
-```
+Other housekeeping uses `chore/description`. Full branch history lives in `git log`, not here.
 
 ---
 
