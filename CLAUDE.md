@@ -54,6 +54,10 @@ Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.
 
 `vendor/` is gitignored. CI does the same thing. Re-run `./scripts/build.sh` after deleting `vendor/mdk-swift` or switching to a branch with a different MDK reference.
 
+## NostrSDK dependency
+
+`NostrSDK` is pinned with `exactVersion` in `project.yml`, not a floating `from:` range. It was `from: "0.44.2"` until 2026-08-06, when upstream's 0.45.0 release (published 2026-08-05) shipped a UniFFI-generated header with a C function parameter literally named `unsigned` (`uniffi_nostr_sdk_ffi_fn_method_*pow*_compute*`), which Clang rejects with `'type-name' cannot be signed or unsigned`. Nothing in our repo changed — SPM silently picked up the new minor version and CodeQL's fresh clone (no resolved-package cache) was the first build to hit it, same failure mode as the MDK `branch: main` incident above. Pinned back to `exactVersion: "0.44.8"` (last known-good). Bump the pin deliberately, and check upstream's generated header for reserved-word parameter names (`unsigned`, `id`, `new`, etc.) before doing so.
+
 ## Known test failures (pre-existing, not ours)
 
 None currently known. All 449 iOS tests should pass on simulator.

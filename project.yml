@@ -15,7 +15,7 @@ packages:
     path: WhistleCore
   NostrSDK:
     url: https://github.com/rust-nostr/nostr-sdk-swift
-    from: "0.44.2"
+    exactVersion: "0.44.8"
   MDKBindings:
     url: https://github.com/marmot-protocol/mdk-swift
     revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be
