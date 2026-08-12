@@ -482,6 +482,14 @@ body[data-md-template$="home.html"] .md-content h1:first-of-type {
 
 .w-hero__cta {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+}
+/* Secondary nav + version sit on their own row, below the install control,
+   so the wider three-option pill can't jumble into them. */
+.w-hero__links {
+  display: flex;
   gap: 0.6rem;
   align-items: center;
   flex-wrap: wrap;
@@ -580,6 +588,32 @@ body[data-md-template$="home.html"] .md-content h1:first-of-type {
   .w-hero__title { margin-bottom: 1rem; }
   .w-hero__sub { font-size: 0.95rem; margin-bottom: 1.4rem; }
   [data-theme="playful"] .w-hero::after { width: 180px; height: 180px; right: -90px; top: -90px; }
+}
+
+/* On phones the install pill can't hold a label + three options inline —
+   wrapping inside a rounded pill reads as cramped. Drop the pill and stack
+   the options as full-width buttons under a centred label instead. */
+@media (max-width: 38em) {
+  .w-install {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: var(--w-radius);
+  }
+  .w-install__label {
+    text-align: center;
+    white-space: normal;
+  }
+  .w-install__opt {
+    justify-content: center;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.8rem;
+  }
+  .w-install__opt[data-recommended] { order: -1; }
 }
 
 /* -------------------------------------------------------------------------

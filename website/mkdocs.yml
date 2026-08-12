@@ -63,6 +63,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - How it works: how-it-works.md
+  - Why it matters: why-it-matters.md
   - Trust & security: trust.md
   - Reference:
     - wiki/index.md
