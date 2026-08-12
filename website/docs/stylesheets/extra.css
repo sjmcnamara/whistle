@@ -482,6 +482,14 @@ body[data-md-template$="home.html"] .md-content h1:first-of-type {
 
 .w-hero__cta {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+}
+/* Secondary nav + version sit on their own row, below the install control,
+   so the wider three-option pill can't jumble into them. */
+.w-hero__links {
+  display: flex;
   gap: 0.6rem;
   align-items: center;
   flex-wrap: wrap;
