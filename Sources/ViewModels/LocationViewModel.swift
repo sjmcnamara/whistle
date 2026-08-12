@@ -105,14 +105,26 @@ final class LocationViewModel: ObservableObject {
     /// Re-derive annotations from the cache, applying the group filter.
     func refresh() {
         let interval = intervalSeconds()
-        let source: [MemberLocation]
+        let selfKey = myPubkeyHex()
+        var source: [MemberLocation]
         if let groupId = selectedGroupId {
             source = locationCache.locations(forGroup: groupId)
         } else {
             source = locationCache.allLocations
         }
 
-        let selfKey = myPubkeyHex()
+        // A member who belongs to multiple groups has one cache entry per
+        // group (LocationCache keys on "groupId:pubkeyHex"), so the "all
+        // groups" view can otherwise surface our own pin twice at slightly
+        // different coordinates. Collapse to the single freshest self entry.
+        if let selfKey, selectedGroupId == nil {
+            let selfEntries = source.filter { $0.memberPubkeyHex == selfKey }
+            if selfEntries.count > 1, let freshest = selfEntries.max(by: { $0.receivedAt < $1.receivedAt }) {
+                source.removeAll { $0.memberPubkeyHex == selfKey }
+                source.append(freshest)
+            }
+        }
+
         let nextUpdate = nextFireDate()
         let stationary = isStationary()
         annotations = source.map { loc in
