@@ -606,6 +606,12 @@ body[data-md-template$="home.html"] .md-content h1:first-of-type {
   .w-install__label {
     text-align: center;
     white-space: normal;
+    /* Pinned below every option's order (including the recommended one's
+       -1, set below) so it's always first. Without this the label sat at
+       the flex default order:0 — fine at first paint since no option has
+       data-recommended yet, but platform-hint.js adds it after load and
+       the now order:-1 option jumped above the label. */
+    order: -2;
   }
   .w-install__opt {
     justify-content: center;
