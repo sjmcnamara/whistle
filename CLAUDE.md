@@ -95,4 +95,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.8.6 — Duplicate self-pin on the multi-group map** (bugfix). See ROADMAP.md for next steps.
+Current version: **v1.8.7 — iOS bundle ID rename + NFC removal** (chore). See ROADMAP.md for next steps.

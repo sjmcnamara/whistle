@@ -22,7 +22,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>org.findmyfam.app</string>
+			<string>org.getwhistle.whistle</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>whistle</string>
@@ -33,8 +33,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NFCReaderUsageDescription</key>
-	<string>Whistle uses NFC to receive invite codes by tapping phones together.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Whistle uses the camera to scan QR invite codes.</string>
 	<key>NSFaceIDUsageDescription</key>

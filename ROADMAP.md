@@ -472,6 +472,12 @@ _Released 2026-08-04_
 - **(iOS & Android) Hard resync showed a stale "Inactive" row plus a duplicate "Accept" invitation for the same group**: `resyncMember`'s remove-then-re-add issues a fresh Welcome outside the invite-code path, so it was misclassified as unsolicited and required approval even though the Welcome's cryptographic validity already proves a real admin sent it. Such a Welcome for a group we have any local record of (active or not) is now auto-accepted as a resume. The group list also now reacts immediately when a pending welcome is added or resolved, instead of waiting for an unrelated MDK group-state event to re-run the filter that hides pending-welcome groups from the main list.
 - Found while investigating a real cross-platform join: an Android admin created a group, set an avatar, and invited an iOS member who saw the group but not the avatar until the admin resynced them — which incidentally fixed the avatar but surfaced the duplicate-entry bug on the confirm-rejoin step.
 
+### v1.8.7 — iOS bundle ID rename + NFC removal ✅
+_Released 2026-08-18_
+
+- **(iOS) `PRODUCT_BUNDLE_IDENTIFIER` moved from `org.findmyfam.app` to `org.getwhistle.whistle`**: mirrors the Android `applicationId` rename in v1.8.4, and for the same reason — `org.findmyfam` predates the app's rename to Whistle, and this is the last point it can move before a real App Store listing makes it permanent. Requires a new App ID and a new App Store Connect app record; existing TestFlight testers on `org.findmyfam.app` are not migrated forward and lose local identity/groups on the old install, same trade-off Android made. Internal-only identifiers (`KeychainService`'s keychain service string, `MLSService`'s MDK `serviceId`, the logger subsystem) deliberately stay `org.findmyfam` — private storage labels, not worth the risk of touching for no external benefit, matching Android leaving its Kotlin package name and `FindMyFamApp` class alone.
+- **(iOS) Removed unused NFC tag read/write**: `NFCReadCoordinator`/`NFCWriteCoordinator` had no remaining call sites in `Sources/Views` — deleted both files, the NFC entitlement, the `NFCReaderUsageDescription` usage string, and two stray UI mentions. Closes the Deferred item below.
+
 ### v1.8.6 — Duplicate self-pin on the multi-group map ✅
 _Released 2026-08-05_
 
@@ -513,7 +519,7 @@ _Released 2026-08-05_
 
 - **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
     - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
-    - **NFC tag read/write** (`NFCReadCoordinator` / `NFCWriteCoordinator`) — tap-to-join via NFC stickers. **Candidate to drop** rather than port — niche use, low demand.
+    - ~~**NFC tag read/write**~~ — dropped rather than ported. Removed from iOS in v1.8.7 (`NFCReadCoordinator`/`NFCWriteCoordinator` had no remaining call sites).
     - ~~**Nearby Share**~~ — dropped rather than ported (QR scanning covers the same in-person handoff). Removed from iOS in `chore/remove-nearby-share`.
 
 - **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
