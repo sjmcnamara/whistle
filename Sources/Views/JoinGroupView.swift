@@ -22,7 +22,7 @@ struct JoinGroupView: View {
                         .autocorrectionDisabled()
                         .font(.body.monospaced())
                 } footer: {
-                    Text("Paste a code, scan a QR code, or tap an NFC tag.")
+                    Text("Paste a code or scan a QR code.")
                 }
 
                 // Quick-action buttons

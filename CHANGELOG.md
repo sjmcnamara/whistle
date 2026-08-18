@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.7] — 2026-08-18
+
+### Changed
+- **(iOS) `PRODUCT_BUNDLE_IDENTIFIER` moved from `org.findmyfam.app` to `org.getwhistle.whistle`.** `org.findmyfam` predates the app's rename to Whistle and was never updated — matches the Android `applicationId` rename in v1.8.4, for the same reason: this is the last point it can move before a real App Store listing makes it permanent. A new bundle ID means a new App ID and a new App Store Connect app record; it is not an update path for the existing `org.findmyfam.app` TestFlight app. Existing TestFlight testers are not migrated forward — they move to the new app via a new invite and lose local state (identity, groups) on the old install, same trade-off Android's rename made. Internal-only identifiers (`KeychainService`'s keychain service string, `MLSService`'s MDK `serviceId`, the logger subsystem) are deliberately left as `org.findmyfam` — they're private storage labels, not exported anywhere, and renaming them adds risk without benefit, mirroring Android leaving its Kotlin package name and `FindMyFamApp` class alone.
+- **(iOS) Dropped unused NFC tag read/write.** `NFCReadCoordinator`/`NFCWriteCoordinator` had no call sites left anywhere in `Sources/Views` — the "Tap NFC Tag" / "Write to NFC Tag" entry points from v0.7 are gone, leaving only orphaned files plus a lingering `NFCReaderUsageDescription` string and an NFC entitlement nothing used. Removed both coordinator files, the entitlement, the Info.plist/`project.yml` usage string, and two stray UI mentions of NFC (`JoinGroupView` footer, a `GroupListViewModel` doc comment). Closes the ROADMAP Deferred item that flagged this as a parity candidate to drop.
+
 ## [1.8.6] — 2026-08-05
 
 ### Fixed
