@@ -58,12 +58,29 @@ struct GroupDetailView: View {
                 }
             }
         }
-        .navigationTitle("Group")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .topLeading) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 32, height: 32)
+                    .background(.thinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 12)
+        }
         .task { await viewModel.load() }
         .sheet(isPresented: $showInvite) {
             if let code = viewModel.inviteCode {
-                InviteShareView(inviteCode: code)
+                InviteShareView(
+                    inviteCode: code,
+                    groupName: viewModel.groupName,
+                    groupAvatar: SharedGroupAvatarStore.resolvedImage(
+                        for: viewModel.groupId, local: avatars, shared: sharedAvatars
+                    )
+                )
             }
         }
         .onChange(of: viewModel.didRequestLeave) { _, left in
@@ -141,7 +158,8 @@ struct GroupDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
             .listRowBackground(Color.clear)
         }
     }
@@ -159,22 +177,33 @@ struct GroupDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
+                    // Same checkmark/xmark-circle-fill pairing used for the
+                    // invitee-side "pending welcome" accept/decline in
+                    // GroupListView — one consistent approve/deny idiom.
                     Button {
                         Task { await viewModel.addPendingJoiner(joiner) }
                     } label: {
-                        Image(systemName: "person.badge.plus")
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .green)
                             .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.borderless)
                     .disabled(viewModel.isAddingMember)
+                    .accessibilityLabel("Approve")
 
                     Button(role: .destructive) {
                         viewModel.dismissPendingJoiner(joiner)
                     } label: {
-                        Image(systemName: "xmark.circle")
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .red.opacity(0.8))
                             .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel("Deny")
                 }
             }
         } header: {
