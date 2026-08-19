@@ -13,8 +13,8 @@ android {
         applicationId = "org.getwhistle.whistle"
         minSdk = 26
         targetSdk = 34
-        versionCode = 49
-        versionName = "1.8.7"
+        versionCode = 50
+        versionName = "1.8.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -126,8 +126,10 @@ dependencies {
     // JNA (required by UniFFI-generated Kotlin bindings for MDK)
     implementation("net.java.dev.jna:jna:5.18.1@aar")
 
-    // QR code generation (ZXing)
-    implementation("com.google.zxing:core:3.5.4")
+    // QR code generation, styled (dark-grey dot modules + center logo badge) —
+    // Compose-native painter, no Drawable/Bitmap interop needed. Sibling of
+    // iOS's dagronf/QRCode by the same author; ZXing had no styling hooks.
+    implementation("io.github.alexzhirkevich:qrose:1.1.2")
 
     // CameraX + ML Kit barcode scanning
     implementation("androidx.camera:camera-core:1.6.1")

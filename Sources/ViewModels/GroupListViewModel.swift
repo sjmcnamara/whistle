@@ -3,7 +3,7 @@ import WhistleCore
 import Combine
 import MDKBindings
 
-/// Drives the Chat tab group list — observes `MarmotService.groups`.
+/// Drives the Groups tab group list — observes `MarmotService.groups`.
 @MainActor
 final class GroupListViewModel: ObservableObject {
 
