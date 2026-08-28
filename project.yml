@@ -63,10 +63,10 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
-        NSLocationWhenInUseUsageDescription: "Whistle needs your location to share it with your family group."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Whistle needs background location access to keep your family updated when the app is in the background."
+        NSLocationWhenInUseUsageDescription: "Whistle needs your location to share it with your group."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Whistle needs background location access to keep your group updated when the app is in the background."
         NSMotionUsageDescription: "Whistle uses motion data to detect when you're stationary and reduce battery usage."
-        NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your family data."
+        NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your group data."
         NSCameraUsageDescription: "Whistle uses the camera to scan QR invite codes."
         CFBundleURLTypes:
           - CFBundleURLSchemes:
