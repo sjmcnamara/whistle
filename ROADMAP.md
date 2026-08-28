@@ -493,6 +493,12 @@ _Released 2026-08-19_
 - **(iOS) Invite sheet also got icon-only share/copy buttons** (dropped the "Share via AirDrop / Messages…" label, which named specific share-sheet apps a user can hide or reorder) plus a group name/avatar header and a card-wrapped QR. Android's sheet already said "the person you want to add to the group" and its buttons were already plainly labelled, so no change needed there.
 - **(iOS & Android) Admin's approve/deny on a pending joiner now uses filled circular check/cancel icons on both platforms**: `checkmark.circle.fill` / `xmark.circle.fill` on iOS, matching `GroupListView`'s existing pending-welcome pattern (was `person.badge.plus` / `xmark.circle`); `CheckCircle` (green) / `Cancel` (error red) on Android, reusing the green/red convention already established in `AdvancedSettingsScreen.kt` (was `PersonAdd` / `Close`).
 
+### v1.8.9 — App Store rejection fix (Guideline 5.1.1(iv)) ✅
+_Released 2026-08-28_
+
+- **(iOS) Onboarding's pre-permission screen let users bypass the system location prompt entirely**: Apple rejected the app over the "One last thing" screen's "Enable Location" button (a directive verb; wants neutral "Continue"/"Next") and its "Skip for now" button, which dismissed onboarding without ever calling `requestAlwaysAuthorization()` — the system dialog only appeared later if the user found the "Authorization" row in Settings. Renamed the button to "Continue" and removed "Skip for now"; the final onboarding page always triggers the system prompt now.
+- **(iOS) Permission usage-description strings say "group" instead of "family"**, matching the v1.8.8 "Groups" tab rename.
+
 ---
 
 ### Deferred

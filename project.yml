@@ -45,8 +45,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.getwhistle.whistle
         DEVELOPMENT_TEAM: 3V55494FNM
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "1.8.8"
-        CURRENT_PROJECT_VERSION: "55"
+        MARKETING_VERSION: "1.8.9"
+        CURRENT_PROJECT_VERSION: "56"
         PRODUCT_NAME: Whistle
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -63,10 +63,10 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
-        NSLocationWhenInUseUsageDescription: "Whistle needs your location to share it with your family group."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Whistle needs background location access to keep your family updated when the app is in the background."
+        NSLocationWhenInUseUsageDescription: "Whistle needs your location to share it with your group."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Whistle needs background location access to keep your group updated when the app is in the background."
         NSMotionUsageDescription: "Whistle uses motion data to detect when you're stationary and reduce battery usage."
-        NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your family data."
+        NSFaceIDUsageDescription: "Whistle uses Face ID to unlock the app and protect your group data."
         NSCameraUsageDescription: "Whistle uses the camera to scan QR invite codes."
         CFBundleURLTypes:
           - CFBundleURLSchemes:
