@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.9] — 2026-08-28
+
+### Fixed
+- **(iOS) App Store rejection, Guideline 5.1.1(iv) — Data Collection and Storage: onboarding's pre-permission screen let users bypass the system location prompt entirely.** Apple flagged the "One last thing" screen in `OnboardingView` (shown before requesting location access) on two points: its primary button read "Enable Location" — a directive verb Apple treats as steering the user toward granting access, where the guideline wants neutral wording like "Continue" or "Next" — and a "Skip for now" button let the user dismiss onboarding without the system `CLLocationManager` prompt ever appearing, deferred indefinitely unless they later found the "Authorization" row buried in Settings. Renamed the button to "Continue" and removed "Skip for now": the final onboarding page now always calls `requestAlwaysAuthorization()`, so the user is guaranteed to reach (and remains free to deny) the system dialog, same as any other permission gate.
+
+### Changed
+- **(iOS) Permission usage-description strings say "group" instead of "family".** `NSLocationWhenInUseUsageDescription`, `NSLocationAlwaysAndWhenInUseUsageDescription`, and `NSFaceIDUsageDescription` referred to "family" — leftover wording from before the app's group-oriented rename (matches the "Groups" tab rename in v1.8.8).
+
 ## [1.8.8] — 2026-08-19
 
 ### Changed

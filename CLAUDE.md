@@ -95,4 +95,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.8.8 — Groups tab rename + invite/QR polish** (chore). See ROADMAP.md for next steps.
+Current version: **v1.8.9 — App Store rejection fix (Guideline 5.1.1(iv))** (chore). See ROADMAP.md for next steps.
