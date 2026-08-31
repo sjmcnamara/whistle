@@ -1,0 +1,47 @@
+name: Claude Security Review
+
+on:
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: claude-security-${{ github.ref }}
+  cancel-in-progress: true
+
+# Default to read-only. The job below escalates only what it needs.
+permissions: read-all
+
+jobs:
+  security-review:
+    name: Claude security review
+    runs-on: ubuntu-latest
+
+    # The action is explicitly NOT hardened against prompt injection, and this is
+    # a public repo: a hostile PR could carry text steering the reviewer. Fork PRs
+    # are skipped outright. (`secrets` are not exposed to fork `pull_request` runs
+    # anyway, so without this guard those runs would fail on a missing API key
+    # rather than skip cleanly.) Also enable "Require approval for all external
+    # contributors" in Settings → Actions.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    permissions:
+      contents: read
+      pull-requests: write  # to leave review comments
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2  # enough for the PR diff
+
+      - name: Review changed files
+        uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda  # main @ 2026-02-11
+        with:
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          comment-pr: true
+          # Vendored upstream code and generated build output are not ours to fix.
+          exclude-directories: "vendor,website,android/app/build,android/shared/build"
+          # What generic security scanning misses in this codebase — MLS, key
+          # handling, and relay trust boundaries. See the file for rationale.
+          custom-security-scan-instructions: ".github/security-scan-instructions.md"
+          claudecode-timeout: 20
