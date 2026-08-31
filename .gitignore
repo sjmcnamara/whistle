@@ -44,5 +44,11 @@ android/local.properties
 # MkDocs build output
 website/site/
 
-# Claude Code
-.claude/
+# Claude Code — local settings stay out, shared skills are checked in
+.claude/*
+!.claude/skills/
+
+# Editor swap files
+*.swp
+*.swo
+*~

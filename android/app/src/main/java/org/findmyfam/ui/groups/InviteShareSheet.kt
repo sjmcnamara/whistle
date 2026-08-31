@@ -13,9 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.findmyfam.R
 import org.findmyfam.ui.common.QrCodeImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +57,8 @@ fun InviteShareSheet(
             // QR code
             QrCodeImage(
                 content = inviteCode,
-                size = 180.dp
+                size = 180.dp,
+                logoPainter = painterResource(R.mipmap.ic_launcher)
             )
 
             Spacer(modifier = Modifier.height(12.dp))

@@ -22,7 +22,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>org.findmyfam.app</string>
+			<string>org.getwhistle.whistle</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>whistle</string>
@@ -33,16 +33,14 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NFCReaderUsageDescription</key>
-	<string>Whistle uses NFC to receive invite codes by tapping phones together.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Whistle uses the camera to scan QR invite codes.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Whistle uses Face ID to unlock the app and protect your family data.</string>
+	<string>Whistle uses Face ID to unlock the app and protect your group data.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Whistle needs background location access to keep your family updated when the app is in the background.</string>
+	<string>Whistle needs background location access to keep your group updated when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Whistle needs your location to share it with your family group.</string>
+	<string>Whistle needs your location to share it with your group.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Whistle uses motion data to detect when you're stationary and reduce battery usage.</string>
 	<key>UIBackgroundModes</key>

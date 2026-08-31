@@ -3,15 +3,17 @@
 {#-
   Home template — adds the hero above the article content.
   Activate by setting `template: home.html` in the page's frontmatter.
+
+  The hero is rendered in the `tabs` block, *after* the default tabs bar
+  ({{ super() }}), rather than in Material's `hero` block. Material orders
+  `hero` before `tabs`, which pushed the site-nav tabs below the full-height
+  hero; rendering here keeps the tabs directly under the header.
 -#}
 
-{% block hero %}
+{% block tabs %}
+  {{ super() }}
   <section class="w-hero" data-md-component="hero">
     <div class="w-hero__inner">
-      <div class="w-hero__eyebrow">
-        <span aria-hidden="true"></span>
-        <span>E2EE · Open source · Zero servers</span>
-      </div>
       <h1 class="w-hero__title">
         Location sharing,
         <span class="w-hl">without the ick.</span>
@@ -24,10 +26,15 @@
       <div class="w-hero__cta">
         <span class="w-install">
           <span class="w-install__label">Install Whistle</span>
-          <a href="https://testflight.apple.com/join/z8EhxM5g" class="w-install__opt" data-platform="ios" rel="noopener">
+          <a href="https://testflight.apple.com/join/YD5YEpcw" class="w-install__opt" data-platform="ios" rel="noopener">
             <span class="w-install__platform">iOS</span>
             <span class="w-install__sep" aria-hidden="true">·</span>
             <span>TestFlight</span>
+          </a>
+          <a href="https://zapstore.dev/apps/org.getwhistle.whistle" class="w-install__opt" data-platform="android" rel="noopener">
+            <span class="w-install__platform">Android</span>
+            <span class="w-install__sep" aria-hidden="true">·</span>
+            <span>Zapstore</span>
           </a>
           <a href="https://github.com/sjmcnamara/whistle/releases/latest/download/whistle.apk" class="w-install__opt" data-platform="android" rel="noopener">
             <span class="w-install__platform">Android</span>
@@ -35,19 +42,15 @@
             <span>APK</span>
           </a>
         </span>
-        <a href="how-it-works/" class="w-btn w-btn--ghost">
-          How it works
-        </a>
-        <a href="#04-why-it-matters" class="w-btn w-btn--ghost">
-          Why it matters
-        </a>
-        <a href="{{ config.repo_url }}" class="w-btn w-btn--ghost">
-          Source on GitHub
-        </a>
-        <span class="w-meta">
-          <span class="w-dot" aria-hidden="true"></span>
-          v1.8.0
-        </span>
+        <div class="w-hero__links">
+          <a href="{{ config.repo_url }}" class="w-btn w-btn--ghost">
+            Source on GitHub
+          </a>
+          <span class="w-meta">
+            <span class="w-dot" aria-hidden="true"></span>
+            v{{ config.extra.app_version }}
+          </span>
+        </div>
       </div>
     </div>
   </section>
