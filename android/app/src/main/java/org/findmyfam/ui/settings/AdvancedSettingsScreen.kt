@@ -21,6 +21,9 @@ import org.findmyfam.services.IdentityService
 import org.findmyfam.services.RelayService
 import org.findmyfam.shared.models.RelayConfig
 
+/** How often the relay status dots re-read live socket state, in milliseconds. */
+private const val RELAY_STATUS_REFRESH_MS = 5_000L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdvancedSettingsScreen(
@@ -48,6 +51,16 @@ fun AdvancedSettingsScreen(
     var relayError by remember { mutableStateOf<String?>(null) }
     val relayConnectionState by relayService.connectionState.collectAsState()
     val connectedRelayUrls by relayService.connectedRelayUrls.collectAsState()
+
+    // Relay sockets drop and reconnect in the background, so the status dots go
+    // stale unless we re-read live status while this screen is open.
+    // Mirrors the .task refresh loop in iOS AdvancedSettingsView.
+    LaunchedEffect(Unit) {
+        while (true) {
+            relayService.refreshConnectedRelays()
+            kotlinx.coroutines.delay(RELAY_STATUS_REFRESH_MS)
+        }
+    }
 
     Scaffold(
         topBar = {

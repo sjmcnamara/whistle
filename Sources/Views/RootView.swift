@@ -7,7 +7,7 @@ struct RootView: View {
         TabView {
             chatTab
                 .tabItem {
-                    Label("Chat", systemImage: "bubble.left.and.bubble.right.fill")
+                    Label("Groups", systemImage: "person.3.fill")
                 }
 
             MapView(viewModel: appViewModel.locationViewModel)
