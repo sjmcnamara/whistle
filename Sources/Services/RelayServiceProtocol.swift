@@ -15,6 +15,16 @@ protocol RelayServiceProtocol: AnyObject {
     func connect(keys: Keys, relays: [RelayConfig]) async
     func disconnect() async
 
+    /// Re-read live per-relay socket status and republish `connectedRelayURLs`.
+    /// Call before showing connection state to the user — relays drop and
+    /// reconnect in the background after `connect` returns.
+    func refreshConnectedRelays() async
+
+    /// Whether any relay currently has a live socket, re-reading status when the
+    /// cached list is empty. Prefer this over `connectedRelayURLs.isEmpty` when
+    /// gating network work.
+    func hasConnectedRelays() async -> Bool
+
     /// Add and connect a single relay (e.g. an invite's relay hint) to the existing client.
     func ensureRelay(_ url: String) async
 

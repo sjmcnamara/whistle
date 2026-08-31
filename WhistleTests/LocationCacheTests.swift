@@ -146,9 +146,32 @@ final class LocationCacheTests: XCTestCase {
         XCTAssertTrue(cache.allLocations.isEmpty)
     }
 
+    // MARK: - Out-of-order updates
+    //
+    // A member's own relay echo can arrive out of order (each group's relay
+    // round-trip is independent), so `update` must not let a delayed, older
+    // payload regress a cache entry that already holds a newer one.
+
+    func testOlderPayloadDoesNotOverwriteNewer() {
+        let now = Date()
+        cache.update(groupId: group1, memberPubkeyHex: alice, payload: makePayload(lat: 30, lon: 40, timestamp: now))
+        cache.update(groupId: group1, memberPubkeyHex: alice, payload: makePayload(lat: 10, lon: 20, timestamp: now.addingTimeInterval(-60)))
+
+        XCTAssertEqual(cache.allLocations.count, 1)
+        XCTAssertEqual(cache.allLocations.first?.payload.lat, 30, "A stale, out-of-order echo must not regress the cached location")
+    }
+
+    func testNewerPayloadOverwritesOlder() {
+        let now = Date()
+        cache.update(groupId: group1, memberPubkeyHex: alice, payload: makePayload(lat: 10, lon: 20, timestamp: now))
+        cache.update(groupId: group1, memberPubkeyHex: alice, payload: makePayload(lat: 30, lon: 40, timestamp: now.addingTimeInterval(60)))
+
+        XCTAssertEqual(cache.allLocations.first?.payload.lat, 30)
+    }
+
     // MARK: - Helpers
 
-    private func makePayload(lat: Double, lon: Double) -> LocationPayload {
-        LocationPayload(latitude: lat, longitude: lon, altitude: 0, accuracy: 10, timestamp: Date())
+    private func makePayload(lat: Double, lon: Double, timestamp: Date = Date()) -> LocationPayload {
+        LocationPayload(latitude: lat, longitude: lon, altitude: 0, accuracy: 10, timestamp: timestamp)
     }
 }

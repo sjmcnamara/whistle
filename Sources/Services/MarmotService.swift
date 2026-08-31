@@ -391,8 +391,10 @@ final class MarmotService: ObservableObject {
             throw MarmotError.alreadyMember
         }
 
-        // Pre-flight: verify relay connectivity
-        guard !relay.connectedRelayURLs.isEmpty else {
+        // Pre-flight: verify relay connectivity. `hasConnectedRelays` re-reads
+        // live status when the cached list is empty, so a relay that reconnected
+        // in the background does not fail this check.
+        guard await relay.hasConnectedRelays() else {
             throw MarmotError.noRelaysConnected
         }
 
@@ -438,6 +440,11 @@ final class MarmotService: ObservableObject {
         )
 
         await refreshGroups()
+        // Set directly rather than waiting for the live subscription to re-observe
+        // this same commit — that self-echo is asynchronous and not guaranteed to
+        // arrive/classify as `.commit`, which left new joiners without the group
+        // avatar until an unrelated event happened to trigger it.
+        lastGroupMembershipChangeId = (groupId, Date())
         WhistleLogger.marmot.info("Added member \(memberHex) to group \(groupId)")
     }
 
@@ -484,7 +491,7 @@ final class MarmotService: ObservableObject {
     /// them. Both commits are verified on the relay (v1.6.1 anti-fork).
     func resyncMember(publicKeyHex memberHex: String, inGroup groupId: String) async throws {
         guard memberHex != publicKeyHex else { throw MarmotError.alreadyMember }
-        guard !relay.connectedRelayURLs.isEmpty else { throw MarmotError.noRelaysConnected }
+        guard await relay.hasConnectedRelays() else { throw MarmotError.noRelaysConnected }
 
         // 1. Fetch the fresh key package FIRST — abort before touching the group.
         let kpJson = try await fetchKeyPackageWithRetry(for: memberHex, maxRetries: 10)
@@ -516,6 +523,8 @@ final class MarmotService: ObservableObject {
         }
 
         await refreshGroups()
+        // Same explicit trigger as addMember/addMembers — see comment there.
+        lastGroupMembershipChangeId = (groupId, Date())
         WhistleLogger.marmot.info("Hard resync complete for \(memberHex.prefix(8))… in group \(groupId)")
     }
 
@@ -539,7 +548,7 @@ final class MarmotService: ObservableObject {
     @discardableResult
     func addMembers(_ requests: [JoinRequest], toGroup groupId: String) async throws -> BatchAddResult {
         guard !requests.isEmpty else { return BatchAddResult(added: []) }
-        guard !relay.connectedRelayURLs.isEmpty else { throw MarmotError.noRelaysConnected }
+        guard await relay.hasConnectedRelays() else { throw MarmotError.noRelaysConnected }
 
         let existing = (try? await mls.getMembers(groupId: groupId)).map(Set.init) ?? []
         let alreadyIn = requests.filter { existing.contains($0.pubkey) }.map { $0.pubkey }
@@ -575,6 +584,8 @@ final class MarmotService: ObservableObject {
             try await routeWelcomes(payload.welcomeRumors, requests: toAdd)
 
             await refreshGroups()
+            // Same explicit trigger as addMember — see comment there.
+            lastGroupMembershipChangeId = (groupId, Date())
             WhistleLogger.marmot.info("Batch-added \(toAdd.count) member(s) to group \(groupId) in one commit")
             return BatchAddResult(added: alreadyIn + toAdd.map { $0.pubkey })
         } catch {
@@ -828,8 +839,8 @@ final class MarmotService: ObservableObject {
         // (the pending-invite marker was cleared on the first join) and resurfaces
         // as a phantom "Group invitation received" prompt while we're already in
         // the group. Ignore it and clear any stale pending state.
-        if let existing = try? await mls.getGroup(mlsGroupId: welcome.mlsGroupId),
-           existing.isActive {
+        let existingGroup = try? await mls.getGroup(mlsGroupId: welcome.mlsGroupId)
+        if let existing = existingGroup, existing.isActive {
             await MainActor.run {
                 pendingWelcomeStore?.remove(mlsGroupId: welcome.mlsGroupId)
                 pendingInviteStore?.remove(groupHint: welcome.mlsGroupId)
@@ -843,8 +854,19 @@ final class MarmotService: ObservableObject {
             $0.groupHint == welcome.mlsGroupId
         }) ?? false
 
-        if hasPendingInvite {
-            // User explicitly accepted an invite — auto-join
+        // A hard resync (remove + re-add) produces a fresh Welcome for a group
+        // we already have local — now-inactive — state for. It never goes through
+        // joinGroup(inviteCode:), so hasPendingInvite is false and this used to
+        // surface as an "unsolicited" invite the user had to Accept, alongside the
+        // stale inactive row for the same group. The Welcome's own cryptographic
+        // validity (mls.processWelcome above already succeeded) is what vouches for
+        // it — only a real MLS commit from an actual admin produces one — so a
+        // known groupId is safe to auto-accept as a resume rather than gate again.
+        let isResyncOfKnownGroup = existingGroup != nil
+
+        if hasPendingInvite || isResyncOfKnownGroup {
+            // User explicitly accepted an invite, or this resumes a group we
+            // were already in — auto-join.
             try await acceptWelcomeAndJoin(welcome)
         } else {
             // Unsolicited — queue for user approval

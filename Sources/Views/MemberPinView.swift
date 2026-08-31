@@ -4,15 +4,28 @@ import SwiftUI
 ///
 /// - **Blue** = fresh location
 /// - **Grey** = stale (older than 2× the update interval)
+///
+/// Reads nothing from the SwiftUI environment, deliberately. MapKit hosts
+/// `Annotation` content in its own `_UIHostingView` (`SwiftUIAnnotationView`),
+/// which does **not** carry the environment from the `Map`'s ancestors — and it
+/// builds that view from `MKAnnotationManager.updateVisibleAnnotations`, a timer
+/// callback outside SwiftUI's update pass. This view previously used
+/// `MemberAvatarView`, whose `@EnvironmentObject MemberAvatarStore` therefore
+/// resolved to nothing and trapped in `EnvironmentObject.error()`, crashing the
+/// app while the map was panned or zoomed. The avatar is now resolved by
+/// `MapView` — where the environment is valid — and passed in.
 struct MemberPinView: View {
     let annotation: MemberAnnotation
+    /// Resolved by `MapView`. See the type's note on the missing environment.
+    let avatarImage: UIImage?
 
     var body: some View {
         VStack(spacing: 2) {
             ZStack(alignment: .topTrailing) {
-                MemberAvatarView(
+                MemberAvatarThumb(
                     pubkeyHex: annotation.memberPubkeyHex,
                     displayName: annotation.displayName,
+                    image: avatarImage,
                     diameter: 32,
                     isStale: annotation.isStale
                 )

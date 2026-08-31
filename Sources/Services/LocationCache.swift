@@ -12,8 +12,16 @@ final class LocationCache: ObservableObject {
     @Published private(set) var locations: [String: MemberLocation] = [:]
 
     /// Update or insert a member's location.
+    ///
+    /// Ignores a payload older than what's already cached for this key.
+    /// A member's own relay echo can arrive out of order across groups
+    /// (each group round-trips independently), and without this guard a
+    /// delayed echo would regress that group's entry to a stale coordinate.
     func update(groupId: String, memberPubkeyHex: String, payload: LocationPayload) {
         let key = "\(groupId):\(memberPubkeyHex)"
+        if let existing = locations[key], payload.date < existing.payload.date {
+            return
+        }
         locations[key] = MemberLocation(
             groupId: groupId,
             memberPubkeyHex: memberPubkeyHex,

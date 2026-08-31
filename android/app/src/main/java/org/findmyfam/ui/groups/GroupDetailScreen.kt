@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -165,7 +166,12 @@ fun GroupDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Group") },
+                // Blank — the hero header right below (avatar, name, member
+                // count) already identifies the screen; "Group" was dead
+                // weight. Unlike iOS, Material's TopAppBar doesn't reserve
+                // extra height for a title, so there's no space to reclaim
+                // by hiding the whole bar — just the label needed to go.
+                title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -349,11 +355,23 @@ fun GroupDetailScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            // Filled circular check/cancel — same approve/deny pairing as
+                            // the pending-welcome accept/decline, and mirrors iOS's
+                            // checkmark.circle.fill/xmark.circle.fill (PersonAdd/Close
+                            // read as tiny and mismatched at this size).
                             IconButton(onClick = { viewModel.addPendingJoiner(joiner) }, enabled = !isAddingMember) {
-                                Icon(Icons.Default.PersonAdd, contentDescription = "Add ${joiner.pubkey.take(8)}")
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = "Approve ${joiner.pubkey.take(8)}",
+                                    tint = Color(0xFF4CAF50)
+                                )
                             }
                             IconButton(onClick = { viewModel.dismissPendingJoiner(joiner) }) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss")
+                                Icon(
+                                    Icons.Default.Cancel,
+                                    contentDescription = "Deny ${joiner.pubkey.take(8)}",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }
