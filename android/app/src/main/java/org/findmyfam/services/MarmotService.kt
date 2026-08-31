@@ -368,8 +368,10 @@ class MarmotService @Inject constructor(
             Timber.w("Could not check existing members (non-fatal): ${e.message}")
         }
 
-        // Pre-flight: verify relay connectivity
-        if (relay.connectedRelayUrls.value.isEmpty()) {
+        // Pre-flight: verify relay connectivity. hasConnectedRelays re-reads live
+        // status when the cached list is empty, so a relay that reconnected in the
+        // background does not fail this check.
+        if (!relay.hasConnectedRelays()) {
             throw MarmotException("Not connected to any relay — check your connection")
         }
 
@@ -394,6 +396,11 @@ class MarmotService @Inject constructor(
         giftWrapAndPublishWelcomes(welcomeRumors, pubkeyHex)
 
         refreshGroups()
+        // Set directly rather than waiting for the live subscription to re-observe
+        // this same commit — that self-echo is asynchronous and not guaranteed to
+        // arrive/classify as a membership-change event, which left new joiners
+        // without the group avatar until an unrelated event happened to trigger it.
+        _lastGroupMembershipChangeId.value = groupId to System.currentTimeMillis()
         Timber.i("Added member $pubkeyHex to group $groupId")
     }
 
@@ -446,7 +453,7 @@ class MarmotService @Inject constructor(
      */
     suspend fun resyncMember(pubkeyHex: String, groupId: String) {
         if (pubkeyHex == publicKeyHex) throw MarmotException("Cannot resync yourself")
-        if (relay.connectedRelayUrls.value.isEmpty()) {
+        if (!relay.hasConnectedRelays()) {
             throw MarmotException("Not connected to any relay — check your connection")
         }
 
@@ -483,6 +490,8 @@ class MarmotService @Inject constructor(
         }
 
         refreshGroups()
+        // Same explicit trigger as addMember/addMembers — see comment there.
+        _lastGroupMembershipChangeId.value = groupId to System.currentTimeMillis()
         Timber.i("Hard resync complete for ${pubkeyHex.take(8)}… in group $groupId")
     }
 
@@ -501,7 +510,7 @@ class MarmotService @Inject constructor(
      */
     suspend fun addMembers(requests: List<JoinRequest>, groupId: String): BatchAddResult {
         if (requests.isEmpty()) return BatchAddResult(emptyList())
-        if (relay.connectedRelayUrls.value.isEmpty()) {
+        if (!relay.hasConnectedRelays()) {
             throw MarmotException("Not connected to any relay")
         }
 
@@ -524,6 +533,8 @@ class MarmotService @Inject constructor(
             routeWelcomes(result.welcomeRumorsJson ?: emptyList(), toAdd)
 
             refreshGroups()
+            // Same explicit trigger as addMember — see comment there.
+            _lastGroupMembershipChangeId.value = groupId to System.currentTimeMillis()
             Timber.i("Batch-added ${toAdd.size} member(s) to group $groupId in one commit")
             return BatchAddResult(alreadyIn + toAdd.map { it.pubkey })
         } catch (e: Exception) {
@@ -773,7 +784,8 @@ class MarmotService @Inject constructor(
         // (the pending-invite marker was cleared on the first join) and resurfaces
         // as a phantom "Group invitation received" prompt while we're already in
         // the group. Ignore it and clear any stale pending state.
-        if (mls.getGroup(welcome.mlsGroupId)?.isActive == true) {
+        val existingGroup = mls.getGroup(welcome.mlsGroupId)
+        if (existingGroup?.isActive == true) {
             pendingWelcomeStore.remove(welcome.mlsGroupId)
             pendingInviteStore.remove(groupHint = welcome.mlsGroupId)
             Timber.i("Ignoring duplicate Welcome for group ${welcome.mlsGroupId} -- already an active member")
@@ -785,8 +797,19 @@ class MarmotService @Inject constructor(
             it.groupHint == welcome.mlsGroupId
         }
 
-        if (hasPendingInvite) {
-            // User explicitly accepted an invite -- auto-join
+        // A hard resync (remove + re-add) produces a fresh Welcome for a group we
+        // already have local -- now-inactive -- state for. It never goes through
+        // the invite-code join path, so hasPendingInvite is false and this used to
+        // surface as an "unsolicited" invite the user had to Accept, alongside the
+        // stale inactive row for the same group. The Welcome's own cryptographic
+        // validity (mls.processWelcome above already succeeded) is what vouches for
+        // it -- only a real MLS commit from an actual admin produces one -- so a
+        // known groupId is safe to auto-accept as a resume rather than gate again.
+        val isResyncOfKnownGroup = existingGroup != null
+
+        if (hasPendingInvite || isResyncOfKnownGroup) {
+            // User explicitly accepted an invite, or this resumes a group we were
+            // already in -- auto-join.
             acceptWelcomeAndJoin(welcome)
         } else {
             // Unsolicited -- queue for user approval
