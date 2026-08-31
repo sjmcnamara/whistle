@@ -75,7 +75,7 @@ struct OnboardingView: View {
                 }
 
                 Button(action: advance) {
-                    Text(page < pages.count ? "Next" : "Enable Location")
+                    Text(page < pages.count ? "Next" : "Continue")
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -84,15 +84,6 @@ struct OnboardingView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .padding(.horizontal, 24)
-
-                if page == pages.count {
-                    Button("Skip for now") {
-                        onComplete()
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 14)
-                }
 
                 Spacer(minLength: 48)
             }

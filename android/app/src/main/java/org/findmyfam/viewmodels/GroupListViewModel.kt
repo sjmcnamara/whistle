@@ -96,6 +96,17 @@ class GroupListViewModel @Inject constructor(
                 refreshItems(mdkGroups)
             }
         }
+        // A pendingWelcomes emission alone doesn't recompute _groups -- its
+        // pendingWelcomeIds filter only runs inside refreshItems. Without this, a
+        // group added to pendingWelcomeStore (e.g. by a resync re-add) keeps
+        // showing its stale prior entry -- inactive row AND a new "Accept" row for
+        // the same group -- until an unrelated marmotService.groups emission
+        // happens to rerun the filter.
+        viewModelScope.launch {
+            pendingWelcomeStore.pendingWelcomes.collect {
+                refreshItems(marmotService.groups.value)
+            }
+        }
         // When a new chat message arrives, persist the timestamp and mark unread immediately.
         // Persisting here means refreshItems can use a chat-only timestamp rather than
         // MDK's lastMessageAt, which advances for location/nickname events too.

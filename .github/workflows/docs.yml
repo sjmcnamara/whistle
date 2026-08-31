@@ -6,6 +6,9 @@ on:
     paths:
       - 'website/**'
       - '.github/workflows/docs.yml'
+      # The hero version is injected from project.yml at build time, so a
+      # version bump must redeploy the site or it silently shows the old one.
+      - 'project.yml'
   workflow_dispatch:
 
 # Least privilege: only the deploy job needs pages/id-token write.
@@ -30,6 +33,17 @@ jobs:
           cache: pip
           cache-dependency-path: website/requirements.txt
       - run: pip install -r requirements.txt
+      # Single source of truth for the version shown on the site: project.yml.
+      # mkdocs.yml reads it via `!ENV [APP_VERSION, "dev"]`.
+      - name: Derive app version from project.yml
+        run: |
+          version=$(sed -n 's/.*MARKETING_VERSION: *"\([^"]*\)".*/\1/p' ../project.yml | head -1)
+          if [ -z "$version" ]; then
+            echo "::error::Could not read MARKETING_VERSION from project.yml"
+            exit 1
+          fi
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Site will show v$version"
       - run: mkdocs build --strict
       # MkDocs strips dot-directories, so place the RFC 9116 security.txt into
       # the built site directly (canonical /.well-known/ path). Runs after the

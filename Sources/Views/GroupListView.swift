@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Chat tab root — shows the list of groups with Create / Join actions.
+/// Groups tab root — shows the list of groups with Create / Join actions.
 struct GroupListView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @ObservedObject var viewModel: GroupListViewModel
@@ -16,7 +16,7 @@ struct GroupListView: View {
                     groupList
                 }
             }
-            .navigationTitle("Chat")
+            .navigationTitle("Groups")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
