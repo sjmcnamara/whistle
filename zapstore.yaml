@@ -1,0 +1,14 @@
+repository: https://github.com/sjmcnamara/whistle
+pubkey: npub19j68858e0e72uz9ypqg29q42ulr9cs95pu93pjt3ca0lgqa5jdrq3ft4pe
+name: Whistle
+summary: Decentralized group location sharing over Nostr + MLS
+description: >
+  Whistle is an open-source, decentralized group location sharing app.
+  No accounts, no servers, no plaintext data on relays — groups are
+  end-to-end encrypted with MLS (RFC 9420) over Nostr via the Marmot
+  Protocol.
+license: Unlicense
+website: https://getwhistle.org
+icon: ./website/docs/assets/whistle-icon.png
+tags: [location, nostr, privacy, encryption, mls]
+release_notes: ./CHANGELOG.md

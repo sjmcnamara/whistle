@@ -38,6 +38,13 @@ class BatteryAlertService @Inject constructor(
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+    /**
+     * Delivery seam. Overridable in tests to observe *whether* an alert fires
+     * without the notification stack — mirrors iOS's `deliver` closure so the
+     * crossing/dedup logic is testable identically on both platforms.
+     */
+    var deliver: (name: String, battery: Int, pubkeyHex: String) -> Unit = ::postNotification
+
     fun check(pubkeyHex: String, battery: Int?) {
         battery ?: return
         val myPubkey = identity.publicKeyHex ?: return
@@ -50,6 +57,10 @@ class BatteryAlertService @Inject constructor(
         if (previous != null && previous < THRESHOLD) return
 
         val name = nicknameStore.displayName(pubkeyHex)
+        deliver(name, battery, pubkeyHex)
+    }
+
+    private fun postNotification(name: String, battery: Int, pubkeyHex: String) {
         Timber.i("Low battery alert: $name at $battery%")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

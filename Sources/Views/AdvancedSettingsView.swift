@@ -19,6 +19,14 @@ struct AdvancedSettingsView: View {
             dangerSection
         }
         .navigationTitle("Advanced")
+        // Relay sockets drop and reconnect in the background, so the status dots
+        // go stale unless we re-read live status while this screen is open.
+        .task {
+            while !Task.isCancelled {
+                await appViewModel.relay.refreshConnectedRelays()
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
         .alert("Burn Identity?", isPresented: $showBurnConfirmation) {
             Button("Burn Everything", role: .destructive) {
                 Task { try? await appViewModel.burnIdentity() }
