@@ -30,8 +30,13 @@ private val BrandDarkGrey = Color(0xFF2A3040)
  * with rounded/dot modules and tinted to the brand dark grey instead of a
  * raw black-on-white barcode look.
  *
- * Pass [logoPainter] (e.g. the launcher icon) to badge the center. That
- * bumps error correction to [QrErrorCorrectionLevel.Medium] -- enough
+ * Pass [logoPainter] (e.g. `R.drawable.invite_qr_mark`) to badge the
+ * center. Must be a VectorDrawable or a rasterized asset (PNG/JPG/WEBP) --
+ * `painterResource(R.mipmap.ic_launcher)` throws IllegalArgumentException
+ * on API 26+ (this app's minSdk), where that resource always resolves to
+ * the `<adaptive-icon>` XML in mipmap-anydpi-v26, not a drawable.
+ *
+ * Passing a logo bumps error correction to [QrErrorCorrectionLevel.Medium] -- enough
  * redundancy for a small badge without paying the much higher module count
  * [QrErrorCorrectionLevel.High] needs. With no logo, [QrErrorCorrectionLevel.Low]
  * keeps the module count, and so the apparent density, as low as the
