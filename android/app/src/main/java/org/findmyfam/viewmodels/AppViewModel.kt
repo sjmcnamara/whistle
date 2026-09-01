@@ -97,6 +97,10 @@ class AppViewModel @Inject constructor(
             val keys = identity.keys.value
             if (keys == null) {
                 Timber.e("No identity available -- cannot connect to relays")
+                // Allow a later onAppear() call to retry -- matches iOS's
+                // AppViewModel.performFullStartup(), which resets didStart
+                // in this exact branch rather than latching it permanently.
+                didStart = false
                 _startupPhase.value = StartupPhase.READY
                 return@launch
             }
@@ -501,6 +505,17 @@ class AppViewModel @Inject constructor(
      */
     fun onLocationPermissionGranted() {
         locationService.updatePermissionStatus(true)
+    }
+
+    /**
+     * Called from MainActivity.onResume(). See
+     * MarmotService.ensureSubscriptionsActive for why this is needed.
+     * Guarded on READY so it can't race the initial startup sequence
+     * (which starts subscriptions itself) on cold launch.
+     */
+    fun onForeground() {
+        if (_startupPhase.value != StartupPhase.READY) return
+        marmotService.ensureSubscriptionsActive()
     }
 
     /**

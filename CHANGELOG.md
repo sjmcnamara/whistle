@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.12] — 2026-09-01
+
+### Fixed
+- **(Android) Admins never saw pending join requests after backgrounding the app.** Reproduced live on a Samsung device: create a group, switch away (screen lock, or jumping to system Settings to grant a permission), switch back — the admin's relay subscriptions never resumed, so any join request sent while backgrounded (or after) was silently dropped, with no error shown. Root cause was two-fold: (1) an Android `Activity` can be destroyed and recreated while merely backgrounded, clearing its `ViewModelStore` and firing `AppViewModel.onCleared()` → `MarmotService.stopSubscriptions()`, with nothing to restart them afterward; (2) `AppViewModel.onAppear()`'s "no identity yet" bailout permanently latched its one-shot startup guard instead of allowing a retry — iOS's equivalent (`performFullStartup()`) already resets that guard in the same branch, a platform-parity gap introduced when this code was ported. Fixed both: `MainActivity.onResume()` now calls a new `MarmotService.ensureSubscriptionsActive()` that restarts subscriptions if found inactive, and the startup guard now resets to allow a retry, matching iOS.
+
 ## [1.8.11] — 2026-09-01
 
 ### Fixed

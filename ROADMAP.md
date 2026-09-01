@@ -511,6 +511,11 @@ _Released 2026-09-01_
 - **(Android) Invite sheet's Share button sent the raw code instead of the deep link**, unlike iOS's Share. Now sends `whistle://invite/<code>` like iOS does; Copy is unchanged (still the raw code the manual-entry field expects).
 - **(iOS) Pasting a full `whistle://invite/<code>` link into the manual invite-code field failed to join** — `joinGroup` used the strict `InviteCode.decode(from:)`. Added `InviteCode.fromUri(_:)` (matching Android's existing helper of the same name) and re-encode-before-`acceptInvite`, matching Android's pattern exactly.
 
+### v1.8.12 — Android background subscription recovery ✅
+_Released 2026-09-01_
+
+- **(Android) Admins never saw pending join requests after backgrounding the app.** Reproduced live across two devices (Pixel + Samsung): create a group, switch away (screen lock, or jumping to Settings to grant a permission), switch back — the admin's relay subscriptions never resumed, so a join request sent while backgrounded (or any time after) vanished silently. Two root causes: an Android `Activity` can be destroyed and recreated while merely backgrounded, clearing its `ViewModelStore` and firing `AppViewModel.onCleared()` → `MarmotService.stopSubscriptions()` with nothing to restart them; and `onAppear()`'s "no identity yet" bailout permanently latched its one-shot startup guard instead of resetting it for a retry, unlike iOS's equivalent. `MainActivity.onResume()` now calls `MarmotService.ensureSubscriptionsActive()` to restart if inactive, and the startup guard resets to match iOS.
+
 ---
 
 ### Deferred
