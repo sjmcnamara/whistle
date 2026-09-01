@@ -1191,6 +1191,26 @@ class MarmotService @Inject constructor(
     }
 
     /**
+     * Restart subscriptions if they aren't currently running. A no-op when
+     * already active.
+     *
+     * Exists for MainActivity.onResume(): unlike iOS (where AppViewModel is
+     * a single @StateObject tied to the whole app process, so backgrounding
+     * never tears it down), an Android Activity can be destroyed and
+     * recreated while merely backgrounded -- e.g. locking the screen or
+     * switching to Settings to grant a permission, confirmed live on a
+     * Samsung device -- which clears its ViewModelStore and, with it,
+     * AppViewModel, calling onCleared() -> stopSubscriptions(). Nothing
+     * else guarantees a restart afterward, so the admin device goes
+     * permanently deaf to the relay until force-quit and relaunched.
+     */
+    fun ensureSubscriptionsActive() {
+        if (subscriptionJob?.isActive == true) return
+        Timber.i("Subscriptions inactive on resume -- restarting")
+        startSubscriptions()
+    }
+
+    /**
      * One-shot fetch of gift-wrap events that may have been missed.
      */
     suspend fun fetchMissedGiftWraps() {

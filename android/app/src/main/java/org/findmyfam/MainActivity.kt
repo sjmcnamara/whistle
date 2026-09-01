@@ -84,6 +84,9 @@ class MainActivity : FragmentActivity() {
         if (appLockService.isLocked.value && !appLockService.isAuthenticating.value) {
             appLockService.unlock(this)
         }
+        // Restart relay subscriptions if backgrounding tore them down without
+        // a proper resume -- see AppViewModel.onForeground for why.
+        appViewModel.onForeground()
     }
 
     // Fires when a whistle:// link is tapped while this Activity's task is
