@@ -89,7 +89,7 @@ class LocationPayloadTest {
         """.trimIndent()
         val payload = LocationPayload.fromJson(json)
         assertNull(payload.stationary)
-        assertNotEquals(false, payload.stationary)
+        assertNotEquals<Boolean?>(false, payload.stationary)
     }
 
     @Test
