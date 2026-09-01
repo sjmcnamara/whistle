@@ -22,7 +22,7 @@ trusting us. Here's what that means in practice.
 
 !!! warning
 
-    Whistle is currently in TestFlight beta. The protocol is based on proven
+    Whistle is a young project. The protocol is based on proven
     cryptographic foundations (MLS and Nostr), but the application itself has
     not yet had a formal security audit. Treat current builds accordingly.
 
