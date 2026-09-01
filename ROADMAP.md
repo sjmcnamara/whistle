@@ -499,6 +499,11 @@ _Released 2026-08-28_
 - **(iOS) Onboarding's pre-permission screen let users bypass the system location prompt entirely**: Apple rejected the app over the "One last thing" screen's "Enable Location" button (a directive verb; wants neutral "Continue"/"Next") and its "Skip for now" button, which dismissed onboarding without ever calling `requestAlwaysAuthorization()` — the system dialog only appeared later if the user found the "Authorization" row in Settings. Renamed the button to "Continue" and removed "Skip for now"; the final onboarding page always triggers the system prompt now.
 - **(iOS) Permission usage-description strings say "group" instead of "family"**, matching the v1.8.8 "Groups" tab rename.
 
+### v1.8.10 — Invite QR crash fix ✅
+_Released 2026-09-01_
+
+- **(Android) Fixed a 100%-reproducible crash on tapping "invite via QR / code"**: `InviteShareSheet` badged the QR center with `painterResource(R.mipmap.ic_launcher)`, but on this app's minSdk 26+ that resource always resolves to the `<adaptive-icon>` XML in `mipmap-anydpi-v26`, which Compose's `painterResource` rejects outright. Caught on a GrapheneOS Pixel via `adb logcat`. Added a dedicated flat badge asset (`drawable/invite_qr_mark.png`), reusing the same mark iOS already has (`InviteQRMark`) for its own QR badge, instead of reaching for the launcher icon.
+
 ---
 
 ### Deferred

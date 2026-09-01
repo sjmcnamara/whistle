@@ -58,7 +58,7 @@ fun InviteShareSheet(
             QrCodeImage(
                 content = inviteCode,
                 size = 180.dp,
-                logoPainter = painterResource(R.mipmap.ic_launcher)
+                logoPainter = painterResource(R.drawable.invite_qr_mark)
             )
 
             Spacer(modifier = Modifier.height(12.dp))

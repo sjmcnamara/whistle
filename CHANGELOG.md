@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.10] — 2026-09-01
+
+### Fixed
+- **(Android) App crashed immediately on tapping "invite via QR / code."** `InviteShareSheet` badged the QR code's center with `painterResource(R.mipmap.ic_launcher)` — but on this app's minSdk 26+, `R.mipmap.ic_launcher` always resolves to the `<adaptive-icon>` XML in `mipmap-anydpi-v26`, not a drawable, and Compose's `painterResource` throws `IllegalArgumentException("Only VectorDrawables and rasterized asset types are supported")` on anything else. 100% reproducible on every device running the invite flow, caught via `adb logcat` on a GrapheneOS Pixel. Added a dedicated flat badge asset (`drawable/invite_qr_mark.png`, the same 1024×1024 mark iOS already uses via `InviteQRMark` for its own QR badge) and pointed the logo painter at that instead of the launcher mipmap.
+
 ## [1.8.9] — 2026-08-28
 
 ### Fixed
