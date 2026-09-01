@@ -97,8 +97,25 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
 
-    // Shared state for QR scan results
+    // Shared state for QR scan results (and, below, tapped whistle:// links --
+    // both feed the same auto-join path).
     var pendingInviteCode by remember { mutableStateOf<String?>(null) }
+
+    // A tapped whistle://invite/ link auto-joins exactly like a QR scan does,
+    // rather than opening JoinGroupSheet pre-filled -- keeps this app's own
+    // two invite-entry paths consistent with each other.
+    val pendingDeepLinkCode by viewModel.pendingDeepLinkInviteCode.collectAsState()
+    LaunchedEffect(pendingDeepLinkCode) {
+        val code = pendingDeepLinkCode ?: return@LaunchedEffect
+        viewModel.consumePendingDeepLinkInviteCode()
+        pendingInviteCode = code
+        if (currentRoute != Routes.GROUP_LIST) {
+            navController.navigate(Routes.GROUP_LIST) {
+                popUpTo(Routes.GROUP_LIST) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     // Only show bottom bar on top-level destinations
     val showBottomBar = currentRoute in listOf(Routes.GROUP_LIST, Routes.MAP, Routes.SETTINGS)

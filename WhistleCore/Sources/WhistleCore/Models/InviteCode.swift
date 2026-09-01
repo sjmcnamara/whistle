@@ -53,6 +53,18 @@ public struct InviteCode: Codable, Equatable {
         return try decode(from: url.absoluteString)
     }
 
+    /// Decode an invite from either a `whistle://invite/<code>` URL string
+    /// or a raw base64 string -- e.g. someone pastes the full deep link
+    /// into the manual invite-code field instead of just the code. Plain
+    /// prefix strip rather than routing through `URL(string:)`: a raw
+    /// base64 code isn't guaranteed to parse cleanly as a URL on its own.
+    /// Mirrors Android's `InviteCode.fromUri(String)`.
+    public static func fromUri(_ uri: String) throws -> InviteCode {
+        let prefix = "whistle://invite/"
+        let code = uri.hasPrefix(prefix) ? String(uri.dropFirst(prefix.count)) : uri
+        return try decode(from: code)
+    }
+
     // MARK: - Approval URL
 
     /// Build a `whistle://addmember/<pubkeyHex>/<groupId>` URL that the

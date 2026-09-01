@@ -221,9 +221,15 @@ final class GroupListViewModel: ObservableObject {
 
     func joinGroup(inviteCode: String) async throws {
         // Decode first so we can extract the group hint for pending state.
-        let invite = try InviteCode.decode(from: inviteCode)
+        // fromUri (not decode) so a full whistle://invite/ link pasted into
+        // the manual entry field works too, matching Android's joinGroup.
+        let invite = try InviteCode.fromUri(inviteCode)
 
-        try await marmot.acceptInvite(inviteCode)
+        // Re-encode rather than forwarding the original string: acceptInvite
+        // expects the raw base64 code and would throw on a still-prefixed
+        // whistle://invite/ link. Matches Android's joinGroup, which does
+        // the same re-encode before calling acceptInvite.
+        try await marmot.acceptInvite(invite.encode())
 
         // If the user previously left this group, clear the stale pending leave
         // marker so the group reappears once Welcome is accepted.

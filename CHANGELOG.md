@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.11] — 2026-09-01
+
+### Fixed
+- **(Android) `whistle://invite/` deep links only worked one-way — Android could never receive one.** The manifest registered the `whistle` scheme intent-filter, but nothing in `MainActivity` ever read `intent.data`; tapping a link foregrounded the app and silently dropped the invite. Added `onNewIntent` (plus `launchMode="singleTask"` so a tap while already running routes there instead of spawning a duplicate task) and `AppViewModel.handleIncomingUri()`, mirroring iOS's `handleIncomingURL(_:)`. A tapped link now auto-joins exactly like a QR scan does. Verified live: `adb shell am start -a android.intent.action.VIEW -d "whistle://invite/…"` against a running install correctly routed through to `GroupListViewModel.joinGroup`.
+- **(Android) The Share button on the invite sheet sent the raw code instead of the `whistle://invite/<code>` link**, unlike iOS's Share (which already sent the deep link). A recipient got a plain string with no tap-to-join. `InviteShareSheet` now sends the same URL iOS does; Copy is unchanged (still the raw code, which is what the manual invite-entry field on both platforms expects).
+- **(iOS) Pasting a full `whistle://invite/<code>` link into the manual invite-code field (instead of just the code) failed to join.** `GroupListViewModel.joinGroup` decoded via the strict `InviteCode.decode(from:)`, which throws on anything but pure base64. Android's equivalent already handled this via `InviteCode.fromUri()`. Added a matching `InviteCode.fromUri(_:)` to `WhistleCore` and switched `joinGroup` to use it, re-encoding before `acceptInvite` so a still-prefixed string never reaches the strict decoder downstream (mirrors Android's re-encode-before-`acceptInvite` step exactly).
+
 ## [1.8.10] — 2026-09-01
 
 ### Fixed

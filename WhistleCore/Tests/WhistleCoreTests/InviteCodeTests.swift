@@ -48,4 +48,29 @@ final class InviteCodeTests: XCTestCase {
         XCTAssertEqual(original.inviterNpub, decoded.inviterNpub)
         XCTAssertEqual(original.groupId, decoded.groupId)
     }
+
+    // MARK: - fromUri (String) -- what a manually-pasted invite goes through,
+    // matching Android's InviteCode.fromUri(String) coverage.
+
+    func testFromUriStripsWhistleInvitePrefix() throws {
+        // e.g. the user pasted the full share link, not just the code,
+        // into the manual invite-code field.
+        let original = makeSample()
+        let uri = original.asURL().absoluteString
+        let decoded = try InviteCode.fromUri(uri)
+
+        XCTAssertEqual(original.relay, decoded.relay)
+        XCTAssertEqual(original.inviterNpub, decoded.inviterNpub)
+        XCTAssertEqual(original.groupId, decoded.groupId)
+    }
+
+    func testFromUriWithRawBase64StringWorksForBackwardCompat() throws {
+        let original = makeSample()
+        let rawBase64 = original.encode()
+        let decoded = try InviteCode.fromUri(rawBase64)
+
+        XCTAssertEqual(original.relay, decoded.relay)
+        XCTAssertEqual(original.inviterNpub, decoded.inviterNpub)
+        XCTAssertEqual(original.groupId, decoded.groupId)
+    }
 }
