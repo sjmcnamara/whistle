@@ -4,6 +4,8 @@ import WhistleCore
 /// Sheet showing sharing options for a group invite.
 struct InviteShareView: View {
     let inviteCode: String
+    var groupName: String = ""
+    var groupAvatar: UIImage?
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
 
@@ -13,38 +15,42 @@ struct InviteShareView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text("Share this invite with a family member.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                header
 
-                // QR encodes the raw base64 invite code for cross-platform compatibility
-                QRCodeView(content: inviteCode)
-                    .frame(width: 200, height: 200)
-                    .padding()
+                qrCard
 
-                // Share via AirDrop / Messages / etc. — shares the whistle:// URL
-                if let url = inviteURL {
-                    ShareLink(item: url) {
-                        Label("Share via AirDrop / Messages…", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
+                // Icon-only — the OS share sheet's app list is user-customised,
+                // so naming specific targets (AirDrop, Messages, …) here would
+                // often just be wrong.
+                HStack(spacing: 24) {
+                    if let url = inviteURL {
+                        ShareLink(item: url) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.title2)
+                                .frame(width: 56, height: 56)
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
+                        .accessibilityLabel("Share invite link")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .padding(.horizontal, 40)
+
+                    Button {
+                        UIPasteboard.general.string = inviteCode
+                        copied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                    } label: {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.title2)
+                            .frame(width: 56, height: 56)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.circle)
+                    .accessibilityLabel(copied ? "Copied" : "Copy invite code")
                 }
 
-                // Copy raw code as fallback
-                Button {
-                    UIPasteboard.general.string = inviteCode
-                    copied = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
-                } label: {
-                    Label(copied ? "Copied!" : "Copy Code (Legacy)", systemImage: copied ? "checkmark" : "doc.on.doc")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .padding(.horizontal, 40)
+                Text(copied ? "Copied to clipboard" : " ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
             }
@@ -57,5 +63,52 @@ struct InviteShareView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(spacing: 8) {
+            if let groupAvatar {
+                Image(uiImage: groupAvatar)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 48, height: 48)
+                    .clipShape(Circle())
+            }
+            if !groupName.isEmpty {
+                Text(groupName)
+                    .font(.headline)
+            }
+            Text("Share this invite with a group member.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+    }
+
+    // MARK: - QR card
+
+    private var qrCard: some View {
+        ZStack {
+            // QR encodes the raw base64 invite code for cross-platform
+            // compatibility. Card background stays a fixed white regardless
+            // of app theme — that's what keeps scan contrast high in dark mode.
+            QRCodeView(content: inviteCode, hasCenterMark: true)
+                .frame(width: 200, height: 200)
+
+            Image("InviteQRMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 36, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(4)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 10))
+        }
+        .padding(20)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+        .padding(.horizontal, 32)
     }
 }

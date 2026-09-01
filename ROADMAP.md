@@ -439,6 +439,66 @@ _Released 2026-07-20_
 - **(Android) Diagnostics screen back button**: the screen now has a `TopAppBar` with a back arrow, matching the other settings screens (it previously relied solely on the system Back gesture).
 - **(iOS & Android) Burn Identity warning corrected**: the confirmation no longer claims burning "leaves all groups" — it deletes local state only and strands a leaf other members keep encrypting to. The zombie-member cleanup (sole-admin handling, leave-before-burn) is roadmapped under Deferred.
 
+### v1.8.1 — Avatar oversampling fix ✅
+_Released 2026-07-23_
+
+- **(iOS) Avatars encoded at up to 9× the intended pixel count**: the avatar downscaler built its `UIGraphicsImageRenderer` at the target *point* size without pinning `format.scale`, so on a Retina device it rendered at the screen scale — a 128 pt target became a 384 px JPEG on a @3x phone. Still fit under the 16 KB wire cap, so nothing failed visibly, but every member and shared-group avatar travelled larger than designed. Renderer now pins `scale = 1`. Present since member avatars shipped in v1.7.1. Android was unaffected (scales in pixels via `Bitmap.createScaledBitmap`).
+- **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.1/43 alongside the iOS fix — no Android behavior change in this release.
+- **Test coverage backfill**: added unit tests for recently-shipped services (`AppSettings`, `ChatMessageCache`, `DiagnosticsCollector`, `LocationViewModel`, avatar stores, `BatteryAlertService`) and closed several iOS↔Android test parity gaps.
+
+### v1.8.2 — Map pin crash + group photo picker reload ✅
+_Released 2026-07-30_
+
+- **(iOS) Crash while panning/zooming the map**: map pins rendered `MemberAvatarView`, which reaches for `MemberAvatarStore` via `@EnvironmentObject`. MapKit hosts `Annotation` content in its own `_UIHostingView` with none of the root environment, built from `MKAnnotationManager.updateVisibleAnnotations` (a timer callback outside SwiftUI's update pass) — so the lookup trapped and killed the app with `EXC_BREAKPOINT` in `EnvironmentObject.error()`. `MemberPinView` now takes a resolved `UIImage?` from `MapView` and reads nothing from the environment. Latent since v1.7.1, reported from the field on 1.8.1 / iOS 26.6. Android was structurally immune (`MapScreen` already passes a resolved bitmap per pin). Supersedes the unreleased #187, which fixed the same crash by re-injecting the store per pin — this removes the environment dependency instead of re-supplying it.
+- **(iOS) 3D map terrain restored**: #187's speculative `.realistic` → `.flat` elevation change is reverted. It was made before the root cause was confirmed and is unrelated to it; `.flat` only ever existed on unreleased master.
+- **(iOS) Photo library reloaded repeatedly while setting a group photo**: `GroupDetailView` observes `AppViewModel`, whose `forwardChildChanges()` republishes on every settings/location/relay change, and the `.photosPicker` modifier sat inline in the hero header — so background relay traffic tore down and re-presented the picker every couple of seconds, resetting scroll position before a photo could be picked. Extracted `GroupAvatarPickerButton` as an `Equatable` view taking plain values and closures, applied with `.equatable()`. Same fix `AvatarPickerRow` got in v1.7.2, never applied to the group photo path. Android unaffected (picker is a separate activity).
+- **Regression guards for both**: `AvatarPickerEquatableTests` asserts both picker views compare equal across distinct closure instances and still register each value input — the missing guard that let the picker bug regress silently. `MemberPinViewHostingTests` hosts the map pin with an empty environment and forces layout, reproducing MapKit's exact sequence, so a reintroduced environment read fails in CI instead of on a phone.
+- **(Android) Version bump for lockstep**: `versionName`/`versionCode` bumped to 1.8.2/44 — no Android behavior change in this release.
+
+### v1.8.3 — Relay connection status accuracy ✅
+_Released 2026-07-31_
+
+- **(iOS & Android) Unreachable relays reported as connected**: `RelayService.connect` built `connectedRelayURLs` from the relays it had successfully *added* to the client. Adding only registers a URL — `Client.connect()` returns as soon as the background connection tasks are spawned — so the list was written before any socket opened and never corrected. A dead host, a typo, or an address the device cannot resolve at all (a `.onion` relay with no Tor proxy) showed a green dot in Advanced Settings indefinitely, and `MarmotService` counted it toward the relay set gating member adds and resyncs. Status now comes from `Client.relays()` filtered on `Relay.isConnected()`; `connect` waits up to 5s for sockets before reporting, and Advanced Settings re-reads status every 5s so the dots track background drops and reconnects.
+- **`Client.connect()` kept over `tryConnect()`**: `tryConnect` reports failures synchronously but explicitly schedules no retries, which would strand a phone that briefly loses signal. The wait-then-read-status approach gets accurate reporting without giving up automatic reconnection.
+- **Relay-gated operations re-check before failing**: an accurate list can legitimately be empty for a moment while relays reconnect, so the three `MarmotService` sites that gate on it (add member, resync member, batch add) go through a new `hasConnectedRelays()` that re-reads live status before throwing. Without this, making the status honest would have converted a false "connected" into a false "not connected".
+- **URL normalisation**: `RelayUrl.parse` normalises (it can append a trailing slash), so registered relays are tracked as a `RelayUrl` → settings-string map. Callers compare against their own settings strings, and would otherwise never match.
+- **Regression guards**: `RelayServiceStatusTests` covers the no-client, no-registered-relay, unparseable-URL, and disconnect paths, plus the consumer contract that the published list means *connected*, not *registered*. Tests deliberately avoid the network.
+- Found while assessing whether Whistle could talk to `.onion` relays — it cannot today (neither binding ships a Tor `ConnectionMode`), but the silent-failure mode that investigation exposed was not onion-specific.
+
+### v1.8.5 — Group avatar sync on join + resync duplicate-invite fix ✅
+_Released 2026-08-04_
+
+- **(iOS & Android) New members didn't see the group avatar until manually resynced**: the group avatar travels as a plain MLS application message, not group state, so MLS forward secrecy makes it structurally undecryptable by anyone who joined after it was sent — the designated admin is meant to re-announce it on every membership change (`rebroadcastGroupAvatarIfDesignated`), but that only fired when the admin's own client happened to re-observe its just-published add-commit come back over the live relay subscription. `addMember`, `addMembers`, and `resyncMember` now trigger the re-announce directly instead of depending on that asynchronous self-echo.
+- **(iOS & Android) Hard resync showed a stale "Inactive" row plus a duplicate "Accept" invitation for the same group**: `resyncMember`'s remove-then-re-add issues a fresh Welcome outside the invite-code path, so it was misclassified as unsolicited and required approval even though the Welcome's cryptographic validity already proves a real admin sent it. Such a Welcome for a group we have any local record of (active or not) is now auto-accepted as a resume. The group list also now reacts immediately when a pending welcome is added or resolved, instead of waiting for an unrelated MDK group-state event to re-run the filter that hides pending-welcome groups from the main list.
+- Found while investigating a real cross-platform join: an Android admin created a group, set an avatar, and invited an iOS member who saw the group but not the avatar until the admin resynced them — which incidentally fixed the avatar but surfaced the duplicate-entry bug on the confirm-rejoin step.
+
+### v1.8.7 — iOS bundle ID rename + NFC removal ✅
+_Released 2026-08-18_
+
+- **(iOS) `PRODUCT_BUNDLE_IDENTIFIER` moved from `org.findmyfam.app` to `org.getwhistle.whistle`**: mirrors the Android `applicationId` rename in v1.8.4, and for the same reason — `org.findmyfam` predates the app's rename to Whistle, and this is the last point it can move before a real App Store listing makes it permanent. Requires a new App ID and a new App Store Connect app record; existing TestFlight testers on `org.findmyfam.app` are not migrated forward and lose local identity/groups on the old install, same trade-off Android made. Internal-only identifiers (`KeychainService`'s keychain service string, `MLSService`'s MDK `serviceId`, the logger subsystem) deliberately stay `org.findmyfam` — private storage labels, not worth the risk of touching for no external benefit, matching Android leaving its Kotlin package name and `FindMyFamApp` class alone.
+- **(iOS) Removed unused NFC tag read/write**: `NFCReadCoordinator`/`NFCWriteCoordinator` had no remaining call sites in `Sources/Views` — deleted both files, the NFC entitlement, the `NFCReaderUsageDescription` usage string, and two stray UI mentions. Closes the Deferred item below.
+
+### v1.8.6 — Duplicate self-pin on the multi-group map ✅
+_Released 2026-08-05_
+
+- **(iOS) A member of two or more groups saw their own location pinned twice on the "All Groups" map, at slightly different coordinates**: `LocationCache` keys entries by `"groupId:pubkeyHex"`, so belonging to two groups produces two separate cache entries for yourself, and `LocationViewModel.refresh()` built one annotation per entry with no dedup step. The two entries normally track each other, since `broadcastLocation()` writes an identical fresh payload into every active group on each fix — but `LocationCache.update()` had no ordering guard, so an out-of-order relay echo of your own event in one group could leave that group's entry pointing at a stale coordinate, which is what produced the visible drift between the two pins. `refresh()` now collapses to the single freshest self entry when showing all groups (a specific-group filter still shows exactly that group's entry), and `update()` ignores an incoming payload older than what is already cached for that key.
+- **Android parity gap**: `android/app/src/main/java/org/findmyfam/services/LocationCache.kt` has the same key scheme and the same missing ordering guard, so the underlying divergence can occur there too — not fixed here since it wasn't the reported symptom, but worth folding into a parity pass.
+
+### v1.8.8 — Groups tab rename + invite/QR polish ✅
+_Released 2026-08-19_
+
+- **(iOS) Bottom tab and Group list renamed from "Chat" to "Groups"**: the tab's row design (`GroupRowView`) already reads as a group roster (name, member count, last-activity time) with no message preview, not a chat inbox, even though tapping a row does open straight into that group's chat thread. Tab icon changed from `bubble.left.and.bubble.right.fill` to `person.3.fill` to match. Android was already labeled "Groups" throughout — `RootScreen.kt` / `GroupListScreen.kt` never said "Chat" — so no rename needed there.
+- **(iOS & Android) Removed the redundant "Group" nav title on Group Detail**: iOS hides the bar entirely (`.toolbar(.hidden, for: .navigationBar)`) with a floating back button over the hero section, since an empty title still reserves the nav bar's full height there. Android's `TopAppBar` doesn't reserve extra height for a title either way, so blanking it (`title = {}`) is the complete fix on that platform.
+- **(iOS & Android) Invite QR restyled on both platforms**: brand-dark-grey dot-style modules with rounded finder-pattern corners and a center logo badge. iOS via the new `dagronf/QRCode` package (`exactVersion: "9.2.1"`); Android via the new `qrose` package (`1.1.2`, same author's Compose-native sibling — plain `Painter` via `rememberQrCodePainter`, no `Drawable`/`Bitmap` interop), replacing `ZXing` (no styling hooks, used nowhere else in the app). Both tuned to medium error correction to balance badge safety against module density for the ~250-char invite payload.
+- **(iOS) Invite sheet also got icon-only share/copy buttons** (dropped the "Share via AirDrop / Messages…" label, which named specific share-sheet apps a user can hide or reorder) plus a group name/avatar header and a card-wrapped QR. Android's sheet already said "the person you want to add to the group" and its buttons were already plainly labelled, so no change needed there.
+- **(iOS & Android) Admin's approve/deny on a pending joiner now uses filled circular check/cancel icons on both platforms**: `checkmark.circle.fill` / `xmark.circle.fill` on iOS, matching `GroupListView`'s existing pending-welcome pattern (was `person.badge.plus` / `xmark.circle`); `CheckCircle` (green) / `Cancel` (error red) on Android, reusing the green/red convention already established in `AdvancedSettingsScreen.kt` (was `PersonAdd` / `Close`).
+
+### v1.8.9 — App Store rejection fix (Guideline 5.1.1(iv)) ✅
+_Released 2026-08-28_
+
+- **(iOS) Onboarding's pre-permission screen let users bypass the system location prompt entirely**: Apple rejected the app over the "One last thing" screen's "Enable Location" button (a directive verb; wants neutral "Continue"/"Next") and its "Skip for now" button, which dismissed onboarding without ever calling `requestAlwaysAuthorization()` — the system dialog only appeared later if the user found the "Authorization" row in Settings. Renamed the button to "Continue" and removed "Skip for now"; the final onboarding page always triggers the system prompt now.
+- **(iOS) Permission usage-description strings say "group" instead of "family"**, matching the v1.8.8 "Groups" tab rename.
+
 ---
 
 ### Deferred
@@ -466,17 +526,15 @@ _Released 2026-07-20_
 
     Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
 
-- **Submit Whistle to `awesome-marmot`** _(visibility, low effort)_: [marmot-protocol/awesome-marmot](https://github.com/marmot-protocol/awesome-marmot) is the curated list of Marmot apps and libraries. Whistle belongs under **Applications**, alongside [Haven](https://github.com/mehmetefeumit/Haven-App) (location sharing) and [tubestr-v2](https://github.com/Tubestr/tubestr-v2) (family video sharing). Worth doing once the MLS dependency question below is settled, so the entry describes a project on a supported footing rather than one pinned to a superseded binding.
+- ~~**Submit Whistle to `awesome-marmot`**~~ ✅ Done — [Whistle listed under Applications](https://github.com/marmot-protocol/awesome-marmot) alongside Haven and tubestr-v2, PR merged 2026-07-22.
 
-- **MLS dependency strategy** _(open question, blocks nothing yet)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
+- **MLS dependency strategy** _(open question, blocks nothing yet — parked pending upstream announcement)_: we are pinned to `mdk-swift` at MDK 0.8.0, and that binding line is frozen (last updated 2026-05-22). Upstream restructured: `mdk-core`/`mdk-uniffi` are gone from the workspace, merged into a rewrite with whitenoise-rs, replaced by `cgka-engine` / `cgka-session` / `cgka-traits` / `storage-sqlite` / `transport-*`, with the published **MarmotKit** bindings exposing a high-level account/chat SDK (`accountRef`, `ChatListSubscription`, agent streams) rather than the MLS primitives we drive ourselves.
 
-    The capability still exists — [Haven](https://github.com/mehmetefeumit/Haven-App) consumes exactly those five `cgka-*`/storage/transport crates from v0.9.4 and its CI forbids the `marmot-uniffi`/`marmot-app`/`marmot-account` layers as duplicating its own FFI and identity planes. What no longer exists is a *pre-generated low-level uniffi binding*, which is precisely what Whistle consumes.
-
-    So the options are: stay pinned at 0.8.0 (works today, no upstream security fixes); or follow Haven's shape with a thin Rust core over the `cgka-*` crates exposing our own bindings (real work, but unlocks the convergence engine that targets the v1.6.x fork bugs). Adopting MarmotKit wholesale is a rewrite of the Services layer onto an architecture that owns accounts and transport — incompatible with Whistle driving its own relays and payload schemas.
+    **Confirmed directly with upstream** (Danny, mdk maintainer, [mdk#938](https://github.com/marmot-protocol/mdk/issues/938), 2026-07-22): mdk-swift/mdk-kotlin *will* resume once the rewrite settles, raw-event send/view (our exact non-chat use case) is explicitly planned, and consumers in our position should stay on 0.8 until they announce readiness. **Do not chase `main` or hand-roll FFI over the `cgka-*` crates** — that was the live option before this response; it's now superseded by "wait for the announcement." [Haven](https://github.com/mehmetefeumit/Haven-App) still proves the low-level capability is consumable (it drives `cgka-session`/`cgka-engine`/`cgka-traits`/`storage-sqlite`/`transport-nostr-peeler` directly, forbidding the account/app layers in its own CI), so that path remains available if upstream goes quiet for an extended period — but it is not the current plan. Issue left open to track the announcement; offered to test Swift/Kotlin bindings against a non-chat consumer once ready. See `CLAUDE.md` MDK section for the pin details and full context — this entry should stay in sync with it rather than duplicate the analysis.
 
 - **Android feature parity with iOS sharing flows** _(parity backlog)_: several invite/onboarding features exist only on iOS. Worth aligning (to discuss/prioritise):
     - **Onboarding** (`OnboardingView`) — three-card welcome carousel + permission framing before the system location prompt. Android goes straight to the main screen on first launch. _Parity matters._
-    - **NFC tag read/write** (`NFCReadCoordinator` / `NFCWriteCoordinator`) — tap-to-join via NFC stickers. **Candidate to drop** rather than port — niche use, low demand.
+    - ~~**NFC tag read/write**~~ — dropped rather than ported. Removed from iOS in v1.8.7 (`NFCReadCoordinator`/`NFCWriteCoordinator` had no remaining call sites).
     - ~~**Nearby Share**~~ — dropped rather than ported (QR scanning covers the same in-person handoff). Removed from iOS in `chore/remove-nearby-share`.
 
 - **Optional Google Maps on Android** _(backlog)_: Android currently renders maps via osmdroid (OpenStreetMap) only — a deliberate choice that keeps the app free of Google Play Services and lets it install/run on GrapheneOS and other degoogled devices. A future option could expose a "Map provider" setting (OSM / Google Maps) via Gradle product flavors so the GMS variant is a separate APK, leaving the default GMS-free. Not a fallback — both would be deliberate user choices.
@@ -492,6 +550,8 @@ _Released 2026-07-20_
     4. **Notification trigger** — on outbound chat / location / battery-alert send, collect active-leaf tokens + decoys (self ±50%, 10-20% from other groups, min 3), shuffle, gift-wrap as `kind:446` rumor + `kind:13` seal + `kind:1059` wrap, publish to server inbox relays.
     5. **Platform integration** — APNs registration via `UNUserNotificationCenter` on iOS; FCM via Firebase SDK on Android. Ship behind an opt-in setting initially.
 
+- **Dependabot backlog needs a coordinated Kotlin/AGP pass** _(maintenance, low urgency but growing)_: 10 Dependabot PRs (#174–#183) have sat unmerged since 2026-07-23 — 5 Android Gradle bumps, 5 GitHub Actions bumps. The Actions ones (#174, #176–#179) are independent and safe to merge individually. The Kotlin-related Android ones (#180 `kotlin-gradle-plugin`, #182 `kotlin-test-junit`, plus #181 `play-services-location`, #183 `ksp`) are not: the last AGP 9 upgrade (2026-07-19, PR #150) needed a coordinated bump of Kotlin 2.3.21 + KSP 2.3.8 pinned together via the root `buildscript` block, because Dependabot bumping Kotlin alone mismatches AGP's bundled KGP and breaks the Compose compiler. Bumping #180/#182 individually will likely repeat that failure — batch them with a matching KSP version rather than merging one at a time.
+
 ---
 
 ## Branch Strategy
@@ -499,61 +559,7 @@ _Released 2026-07-20_
 Each phase = `feature/vX.Y-description` branch off `master`.
 PR per phase → review → merge to `master`.
 Bug-fix releases use `bugfix/v0.x.y` branches.
-
-```
-master
-  └── feature/v0.1-foundation           ✅ merged
-  └── feature/v0.2-mls-bridge           ✅ merged
-  └── feature/v0.3-marmot-event-kinds   ✅ merged
-  └── feature/v0.4-location-layer       ✅ merged
-  └── feature/v0.5-group-chat-ux        ✅ merged
-  └── bugfix/v0.5.1                     ✅ merged
-  └── feature/v0.6-reliability          ✅ merged
-  └── feature/v0.7-tap-to-share         ✅ merged
-  └── feature/v0.8.1-app-lock           ✅ merged
-  └── feature/v0.8.2-identity-import-export  ✅ merged
-  └── feature/v0.8.3-key-lifecycle-hardening ✅ merged
-  └── feature/android-v0.8.3            ✅ merged
-  └── release/0.8.6                     ✅ merged
-  └── feature/v0.9-mls-db-encryption   ✅ merged
-  └── feature/v0.9.1-settings-split    ✅ merged
-  └── feature/v0.9.2-splash-appearance ✅ merged
-  └── security/v0.9.3-mip02-commit-ordering ✅ merged
-  └── feature/v0.9.4-ux-fixes            ✅ merged
-  └── feature/v1.0-production-readiness  ✅ merged
-  └── feature/v1.0.1-ux-fixes           ✅ merged
-  └── feature/v1.0.2-test-coverage      ✅ merged
-  └── feature/v1.1.1-onboarding         ✅ merged
-  └── feature/v1.1.2-settings-deep-links ✅ merged
-  └── feature/v1.1.3-sqlcipher-activation ✅ merged
-  └── feature/motion-adaptive             ✅ merged (v1.1.4)
-  └── feature/v1.1.5-android-parity      ✅ merged
-  └── feature/v1.2-low-battery-alerts    ✅ merged
-  └── feature/v1.3-ux-polish             ✅ merged
-  └── bugfix/v1.3.1                       ✅ merged
-  └── chore/ci-mdk-cache-key              ✅ merged
-  └── feature/v1.4-manual-whistle         ✅ merged
-  └── bugfix/v1.4.1                       ✅ merged
-  └── chore/ci-slsa-hygiene               ✅ merged
-  └── feature/v1.5-join-requests-pr1      ✅ merged
-  └── feature/v1.5-join-requests-pr2a     ✅ merged
-  └── feature/v1.5-join-requests-pr3      ✅ merged
-  └── feature/v1.5-join-requests-pr2b     ✅ merged
-  └── feature/v1.5-group-details-ux       ✅ merged
-  └── feature/v1.5-local-group-avatar     ✅ merged (v1.6.0)
-  └── bugfix/v1.6.1-selfupdate-verify-relay ✅ merged (v1.6.1 — verify MLS commits reach the relay)
-  └── feature/v1.6.2-soft-resync          ✅ merged (v1.6.2 — banner-triggered catch-up)
-  └── fix/v1.6.2-resync-epoch-detection   ✅ merged (v1.6.2 follow-up — epoch-delta success check)
-  └── feature/v1.6.3-hard-resync          ✅ merged (v1.6.3 — admin remove + re-add; remove-path verify)
-  └── bugfix/v1.6.4-chat-pagination       ✅ merged (v1.6.4 — reliable "load earlier messages")
-  └── bugfix/v1.6.5                        ✅ merged (v1.6.5 — in-memory chat thread cache; no empty-flash on re-entry)
-  └── bugfix/v1.6.6-formation-fork         ✅ merged (v1.6.6 — fix iOS↔Android group fork at formation)
-  └── chore/remove-nearby-share            ✅ merged (drop MultipeerConnectivity invites; build.sh project.yml fix)
-  └── feature/v1.7-stationary-wire         ✅ merged (v1.7.0 — share stationary state in the location payload)
-  └── feature/v1.7-member-avatars          ✅ merged (v1.7.1 — member avatars shared inline over MLS)
-  └── feature/v1.7.2-avatar-ux             ✅ merged (v1.7.2 — group rename fix + avatar tap-menu)
-  └── feature/v1.7.3-shared-group-avatar   ✅ merged (v1.7.3 — admin-set shared group photo)
-```
+Other housekeeping uses `chore/description`. Full branch history lives in `git log`, not here.
 
 ---
 
