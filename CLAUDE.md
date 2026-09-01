@@ -95,4 +95,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.8.10 — Invite QR crash fix** (bugfix, Android). See ROADMAP.md for next steps.
+Current version: **v1.8.11 — Deep-link symmetry fixes** (bugfix, iOS & Android). See ROADMAP.md for next steps.

@@ -504,6 +504,13 @@ _Released 2026-09-01_
 
 - **(Android) Fixed a 100%-reproducible crash on tapping "invite via QR / code"**: `InviteShareSheet` badged the QR center with `painterResource(R.mipmap.ic_launcher)`, but on this app's minSdk 26+ that resource always resolves to the `<adaptive-icon>` XML in `mipmap-anydpi-v26`, which Compose's `painterResource` rejects outright. Caught on a GrapheneOS Pixel via `adb logcat`. Added a dedicated flat badge asset (`drawable/invite_qr_mark.png`), reusing the same mark iOS already has (`InviteQRMark`) for its own QR badge, instead of reaching for the launcher icon.
 
+### v1.8.11 — Deep-link symmetry fixes ✅
+_Released 2026-09-01_
+
+- **(Android) `whistle://invite/` deep links only worked one-way** — the manifest registered the intent-filter, but `MainActivity` never read `intent.data`, so tapping a link foregrounded the app and dropped the invite silently. Added `onNewIntent` + `launchMode="singleTask"` + `AppViewModel.handleIncomingUri()`, mirroring iOS's `handleIncomingURL(_:)`. Verified live via `adb shell am start -a android.intent.action.VIEW -d "whistle://invite/…"` against a running install.
+- **(Android) Invite sheet's Share button sent the raw code instead of the deep link**, unlike iOS's Share. Now sends `whistle://invite/<code>` like iOS does; Copy is unchanged (still the raw code the manual-entry field expects).
+- **(iOS) Pasting a full `whistle://invite/<code>` link into the manual invite-code field failed to join** — `joinGroup` used the strict `InviteCode.decode(from:)`. Added `InviteCode.fromUri(_:)` (matching Android's existing helper of the same name) and re-encode-before-`acceptInvite`, matching Android's pattern exactly.
+
 ---
 
 ### Deferred

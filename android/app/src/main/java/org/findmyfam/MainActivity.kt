@@ -1,8 +1,10 @@
 package org.findmyfam
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,9 +32,17 @@ class MainActivity : FragmentActivity() {
     @Inject lateinit var appLockService: AppLockService
     @Inject lateinit var appSettings: AppSettings
 
+    // Same ViewModelStore as the AppViewModel Compose resolves via
+    // hiltViewModel() in RootScreen -- launchMode="singleTask" means this
+    // Activity instance (and its ViewModelStore) survives a tapped
+    // whistle:// link, so handleIntent() below and RootScreen's collector
+    // are always talking to the same instance.
+    private val appViewModel: AppViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleIntent(intent)
 
         appLockService.onLaunch()
 
@@ -74,5 +84,18 @@ class MainActivity : FragmentActivity() {
         if (appLockService.isLocked.value && !appLockService.isAuthenticating.value) {
             appLockService.unlock(this)
         }
+    }
+
+    // Fires when a whistle:// link is tapped while this Activity's task is
+    // already running -- singleTask launchMode routes it here instead of
+    // spawning a second instance. onCreate above covers the cold-start case.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val uri = intent.data ?: return
+        appViewModel.handleIncomingUri(uri)
     }
 }

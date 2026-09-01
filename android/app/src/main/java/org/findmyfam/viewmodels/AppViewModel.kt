@@ -571,6 +571,44 @@ class AppViewModel @Inject constructor(
         marmotService.stopSubscriptions()
         locationService.stopUpdating()
     }
+
+    // region Deep link handling
+
+    private val _pendingDeepLinkInviteCode = MutableStateFlow<String?>(null)
+
+    /**
+     * Raw base64 invite code extracted from an incoming `whistle://invite/`
+     * deep link (tapped link, not a QR scan). [RootScreen] observes this,
+     * forwards it into the same join path a QR scan uses, then clears it via
+     * [consumePendingDeepLinkInviteCode] so a config change or process
+     * restart doesn't replay the same link.
+     */
+    val pendingDeepLinkInviteCode: StateFlow<String?> = _pendingDeepLinkInviteCode.asStateFlow()
+
+    fun consumePendingDeepLinkInviteCode() {
+        _pendingDeepLinkInviteCode.value = null
+    }
+
+    /**
+     * Route an incoming `whistle://` URI to the appropriate flow. Mirrors
+     * iOS AppViewModel.handleIncomingURL(_:); only the `invite` host is
+     * wired up on Android so far -- `addmember` one-tap approval isn't
+     * implemented on this platform yet.
+     */
+    fun handleIncomingUri(uri: Uri) {
+        if (uri.scheme != "whistle") return
+        when (uri.host) {
+            "invite" -> {
+                val code = uri.pathSegments.firstOrNull()
+                if (code.isNullOrBlank()) {
+                    Timber.w("handleIncomingUri: no code in invite URI $uri")
+                    return
+                }
+                _pendingDeepLinkInviteCode.value = code
+            }
+            else -> Timber.w("handleIncomingUri: unhandled host in $uri")
+        }
+    }
 }
 
 /**

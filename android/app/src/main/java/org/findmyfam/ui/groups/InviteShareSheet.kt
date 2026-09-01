@@ -106,9 +106,14 @@ fun InviteShareSheet(
 
                 Button(
                     onClick = {
+                        // whistle://invite/<code> deep link, not the raw code --
+                        // matches iOS's ShareLink(item: inviteURL), so tapping
+                        // this in a messaging app opens straight into Join.
+                        // Copy (above) stays as the raw code: that's still the
+                        // paste target for JoinGroupSheet's manual entry field.
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, inviteCode)
+                            putExtra(Intent.EXTRA_TEXT, "whistle://invite/$inviteCode")
                             type = "text/plain"
                         }
                         context.startActivity(Intent.createChooser(sendIntent, "Share Invite Code"))
