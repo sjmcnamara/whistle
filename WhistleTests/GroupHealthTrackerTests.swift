@@ -84,4 +84,32 @@ final class GroupHealthTrackerTests: XCTestCase {
         XCTAssertTrue(tracker.isUnhealthy(groupId: "group-1"))
         XCTAssertEqual(tracker.failureCount(for: "group-1"), GroupHealthTracker.failureThreshold + 3)
     }
+
+    // MARK: - Failure-type classification (no group id available)
+
+    func testFailureTypeCountsInitiallyEmpty() {
+        XCTAssertTrue(tracker.failureTypeCountsSnapshot().isEmpty)
+    }
+
+    func testRecordFailureTypeIncrementsCount() {
+        tracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
+        tracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
+        tracker.recordFailureType(GroupHealthTracker.FailureType.unprocessable)
+
+        let snapshot = tracker.failureTypeCountsSnapshot()
+        XCTAssertEqual(snapshot[GroupHealthTracker.FailureType.previouslyFailed], 2)
+        XCTAssertEqual(snapshot[GroupHealthTracker.FailureType.unprocessable], 1)
+    }
+
+    /// The motivating case: MDK's `.previouslyFailed` result carries no group
+    /// id, so this counter is the only record that a permanently-stuck
+    /// message ever existed. A later success on the *same* group (from some
+    /// other, unrelated event) must not erase that history — unlike
+    /// `failureCounts`/`unhealthyGroupIds`, which `recordSuccess` does reset.
+    func testRecordSuccessDoesNotClearFailureTypeCounts() {
+        tracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
+        tracker.recordSuccess(groupId: "group-1")
+
+        XCTAssertEqual(tracker.failureTypeCountsSnapshot()[GroupHealthTracker.FailureType.previouslyFailed], 1)
+    }
 }

@@ -1000,6 +1000,7 @@ final class MarmotService: ObservableObject {
 
         case .unprocessable(let groupId):
             self.healthTracker.recordFailure(groupId: groupId)
+            self.healthTracker.recordFailureType(GroupHealthTracker.FailureType.unprocessable)
             let failCount = self.healthTracker.failureCount(for: groupId)
             WhistleLogger.mls.warning("Unprocessable event for group \(groupId) — old epoch key likely deleted (forward secrecy). Failures: \(failCount)")
 
@@ -1007,7 +1008,13 @@ final class MarmotService: ObservableObject {
             WhistleLogger.marmot.debug("Ignored proposal for \(groupId): \(reason)")
 
         case .previouslyFailed:
-            WhistleLogger.marmot.debug("Skipping previously failed message")
+            // MDK gives us no group id here — it has permanently blacklisted
+            // this specific message and will never re-apply it (see
+            // `catchUpGroup`/`resyncMember`). Silently doing nothing left a
+            // permanently-stuck group reporting `healthy: true` forever, since
+            // neither `recordFailure` nor `recordSuccess` ever ran for it.
+            self.healthTracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
+            WhistleLogger.marmot.warning("Skipping previously failed message — MDK will never re-apply it; only a hard resync (remove+re-add) can recover the affected group")
         }
     }
 

@@ -94,16 +94,17 @@ class DiagnosticsCollector @Inject constructor(
             }
         )
 
+        val recentFailures = marmotService.healthTracker.failureTypeCountsSnapshot().map { (type, count) ->
+            DiagnosticsReport.FailureCount(type = type, count = count)
+        }
+
         return DiagnosticsReport(
             app = app,
             identity = identitySnapshot,
             groups = groups,
             relays = relays,
             settings = settingsSnapshot,
-            // Reserved. GroupHealthTracker counts failures per group but does
-            // not classify them, and per-group counts already appear above.
-            // Populating this needs error-type capture at the MLS boundary.
-            recentFailures = emptyList(),
+            recentFailures = recentFailures,
             volatile = volatile
         )
     }
