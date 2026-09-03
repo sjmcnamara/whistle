@@ -138,4 +138,39 @@ class GroupHealthTrackerTest {
     }
 
     // endregion
+
+    // region Failure-type classification (no group id available)
+
+    @Test
+    fun `failure type counts are initially empty`() {
+        assertTrue(tracker.failureTypeCountsSnapshot().isEmpty())
+    }
+
+    @Test
+    fun `recordFailureType increments count`() {
+        tracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
+        tracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
+        tracker.recordFailureType(GroupHealthTracker.FailureType.UNPROCESSABLE)
+
+        val snapshot = tracker.failureTypeCountsSnapshot()
+        assertEquals(2, snapshot[GroupHealthTracker.FailureType.PREVIOUSLY_FAILED])
+        assertEquals(1, snapshot[GroupHealthTracker.FailureType.UNPROCESSABLE])
+    }
+
+    /**
+     * The motivating case: MDK's ProcessMessageResult.PreviouslyFailed carries
+     * no group id, so this counter is the only record that a permanently-stuck
+     * message ever existed. A later success on the *same* group (from some
+     * other, unrelated event) must not erase that history -- unlike
+     * failureCounts/unhealthyGroupIds, which recordSuccess does reset.
+     */
+    @Test
+    fun `recordSuccess does not clear failure type counts`() {
+        tracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
+        tracker.recordSuccess("group-1")
+
+        assertEquals(1, tracker.failureTypeCountsSnapshot()[GroupHealthTracker.FailureType.PREVIOUSLY_FAILED])
+    }
+
+    // endregion
 }

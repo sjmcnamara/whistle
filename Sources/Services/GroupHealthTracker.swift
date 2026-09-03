@@ -16,6 +16,22 @@ final class GroupHealthTracker: ObservableObject {
 
     private var failureCounts: [String: Int] = [:]
 
+    /// Counts of MLS failures by *type*, independent of any specific group.
+    ///
+    /// Exists for failure modes that carry no group id at the FFI boundary —
+    /// MDK's `.previouslyFailed` result (a message it has permanently given
+    /// up on) is the motivating case: it can't feed `failureCounts` above, so
+    /// without this it was recorded nowhere and a permanently-stuck group kept
+    /// reporting `healthy: true`. Surfaced in `DiagnosticsReport.recentFailures`.
+    private var failureTypeCounts: [String: Int] = [:]
+
+    /// Well-known values for `recordFailureType`, kept together so
+    /// `DiagnosticsReport.recentFailures` entries are spelled consistently.
+    enum FailureType {
+        static let previouslyFailed = "previouslyFailed"
+        static let unprocessable = "unprocessable"
+    }
+
     // MARK: - Recording
 
     /// Record a processing failure for a group.
@@ -52,5 +68,19 @@ final class GroupHealthTracker: ObservableObject {
     /// Current failure count for a group (exposed for testing).
     func failureCount(for groupId: String) -> Int {
         failureCounts[groupId] ?? 0
+    }
+
+    /// Record an MLS failure by type, when no group id is available to
+    /// attribute it to (see `failureTypeCounts`). Deliberately not touched by
+    /// `recordSuccess` — a later unrelated success in the same group must not
+    /// erase the fact that MDK permanently gave up on a message.
+    func recordFailureType(_ type: String) {
+        failureTypeCounts[type, default: 0] += 1
+        WhistleLogger.marmot.warning("Recorded unattributed MLS failure: \(type) (total: \(self.failureTypeCounts[type] ?? 0))")
+    }
+
+    /// Snapshot of failure-type counts, for `DiagnosticsReport.recentFailures`.
+    func failureTypeCountsSnapshot() -> [String: Int] {
+        failureTypeCounts
     }
 }

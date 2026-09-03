@@ -947,6 +947,7 @@ class MarmotService @Inject constructor(
             }
             is ProcessMessageResult.Unprocessable -> {
                 healthTracker.recordFailure(groupId = result.mlsGroupId)
+                healthTracker.recordFailureType(GroupHealthTracker.FailureType.UNPROCESSABLE)
                 val failCount = healthTracker.failureCount(result.mlsGroupId)
                 Timber.w("Unprocessable event for group ${result.mlsGroupId} -- failures: $failCount")
             }
@@ -954,7 +955,13 @@ class MarmotService @Inject constructor(
                 Timber.d("Ignored proposal for ${result.mlsGroupId}: ${result.reason}")
             }
             is ProcessMessageResult.PreviouslyFailed -> {
-                Timber.d("Skipping previously failed message")
+                // MDK gives us no group id here -- it has permanently blacklisted
+                // this specific message and will never re-apply it (see
+                // catchUpGroup/resyncMember). Silently doing nothing left a
+                // permanently-stuck group reporting healthy: true forever, since
+                // neither recordFailure nor recordSuccess ever ran for it.
+                healthTracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
+                Timber.w("Skipping previously failed message -- MDK will never re-apply it; only a hard resync (remove+re-add) can recover the affected group")
             }
         }
     }

@@ -1,4 +1,5 @@
 import XCTest
+import NostrSDK
 import WhistleCore
 @testable import Whistle
 
@@ -136,5 +137,43 @@ final class DiagnosticsCollectorTests: XCTestCase {
     func testIdentityPrefixIsAtMostEightChars() async {
         let r = await collect()
         XCTAssertLessThanOrEqual(r.identity.pubkeyPrefix.count, 8)
+    }
+
+    // MARK: - Recent failures (GroupHealthTracker failure-type classification)
+
+    func testRecentFailuresIsEmptyWhenNoneRecorded() async {
+        let r = await collect()
+        XCTAssertTrue(r.recentFailures.isEmpty)
+    }
+
+    func testRecentFailuresReflectsHealthTrackerFailureTypes() async throws {
+        let mockRelay = MockRelayService()
+        let marmotMLS = MLSService()
+        try await marmotMLS.initialiseInMemory()
+        let keys = Keys.generate()
+        let marmot = MarmotService(
+            relay: mockRelay,
+            mls: marmotMLS,
+            publicKeyHex: keys.publicKey().toHex(),
+            keys: keys
+        )
+
+        // previouslyFailed carries no group id at the MDK boundary, so this is
+        // the only place a permanently-stuck group's failure is ever recorded.
+        marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
+        marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
+        marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.unprocessable)
+
+        let r = await DiagnosticsCollector.collect(
+            marmot: marmot, mls: mls, identity: identity, settings: settings, relay: relay
+        )
+
+        XCTAssertEqual(r.recentFailures.count, 2)
+        XCTAssertEqual(
+            r.recentFailures.first { $0.type == GroupHealthTracker.FailureType.previouslyFailed }?.count, 2
+        )
+        XCTAssertEqual(
+            r.recentFailures.first { $0.type == GroupHealthTracker.FailureType.unprocessable }?.count, 1
+        )
     }
 }

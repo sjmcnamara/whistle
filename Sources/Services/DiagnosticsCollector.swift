@@ -85,16 +85,17 @@ enum DiagnosticsCollector {
                 : max(0, Int(Date().timeIntervalSince1970) - Int(settings.lastEventTimestamp))
         )
 
+        let recentFailures = (marmot?.healthTracker.failureTypeCountsSnapshot() ?? [:]).map {
+            DiagnosticsReport.FailureCount(type: $0.key, count: $0.value)
+        }
+
         return DiagnosticsReport(
             app: app,
             identity: identitySnapshot,
             groups: groups,
             relays: relays,
             settings: settingsSnapshot,
-            // Reserved. GroupHealthTracker counts failures per group but does
-            // not classify them, and per-group counts already appear above.
-            // Populating this needs error-type capture at the MLS boundary.
-            recentFailures: [],
+            recentFailures: recentFailures,
             volatile: volatile
         )
     }

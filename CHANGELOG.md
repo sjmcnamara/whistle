@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.13] — 2026-09-03
+
+### Fixed
+- **(iOS & Android) A group permanently stuck behind the leader's MLS epoch could report `healthy: true` forever, hiding the fact that it needed a hard resync.** Found while diagnosing a 3-Android-device sync test: `handleIncomingEvent` hands kind-445 commits to MDK in relay-delivery order (no epoch-sort/buffer), so a commit can arrive ahead of its predecessor during backlog replay. MDK returns `Unprocessable` the first time (recorded), then permanently marks that specific message `PreviouslyFailed` on every future redelivery — and `PreviouslyFailed` touched neither `GroupHealthTracker.recordFailure` nor `recordSuccess`, so it was recorded nowhere. A device could sit epochs behind indefinitely while every diagnostics snapshot showed `consecutiveFailures: 0, healthy: true`. `GroupHealthTracker` now classifies failures by *type* (`previouslyFailed`, `unprocessable`) independent of the per-group counters — deliberately not reset by `recordSuccess`, since a later unrelated success in the same group must not erase the fact MDK permanently gave up on a message. Surfaced in `DiagnosticsReport.recentFailures`, a field that existed in the schema but was always empty (`recentFailures: []`) pending exactly this. Note: MDK's `PreviouslyFailed` result carries no group id, so this is a device-wide signal, not (yet) attributable to a specific group — a stuck group still needs the hard resync (remove+re-add) path; this only makes the "something is stuck" fact visible instead of silent.
+
 ## [1.8.12] — 2026-09-01
 
 ### Fixed

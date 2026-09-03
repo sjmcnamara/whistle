@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.findmyfam.models.AppSettings
 import org.findmyfam.services.DiagnosticsCollector
+import org.findmyfam.services.GroupHealthTracker
 import org.findmyfam.services.IdentityService
 import org.findmyfam.services.MLSService
 import org.findmyfam.services.MarmotService
@@ -157,5 +158,29 @@ class DiagnosticsCollectorTest {
     @Test
     fun identityPrefix_isAtMostEightChars() = runTest {
         assertTrue(collector.collect().identity.pubkeyPrefix.length <= 8)
+    }
+
+    // MARK: - Recent failures (GroupHealthTracker failure-type classification)
+
+    @Test
+    fun recentFailures_isEmpty_whenNoneRecorded() = runTest {
+        every { marmot.healthTracker } returns GroupHealthTracker()
+        assertTrue(collector.collect().recentFailures.isEmpty())
+    }
+
+    @Test
+    fun recentFailures_reflectsHealthTrackerFailureTypes() = runTest {
+        val healthTracker = GroupHealthTracker()
+        // previouslyFailed carries no group id at the MDK boundary, so this is
+        // the only place a permanently-stuck group's failure is ever recorded.
+        healthTracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
+        healthTracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
+        healthTracker.recordFailureType(GroupHealthTracker.FailureType.UNPROCESSABLE)
+        every { marmot.healthTracker } returns healthTracker
+
+        val failures = collector.collect().recentFailures
+        assertEquals(2, failures.size)
+        assertEquals(2, failures.first { it.type == GroupHealthTracker.FailureType.PREVIOUSLY_FAILED }.count)
+        assertEquals(1, failures.first { it.type == GroupHealthTracker.FailureType.UNPROCESSABLE }.count)
     }
 }

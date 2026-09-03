@@ -29,6 +29,27 @@ class GroupHealthTracker @Inject constructor() {
     private val failureCounts = mutableMapOf<String, Int>()
 
     /**
+     * Counts of MLS failures by *type*, independent of any specific group.
+     *
+     * Exists for failure modes that carry no group id at the FFI boundary --
+     * MDK's `ProcessMessageResult.PreviouslyFailed` (a message it has
+     * permanently given up on) is the motivating case: it can't feed
+     * [failureCounts] above, so without this it was recorded nowhere and a
+     * permanently-stuck group kept reporting `healthy: true`. Surfaced in
+     * `DiagnosticsReport.recentFailures`.
+     */
+    private val failureTypeCounts = mutableMapOf<String, Int>()
+
+    /**
+     * Well-known values for [recordFailureType], kept together so
+     * `DiagnosticsReport.recentFailures` entries are spelled consistently.
+     */
+    object FailureType {
+        const val PREVIOUSLY_FAILED = "previouslyFailed"
+        const val UNPROCESSABLE = "unprocessable"
+    }
+
+    /**
      * Record a processing failure for a group.
      * @return true if the group has reached the unhealthy threshold.
      */
@@ -70,5 +91,22 @@ class GroupHealthTracker @Inject constructor() {
      */
     fun failureCount(groupId: String): Int {
         return failureCounts[groupId] ?: 0
+    }
+
+    /**
+     * Record an MLS failure by type, when no group id is available to
+     * attribute it to (see [failureTypeCounts]). Deliberately not touched by
+     * [recordSuccess] -- a later unrelated success in the same group must not
+     * erase the fact that MDK permanently gave up on a message.
+     */
+    fun recordFailureType(type: String) {
+        val count = (failureTypeCounts[type] ?: 0) + 1
+        failureTypeCounts[type] = count
+        Timber.w("Recorded unattributed MLS failure: $type (total: $count)")
+    }
+
+    /** Snapshot of failure-type counts, for `DiagnosticsReport.recentFailures`. */
+    fun failureTypeCountsSnapshot(): Map<String, Int> {
+        return failureTypeCounts.toMap()
     }
 }
