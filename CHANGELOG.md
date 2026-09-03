@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.14] — 2026-09-03
+
+### Fixed
+- **(Android) A gift-wrap, group commit, or key-rotation missed while merely backgrounded stayed invisible until the app was force-quit and relaunched — resuming was not enough.** Found in the same 3-Android-device sync test as v1.8.13: `AppViewModel.onForeground()` (called from `MainActivity.onResume()`) only called `MarmotService.ensureSubscriptionsActive()`, which restarts the subscription coroutine if it was cancelled but does nothing if it's still `isActive`, and nothing else in the resume path re-fetched anything. Three specific gaps this left: gift-wraps carry no `since` filter (NIP-59 randomises their timestamp), so only the dedicated one-shot `fetchMissedGiftWraps()` reliably catches a missed "ready to join" Welcome — previously that only ran once, at cold-start `onAppear()`; a per-group commit catch-up (`catchUpGroup()`) never ran on resume at all, only cold start or a manual Resync tap; and key rotation (`rotateStaleGroups()`) was in the same boat. `onForeground()` now re-runs the same three-call catch-up sweep `onAppear()` already does at cold start, so a resume (not just a full relaunch) can recover what was missed.
+
 ## [1.8.13] — 2026-09-03
 
 ### Fixed
