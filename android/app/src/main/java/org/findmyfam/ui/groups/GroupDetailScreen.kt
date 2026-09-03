@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import org.findmyfam.viewmodels.AppViewModel
 import kotlinx.coroutines.launch
 import org.findmyfam.services.LocalGroupAvatarStore
@@ -44,6 +43,7 @@ import org.findmyfam.viewmodels.GroupDetailViewModel
 @Composable
 fun GroupDetailScreen(
     viewModel: GroupDetailViewModel,
+    appViewModel: AppViewModel,
     onBack: () -> Unit,
     onLeaveComplete: () -> Unit,
     modifier: Modifier = Modifier
@@ -71,7 +71,6 @@ fun GroupDetailScreen(
     val resyncingPubkey by viewModel.resyncingMemberPubkey.collectAsState()
 
     val context = LocalContext.current
-    val appViewModel: AppViewModel = hiltViewModel()
     val scope = rememberCoroutineScope()
     val localRevision by LocalGroupAvatarStore.revision.collectAsState()
     val sharedRevision by appViewModel.sharedGroupAvatarStore.revision.collectAsState()
