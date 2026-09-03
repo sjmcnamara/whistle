@@ -512,10 +512,50 @@ class AppViewModel @Inject constructor(
      * MarmotService.ensureSubscriptionsActive for why this is needed.
      * Guarded on READY so it can't race the initial startup sequence
      * (which starts subscriptions itself) on cold launch.
+     *
+     * Also re-runs the same catch-up sweep [onAppear] does at cold start --
+     * previously this only ran once per process, so a gift-wrap or commit
+     * missed while merely backgrounded (not force-quit) was invisible until
+     * the user force-quit and relaunched, even after subscriptions resumed.
+     * Three gaps [ensureSubscriptionsActive] alone doesn't close:
+     * - Gift-wraps carry no `since` filter (NIP-59 randomises their
+     *   timestamp), so the live subscription resubscribing on restart is not
+     *   enough -- only [MarmotService.fetchMissedGiftWraps]'s dedicated
+     *   one-shot fetch reliably catches a missed "ready to join" Welcome.
+     * - [MarmotService.ensureSubscriptionsActive] only restarts the
+     *   subscription coroutine if it was actually cancelled; if it's still
+     *   `isActive` (e.g. the socket silently degraded rather than the
+     *   coroutine dying), nothing here forces a re-check -- catchUpGroup
+     *   below re-fetches regardless of subscription state.
+     * - Key rotation ([MarmotService.rotateStaleGroups]) previously only
+     *   ran once per process too, so a group's rotation could be delayed by
+     *   however long the app stayed backgrounded across launches.
      */
     fun onForeground() {
         if (_startupPhase.value != StartupPhase.READY) return
         marmotService.ensureSubscriptionsActive()
+
+        viewModelScope.launch {
+            try {
+                marmotService.fetchMissedGiftWraps()
+            } catch (e: Exception) {
+                Timber.w("fetchMissedGiftWraps on foreground failed (non-fatal): ${e.message}")
+            }
+
+            for (group in marmotService.groups.value.filter { it.isActive }) {
+                try {
+                    marmotService.catchUpGroup(group.mlsGroupId)
+                } catch (e: Exception) {
+                    Timber.w("catchUpGroup(${group.mlsGroupId}) on foreground failed (non-fatal): ${e.message}")
+                }
+            }
+
+            try {
+                marmotService.rotateStaleGroups()
+            } catch (e: Exception) {
+                Timber.w("rotateStaleGroups on foreground failed (non-fatal): ${e.message}")
+            }
+        }
     }
 
     /**
