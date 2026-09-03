@@ -190,6 +190,7 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
 
                 GroupListScreen(
                     viewModel = groupListViewModel,
+                    appViewModel = viewModel,
                     onGroupClick = { groupId ->
                         navController.navigate(Routes.groupChat(groupId))
                     },
@@ -253,6 +254,7 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
 
                 GroupDetailScreen(
                     viewModel = detailViewModel,
+                    appViewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onLeaveComplete = {
                         navController.popBackStack(Routes.GROUP_LIST, inclusive = false)

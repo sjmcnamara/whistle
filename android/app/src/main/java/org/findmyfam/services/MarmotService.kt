@@ -1177,8 +1177,18 @@ class MarmotService @Inject constructor(
 
     /**
      * Reconnect to relays if the connection has dropped.
+     *
+     * Refreshes live before checking -- `connectionState` is a snapshot from
+     * whenever it was last set, and the socket can die silently in the
+     * background (e.g. the OS suspending network during Doze/screen-lock)
+     * without that snapshot ever being updated. Trusting the stale value here
+     * previously made catchUpGroup()/fetchMissedGiftWraps() skip reconnecting
+     * and then query a dead socket, which fails fast with an empty result
+     * instead of an error -- silently no-oping a catch-up that looked, from
+     * the logs, like it ran and found nothing to recover.
      */
     private suspend fun reconnectRelaysIfNeeded() {
+        relay.refreshConnectedRelays()
         if (relay.connectionState.value == RelayService.ConnectionState.CONNECTED) return
         Timber.i("Reconnecting to relays...")
         val keys = identity.keys.value ?: return
