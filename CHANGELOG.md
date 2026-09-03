@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.8.15] — 2026-09-03
+
+### Fixed
+- **(Android) Ordinary in-app navigation could silently kill the whole app's relay subscriptions and location updates, with no recovery until a real backgrounding cycle.** Found live during a 3-Android-device sync test: `RootScreen` correctly obtains one Activity-scoped `AppViewModel` via `hiltViewModel()` and passes it down through the nav graph, but `GroupListScreen` and `GroupDetailScreen` each independently called `hiltViewModel()` for their own copy — since both render inside `NavHost` routes, that resolved to a separate `NavBackStackEntry`-scoped instance. `AppViewModel.onCleared()` calls `marmotService.stopSubscriptions()`/`locationService.stopUpdating()`, and since `MarmotService`/`LocationService` are Hilt `@Singleton`s shared app-wide, tearing down *any* of these throwaway instances (e.g. navigating back out of Group Detail, or tapping the Groups tab while already on it — both pop a backstack entry) killed subscriptions globally, uncorrelated with real backgrounding and invisible to `MainActivity.onResume()`'s recovery path. Fixed by having both screens receive the Activity-scoped instance as a parameter instead of re-fetching their own.
+- **(iOS & Android) `catchUpGroup()`/`fetchMissedGiftWraps()` could silently no-op after a real lock/Doze cycle killed the underlying relay socket**, exactly when the v1.8.14 catch-up sweep needed to work. `reconnectRelaysIfNeeded()` skipped reconnecting whenever `connectionState`/`connectedRelayUrls` — snapshots from whenever they were last refreshed — still read "connected," even though the actual socket had died in the background with no observer ever updating that snapshot. The subsequent one-shot relay fetch then queried a dead connection, which fails fast with an empty result instead of an error, making the catch-up sweep look like it ran and found nothing when it had never actually asked the relay. `reconnectRelaysIfNeeded()` now calls `refreshConnectedRelays()` for a live read before checking, on both platforms. Verified live: before the fix, a locked device's catch-up fetch returned in 18ms with 0 events; after, it correctly detected 0/3 relays connected, reconnected, and recovered a genuinely-missed 501-event backlog including every message sent while it was locked.
+
 ## [1.8.14] — 2026-09-03
 
 ### Fixed

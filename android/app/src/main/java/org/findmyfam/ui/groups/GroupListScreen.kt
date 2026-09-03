@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.hilt.navigation.compose.hiltViewModel
 import org.findmyfam.viewmodels.AppViewModel
 import org.findmyfam.services.LocalGroupAvatarStore
 import androidx.compose.material.ExperimentalMaterialApi
@@ -42,6 +41,7 @@ import java.util.Locale
 @Composable
 fun GroupListScreen(
     viewModel: GroupListViewModel,
+    appViewModel: AppViewModel,
     onGroupClick: (String) -> Unit,
     onScanQr: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -54,7 +54,6 @@ fun GroupListScreen(
     val pendingAdminActionGroupIds by viewModel.pendingAdminActionGroupIds.collectAsState()
     val error by viewModel.error.collectAsState()
     val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
-    val appViewModel: AppViewModel = hiltViewModel()
     val sharedAvatarRevision by appViewModel.sharedGroupAvatarStore.revision.collectAsState()
 
     var showCreateSheet by remember { mutableStateOf(false) }
