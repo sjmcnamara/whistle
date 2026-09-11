@@ -17,7 +17,16 @@ permissions:
 
 jobs:
   build-and-upload:
-    runs-on: macos-15
+    # Pinned above macos-15 deliberately: App Store Connect started hard-rejecting
+    # any upload built with less than the iOS 26 SDK (Xcode 26+) on 2026-09-11,
+    # discovered live on this exact workflow's first real run -- macos-15 only
+    # carries Xcode up to 16.4 (iOS 18.5 SDK). macos-26 (GA since 2026-02) ships
+    # Xcode 26 with the required SDK. ci.yml's iOS jobs stay on macos-15 for now,
+    # deliberately not bumped in the same change -- Xcode 26 is a big enough jump
+    # to warrant verifying the app itself still compiles under it separately from
+    # fixing the one thing actually blocking releases (the archive/export/upload
+    # pipeline). See ROADMAP.md.
+    runs-on: macos-26
     permissions:
       contents: write   # attach the .ipa to the GitHub release
     steps:
