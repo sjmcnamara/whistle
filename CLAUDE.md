@@ -95,4 +95,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.8.12 — Android background subscription recovery** (bugfix, Android). See ROADMAP.md for next steps.
+Current version: **v1.8.16 — Android foreground service + boot receiver for background reliability** (bugfix, Android). See ROADMAP.md for next steps.

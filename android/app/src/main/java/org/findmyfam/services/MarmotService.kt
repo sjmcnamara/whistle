@@ -1208,8 +1208,11 @@ class MarmotService @Inject constructor(
     }
 
     /**
-     * Restart subscriptions if they aren't currently running. A no-op when
-     * already active.
+     * Restart subscriptions if they aren't actually delivering. A no-op when
+     * already active with a live relay connection. Safe to call repeatedly
+     * or from multiple callers (MainActivity.onResume() and
+     * WhistleForegroundService both do) -- it never runs two subscription
+     * loops at once because a restart always stops the old one first.
      *
      * Exists for MainActivity.onResume(): unlike iOS (where AppViewModel is
      * a single @StateObject tied to the whole app process, so backgrounding
@@ -1220,11 +1223,26 @@ class MarmotService @Inject constructor(
      * AppViewModel, calling onCleared() -> stopSubscriptions(). Nothing
      * else guarantees a restart afterward, so the admin device goes
      * permanently deaf to the relay until force-quit and relaunched.
+     *
+     * Checking `subscriptionJob?.isActive` alone is not enough: Doze/network
+     * loss can silently kill the socket underneath a coroutine that is still
+     * technically running (suspended inside the SDK, never throwing), so a
+     * dead relay connection with a live-looking job used to pass this check
+     * and never restart. Now also checks [RelayService.hasConnectedRelays],
+     * which re-reads real socket status rather than trusting a snapshot.
      */
     fun ensureSubscriptionsActive() {
-        if (subscriptionJob?.isActive == true) return
-        Timber.i("Subscriptions inactive on resume -- restarting")
-        startSubscriptions()
+        scope.launch {
+            val jobLooksAlive = subscriptionJob?.isActive == true
+            if (jobLooksAlive && relay.hasConnectedRelays()) return@launch
+            if (jobLooksAlive) {
+                Timber.i("Subscription job alive but relay disconnected -- restarting")
+                stopSubscriptions()
+            } else {
+                Timber.i("Subscriptions inactive -- restarting")
+            }
+            startSubscriptions()
+        }
     }
 
     /**
