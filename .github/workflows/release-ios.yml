@@ -1,0 +1,220 @@
+name: iOS release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v1.2.0)'
+        required: true
+
+# Least privilege at the top level; the release job opts into contents:write
+# to attach the .ipa to the GitHub release.
+permissions:
+  contents: read
+
+jobs:
+  build-and-upload:
+    runs-on: macos-15
+    permissions:
+      contents: write   # attach the .ipa to the GitHub release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      # Key the mdk-swift cache on the pinned MDK revision alone, not the whole
+      # project.yml — see ci.yml for why (version bumps would otherwise bust it).
+      - name: Resolve MDK revision
+        id: mdk-rev
+        run: echo "revision=$(python3 scripts/ci_use_local_mdk.py --print-revision)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache mdk-swift
+        id: cache-mdk
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: vendor/mdk-swift
+          key: mdk-swift-${{ steps.mdk-rev.outputs.revision }}
+
+      - name: Clone mdk-swift with LFS at pinned revision
+        if: steps.cache-mdk.outputs.cache-hit != 'true'
+        run: |
+          REV=$(python3 scripts/ci_use_local_mdk.py --print-revision)
+          git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
+          cd vendor/mdk-swift && git checkout "$REV" && git lfs pull
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          python3 scripts/ci_use_local_mdk.py
+          xcodegen generate
+
+      # Imports the Apple Distribution certificate into a job-scoped temporary
+      # keychain and installs the provisioning profile. Both are deleted in the
+      # cleanup step below regardless of how the job ends.
+      - name: Import signing certificate and provisioning profile
+        id: signing
+        env:
+          IOS_DIST_CERTIFICATE_B64: ${{ secrets.IOS_DIST_CERTIFICATE_B64 }}
+          IOS_DIST_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DIST_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          for name in IOS_DIST_CERTIFICATE_B64 IOS_DIST_CERTIFICATE_PASSWORD IOS_PROVISIONING_PROFILE_B64 IOS_KEYCHAIN_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name secret is not set"
+              exit 1
+            fi
+          done
+
+          CERT_PATH="$RUNNER_TEMP/dist.p12"
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          KEYCHAIN_PATH="$RUNNER_TEMP/ios-release.keychain-db"
+          echo "keychain_path=$KEYCHAIN_PATH" >> "$GITHUB_OUTPUT"
+
+          echo "$IOS_DIST_CERTIFICATE_B64" | base64 -d -o "$CERT_PATH"
+          echo "$IOS_PROVISIONING_PROFILE_B64" | base64 -d -o "$PROFILE_PATH"
+
+          security create-keychain -p "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_DIST_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          rm -f "$CERT_PATH"
+
+          # Provisioning profile is a plain file, not a keychain entry — Xcode
+          # discovers it by UUID in this fixed directory.
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$PROFILE_PLIST")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$PROFILE_PLIST")
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+          echo "profile_name=$PROFILE_NAME" >> "$GITHUB_OUTPUT"
+          rm -f "$PROFILE_PATH" "$PROFILE_PLIST"
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project Whistle.xcodeproj \
+            -scheme Whistle \
+            -configuration Release \
+            -archivePath build/Whistle.xcarchive \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ steps.signing.outputs.profile_name }}"
+
+      - name: Export IPA
+        run: |
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>3V55494FNM</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>signingCertificate</key>
+              <string>Apple Distribution</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>org.getwhistle.whistle</key>
+                  <string>${{ steps.signing.outputs.profile_name }}</string>
+              </dict>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath build/Whistle.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export
+
+      - name: Stage release asset
+        id: stage
+        run: |
+          IPA_IN="build/export/Whistle.ipa"
+          if [ ! -f "$IPA_IN" ]; then
+            echo "::error::Expected IPA not found at $IPA_IN"
+            exit 1
+          fi
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          OUT="whistle-${TAG}.ipa"
+          cp "$IPA_IN" "$OUT"
+          sha256sum "$OUT" | tee "${OUT}.sha256"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "versioned=$OUT" >> "$GITHUB_OUTPUT"
+
+      # Direct-to-TestFlight upload via an App Store Connect API key — no Apple
+      # ID password or 2FA session touches CI. This lands the build in
+      # TestFlight only; submitting it for App Store review stays a deliberate
+      # manual step in App Store Connect.
+      - name: Upload to TestFlight
+        env:
+          APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY_B64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          for name in APPLE_API_KEY_B64 APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name secret is not set"
+              exit 1
+            fi
+          done
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
+          echo "$APPLE_API_KEY_B64" | base64 -d -o "$KEY_PATH"
+          xcrun altool --upload-app \
+            -f "${{ steps.stage.outputs.versioned }}" \
+            -t ios \
+            --apiKey "$APPLE_API_KEY_ID" \
+            --apiIssuer "$APPLE_API_ISSUER_ID"
+          rm -f "$KEY_PATH"
+
+      - name: Attach IPA to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.stage.outputs.tag }}"
+          # release-android.yml tags the same push and may have already
+          # created the release for this tag — upload into it if so, rather
+          # than racing `gh release create` against it.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "${{ steps.stage.outputs.versioned }}" \
+              "${{ steps.stage.outputs.versioned }}.sha256" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              "${{ steps.stage.outputs.versioned }}" \
+              "${{ steps.stage.outputs.versioned }}.sha256" \
+              --generate-notes \
+              --title "$TAG"
+          fi
+
+      - name: Upload IPA as workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: whistle-${{ steps.stage.outputs.tag }}-ipa
+          path: |
+            ${{ steps.stage.outputs.versioned }}
+            ${{ steps.stage.outputs.versioned }}.sha256
+
+      - name: Clean up keychain and provisioning profile
+        if: always()
+        run: |
+          security delete-keychain "${{ steps.signing.outputs.keychain_path }}" 2>/dev/null || true
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null || true
