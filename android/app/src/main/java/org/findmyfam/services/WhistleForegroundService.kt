@@ -28,9 +28,8 @@ import javax.inject.Inject
  * startForeground(), which is what tells the OS to treat this process as
  * foreground-priority instead of an ordinary backgrounded app -- fixes the
  * "app halts within minutes of closing" report (no foreground Service
- * existed at all before this, despite FOREGROUND_SERVICE/
- * FOREGROUND_SERVICE_LOCATION being declared in the manifest as dead
- * permissions).
+ * existed at all before this, despite FOREGROUND_SERVICE being declared in
+ * the manifest as a dead permission).
  *
  * It does not own business logic: RelayService/MarmotService/LocationService
  * are Application-scoped Hilt singletons already shared with AppViewModel,
@@ -41,6 +40,16 @@ import javax.inject.Inject
  * first time anything runs in this process at all -- headless launch from
  * the boot receiver, or an OS-triggered restart (START_STICKY) after the
  * whole process was killed despite foreground status.
+ *
+ * Declared and started as FOREGROUND_SERVICE_TYPE_DATA_SYNC, not location,
+ * despite what this exists for -- confirmed live on a real reboot cycle:
+ * Android throws SecurityException the instant a location/camera/
+ * microphone-typed FGS calls startForeground() from a background context (a
+ * BroadcastReceiver, here), even inside BOOT_COMPLETED's own temporary
+ * background-start allowlist. This Service never calls a location API
+ * itself -- LocationService does that, as a plain singleton with no FGS type
+ * of its own -- so dataSync (syncing relay/MLS/location state) describes its
+ * actual job just as accurately without hitting that restriction.
  */
 @AndroidEntryPoint
 class WhistleForegroundService : Service() {
@@ -92,7 +101,7 @@ class WhistleForegroundService : Service() {
     private fun startForegroundCompat() {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }

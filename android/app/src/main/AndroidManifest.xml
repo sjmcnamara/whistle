@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
@@ -61,11 +61,23 @@
         <!-- Keeps location sharing alive while the app is closed — see
              WhistleForegroundService for why this exists. Started/stopped by
              AppViewModel and BootCompletedReceiver, never launched directly
-             by the user. -->
+             by the user.
+
+             Type is dataSync, not location, despite what this Service is
+             for — confirmed live on a real reboot cycle: Android disallows a
+             location/camera/microphone-typed FGS from being started from a
+             background context (a BroadcastReceiver, here) even within
+             BOOT_COMPLETED's temporary background-start allowlist, throwing
+             SecurityException the instant startForeground() is called. Only
+             LocationService itself calls the location APIs directly, and it
+             is a plain Hilt singleton with no FGS type of its own — this
+             Service's only job is holding startForeground() to keep the
+             process alive, which dataSync (relay/MLS/location payload sync)
+             describes just as accurately without hitting that restriction. -->
         <service
             android:name=".services.WhistleForegroundService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="dataSync" />
 
         <!-- Shares diagnostics reports as a file. Grants read access to a
              single cache file per share rather than exposing app storage. -->
