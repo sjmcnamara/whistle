@@ -4,6 +4,7 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import org.findmyfam.services.BatteryAlertService
 import org.findmyfam.services.LocalGroupAvatarStore
+import org.findmyfam.services.WhistleForegroundService
 import org.osmdroid.config.Configuration
 import timber.log.Timber
 
@@ -21,6 +22,7 @@ class FindMyFamApp : Application() {
 
         LocalGroupAvatarStore.init(this)
         BatteryAlertService.createNotificationChannel(this)
+        WhistleForegroundService.createNotificationChannel(this)
 
         Timber.i("FindMyFam application started")
     }

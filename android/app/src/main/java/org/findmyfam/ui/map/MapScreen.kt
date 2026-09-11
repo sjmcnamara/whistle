@@ -95,6 +95,21 @@ fun MapScreen(
         null
     }
 
+    // Background location is a separate runtime permission from Android 10+
+    // (declared in the manifest but never requested until now -- location
+    // silently degrades to foreground-only without it, independent of
+    // whether the OS ever touches the process). The system rejects asking
+    // for this in the same batch as foreground location, so it's requested
+    // as a distinct follow-up once foreground is already granted, mirroring
+    // the notification-permission pattern above (non-blocking, no UI gate --
+    // WhistleForegroundService and background sharing still work with only
+    // foreground location, just less reliably while the screen is off).
+    val backgroundLocationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    } else {
+        null
+    }
+
     // Configure osmdroid user agent + notify if permission already granted
     LaunchedEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
@@ -103,6 +118,17 @@ fun MapScreen(
         }
         notificationPermission?.let {
             if (!it.status.isGranted) it.launchPermissionRequest()
+        }
+    }
+
+    // Re-checked whenever foreground location flips to granted (cold start
+    // already-granted path above, or the interactive grant callback), since
+    // the background request can't be issued until then.
+    LaunchedEffect(locationPermissions.allPermissionsGranted) {
+        if (locationPermissions.allPermissionsGranted) {
+            backgroundLocationPermission?.let {
+                if (!it.status.isGranted) it.launchPermissionRequest()
+            }
         }
     }
 

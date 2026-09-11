@@ -52,3 +52,14 @@ website/site/
 *.swp
 *.swo
 *~
+
+# Apple signing / App Store Connect API-key material — generated locally per
+# the ios-release skill, then base64'd into repo secrets. Never belongs in
+# the working tree longer than it takes to do that, let alone committed.
+*.p12
+*.p8
+*.cer
+*.pem
+*.key
+*.mobileprovision
+*.certSigningRequest

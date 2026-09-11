@@ -2,7 +2,6 @@ package org.findmyfam.viewmodels
 
 import android.content.Context
 import android.net.Uri
-import android.os.BatteryManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,9 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.delay
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
 import org.findmyfam.shared.models.AvatarPayload
@@ -52,7 +48,9 @@ class AppViewModel @Inject constructor(
     val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
     val motionService: MotionService,
-    val appLockService: AppLockService
+    val appLockService: AppLockService,
+    val locationBroadcaster: LocationBroadcaster,
+    val backgroundSessionCoordinator: BackgroundSessionCoordinator
 ) : ViewModel() {
 
     val locationViewModel = LocationViewModel(
@@ -110,7 +108,15 @@ class AppViewModel @Inject constructor(
 
             val enabledRelays = settings.relays.filter { it.isEnabled }.map { it.url }
 
-            val relayJob = async { relay.connect(keys = keys, relays = enabledRelays) }
+            // Guarded: WhistleForegroundService's BackgroundSessionCoordinator
+            // may already have connected before this UI ever opened. Connecting
+            // again here would spin up a second Client and abandon the first
+            // one still holding the live socket subscriptions run on.
+            val relayJob = async {
+                if (!relay.hasConnectedRelays()) {
+                    relay.connect(keys = keys, relays = enabledRelays)
+                }
+            }
             val mlsJob = async {
                 try {
                     mls.initialise()
@@ -157,8 +163,13 @@ class AppViewModel @Inject constructor(
                 }
             }
 
-            // Start real-time subscriptions
-            marmotService.startSubscriptions()
+            // Start real-time subscriptions. ensureSubscriptionsActive() rather
+            // than startSubscriptions() directly: WhistleForegroundService's
+            // BackgroundSessionCoordinator may already have subscriptions
+            // running if it started before this UI ever opened, and the
+            // former is a no-op in that case rather than a second, competing
+            // subscription loop.
+            marmotService.ensureSubscriptionsActive()
 
             // Fetch any gift-wraps (Welcomes) that arrived while offline
             try {
@@ -222,17 +233,17 @@ class AppViewModel @Inject constructor(
             // Wire location pipeline: LocationService → MarmotService (all groups)
             wireLocationPipeline()
 
+            // Keep WhistleForegroundService running exactly while there's
+            // something to share, so the process survives backgrounding
+            // without a notification sitting there for an empty account.
+            updateBackgroundServiceState()
+            viewModelScope.launch {
+                marmotService.groups.collect { updateBackgroundServiceState() }
+            }
+
             _startupPhase.value = StartupPhase.READY
             Timber.i("Startup complete -- relay: ${relay.connectionState.value}, MLS: ${mls.isInitialised}")
         }
-    }
-
-    /**
-     * Apply a random offset to a coordinate within [radiusMeters].
-     * Delegates to the top-level pure function for testability.
-     */
-    private fun fuzzedCoordinate(lat: Double, lon: Double, radiusMeters: Double): Pair<Double, Double> {
-        return fuzzCoordinate(lat, lon, radiusMeters)
     }
 
     /**
@@ -255,49 +266,12 @@ class AppViewModel @Inject constructor(
         }
 
         locationService.onLocationUpdate = fun(location) {
-            val fuzzRadius = settings.locationFuzzMeters
-            val lat: Double
-            val lon: Double
-            if (fuzzRadius > 0) {
-                val fuzzed = fuzzedCoordinate(location.latitude, location.longitude, fuzzRadius.toDouble())
-                lat = fuzzed.first
-                lon = fuzzed.second
-                Timber.d("Location fuzzed by up to ${fuzzRadius}m")
-            } else {
-                lat = location.latitude
-                lon = location.longitude
-            }
-
-            val battery = (context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager)
-                ?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                ?.takeIf { it in 0..100 }
-
-            val payload = LocationPayload(
-                lat = lat,
-                lon = lon,
-                alt = location.altitude,
-                acc = if (fuzzRadius > 0) max(location.accuracy.toDouble(), fuzzRadius.toDouble()) else location.accuracy.toDouble(),
-                ts = System.currentTimeMillis() / 1000,
-                batt = battery,
-                interval = locationService.effectiveIntervalSeconds, // reflects motion multiplier so receivers grade staleness against real cadence
-                // Only meaningful while Movement Aware is on; otherwise send null
-                // ("unknown") rather than false, which would claim we're moving.
-                stationary = if (settings.isMotionAdaptiveEnabled) motionService.isStationary.value else null
-            )
-            val myPubkey = identity.publicKeyHex ?: return
-            val groups = marmotService.groups.value.filter { it.isActive }
-            for (group in groups) {
-                // Cache locally so the map shows our own pin
-                locationCache.update(group.mlsGroupId, myPubkey, payload)
-                // Broadcast to group
-                viewModelScope.launch {
-                    try {
-                        marmotService.sendLocationUpdate(payload, group.mlsGroupId)
-                    } catch (e: Exception) {
-                        Timber.e("Failed to send location to group ${group.mlsGroupId}: ${e.message}")
-                    }
-                }
-            }
+            // Fuzz/battery/payload-build/broadcast logic lives in
+            // LocationBroadcaster, shared with BackgroundSessionCoordinator's
+            // headless path (WhistleForegroundService) so there is exactly one
+            // implementation regardless of whether the UI is on screen.
+            val isStationary = if (settings.isMotionAdaptiveEnabled) motionService.isStationary.value else null
+            locationBroadcaster.broadcast(location, isStationary, viewModelScope) ?: return
 
             // A manual whistle resolves to SENT as soon as its forced fix is
             // broadcast (the timeout in whistle() only fires if none arrives).
@@ -505,6 +479,7 @@ class AppViewModel @Inject constructor(
      */
     fun onLocationPermissionGranted() {
         locationService.updatePermissionStatus(true)
+        updateBackgroundServiceState()
     }
 
     /**
@@ -555,6 +530,27 @@ class AppViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.w("rotateStaleGroups on foreground failed (non-fatal): ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Starts or stops [WhistleForegroundService] to match whether there's
+     * anything to share right now ([BackgroundSessionCoordinator.shouldBeSharing]).
+     * A persistent notification for an account with zero groups (or with
+     * sharing explicitly paused) would be a nuisance for no benefit, so the
+     * Service runs exactly while it's useful -- not for the lifetime of the
+     * process regardless of state.
+     *
+     * Not wired to live pause toggling: [AppSettings.isLocationPaused] has no
+     * change flow today, matching [LocationService] itself, which also only
+     * reads it at startup (SettingsScreen's toggle takes effect on next
+     * launch) -- pre-existing, unrelated to this fix.
+     */
+    private fun updateBackgroundServiceState() {
+        if (backgroundSessionCoordinator.shouldBeSharing()) {
+            WhistleForegroundService.start(context)
+        } else {
+            WhistleForegroundService.stop(context)
         }
     }
 
