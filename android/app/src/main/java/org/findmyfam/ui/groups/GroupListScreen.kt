@@ -131,7 +131,10 @@ fun GroupListScreen(
                             },
                             supportingContent = {
                                 Text(
-                                    "From ${welcome.senderPubkeyHex.take(16)}...",
+                                    // Abbreviated npub, not raw hex -- matchable
+                                    // against what the sender can read off their
+                                    // own Identity card.
+                                    "From ${appViewModel.nicknameStore.displayName(welcome.senderPubkeyHex)}",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -315,6 +318,13 @@ fun GroupListScreen(
                                         text = "Epoch mismatch",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                if (group.isSharingPaused) {
+                                    Text(
+                                        text = "Paused",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }

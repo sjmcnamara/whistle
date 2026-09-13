@@ -31,6 +31,7 @@ import org.findmyfam.viewmodels.AppViewModel
 import kotlinx.coroutines.launch
 import org.findmyfam.services.LocalGroupAvatarStore
 import org.findmyfam.ui.common.QrScannerScreen
+import org.findmyfam.ui.settings.SettingsToggle
 import org.findmyfam.viewmodels.GroupDetailViewModel
 
 /**
@@ -60,6 +61,8 @@ fun GroupDetailScreen(
     val isRenaming by viewModel.isRenaming.collectAsState()
     val leaveRequestMembers by viewModel.leaveRequestMembers.collectAsState()
     val pendingJoiners by viewModel.pendingJoiners.collectAsState()
+    val pausedGroupIds by appViewModel.settings.pausedGroupIdsFlow.collectAsState()
+    val isSharingPaused = viewModel.groupId in pausedGroupIds
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
@@ -350,7 +353,10 @@ fun GroupDetailScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(joiner.name?.takeIf { it.isNotEmpty() } ?: "Anonymous",
                                     style = MaterialTheme.typography.bodyMedium)
-                                Text(joiner.pubkey.take(16) + "…",
+                                // Abbreviated npub, not raw hex -- matchable
+                                // against what the joiner can read off their
+                                // own Identity card.
+                                Text(viewModel.displayIdentifier(joiner.pubkey),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -421,6 +427,31 @@ fun GroupDetailScreen(
                             modifier = Modifier.clickable { subScreen = "members" }
                         )
                     }
+                }
+
+                // Location sharing -- pauses only this group's outbound
+                // broadcast; the user keeps receiving and viewing everyone
+                // else's location here. The global "Pause Location Sharing"
+                // switch in Settings still overrides this for every group at once.
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider()
+                    SettingsToggle(
+                        label = "Pause Sharing to This Group",
+                        icon = Icons.Default.LocationOff,
+                        checked = isSharingPaused,
+                        onCheckedChange = { paused ->
+                            val current = appViewModel.settings.pausedGroupIds
+                            if (paused) current.add(viewModel.groupId) else current.remove(viewModel.groupId)
+                            appViewModel.settings.pausedGroupIds = current
+                        }
+                    )
+                    Text(
+                        "You'll stop sending your location here, but you'll still see everyone else's.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
 
                 // Leave (bottom)

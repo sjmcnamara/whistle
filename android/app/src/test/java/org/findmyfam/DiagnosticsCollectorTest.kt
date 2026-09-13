@@ -3,6 +3,7 @@ package org.findmyfam
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import build.marmot.mdk.Group
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +101,35 @@ class DiagnosticsCollectorTest {
         assertTrue(collector.collect().groups.isEmpty())
     }
 
+    // MARK: - Per-group last-event (v2: moved out of Volatile into GroupSnapshot)
+
+    @Test
+    fun groupSnapshot_secondsSinceLastEvent_reflectsThatGroupsLastMessageAt() = runTest {
+        val lastMessageAt = (System.currentTimeMillis() / 1000 - 60).toULong()
+        val group = mockk<Group>(relaxed = true)
+        every { group.mlsGroupId } returns "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+        every { group.state } returns "active"
+        every { group.lastMessageAt } returns lastMessageAt
+        every { marmot.groups } returns MutableStateFlow(listOf(group))
+
+        val snapshot = collector.collect().groups.first()
+        val seconds = snapshot.secondsSinceLastEvent
+        assertNotNull(seconds)
+        assertTrue(seconds!! >= 0)
+    }
+
+    @Test
+    fun groupSnapshot_secondsSinceLastEvent_isNullWhenGroupHasNoLastMessageAt() = runTest {
+        val group = mockk<Group>(relaxed = true)
+        every { group.mlsGroupId } returns "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+        every { group.state } returns "active"
+        every { group.lastMessageAt } returns null
+        every { marmot.groups } returns MutableStateFlow(listOf(group))
+
+        // null lastMessageAt must stay null ("never recorded"), not 0 ("just now").
+        assertNull(collector.collect().groups.first().secondsSinceLastEvent)
+    }
+
     // MARK: - Settings mapping
 
     @Test
@@ -132,21 +162,7 @@ class DiagnosticsCollectorTest {
         assertEquals(false, relays.first { it.url == "wss://beta.example" }.enabled)
     }
 
-    // MARK: - Volatile / last-event
-
-    @Test
-    fun secondsSinceLastEvent_isNull_whenNeverRecorded() = runTest {
-        every { settings.lastEventTimestamp } returns 0UL
-        assertNull(collector.collect().volatile.secondsSinceLastGroupEvent)
-    }
-
-    @Test
-    fun secondsSinceLastEvent_isNonNegative_whenRecorded() = runTest {
-        every { settings.lastEventTimestamp } returns (System.currentTimeMillis() / 1000 - 60).toULong()
-        val seconds = collector.collect().volatile.secondsSinceLastGroupEvent
-        assertNotNull(seconds)
-        assertTrue(seconds!! >= 0)
-    }
+    // MARK: - Volatile / generatedAt
 
     @Test
     fun generatedAt_isIso8601Utc() = runTest {

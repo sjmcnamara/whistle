@@ -6,7 +6,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.findmyfam.shared.models.NostrIdentity
 import org.json.JSONObject
+import rust.nostr.sdk.PublicKey
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,10 +35,20 @@ class NicknameStore @Inject constructor(
     }
 
     /**
-     * Get the display name for a pubkey, or return a short hex fallback.
+     * Get the display name for a pubkey, or fall back to an abbreviated npub.
+     *
+     * The npub form (rather than a raw hex prefix) matters most for the
+     * places a nickname-less pubkey reaches the UI -- a pending join request,
+     * or a pending-welcome sender -- since it's the same string the person
+     * can read out from their own Identity card, giving an actual
+     * out-of-band way to match "is this really who I think it is" instead of
+     * meaningless hex characters.
      */
     fun displayName(pubkeyHex: String): String {
-        return _nicknames.value[pubkeyHex] ?: "${pubkeyHex.take(8)}..."
+        _nicknames.value[pubkeyHex]?.let { return it }
+        return runCatching {
+            NostrIdentity(npub = PublicKey.parse(publicKey = pubkeyHex).toBech32(), publicKeyHex = pubkeyHex).shortNpub
+        }.getOrElse { "${pubkeyHex.take(8)}..." }
     }
 
     /**

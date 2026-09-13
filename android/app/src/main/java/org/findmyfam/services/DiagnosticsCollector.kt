@@ -49,6 +49,7 @@ class DiagnosticsCollector @Inject constructor(
             pubkeyPrefix = DiagnosticsReport.shortHex(myPubkey)
         )
 
+        val now = System.currentTimeMillis() / 1000
         val groups = marmotService.groups.value.filter { it.isActive }.map { group ->
             val detail = runCatching { mls.getGroup(group.mlsGroupId) }.getOrNull()
             val admins = detail?.adminPubkeys ?: emptyList()
@@ -59,7 +60,10 @@ class DiagnosticsCollector @Inject constructor(
                 adminCount = admins.size,
                 isAdmin = myPubkey in admins,
                 healthy = !marmotService.healthTracker.isUnhealthy(group.mlsGroupId),
-                consecutiveFailures = marmotService.healthTracker.failureCount(group.mlsGroupId)
+                consecutiveFailures = marmotService.healthTracker.failureCount(group.mlsGroupId),
+                // group.lastMessageAt advances on any MLS event (location,
+                // chat, nickname, commit) -- null means never recorded.
+                secondsSinceLastEvent = group.lastMessageAt?.let { maxOf(0L, now - it.toLong()).toInt() }
             )
         }
 
@@ -83,16 +87,7 @@ class DiagnosticsCollector @Inject constructor(
         val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
-        val lastEvent = settings.lastEventTimestamp
-        val volatile = DiagnosticsReport.Volatile(
-            generatedAt = iso.format(Date()),
-            // 0 means "never recorded" rather than "just now", so report null.
-            secondsSinceLastGroupEvent = if (lastEvent == 0UL) {
-                null
-            } else {
-                maxOf(0L, System.currentTimeMillis() / 1000 - lastEvent.toLong()).toInt()
-            }
-        )
+        val volatile = DiagnosticsReport.Volatile(generatedAt = iso.format(Date()))
 
         val recentFailures = marmotService.healthTracker.failureTypeCountsSnapshot().map { (type, count) ->
             DiagnosticsReport.FailureCount(type = type, count = count)

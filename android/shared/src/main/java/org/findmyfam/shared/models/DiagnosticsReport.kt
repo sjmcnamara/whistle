@@ -64,7 +64,10 @@ data class DiagnosticsReport(
         val isAdmin: Boolean,
         /** From GroupHealthTracker — whether recent MLS operations failed. */
         val healthy: Boolean,
-        val consecutiveFailures: Int
+        val consecutiveFailures: Int,
+        /** Seconds since this device last processed an MLS event for *this*
+         *  group specifically. Null if never recorded (e.g. just joined). */
+        val secondsSinceLastEvent: Int?
     )
 
     data class RelaySnapshot(val url: String, val enabled: Boolean, val connected: Boolean)
@@ -85,9 +88,7 @@ data class DiagnosticsReport(
 
     data class Volatile(
         /** ISO-8601, UTC. */
-        val generatedAt: String,
-        /** Seconds since this device last processed any group event. */
-        val secondsSinceLastGroupEvent: Int?
+        val generatedAt: String
     )
 
     /** Groups sorted by id, relays by url, failures by type. */
@@ -122,6 +123,7 @@ data class DiagnosticsReport(
                     put("id", it.id)
                     put("isAdmin", it.isAdmin)
                     put("memberCount", it.memberCount)
+                    put("secondsSinceLastEvent", it.secondsSinceLastEvent ?: JSONObject.NULL)
                 }
             }))
             put("identity", JSONObject().apply { put("pubkeyPrefix", identity.pubkeyPrefix) })
@@ -148,18 +150,21 @@ data class DiagnosticsReport(
             })
             put("volatile", JSONObject().apply {
                 put("generatedAt", volatile.generatedAt)
-                put(
-                    "secondsSinceLastGroupEvent",
-                    volatile.secondsSinceLastGroupEvent ?: JSONObject.NULL
-                )
             })
         }
         return renderSorted(root, 0) + "\n"
     }
 
     companion object {
-        /** Bumped when the shape changes, so an old report is still readable. */
-        const val SCHEMA_VERSION = 1
+        /**
+         * Bumped when the shape changes, so an old report is still readable.
+         *
+         * v2: moved `secondsSinceLastEvent` from a single device-wide
+         * `Volatile` field into each `GroupSnapshot` -- with multiple groups,
+         * one global timestamp only reflected whichever group updated most
+         * recently and hid a different group silently stalling out.
+         */
+        const val SCHEMA_VERSION = 2
 
         /**
          * Truncate a hex key to the 8-character prefix used throughout the

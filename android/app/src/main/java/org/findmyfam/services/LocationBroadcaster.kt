@@ -75,8 +75,14 @@ class LocationBroadcaster @Inject constructor(
         val myPubkey = identity.publicKeyHex ?: return null
         val groups = marmotService.groups.value.filter { it.isActive }
         for (group in groups) {
-            // Cache locally so the map shows our own pin
+            // Cache locally so the map shows our own pin, even in a group
+            // where outbound sharing is paused (see pausedGroupIds below) --
+            // pausing stops what we send others, not what we see of ourselves.
             locationCache.update(group.mlsGroupId, myPubkey, payload)
+        }
+        val pausedGroupIds = settings.pausedGroupIds
+        for (group in groups) {
+            if (group.mlsGroupId in pausedGroupIds) continue
             // Broadcast to group
             scope.launch {
                 try {
