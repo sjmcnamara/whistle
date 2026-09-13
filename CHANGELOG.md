@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.9.0] — 2026-09-12
+
+### Added
+- **(iOS) Per-group location-sharing pause.** Previously the only pause control was the global "Pause Sharing" switch in Settings, which stopped CoreLocation entirely — all-or-nothing across every group. Group Detail now has its own "Pause Sharing to This Group" toggle (`AppSettings.pausedGroupIds`) that skips just that group's outbound broadcast in `AppViewModel.broadcastLocation`; you keep receiving and viewing everyone else's location in that group as normal, and the global switch still overrides every group at once when it's on. A paused group shows a "Paused" badge in the group list so it's not silently indistinguishable from an actively-sharing one.
+- **(iOS) Diagnostics' last-event timestamp is now per-group.** `secondsSinceLastGroupEvent` was a single device-wide value in `DiagnosticsReport.Volatile` — with multiple groups it could only reflect whichever one updated most recently, hiding a different group silently stalling out. Moved into each `GroupSnapshot` as `secondsSinceLastEvent`, computed from that specific group's own MDK `lastMessageAt`. Bumped `DiagnosticsReport.schemaVersion` to 2 for the shape change.
+
+### Changed
+- **(iOS) Nickname-less members now show an abbreviated npub instead of a raw hex prefix.** `NicknameStore`'s fallback (used whenever no nickname is set) previously showed 8 raw hex characters — meaningless to compare against anything. It now bech32-encodes the pubkey and abbreviates it the same way `IdentityCardView` already does (`npub1abc...xyz`), reusing the existing `NostrIdentity.shortNpub` format. This matters most for the two places a nickname-less pubkey reaches the UI before someone has joined a group — the pending-join-request row and the admin's join-approval banner — since it's now the same string the joiner can read aloud from their own Identity card, giving an actual out-of-band way to check "is this really who I think it is" instead of eight characters with nothing to match them against.
+
 ## [1.8.16] — 2026-09-11
 
 ### Fixed

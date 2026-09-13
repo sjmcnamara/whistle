@@ -50,6 +50,7 @@ struct GroupDetailView: View {
                 invitePeopleSection
             }
             membersSection
+            locationSharingSection
             leaveSection
 
             if let error = viewModel.error {
@@ -172,7 +173,9 @@ struct GroupDetailView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(joiner.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Anonymous")
-                        Text(joiner.pubkey.prefix(16) + "…")
+                        // Abbreviated npub, not raw hex — matchable against what
+                        // the joiner can read off their own Identity card.
+                        Text(viewModel.displayIdentifier(for: joiner.pubkey))
                             .font(.caption2.monospaced())
                             .foregroundStyle(.secondary)
                     }
@@ -260,6 +263,30 @@ struct GroupDetailView: View {
             }
         } header: {
             Text("Members (\(viewModel.members.count))")
+        }
+    }
+
+    // MARK: - Location sharing
+
+    /// Pauses only this group's outbound broadcast — the user keeps receiving
+    /// and viewing everyone else's location here. The global "Pause Sharing"
+    /// switch in Settings still overrides this for every group at once.
+    private var locationSharingSection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { appViewModel.settings.pausedGroupIds.contains(viewModel.groupId) },
+                set: { paused in
+                    if paused {
+                        appViewModel.settings.pausedGroupIds.insert(viewModel.groupId)
+                    } else {
+                        appViewModel.settings.pausedGroupIds.remove(viewModel.groupId)
+                    }
+                }
+            )) {
+                Label("Pause Sharing to This Group", systemImage: "location.slash")
+            }
+        } footer: {
+            Text("You'll stop sending your location here, but you'll still see everyone else's.")
         }
     }
 

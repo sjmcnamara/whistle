@@ -703,7 +703,7 @@ final class AppViewModel: ObservableObject {
             }
         }
 
-        for group in activeGroups {
+        for group in activeGroups where !settings.pausedGroupIds.contains(group.mlsGroupId) {
             do {
                 try await marmot.sendLocationUpdate(payload, toGroup: group.mlsGroupId)
                 WhistleLogger.location.info("Location sent to group \(group.mlsGroupId)")

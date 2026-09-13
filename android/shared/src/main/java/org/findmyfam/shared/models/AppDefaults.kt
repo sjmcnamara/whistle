@@ -34,6 +34,7 @@ object AppDefaults {
         const val processedEventIds = "fmf.processedEventIds"
         const val pendingLeaveRequests = "fmf.pendingLeaveRequests"
         const val pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
+        const val pausedGroupIds = "fmf.pausedGroupIds"
         const val keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
         const val appearance = "fmf.appearance"
         const val locationFuzzMeters = "fmf.locationFuzzMeters"

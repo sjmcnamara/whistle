@@ -28,6 +28,7 @@ public enum AppDefaults {
         public static let processedEventIds = "fmf.processedEventIds"
         public static let pendingLeaveRequests = "fmf.pendingLeaveRequests"
         public static let pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
+        public static let pausedGroupIds = "fmf.pausedGroupIds"
         public static let keyRotationIntervalDays = "fmf.keyRotationIntervalDays"
         public static let appearance = "fmf.appearance"
         public static let locationFuzzMeters = "fmf.locationFuzzMeters"

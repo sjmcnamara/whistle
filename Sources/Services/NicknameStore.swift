@@ -1,4 +1,6 @@
 import Foundation
+import NostrSDK
+import WhistleCore
 
 /// Local store for member display names, backed by UserDefaults.
 ///
@@ -22,9 +24,24 @@ final class NicknameStore: ObservableObject {
         if !skipLoad { load() }
     }
 
-    /// Get the display name for a pubkey, or return a short hex fallback.
+    /// Get the display name for a pubkey, or fall back to an abbreviated npub.
+    ///
+    /// The npub form (rather than a raw hex prefix) matters most for the two
+    /// places a nickname-less pubkey reaches the UI — a pending join request,
+    /// or an admin's join-approval banner — since it's the same string the
+    /// person can read out from their own Identity card, giving an actual
+    /// out-of-band way to match "is this really who I think it is" instead of
+    /// eight meaningless hex characters.
     func displayName(for pubkeyHex: String) -> String {
-        nicknames[pubkeyHex] ?? (String(pubkeyHex.prefix(8)) + "…")
+        if let name = nicknames[pubkeyHex] { return name }
+        return Self.npubFallback(for: pubkeyHex)
+    }
+
+    private static func npubFallback(for pubkeyHex: String) -> String {
+        guard let npub = try? NostrSDK.PublicKey.parse(publicKey: pubkeyHex).toBech32() else {
+            return String(pubkeyHex.prefix(8)) + "…"
+        }
+        return NostrIdentity(npub: npub, publicKeyHex: pubkeyHex).shortNpub
     }
 
     /// Set a nickname for a pubkey. Empty strings remove the entry.

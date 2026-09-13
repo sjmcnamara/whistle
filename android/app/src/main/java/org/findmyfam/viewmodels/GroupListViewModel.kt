@@ -37,7 +37,10 @@ class GroupListViewModel @Inject constructor(
         val memberCount: Int,
         val lastActivity: Long?, // epoch seconds
         val isActive: Boolean,
-        val hasUnread: Boolean = false
+        val hasUnread: Boolean = false,
+        /** Whether the user has paused their own outbound sharing to this
+         *  group (see [AppSettings.pausedGroupIds]) — independent of [isActive]. */
+        val isSharingPaused: Boolean = false
     )
 
     // --- Published state ---
@@ -121,6 +124,15 @@ class GroupListViewModel @Inject constructor(
                 }
             }
         }
+        // Reflect per-group pause toggles immediately, without waiting for the
+        // next marmotService.groups emission to rebuild the whole list.
+        viewModelScope.launch {
+            settings.pausedGroupIdsFlow.collect { paused ->
+                _groups.value = _groups.value.map {
+                    it.copy(isSharingPaused = it.id in paused)
+                }
+            }
+        }
     }
 
     /** Mark a group as read — call when the user opens a group chat. */
@@ -166,7 +178,8 @@ class GroupListViewModel @Inject constructor(
                 memberCount = memberCounts[group.mlsGroupId] ?: 0,
                 lastActivity = lastMessageEpoch,
                 isActive = group.state == "active",
-                hasUnread = hasUnread
+                hasUnread = hasUnread,
+                isSharingPaused = group.mlsGroupId in settings.pausedGroupIds
             )
         }.filter { !pendingLeaveStore.contains(it.id) }
 

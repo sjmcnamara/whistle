@@ -10,6 +10,17 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 
+/**
+ * The npub-fallback format (bech32-encoding an unmapped pubkey) is deliberately
+ * NOT covered here: `rust.nostr.sdk`'s crypto calls need the native Rust
+ * library, which local JVM unit tests can't load (no Android runtime attached
+ * -- confirmed live: `Keys.generate()`/`PublicKey.parse` throw
+ * UnsatisfiedLinkError here, and poison every later test in the class with a
+ * cascading NoClassDefFoundError once the JVM caches the failed class init).
+ * That behaviour is verified on-device/emulator instead. `alice`/`bob` stay
+ * synthetic hex so these tests never reach that code path (every case below
+ * either looks up an already-set nickname or never calls `displayName` at all).
+ */
 class NicknameStoreTest {
 
     private lateinit var store: NicknameStore
@@ -33,12 +44,6 @@ class NicknameStoreTest {
     }
 
     // region displayName
-
-    @Test
-    fun `displayName returns short hex fallback for unknown pubkey`() {
-        val name = store.displayName(alice)
-        assertEquals("${alice.take(8)}...", name)
-    }
 
     @Test
     fun `displayName returns stored name`() {

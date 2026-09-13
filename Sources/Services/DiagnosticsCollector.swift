@@ -39,6 +39,7 @@ enum DiagnosticsCollector {
             pubkeyPrefix: DiagnosticsReport.shortHex(myPubkey)
         )
 
+        let now = Int(Date().timeIntervalSince1970)
         var groups: [DiagnosticsReport.GroupSnapshot] = []
         if let marmot {
             for group in marmot.groups where group.isActive {
@@ -52,7 +53,10 @@ enum DiagnosticsCollector {
                         adminCount: admins.count,
                         isAdmin: admins.contains(myPubkey),
                         healthy: !marmot.healthTracker.isUnhealthy(groupId: group.mlsGroupId),
-                        consecutiveFailures: marmot.healthTracker.failureCount(for: group.mlsGroupId)
+                        consecutiveFailures: marmot.healthTracker.failureCount(for: group.mlsGroupId),
+                        // group.lastMessageAt advances on any MLS event (location,
+                        // chat, nickname, commit) — nil means never recorded.
+                        secondsSinceLastEvent: group.lastMessageAt.map { max(0, now - Int($0)) }
                     )
                 )
             }
@@ -77,13 +81,7 @@ enum DiagnosticsCollector {
 
         let formatter = ISO8601DateFormatter()
         formatter.timeZone = TimeZone(identifier: "UTC")
-        let volatile = DiagnosticsReport.Volatile(
-            generatedAt: formatter.string(from: Date()),
-            // 0 means "never recorded" rather than "just now", so report nil.
-            secondsSinceLastGroupEvent: settings.lastEventTimestamp == 0
-                ? nil
-                : max(0, Int(Date().timeIntervalSince1970) - Int(settings.lastEventTimestamp))
-        )
+        let volatile = DiagnosticsReport.Volatile(generatedAt: formatter.string(from: Date()))
 
         let recentFailures = (marmot?.healthTracker.failureTypeCountsSnapshot() ?? [:]).map {
             DiagnosticsReport.FailureCount(type: $0.key, count: $0.value)

@@ -27,7 +27,9 @@ struct RootView: View {
             if let approval = appViewModel.pendingApproval {
                 let groupName = appViewModel.groupListViewModel?.groups
                     .first(where: { $0.id == approval.groupId })?.name ?? "a group"
-                Text("\(String(approval.pubkeyHex.prefix(8)))… wants to join \(groupName).")
+                // Abbreviated npub, not raw hex — lets the admin match it against
+                // what the joiner can read off their own Identity card.
+                Text("\(appViewModel.nicknameStore.displayName(for: approval.pubkeyHex)) wants to join \(groupName).")
             }
         }
         .alert("Approval Failed", isPresented: errorBinding) {

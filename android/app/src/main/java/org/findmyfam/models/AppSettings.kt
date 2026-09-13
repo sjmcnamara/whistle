@@ -38,6 +38,7 @@ class AppSettings @Inject constructor(
         private val KEY_PENDING_LEAVE_REQUESTS = AppDefaults.Keys.pendingLeaveRequests
         private val KEY_PENDING_GIFT_WRAP_EVENT_IDS = AppDefaults.Keys.pendingGiftWrapEventIds
         private val KEY_KEY_ROTATION_INTERVAL_DAYS = AppDefaults.Keys.keyRotationIntervalDays
+        private val KEY_PAUSED_GROUP_IDS = AppDefaults.Keys.pausedGroupIds
     }
 
     // --- Relays ---
@@ -298,4 +299,32 @@ class AppSettings @Inject constructor(
 
     val keyRotationIntervalSecs: ULong
         get() = keyRotationIntervalDays.toULong() * 24u * 3600u
+
+    // --- Per-group location-sharing pause ---
+
+    /**
+     * Groups the user has paused *their own* outbound location broadcast to.
+     * Independent of [isLocationPaused] (the global switch): a paused group is
+     * skipped by LocationBroadcaster, but the user keeps receiving and viewing
+     * other members' locations in that group as normal.
+     */
+    private val _pausedGroupIdsFlow = MutableStateFlow(loadPausedGroupIds())
+    val pausedGroupIdsFlow: StateFlow<Set<String>> = _pausedGroupIdsFlow
+
+    var pausedGroupIds: MutableSet<String>
+        get() = _pausedGroupIdsFlow.value.toMutableSet()
+        set(value) {
+            val arr = JSONArray()
+            for (id in value) arr.put(id)
+            prefs.edit().putString(KEY_PAUSED_GROUP_IDS, arr.toString()).apply()
+            _pausedGroupIdsFlow.value = value.toSet()
+        }
+
+    private fun loadPausedGroupIds(): Set<String> {
+        val json = prefs.getString(KEY_PAUSED_GROUP_IDS, null) ?: return emptySet()
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { arr.getString(it) }.toSet()
+        } catch (_: Exception) { emptySet() }
+    }
 }

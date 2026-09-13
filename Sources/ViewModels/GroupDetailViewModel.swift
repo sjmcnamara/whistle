@@ -287,6 +287,14 @@ final class GroupDetailViewModel: ObservableObject {
         }
     }
 
+    /// Display identifier for a pubkey with no group membership yet (e.g. a
+    /// pending joiner) — a nickname if one is already known, otherwise an
+    /// abbreviated npub the admin can match against what the joiner reads off
+    /// their own Identity card, rather than meaningless raw hex.
+    func displayIdentifier(for pubkeyHex: String) -> String {
+        nicknameStore.displayName(for: pubkeyHex)
+    }
+
     /// Whether the current user is an admin of this group.
     var isAdmin: Bool {
         members.first(where: \.isMe)?.isAdmin ?? false

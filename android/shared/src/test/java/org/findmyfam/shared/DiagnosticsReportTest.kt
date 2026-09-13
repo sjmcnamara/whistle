@@ -3,13 +3,15 @@ package org.findmyfam.shared
 import org.findmyfam.shared.models.DiagnosticsReport
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DiagnosticsReportTest {
 
-    private fun group(id: String, epoch: Long = 1L) = DiagnosticsReport.GroupSnapshot(
+    private fun group(id: String, epoch: Long = 1L, secondsSinceLastEvent: Int? = 42) = DiagnosticsReport.GroupSnapshot(
         id = id, epoch = epoch, memberCount = 3, adminCount = 1,
-        isAdmin = true, healthy = true, consecutiveFailures = 0
+        isAdmin = true, healthy = true, consecutiveFailures = 0,
+        secondsSinceLastEvent = secondsSinceLastEvent
     )
 
     private fun report(
@@ -24,7 +26,7 @@ class DiagnosticsReportTest {
         relays = relays,
         settings = DiagnosticsReport.Settings(3600, true, 0, 7, false),
         recentFailures = failures,
-        volatile = DiagnosticsReport.Volatile(generatedAt, 42)
+        volatile = DiagnosticsReport.Volatile(generatedAt)
     )
 
     // region deterministic ordering
@@ -130,6 +132,30 @@ class DiagnosticsReportTest {
     @Test
     fun `schema version is recorded`() {
         assertEquals(DiagnosticsReport.SCHEMA_VERSION, report().schema)
-        assertTrue(report().toJson().contains("\"schema\": 1"))
+        assertTrue(report().toJson().contains("\"schema\": 2"))
     }
+
+    // region per-group last-event (v2: moved out of Volatile)
+
+    @Test
+    fun `secondsSinceLastEvent is per group not device wide`() {
+        // With multiple groups, a single device-wide timestamp only reflects
+        // whichever group updated most recently and hides a stalled one --
+        // this is exactly what moving the field into GroupSnapshot fixes.
+        val r = report(groups = listOf(
+            group("aaaaaaaa", secondsSinceLastEvent = 10),
+            group("bbbbbbbb", secondsSinceLastEvent = 90_000)
+        ))
+        assertEquals(10, r.groups.first { it.id == "aaaaaaaa" }.secondsSinceLastEvent)
+        assertEquals(90_000, r.groups.first { it.id == "bbbbbbbb" }.secondsSinceLastEvent)
+    }
+
+    @Test
+    fun `group snapshot allows null secondsSinceLastEvent`() {
+        // null means "never recorded" and must stay distinct from 0 ("just now").
+        val r = report(groups = listOf(group("aaaaaaaa", secondsSinceLastEvent = null)))
+        assertNull(r.groups.first().secondsSinceLastEvent)
+    }
+
+    // endregion
 }
