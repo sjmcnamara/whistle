@@ -87,6 +87,14 @@ struct GroupRowView: View {
                     .padding(.vertical, 2)
                     .background(.orange.opacity(0.1))
                     .clipShape(Capsule())
+            } else if group.isSharingPaused {
+                Label("Paused", systemImage: "location.slash")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(.secondary.opacity(0.1))
+                    .clipShape(Capsule())
             }
         }
         .padding(.vertical, 4)

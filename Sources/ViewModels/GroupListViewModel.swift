@@ -66,6 +66,9 @@ final class GroupListViewModel: ObservableObject {
         let lastActivity: Date?
         let isActive: Bool
         var hasUnread: Bool = false
+        /// Whether the user has paused their own outbound sharing to this group
+        /// (see `AppSettings.pausedGroupIds`) — independent of `isActive`.
+        var isSharingPaused: Bool = false
     }
 
     // MARK: - Init
@@ -116,6 +119,19 @@ final class GroupListViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] requests in
                 self?.pendingAdminActionGroupIds = Set(requests.filter { !$0.value.isEmpty }.keys)
+            }
+            .store(in: &cancellables)
+
+        // Reflect per-group pause toggles immediately, without waiting for the
+        // next marmot.$groups emission to rebuild the whole list.
+        settings.$pausedGroupIds
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] paused in
+                guard let self else { return }
+                for idx in self.groups.indices {
+                    self.groups[idx].isSharingPaused = paused.contains(self.groups[idx].id)
+                }
             }
             .store(in: &cancellables)
 
@@ -174,7 +190,8 @@ final class GroupListViewModel: ObservableObject {
                 memberCount: memberCounts[group.mlsGroupId] ?? 0,
                 lastActivity: lastMessageEpoch.map { Date(timeIntervalSince1970: $0) },
                 isActive: group.isActive,
-                hasUnread: hasUnread
+                hasUnread: hasUnread,
+                isSharingPaused: settings.pausedGroupIds.contains(group.mlsGroupId)
             ))
         }
         let pendingWelcomeIds = Set(pendingWelcomeStore.pendingWelcomes.map(\.mlsGroupId))

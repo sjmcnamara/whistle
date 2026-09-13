@@ -18,13 +18,14 @@ final class DiagnosticsReportTests: XCTestCase {
             settings: .init(locationIntervalSeconds: 3600, movementAware: true,
                             locationFuzzMeters: 0, keyRotationDays: 7, locationPaused: false),
             recentFailures: failures,
-            volatile: .init(generatedAt: generatedAt, secondsSinceLastGroupEvent: 42)
+            volatile: .init(generatedAt: generatedAt)
         )
     }
 
-    private func group(_ id: String, epoch: UInt64 = 1) -> DiagnosticsReport.GroupSnapshot {
+    private func group(_ id: String, epoch: UInt64 = 1, secondsSinceLastEvent: Int? = 42) -> DiagnosticsReport.GroupSnapshot {
         .init(id: id, epoch: epoch, memberCount: 3, adminCount: 1,
-              isAdmin: true, healthy: true, consecutiveFailures: 0)
+              isAdmin: true, healthy: true, consecutiveFailures: 0,
+              secondsSinceLastEvent: secondsSinceLastEvent)
     }
 
     // MARK: - Deterministic ordering
@@ -103,6 +104,26 @@ final class DiagnosticsReportTests: XCTestCase {
 
     func testSchemaVersionIsRecorded() {
         XCTAssertEqual(report().schema, DiagnosticsReport.schemaVersion)
+    }
+
+    // MARK: - Per-group last-event (v2: moved out of Volatile)
+
+    func testSecondsSinceLastEventIsPerGroupNotDeviceWide() throws {
+        // With multiple groups, a single device-wide timestamp only reflects
+        // whichever group updated most recently and hides a stalled one — this
+        // is exactly what moving the field into GroupSnapshot fixes.
+        let r = report(groups: [
+            group("aaaaaaaa", secondsSinceLastEvent: 10),
+            group("bbbbbbbb", secondsSinceLastEvent: 90_000)
+        ])
+        XCTAssertEqual(r.groups.first { $0.id == "aaaaaaaa" }?.secondsSinceLastEvent, 10)
+        XCTAssertEqual(r.groups.first { $0.id == "bbbbbbbb" }?.secondsSinceLastEvent, 90_000)
+    }
+
+    func testGroupSnapshotAllowsNilSecondsSinceLastEvent() {
+        // nil means "never recorded" and must stay distinct from 0 ("just now").
+        let r = report(groups: [group("aaaaaaaa", secondsSinceLastEvent: nil)])
+        XCTAssertNil(r.groups.first?.secondsSinceLastEvent)
     }
 
     // MARK: - Privacy

@@ -110,20 +110,7 @@ final class DiagnosticsCollectorTests: XCTestCase {
         XCTAssertEqual(r.relays.first(where: { $0.url == "wss://beta.example" })?.enabled, false)
     }
 
-    // MARK: - Volatile / last-event
-
-    func testSecondsSinceLastEventIsNilWhenNeverRecorded() async {
-        settings.lastEventTimestamp = 0
-        let r = await collect()
-        XCTAssertNil(r.volatile.secondsSinceLastGroupEvent, "0 means never recorded, not just now")
-    }
-
-    func testSecondsSinceLastEventIsNonNegativeWhenRecorded() async throws {
-        settings.lastEventTimestamp = UInt64(Date().timeIntervalSince1970) - 60
-        let r = await collect()
-        let seconds = try XCTUnwrap(r.volatile.secondsSinceLastGroupEvent)
-        XCTAssertGreaterThanOrEqual(seconds, 0)
-    }
+    // MARK: - Volatile / generatedAt
 
     func testGeneratedAtIsISO8601UTC() async {
         let r = await collect()
@@ -137,6 +124,41 @@ final class DiagnosticsCollectorTests: XCTestCase {
     func testIdentityPrefixIsAtMostEightChars() async {
         let r = await collect()
         XCTAssertLessThanOrEqual(r.identity.pubkeyPrefix.count, 8)
+    }
+
+    // MARK: - Per-group last-event (v2: moved out of Volatile into GroupSnapshot)
+
+    func testGroupSnapshotSecondsSinceLastEventMatchesThatGroupsLastMessageAt() async throws {
+        let mockRelay = MockRelayService()
+        let marmotMLS = MLSService()
+        try await marmotMLS.initialiseInMemory()
+        let keys = Keys.generate()
+        let marmot = MarmotService(
+            relay: mockRelay,
+            mls: marmotMLS,
+            publicKeyHex: keys.publicKey().toHex(),
+            keys: keys
+        )
+
+        let groupId = try await marmot.createGroup(name: "Test", relays: [])
+        await marmot.refreshGroups()
+
+        let r = await DiagnosticsCollector.collect(
+            marmot: marmot, mls: marmotMLS, identity: identity, settings: settings, relay: relay
+        )
+        let snapshot = try XCTUnwrap(r.groups.first { $0.id == DiagnosticsReport.shortHex(groupId) })
+
+        // Ground truth read straight from MDK, not re-derived, so this catches
+        // the collector reading the wrong (or a device-wide) timestamp.
+        let mdkGroup = try await marmotMLS.getGroup(mlsGroupId: groupId)
+        if let lastMessageAt = mdkGroup?.lastMessageAt {
+            let expected = max(0, Int(Date().timeIntervalSince1970) - Int(lastMessageAt))
+            let actual = try XCTUnwrap(snapshot.secondsSinceLastEvent)
+            XCTAssertLessThanOrEqual(abs(actual - expected), 2)
+        } else {
+            // nil must stay nil ("never recorded"), not 0 ("just now").
+            XCTAssertNil(snapshot.secondsSinceLastEvent)
+        }
     }
 
     // MARK: - Recent failures (GroupHealthTracker failure-type classification)

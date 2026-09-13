@@ -19,7 +19,12 @@ import Foundation
 public struct DiagnosticsReport: Codable, Equatable {
 
     /// Bumped when the shape changes, so an old report is still readable.
-    public static let schemaVersion = 1
+    ///
+    /// v2: moved `secondsSinceLastEvent` from a single device-wide `Volatile`
+    /// field into each `GroupSnapshot` — with multiple groups, one global
+    /// timestamp only reflects whichever group updated most recently and hides
+    /// a different group silently stalling out.
+    public static let schemaVersion = 2
 
     public let schema: Int
     public let app: App
@@ -74,9 +79,13 @@ public struct DiagnosticsReport: Codable, Equatable {
         public let healthy: Bool
         /// Consecutive MLS failures recorded for this group.
         public let consecutiveFailures: Int
+        /// Seconds since this device last processed an MLS event for *this*
+        /// group specifically. `nil` if never recorded (e.g. just joined).
+        public let secondsSinceLastEvent: Int?
 
         public init(id: String, epoch: UInt64, memberCount: Int, adminCount: Int,
-                    isAdmin: Bool, healthy: Bool, consecutiveFailures: Int) {
+                    isAdmin: Bool, healthy: Bool, consecutiveFailures: Int,
+                    secondsSinceLastEvent: Int?) {
             self.id = id
             self.epoch = epoch
             self.memberCount = memberCount
@@ -84,6 +93,7 @@ public struct DiagnosticsReport: Codable, Equatable {
             self.isAdmin = isAdmin
             self.healthy = healthy
             self.consecutiveFailures = consecutiveFailures
+            self.secondsSinceLastEvent = secondsSinceLastEvent
         }
     }
 
@@ -131,12 +141,9 @@ public struct DiagnosticsReport: Codable, Equatable {
     public struct Volatile: Codable, Equatable {
         /// ISO-8601, UTC.
         public let generatedAt: String
-        /// Seconds since this device last processed any group event.
-        public let secondsSinceLastGroupEvent: Int?
 
-        public init(generatedAt: String, secondsSinceLastGroupEvent: Int?) {
+        public init(generatedAt: String) {
             self.generatedAt = generatedAt
-            self.secondsSinceLastGroupEvent = secondsSinceLastGroupEvent
         }
     }
 

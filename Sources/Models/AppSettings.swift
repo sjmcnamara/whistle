@@ -69,6 +69,14 @@ final class AppSettings: ObservableObject {
         didSet { savePendingLeaveRequests() }
     }
 
+    /// Groups the user has paused *their own* outbound location broadcast to.
+    /// Independent of `isLocationPaused` (the global switch): a paused group is
+    /// skipped by `AppViewModel.broadcastLocation`, but the user keeps receiving
+    /// and viewing other members' locations in that group as normal.
+    @Published var pausedGroupIds: Set<String> {
+        didSet { savePausedGroupIds() }
+    }
+
     /// Gift-wrap (welcome) event IDs that have failed due to missing key package.
     /// Re-tried after key package refresh.
     @Published var pendingGiftWrapEventIds: Set<String> {
@@ -165,6 +173,13 @@ final class AppSettings: ObservableObject {
         } else {
             self.pendingGiftWrapEventIds = []
         }
+
+        if let data = UserDefaults.standard.data(forKey: Keys.pausedGroupIds),
+           let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            self.pausedGroupIds = decoded
+        } else {
+            self.pausedGroupIds = []
+        }
     }
 
     private func save() {
@@ -188,6 +203,12 @@ final class AppSettings: ObservableObject {
     private func savePendingGiftWrapEventIds() {
         if let data = try? JSONEncoder().encode(pendingGiftWrapEventIds) {
             UserDefaults.standard.set(data, forKey: Keys.pendingGiftWrapEventIds)
+        }
+    }
+
+    private func savePausedGroupIds() {
+        if let data = try? JSONEncoder().encode(pausedGroupIds) {
+            UserDefaults.standard.set(data, forKey: Keys.pausedGroupIds)
         }
     }
 }

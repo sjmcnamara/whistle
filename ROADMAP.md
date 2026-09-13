@@ -540,6 +540,15 @@ _Released 2026-09-11_
 - **(Android) `ensureSubscriptionsActive()` could false-positive on a dead relay connection.** Checked only whether the subscription coroutine was still `isActive`, not whether the relay it depended on was actually connected — Doze/network loss can kill the socket without the coroutine ever throwing. Now also checks `RelayService.hasConnectedRelays()`.
 - **(Android) `ACCESS_BACKGROUND_LOCATION` was declared but never requested at runtime.** `MapScreen` only asked for fine/coarse; now requests background location as a separate follow-up once foreground location is granted (Android disallows batching the two together from API 30+).
 
+### v1.9.0 — Per-group location controls & diagnostics ✅
+_Released 2026-09-12_
+
+- **(iOS) Per-group location-sharing pause.** The only pause control was the global "Pause Sharing" switch, which stopped CoreLocation entirely — all-or-nothing across every group. Group Detail now has its own "Pause Sharing to This Group" toggle (`AppSettings.pausedGroupIds`), which skips just that group in `AppViewModel.broadcastLocation`'s send loop — you keep receiving and viewing everyone else's location there as normal. The global switch still overrides every group at once when it's on. A paused group shows a "Paused" badge in the group list.
+- **(iOS) Diagnostics' last-event timestamp is now per-group.** `secondsSinceLastGroupEvent` was a single device-wide value in `DiagnosticsReport.Volatile` — with multiple groups it could only reflect whichever one updated most recently, hiding a different group silently stalling out. Moved into each `GroupSnapshot` as `secondsSinceLastEvent`, computed from that group's own MDK `lastMessageAt`. `DiagnosticsReport.schemaVersion` bumped to 2.
+- **(iOS) Nickname-less members now show an abbreviated npub instead of a raw hex prefix.** `NicknameStore`'s fallback showed 8 raw hex characters, useless to compare against anything. It now bech32-encodes and abbreviates the same way `IdentityCardView` does (`npub1abc...xyz`, via the existing `NostrIdentity.shortNpub`). Matters most for the pending-join-request row and the admin's join-approval banner — the one place a nickname-less pubkey reaches the UI before someone has joined — since it's now the same string the joiner can read off their own Identity card, giving an actual out-of-band identity check instead of unmatchable hex.
+
+    _Deliberately out of scope for this release_: a per-relay "last synced" diagnostic (nothing currently tracks per-relay last-success, only aggregate `connected: Bool`) — real instrumentation work in `RelayService`/`MarmotService`'s subscription handling, scoped separately; and the diagnostics group-id truncation (`DiagnosticsReport.shortHex`, 8 hex chars) is unchanged — MLS group ids have no bech32/npub-equivalent human-readable encoding, unlike pubkeys, so there's nothing better to show there without weakening the deliberate anonymization the diagnostics report relies on for safe public pasting.
+
 ---
 
 ### Deferred
