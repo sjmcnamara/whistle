@@ -88,16 +88,30 @@ jobs:
           BUILD_TOOLS=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
           "$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner" verify --verbose "${{ steps.stage.outputs.versioned }}"
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.stage.outputs.tag }}" \
-            "${{ steps.stage.outputs.versioned }}" \
-            "${{ steps.stage.outputs.versioned }}.sha256" \
-            whistle.apk whistle.apk.sha256 \
-            --generate-notes \
-            --title "${{ steps.stage.outputs.tag }}"
+          TAG="${{ steps.stage.outputs.tag }}"
+          # release-ios.yml tags the same push and may have already created
+          # the release for this tag -- upload into it if so, rather than
+          # racing `gh release create` against it (both workflows fire from
+          # the same tag push; whichever runs second used to fail outright
+          # here since `gh release create` errors on an existing tag).
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "${{ steps.stage.outputs.versioned }}" \
+              "${{ steps.stage.outputs.versioned }}.sha256" \
+              whistle.apk whistle.apk.sha256 \
+              --clobber
+          else
+            gh release create "$TAG" \
+              "${{ steps.stage.outputs.versioned }}" \
+              "${{ steps.stage.outputs.versioned }}.sha256" \
+              whistle.apk whistle.apk.sha256 \
+              --generate-notes \
+              --title "$TAG"
+          fi
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
