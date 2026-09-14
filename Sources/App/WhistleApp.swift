@@ -8,6 +8,7 @@ struct WhistleApp: App {
 
     @StateObject private var appViewModel = AppViewModel()
     @StateObject private var appLockService = AppLockService(settings: AppSettings.shared)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AppDefaults.Keys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
 

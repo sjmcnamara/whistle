@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.9.1] — 2026-09-14
+
+### Fixed
+- **(iOS) No provable story for surviving a background kill or device reboot — unlike Android's v1.8.16 fix, this had never been verified or even instrumented.** `Info.plist` declared `UIBackgroundModes: [location, fetch]`, but `fetch` was dead weight — background fetch needs an `AppDelegate` to receive `application(_:performFetchWithCompletionHandler:)`, and this app had none at all (pure SwiftUI App lifecycle). The `location` mode does work — `LocationService` correctly sets `allowsBackgroundLocationUpdates` and runs `startMonitoringSignificantLocationChanges()`, which is what lets iOS relaunch a terminated app (including after a reboot) when a new location event fires — but nothing in the codebase ever checked *why* a launch happened, so this was an unverified assumption riding on CoreLocation's documented behavior plus an emergent side effect of SwiftUI always instantiating the view tree on any process launch. Added a minimal `AppDelegate` (`@UIApplicationDelegateAdaptor`) whose only job is checking `launchOptions[.location]` and logging it explicitly, so a location/reboot-triggered relaunch is now provable rather than assumed. Removed the dead `fetch` background mode from `Info.plist`/`project.yml` since nothing has ever implemented it. The actual startup sequence (`AppViewModel.performFullStartup()`) is unchanged — it already runs on every launch via the root view's `.task`, headless or not; this fix adds visibility, not a new code path.
+
 ## [1.9.0] — 2026-09-12
 
 ### Added
