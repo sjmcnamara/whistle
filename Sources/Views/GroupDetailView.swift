@@ -342,6 +342,7 @@ private struct MemberRowView: View {
     var allowManage: Bool = true
 
     @State private var showResyncConfirm = false
+    @State private var showPubkey = false
 
     private var isResyncing: Bool {
         viewModel.resyncingMemberPubkey == member.pubkeyHex
@@ -373,6 +374,11 @@ private struct MemberRowView: View {
             if isResyncing {
                 ProgressView().controlSize(.small)
             }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { showPubkey = true }
+        .sheet(isPresented: $showPubkey) {
+            MemberPubkeySheet(member: member, npub: viewModel.fullNpub(for: member.pubkeyHex))
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if allowManage && viewModel.isAdmin && !member.isMe {
@@ -413,6 +419,58 @@ private struct MemberRowView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("They'll be briefly removed and re-added to rebuild encryption keys. Use this only if messages still can't be decrypted after a normal resync.")
+        }
+    }
+}
+
+// MARK: - Member pubkey reveal (out-of-band identity verification)
+
+/// Lets you verify a *named* member's identity by comparing their full npub
+/// against what they read off their own Identity card — a nickname-less
+/// member already shows an abbreviated npub in place of a name, but once a
+/// nickname is cached there was previously no way to see the pubkey behind it.
+private struct MemberPubkeySheet: View {
+    let member: GroupDetailViewModel.MemberItem
+    let npub: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Button {
+                        UIPasteboard.general.string = npub
+                        withAnimation(.spring(duration: 0.2)) { copied = true }
+                        Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            withAnimation(.spring(duration: 0.2)) { copied = false }
+                        }
+                    } label: {
+                        HStack(alignment: .top) {
+                            Text(npub)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.primary)
+                                .lineLimit(4)
+                            Spacer(minLength: 8)
+                            Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
+                                .foregroundStyle(copied ? .green : .blue)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text(member.displayName)
+                } footer: {
+                    Text("Compare against the npub they read off their own Identity card to confirm this is really who you think it is.")
+                }
+            }
+            .navigationTitle("Member Identity")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }

@@ -297,6 +297,16 @@ class GroupDetailViewModel(
         get() = DiagnosticsReport.shortHex(groupId)
 
     /**
+     * Full npub for a member -- lets you verify a *named* member's identity
+     * out-of-band by comparing it against what they read off their own
+     * Identity card. Unlike a nickname-less fallback (which already shows an
+     * abbreviated npub in place of a name), a member with a cached nickname
+     * otherwise has no way to reveal the pubkey backing that name.
+     */
+    fun fullNpub(pubkeyHex: String): String =
+        try { PublicKey.parse(publicKey = pubkeyHex).toBech32() } catch (_: Exception) { pubkeyHex }
+
+    /**
      * Whether the current user is an admin of this group.
      */
     val isAdmin: Boolean

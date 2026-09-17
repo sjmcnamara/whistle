@@ -286,6 +286,15 @@ final class GroupDetailViewModel: ObservableObject {
         DiagnosticsReport.shortHex(groupId)
     }
 
+    /// Full npub for a member — lets you verify a *named* member's identity
+    /// out-of-band by comparing it against what they read off their own
+    /// Identity card. Unlike a nickname-less fallback (which already shows an
+    /// abbreviated npub in place of a name), a member with a cached nickname
+    /// otherwise has no way to reveal the pubkey backing that name.
+    func fullNpub(for pubkeyHex: String) -> String {
+        (try? PublicKey.parse(publicKey: pubkeyHex).toBech32()) ?? pubkeyHex
+    }
+
     /// Whether the current user is an admin of this group.
     var isAdmin: Bool {
         members.first(where: \.isMe)?.isAdmin ?? false

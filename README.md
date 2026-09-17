@@ -109,7 +109,7 @@ whistle/
 
 ## Status
 
-v1.10.1 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
+v1.10.2 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Wiki
 

@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.2] — 2026-09-17
+
+### Added
+- **(iOS & Android) Tap a member row on Group Detail to reveal their full npub.** A nickname-less member already shows an abbreviated npub in place of a name, giving an out-of-band way to check "is this really who I think it is" — but once a nickname is cached, there was no way to see the pubkey behind it. Added a tap-to-reveal sheet/dialog showing the full npub with a copy button, so any named member's identity can be verified directly against what they read off their own Identity card.
+
 ## [1.10.1] — 2026-09-17
 
 ### Added

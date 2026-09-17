@@ -141,6 +141,7 @@ fun GroupDetailScreen(
             onRemove = { viewModel.removeMember(it) },
             onResync = { resyncTargetPubkey = it },
             resyncingPubkey = resyncingPubkey,
+            fullNpub = { viewModel.fullNpub(it) },
             onBack = { subScreen = "main" }
         )
         return
@@ -446,7 +447,8 @@ fun GroupDetailScreen(
                         onPromote = { viewModel.promoteToAdmin(it) },
                         onRemove = { viewModel.removeMember(it) },
                         onResync = { resyncTargetPubkey = it },
-                        resyncingPubkey = resyncingPubkey
+                        resyncingPubkey = resyncingPubkey,
+                        fullNpub = { viewModel.fullNpub(it) }
                     )
                 }
                 if (isLarge) {
@@ -588,10 +590,50 @@ private fun MemberListItem(
     onPromote: (String) -> Unit,
     onRemove: (String) -> Unit,
     onResync: (String) -> Unit,
-    resyncingPubkey: String?
+    resyncingPubkey: String?,
+    fullNpub: (String) -> String
 ) {
     val isResyncing = resyncingPubkey == member.pubkeyHex
+    var showPubkey by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var copiedNpub by remember { mutableStateOf(false) }
+
+    if (showPubkey) {
+        AlertDialog(
+            onDismissRequest = { showPubkey = false },
+            title = { Text(member.displayName) },
+            text = {
+                Column {
+                    Text(
+                        fullNpub(member.pubkeyHex),
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Compare against the npub they read off their own Identity card to confirm this is really who you think it is.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("npub", fullNpub(member.pubkeyHex)))
+                    copiedNpub = true
+                }) {
+                    Text(if (copiedNpub) "Copied!" else "Copy npub")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPubkey = false }) { Text("Done") }
+            }
+        )
+    }
+
     ListItem(
+        modifier = Modifier.clickable { showPubkey = true },
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(member.displayName)
@@ -642,6 +684,7 @@ private fun MembersSubScreen(
     onRemove: (String) -> Unit,
     onResync: (String) -> Unit,
     resyncingPubkey: String?,
+    fullNpub: (String) -> String,
     onBack: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
@@ -680,7 +723,8 @@ private fun MembersSubScreen(
                         onPromote = onPromote,
                         onRemove = onRemove,
                         onResync = onResync,
-                        resyncingPubkey = resyncingPubkey
+                        resyncingPubkey = resyncingPubkey,
+                        fullNpub = fullNpub
                     )
                 }
             }

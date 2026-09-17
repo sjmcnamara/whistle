@@ -568,6 +568,13 @@ _Released 2026-09-17_
 
 - **(iOS & Android) Diagnostics exports were impossible to interpret with more than one group.** The diagnostics report deliberately shows only an 8-char group-id prefix per group and no name, to keep a report meant for pasting elsewhere from leaking group names. But nothing on the Group Detail screen showed that same id, so there was no way to match a diagnostics entry back to an actual group. Added a small tap-to-copy "Group ID" row under the member count showing the identical prefix (`DiagnosticsReport.shortHex`) diagnostics already uses.
 
+### v1.10.2 — Reveal a member's npub on Group Detail ✅
+_Released 2026-09-17_
+
+- **(iOS & Android) No way to verify a *named* member's identity out-of-band.** Found while investigating a report of a stale non-"(you)" admin in a long-lived group (`Dublin`) that predates the v1.10.0 leave fix and is unrelated to it — the group's real MLS state apparently retains a member that doesn't match the current device's identity, despite the user confirming (correctly — pull-to-refresh only re-reads MDK's local DB, it can't repopulate a wiped identity) that their npub never changed. Investigation is ongoing; this release just adds the diagnostic tool needed to keep investigating — a nickname-less member already shows an abbreviated npub as a stand-in name (an existing out-of-band identity check), but once a nickname is cached there was no way to see the pubkey behind it. Added a tap-to-reveal sheet/dialog on any member row showing their full npub with a copy button.
+
+    **Known open issue**: the root cause of the stale-admin-in-an-old-group symptom itself is still unresolved — this only adds visibility, not a fix. Next step is comparing the revealed npub directly against the affected user's own Identity card.
+
 ---
 
 ### Deferred
