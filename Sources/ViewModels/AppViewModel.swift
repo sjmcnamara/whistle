@@ -45,11 +45,6 @@ final class AppViewModel: ObservableObject {
     /// Tracks invites where key package was published but Welcome not yet received.
     let pendingInviteStore: PendingInviteStore
 
-    // MARK: - Pending Leaves (v0.8)
-
-    /// Tracks groups where the user requested to leave but admin hasn't processed removal yet.
-    let pendingLeaveStore: PendingLeaveStore
-
     /// Unsolicited Welcomes awaiting user consent before joining.
     let pendingWelcomeStore: PendingWelcomeStore
 
@@ -133,7 +128,6 @@ final class AppViewModel: ObservableObject {
         self.sharedGroupAvatarStore = SharedGroupAvatarStore()
         self.chatMessageCache    = ChatMessageCache()
         self.pendingInviteStore  = PendingInviteStore()
-        self.pendingLeaveStore   = PendingLeaveStore()
         self.pendingWelcomeStore = PendingWelcomeStore()
         self.joinRequestStore    = JoinRequestStore()
 
@@ -428,7 +422,6 @@ final class AppViewModel: ObservableObject {
         marmotService.memberAvatarStore = memberAvatarStore
         marmotService.sharedGroupAvatarStore = sharedGroupAvatarStore
         marmotService.pendingInviteStore = pendingInviteStore
-        marmotService.pendingLeaveStore = pendingLeaveStore
         marmotService.pendingWelcomeStore = pendingWelcomeStore
         marmotService.joinRequestStore = joinRequestStore
         marmotService.settings = settings
@@ -447,10 +440,9 @@ final class AppViewModel: ObservableObject {
 
         await Task.yield()
 
-        // Clean up any pending invites/leaves that were resolved while the app was closed.
+        // Clean up any pending invites that were resolved while the app was closed.
         let activeIds = Set(marmotService.groups.map(\.mlsGroupId))
         pendingInviteStore.removeResolved(activeGroupIds: activeIds)
-        pendingLeaveStore.removeResolved(activeGroupIds: activeIds)
 
         // Clear any dangling pending commits from a previous crash.
         // If the app was killed mid-commit, the MLS state may have a
@@ -472,7 +464,6 @@ final class AppViewModel: ObservableObject {
             marmot: marmotService,
             mls: mls,
             pendingInviteStore: pendingInviteStore,
-            pendingLeaveStore: pendingLeaveStore,
             pendingWelcomeStore: pendingWelcomeStore,
             displayName: { [weak self] in self?.settings.displayName ?? "" }
         )
@@ -778,7 +769,6 @@ final class AppViewModel: ObservableObject {
         // 5. Clear all identity-bound stores
         nicknameStore.clearAll()
         pendingInviteStore.removeAll()
-        pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
         joinRequestStore.removeAll()
         LocalGroupAvatarStore.shared.removeAll()
@@ -792,7 +782,6 @@ final class AppViewModel: ObservableObject {
         // 6. Reset identity-bound settings
         settings.lastEventTimestamp = 0
         settings.processedEventIds = []
-        settings.pendingLeaveRequests = [:]
         settings.pendingGiftWrapEventIds = []
 
         // 7. Clear residual UserDefaults data — chat/read timestamps used by

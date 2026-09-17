@@ -25,7 +25,6 @@ class GroupListViewModel @Inject constructor(
     private val mlsService: MLSService,
     private val settings: AppSettings,
     private val pendingInviteStore: PendingInviteStore,
-    private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore
 ) : ViewModel() {
 
@@ -55,11 +54,7 @@ class GroupListViewModel @Inject constructor(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     val pendingInvites: StateFlow<List<PendingInvite>> = pendingInviteStore.pendingInvites
-    val pendingLeaves: StateFlow<Set<String>> = pendingLeaveStore.pendingLeaves
     val pendingWelcomes: StateFlow<List<PendingWelcomeItem>> = pendingWelcomeStore.pendingWelcomes
-
-    private val _pendingAdminActionGroupIds = MutableStateFlow<Set<String>>(emptySet())
-    val pendingAdminActionGroupIds: StateFlow<Set<String>> = _pendingAdminActionGroupIds.asStateFlow()
 
     /** Dismiss a stale pending invite that will never be accepted. */
     fun cancelPendingInvite(groupHint: String) {
@@ -181,19 +176,11 @@ class GroupListViewModel @Inject constructor(
                 hasUnread = hasUnread,
                 isSharingPaused = group.mlsGroupId in settings.pausedGroupIds
             )
-        }.filter { !pendingLeaveStore.contains(it.id) }
+        }
 
         val pendingWelcomeIds = pendingWelcomeStore.pendingWelcomes.value.map { it.mlsGroupId }.toSet()
 
         _groups.value = items.filter { it.id !in pendingWelcomeIds }
-
-        // Recompute admin action badges
-        _pendingAdminActionGroupIds.value = settings.pendingLeaveRequests
-            .filter { it.value.isNotEmpty() }.keys
-
-        // Clean up pending leaves for groups that no longer exist
-        val activeIds = mdkGroups.map { it.mlsGroupId }.toSet()
-        pendingLeaveStore.removeResolved(activeIds)
     }
 
     // --- Actions ---
@@ -229,9 +216,6 @@ class GroupListViewModel @Inject constructor(
                 val rawCode = invite.encode()
 
                 marmotService.acceptInvite(rawCode)
-
-                // If the user previously left this group, clear the stale pending leave
-                pendingLeaveStore.remove(invite.groupId)
 
                 // Record as pending -- will be auto-removed when Welcome arrives
                 pendingInviteStore.add(
@@ -272,13 +256,12 @@ class GroupListViewModel @Inject constructor(
         }
     }
 
-    fun requestLeaveGroup(groupId: String) {
+    fun leaveGroup(groupId: String) {
         viewModelScope.launch {
             try {
-                marmotService.sendLeaveRequest(groupId = groupId)
-                pendingLeaveStore.add(groupId)
+                marmotService.leaveGroup(groupId = groupId)
             } catch (e: Exception) {
-                Timber.e("Failed to request leave for group $groupId: $e")
+                Timber.e("Failed to leave group $groupId: $e")
             }
         }
     }

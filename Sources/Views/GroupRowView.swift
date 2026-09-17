@@ -4,8 +4,6 @@ import SwiftUI
 struct GroupRowView: View {
     let group: GroupListViewModel.GroupListItem
     var isUnhealthy: Bool = false
-    var isLeaving: Bool = false
-    var hasAdminAction: Bool = false
 
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
     @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
@@ -21,18 +19,12 @@ struct GroupRowView: View {
                         .scaledToFill()
                         .frame(width: 36, height: 36)
                         .clipShape(Circle())
-                        .opacity(group.isActive && !isLeaving ? 1 : 0.4)
+                        .opacity(group.isActive ? 1 : 0.4)
                 } else {
                     Image(systemName: "person.3.fill")
                         .font(.title2)
-                        .foregroundStyle(group.isActive && !isLeaving ? .blue : .secondary)
+                        .foregroundStyle(group.isActive ? .blue : .secondary)
                         .frame(width: 36)
-                }
-                if hasAdminAction {
-                    Circle()
-                        .fill(.orange)
-                        .frame(width: 8, height: 8)
-                        .offset(x: 2, y: -2)
                 }
             }
 
@@ -63,15 +55,7 @@ struct GroupRowView: View {
 
             Spacer()
 
-            if isLeaving {
-                Text("Leaving…")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(.orange.opacity(0.1))
-                    .clipShape(Capsule())
-            } else if isUnhealthy {
+            if isUnhealthy {
                 Label("Decryption failed", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)

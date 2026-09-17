@@ -240,6 +240,24 @@ actor MLSService {
         return result
     }
 
+    /// Create a self-remove commit — leave the group directly, no admin action needed.
+    /// Caller must `mergePendingCommit` and publish the result.
+    func leaveGroup(groupId: String) throws -> UpdateGroupResult {
+        let result = try instance().leaveGroup(mlsGroupId: groupId)
+        WhistleLogger.mls.info("Left group \(groupId)")
+        return result
+    }
+
+    /// Self-demote from admin status. Per MIP-03, an admin must call this
+    /// before `leaveGroup` — and if they're the last admin, must designate a
+    /// successor via `updateGroupData` first. Caller must `mergePendingCommit`
+    /// and publish the result.
+    func selfDemote(groupId: String) throws -> UpdateGroupResult {
+        let result = try instance().selfDemote(mlsGroupId: groupId)
+        WhistleLogger.mls.info("Self-demoted from admin in group \(groupId)")
+        return result
+    }
+
     /// Returns group IDs whose last self-update is older than `thresholdSecs`.
     /// Default threshold: 7 days.
     func groupsNeedingSelfUpdate(
@@ -338,6 +356,13 @@ actor MLSService {
 
     func getGroup(mlsGroupId: String) throws -> Group? {
         try instance().getGroup(mlsGroupId: mlsGroupId)
+    }
+
+    /// Delete all local state for a group. Used to finalize a self-leave
+    /// (see `MarmotService.leaveGroup`) — a self-remove commit is never
+    /// merged locally, so this is what actually forgets the group.
+    func deleteGroup(groupId: String) throws {
+        try instance().deleteGroup(mlsGroupId: groupId)
     }
 
     func getMembers(groupId: String) throws -> [String] {

@@ -65,19 +65,15 @@ struct GroupListView: View {
                 } label: {
                     GroupRowView(
                         group: group,
-                        isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id),
-                        isLeaving: viewModel.pendingLeaveStore.contains(group.id),
-                        hasAdminAction: viewModel.pendingAdminActionGroupIds.contains(group.id)
+                        isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
                     )
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    if !viewModel.pendingLeaveStore.contains(group.id) {
-                        Button(role: .destructive) {
-                            groupToLeave = group
-                            showLeaveAlert = true
-                        } label: {
-                            Label("Leave", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
+                    Button(role: .destructive) {
+                        groupToLeave = group
+                        showLeaveAlert = true
+                    } label: {
+                        Label("Leave", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                 }
             }
@@ -86,7 +82,7 @@ struct GroupListView: View {
         .alert("Leave Group?", isPresented: $showLeaveAlert) {
             Button("Leave", role: .destructive) {
                 if let group = groupToLeave {
-                    Task { await viewModel.requestLeaveGroup(id: group.id) }
+                    Task { await viewModel.leaveGroup(id: group.id) }
                 }
             }
             Button("Cancel", role: .cancel) {
@@ -94,7 +90,7 @@ struct GroupListView: View {
             }
         } message: {
             if let group = groupToLeave {
-                Text("Leave \"\(group.name)\"? The admin will be notified to remove you.")
+                Text("Leave \"\(group.name)\"? You'll stop sharing your location and lose access to the chat.")
             }
         }
     }
@@ -197,7 +193,6 @@ struct GroupListView: View {
                 mls: appViewModel.mls,
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
-                pendingLeaveStore: appViewModel.pendingLeaveStore,
                 messageCache: appViewModel.chatMessageCache,
                 isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
             )
@@ -267,7 +262,6 @@ private struct GroupChatContainer: View {
     let mls: MLSService
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
-    let pendingLeaveStore: PendingLeaveStore
     let messageCache: ChatMessageCache
     var isUnhealthy: Bool = false
 
@@ -293,8 +287,7 @@ private struct GroupChatContainer: View {
                 marmot: marmot,
                 mls: mls,
                 nicknameStore: nicknameStore,
-                myPubkeyHex: myPubkeyHex,
-                pendingLeaveStore: pendingLeaveStore
+                myPubkeyHex: myPubkeyHex
             )
         }
     }

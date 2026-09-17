@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.0] — 2026-09-17
+
+### Changed
+- **(iOS & Android) "Leave Group" now actually leaves — it no longer waits on the admin.** The previous flow just sent a chat message asking the admin to remove you and showed a local "Leaving…" state; the group stayed fully active — still receiving and broadcasting your location, still counted everywhere — for as long as the admin's device took to act, which could be indefinite. Leaving is now a real MLS self-remove commit (already exposed by MDK's `leaveGroup()`, just never called): a plain member leaves instantly with no admin involvement; an admin with a co-admin self-demotes first, transparently, then leaves; the sole admin of a multi-member group gets a clear error asking them to promote someone else first, since MDK has no one else to hand admin duties to; a solo group (you're the only member) is simply deleted locally, since there's no one to notify. Removed the now-obsolete leave-request/approval machinery (`PendingLeaveStore`, the admin-facing "Wants to leave" badge, `pendingLeaveRequests`) on both platforms.
+- **(iOS & Android) Diagnostics and the map filter no longer disagree about which groups are still live.** Root cause of the "double self" map pin and mismatched group counts some users hit: since the old leave flow never actually removed you at the protocol level, the map filter (which separately excluded pending-leave groups) and diagnostics (which didn't) told two different stories about the same group. With leaving now instant and final, both read the same underlying state and agree.
+
 ## [1.9.1] — 2026-09-14
 
 ### Fixed

@@ -402,26 +402,141 @@ final class ProtocolRoundTripTests: XCTestCase {
         XCTAssertFalse(result.evolutionEventJson.isEmpty)
     }
 
-    // MARK: - 6. Leave Request Flow
+    // MARK: - 6. Leave Group Flow (self-remove)
 
-    func testLeaveRequest_publishedViaRelay() async throws {
-        let groupId = try await createAndMergeGroup()
-        try await sut.sendLeaveRequest(groupId: groupId)
+    /// A plain (non-admin) member can leave directly — no admin action needed.
+    private func addBobAsPlainMember(to groupId: String) async throws {
+        let bobKP = try await bobKeyPackageEventJson()
+        let result = try await mls.addMembers(groupId: groupId, keyPackageEventsJson: [bobKP])
+        try await mls.mergePendingCommit(groupId: groupId)
 
-        XCTAssertEqual(mockRelay.sentEvents.count, 1,
-                       "Leave request should be published as one event")
+        let rumorJson = try XCTUnwrap(result.welcomeRumorsJson?.first)
+        let welcome = try await mls2.processWelcome(
+            wrapperEventId: String(repeating: "f", count: 64),
+            rumorEventJson: rumorJson
+        )
+        try await mls2.acceptWelcome(welcome)
     }
 
-    func testLeaveRequest_isKind445() async throws {
+    /// Unlike other mutations, a self-remove commit is never merged locally —
+    /// `deleteGroup` (not `mergePendingCommit`) is what actually finalizes it.
+    func testLeaveGroup_nonAdminMember_deletesLocalGroupState() async throws {
         let groupId = try await createAndMergeGroup()
-        try await sut.sendLeaveRequest(groupId: groupId)
+        try await addBobAsPlainMember(to: groupId)
 
-        let json = try XCTUnwrap(mockRelay.sentEvents.first)
+        _ = try await mls2.leaveGroup(groupId: groupId)
+        try await mls2.deleteGroup(groupId: groupId)
+
+        let bobGroups = try await mls2.getGroups()
+        XCTAssertFalse(bobGroups.contains { $0.mlsGroupId == groupId },
+                       "Group should be gone locally for Bob after his own self-remove — no admin action required")
+    }
+
+    func testLeaveGroup_nonAdminMember_producesKind445EvolutionEvent() async throws {
+        let groupId = try await createAndMergeGroup()
+        try await addBobAsPlainMember(to: groupId)
+
+        let result = try await mls2.leaveGroup(groupId: groupId)
+        XCTAssertFalse(result.evolutionEventJson.isEmpty,
+                       "Leave should produce an evolution event for relay publishing")
+
         let parsed = try XCTUnwrap(
-            try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+            try JSONSerialization.jsonObject(with: Data(result.evolutionEventJson.utf8)) as? [String: Any]
         )
         // kind 445 is the group event kind
         XCTAssertEqual(parsed["kind"] as? Int, 445)
+    }
+
+    /// MIP-03: an admin cannot call `leaveGroup` directly — they must
+    /// `selfDemote` first. Regression test for this MDK-enforced constraint,
+    /// which our leave flow must account for.
+    func testLeaveGroup_admin_throwsUntilSelfDemoted() async throws {
+        let groupId = try await createAndMergeGroup()
+        do {
+            _ = try await mls.leaveGroup(groupId: groupId)
+            XCTFail("Admin should not be able to leave without self-demoting first")
+        } catch {
+            // Expected — MDK rejects with "Admins must self-demote before leaving."
+        }
+    }
+
+    /// An admin who is NOT the last admin can self-demote, then leave, in two commits.
+    func testLeaveGroup_admin_selfDemoteThenLeave_succeeds() async throws {
+        let groupId = try await createAndMergeGroup()
+        try await addBobAsPlainMember(to: groupId)
+
+        let update = GroupDataUpdate(
+            name: nil, description: nil, imageHash: nil,
+            imageKey: nil, imageNonce: nil, relays: nil,
+            admins: [pubHex, pub2Hex]
+        )
+        _ = try await mls.updateGroupData(groupId: groupId, update: update)
+        try await mls.mergePendingCommit(groupId: groupId)
+
+        _ = try await mls.selfDemote(groupId: groupId)
+        try await mls.mergePendingCommit(groupId: groupId)
+
+        _ = try await mls.leaveGroup(groupId: groupId)
+        try await mls.deleteGroup(groupId: groupId)
+
+        let remaining = try await mls.getGroups()
+        XCTAssertFalse(remaining.contains { $0.mlsGroupId == groupId })
+    }
+
+    /// MIP-03: the last admin cannot self-demote at all — there's no one to
+    /// hand admin duties to. This means a solo group (you're the only member)
+    /// can never be left via `leaveGroup`; that case needs different handling.
+    func testSelfDemote_lastAdmin_throws() async throws {
+        let groupId = try await createAndMergeGroup()
+        do {
+            _ = try await mls.selfDemote(groupId: groupId)
+            XCTFail("Last admin should not be able to self-demote without a successor")
+        } catch {
+            // Expected — MDK rejects with "Cannot self-demote: last active admin."
+        }
+    }
+
+    // MARK: - 6b. MarmotService.leaveGroup — full production code path
+
+    func testMarmotServiceLeaveGroup_nonAdmin_publishesAndDeletesLocally() async throws {
+        let groupId = try await createAndMergeGroup()
+        try await addBobAsPlainMember(to: groupId)
+        await sut2.refreshGroups()
+
+        // Make verifyEventOnRelay's fetch-back succeed immediately — the mock
+        // ignores the filter and just returns whatever is configured here.
+        let anyEventJson = try await mls.createMessage(groupId: groupId, senderPublicKeyHex: pubHex, content: "x")
+        mockRelay2.eventsToReturn = [try Event.fromJson(json: anyEventJson)]
+
+        try await sut2.leaveGroup(groupId: groupId)
+
+        XCTAssertEqual(mockRelay2.sentEvents.count, 1, "Leave commit should be published")
+        let remaining = try await mls2.getGroups()
+        XCTAssertFalse(remaining.contains { $0.mlsGroupId == groupId },
+                       "Group should be deleted locally after a successful leave")
+    }
+
+    func testMarmotServiceLeaveGroup_soloGroup_deletesWithoutPublishing() async throws {
+        let groupId = try await createAndMergeGroup()
+
+        try await sut.leaveGroup(groupId: groupId)
+
+        XCTAssertTrue(mockRelay.sentEvents.isEmpty, "Solo group leave shouldn't publish anything — no one to notify")
+        let remaining = try await mls.getGroups()
+        XCTAssertFalse(remaining.contains { $0.mlsGroupId == groupId })
+    }
+
+    func testMarmotServiceLeaveGroup_lastAdminOfMultiMemberGroup_throwsClearError() async throws {
+        let groupId = try await createAndMergeGroup()
+        try await addBobAsPlainMember(to: groupId)
+        await sut.refreshGroups()
+
+        do {
+            try await sut.leaveGroup(groupId: groupId)
+            XCTFail("Sole admin of a multi-member group should not be able to leave")
+        } catch MarmotService.MarmotError.lastAdminCannotLeave {
+            // Expected
+        }
     }
 
     // MARK: - 7. Nickname Broadcast via MarmotService

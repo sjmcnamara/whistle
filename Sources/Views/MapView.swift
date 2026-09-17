@@ -84,12 +84,6 @@ struct MapView: View {
                     viewModel.selectedGroupId = nil
                 }
             }
-            .onChange(of: appViewModel.pendingLeaveStore.pendingLeaves) { _, pending in
-                guard let selectedId = viewModel.selectedGroupId else { return }
-                if pending.contains(selectedId) {
-                    viewModel.selectedGroupId = nil
-                }
-            }
         }
     }
 
@@ -221,7 +215,7 @@ struct MapView: View {
 
                 Divider()
 
-                ForEach(marmot.groups.filter { $0.isActive && !appViewModel.pendingLeaveStore.contains($0.mlsGroupId) }, id: \.mlsGroupId) { group in
+                ForEach(marmot.groups.filter(\.isActive), id: \.mlsGroupId) { group in
                     Button {
                         viewModel.selectedGroupId = group.mlsGroupId
                     } label: {

@@ -216,6 +216,26 @@ class MLSService @Inject constructor(
     suspend fun selfUpdate(mlsGroupId: String): UpdateGroupResult =
         mutex.withLock { requireMdk().selfUpdate(mlsGroupId) }
 
+    /** Create a self-remove commit — leave the group directly, no admin action needed. */
+    suspend fun leaveGroup(mlsGroupId: String): UpdateGroupResult =
+        mutex.withLock { requireMdk().leaveGroup(mlsGroupId) }
+
+    /**
+     * Self-demote from admin status. Per MIP-03, an admin must call this
+     * before [leaveGroup] — and if they're the last admin, must designate a
+     * successor via [updateGroupData] first.
+     */
+    suspend fun selfDemote(mlsGroupId: String): UpdateGroupResult =
+        mutex.withLock { requireMdk().selfDemote(mlsGroupId) }
+
+    /**
+     * Delete all local state for a group. Used to finalize a self-leave
+     * (see `MarmotService.leaveGroup`) — a self-remove commit is never
+     * merged locally, so this is what actually forgets the group.
+     */
+    suspend fun deleteGroup(mlsGroupId: String) =
+        mutex.withLock { requireMdk().deleteGroup(mlsGroupId) }
+
     suspend fun mergePendingCommit(mlsGroupId: String) =
         mutex.withLock { requireMdk().mergePendingCommit(mlsGroupId) }
 

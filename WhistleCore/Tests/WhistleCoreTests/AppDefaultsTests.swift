@@ -35,7 +35,6 @@ final class AppDefaultsTests: XCTestCase {
             AppDefaults.Keys.appLockReauthOnForeground,
             AppDefaults.Keys.lastEventTimestamp,
             AppDefaults.Keys.processedEventIds,
-            AppDefaults.Keys.pendingLeaveRequests,
             AppDefaults.Keys.pendingGiftWrapEventIds,
             AppDefaults.Keys.keyRotationIntervalDays
         ]

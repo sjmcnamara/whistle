@@ -556,6 +556,13 @@ _Released 2026-09-14_
 
     **Known limitation**: unlike Android's fix (verified live on an emulator reboot cycle), this can't be verified the same way — iOS Simulator doesn't reliably reproduce real-device reboot/background-relaunch semantics for CoreLocation, so there's no equivalent "confirmed live" story here. Recommend a real-device test (reboot a phone with Whistle installed and location permission granted, confirm the `.location` launchOptions log line appears and location sharing resumes) before treating this as fully closed. A `BGTaskScheduler`/`BGAppRefreshTask` fallback was considered and deliberately deferred — mirrors Android's own `WorkManager` deferral in v1.8.16 ("lower priority now that a foreground Service exists"); the primary CoreLocation relaunch mechanism should cover the common case, and a periodic background task is opportunistic/OS-throttled insurance at best, not a stronger guarantee.
 
+### v1.10.0 — Real self-remove for "Leave Group" ✅
+_Released 2026-09-17_
+
+- **(iOS & Android) "Leave Group" was cosmetic — it sent a chat message asking the admin to remove you, and the group stayed fully active (still broadcasting your location, still counted in diagnostics) for as long as the admin's device took to act.** Found while investigating a bug report: a duplicate/ghost self-pin on the map after leaving two groups, plus diagnostics still showing 4 groups when the group list showed 2. Root cause: leaving was never a protocol operation, just a social convention nothing enforced. MDK already exposes a real self-remove commit (`leaveGroup()`) on both platforms — unused. Wired it in directly: a plain member leaves instantly, no admin involved; an admin with a co-admin self-demotes first (MIP-03 requires it) then leaves, transparently; the sole admin of a multi-member group gets a clear error rather than the raw MDK message, since there's no one to hand admin duties to; a solo group is just deleted locally, since there's no one to notify. Also discovered along the way: a self-remove commit is never merged locally like other mutations — `deleteGroup()`, not `mergePendingCommit`, is what actually finalizes it, confirmed against real MDK via 8 new protocol-level tests. Removed the obsolete `PendingLeaveStore`/leave-request-approval UI on both platforms.
+
+    **Known limitation, deliberately out of scope**: the sole-admin-of-a-multi-member-group case surfaces a clear error but no in-app flow to promote someone else and retry — that's the same open design question as the sole-admin case in the Burn Identity item below (MIP-03's "last admin must designate a successor" rule), and deserves the same deliberate treatment rather than an improvised UI here.
+
 ---
 
 ### Deferred
@@ -579,7 +586,7 @@ _Released 2026-09-14_
         Never block. A compromised key is a worse problem than a frozen family group, and the person holding the key is the one best placed to weigh that.
 
         Post-burn cleanup needs nothing new: the new admin removes the dead leaf with the existing remove-member action (relay-verified since v1.6.4), and if the burned user re-imports, their app publishes a fresh KeyPackage on launch so they can be re-added by npub.
-    3. **Offer leave-before-burn.** The correct sequence is to send leave requests, let admins process the removals, then burn. Nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible.
+    3. **Offer leave-before-burn.** Since v1.10.0, leaving is instant and self-service (no admin involved) for any group where you're not the sole admin. The correct sequence is to leave every such group, then burn — nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible. Groups where you *are* the sole admin still can't be left at all (see above) — burning there strands them regardless, same as today.
 
     Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
 

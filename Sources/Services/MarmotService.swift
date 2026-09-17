@@ -44,9 +44,6 @@ final class MarmotService: ObservableObject {
     /// Injected by AppViewModel — used to persist/read lastEventTimestamp for `since` filter.
     var settings: AppSettings?
 
-    /// Injected by AppViewModel — tracks groups with pending leave requests.
-    var pendingLeaveStore: PendingLeaveStore?
-
     /// Injected by AppViewModel — queues unsolicited Welcomes for user approval.
     var pendingWelcomeStore: PendingWelcomeStore?
 
@@ -56,10 +53,6 @@ final class MarmotService: ObservableObject {
 
     /// Injected by AppViewModel — fires local notifications on low battery.
     var batteryAlertService: BatteryAlertService?
-
-    /// Called when an MLS-encrypted leave request (kind 2) arrives from a group member.
-    /// Parameters: (groupId, memberPubkeyHex).
-    var onLeaveRequestReceived: ((String, String) -> Void)?
 
     /// Tracks consecutive MLS failures per group — not persisted, resets on launch.
     let healthTracker = GroupHealthTracker()
@@ -665,11 +658,51 @@ final class MarmotService: ObservableObject {
         return groupId
     }
 
-    /// Send a leave-request message (kind 2) to the group so the admin can
-    /// process the removal and trigger MLS key rotation.
-    func sendLeaveRequest(groupId: String) async throws {
-        try await sendMessage(content: "", toGroup: groupId, kind: MarmotKind.leaveRequest)
-        WhistleLogger.marmot.info("Sent leave request for group \(groupId)")
+    /// Leave a group directly — a self-remove commit (MIP-03), no admin
+    /// action needed for a plain member. Three cases:
+    /// - Solo group (we're the only member): nobody to notify — just delete
+    ///   our local copy.
+    /// - Admin with at least one co-admin: MDK requires self-demoting before
+    ///   `leaveGroup`, so we do that first, as its own verified commit.
+    /// - Sole admin of a multi-member group: MDK has no one to hand admin
+    ///   duties to and refuses to self-demote at all — we throw a clear error
+    ///   rather than let the raw MDK message surface. The caller must promote
+    ///   another member to admin first.
+    ///
+    /// Verified commit throughout (same anti-fork pattern as `removeMember`):
+    /// an unconfirmed leave would strand the remaining members thinking we're
+    /// still present. Unlike other mutations, the final leave commit is never
+    /// merged locally — MDK's `mergePendingCommit` only applies to
+    /// `createGroup`/`addMembers`/`removeMembers`/`selfUpdate`, since leaving
+    /// means we no longer hold a leaf to merge into. `deleteGroup` wipes our
+    /// local copy once the commit is confirmed on the relay — deleting before
+    /// that would silently strand us with no way to retry.
+    func leaveGroup(groupId: String) async throws {
+        let members = try await mls.getMembers(groupId: groupId)
+        guard members.count > 1 else {
+            try await mls.deleteGroup(groupId: groupId)
+            locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: publicKeyHex)
+            await refreshGroups()
+            WhistleLogger.marmot.info("Deleted solo group \(groupId) — no other members to notify")
+            return
+        }
+
+        if let group = groups.first(where: { $0.mlsGroupId == groupId }),
+           group.adminPubkeys.contains(publicKeyHex) {
+            guard group.adminPubkeys.count > 1 else {
+                throw MarmotError.lastAdminCannotLeave
+            }
+            let demoteResult = try await mls.selfDemote(groupId: groupId)
+            try await mls.mergePendingCommit(groupId: groupId)
+            try await publishAndVerifyCommits(demoteResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+        }
+
+        let result = try await mls.leaveGroup(groupId: groupId)
+        try await publishAndVerifyCommits(result.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+        try await mls.deleteGroup(groupId: groupId)
+        locationCache?.removeLocation(groupId: groupId, memberPubkeyHex: publicKeyHex)
+        await refreshGroups()
+        WhistleLogger.marmot.info("Left group \(groupId)")
     }
 
     /// Promote a member to admin: update the group's admin list via MLS metadata.
@@ -922,9 +955,6 @@ final class MarmotService: ObservableObject {
         // Clear matching pending invite now that we've joined
         pendingInviteStore?.remove(groupHint: welcome.mlsGroupId)
 
-        // If we had requested leave earlier, clear it now that we're rejoined.
-        pendingLeaveStore?.remove(welcome.mlsGroupId)
-
         // Signal to AppViewModel so it can broadcast our display name
         lastJoinedGroupId = welcome.mlsGroupId
 
@@ -1095,13 +1125,6 @@ final class MarmotService: ObservableObject {
                 lastChatMessageGroupId = message.mlsGroupId
                 WhistleLogger.chat.debug("Plain chat message in group \(message.mlsGroupId)")
             }
-
-        case MarmotKind.leaveRequest:
-            // A member is requesting to leave. Surface to the admin so they
-            // can process the removal (which triggers key rotation).
-            settings?.pendingLeaveRequests[message.mlsGroupId, default: Set()].insert(message.senderPubkey)
-            onLeaveRequestReceived?(message.mlsGroupId, message.senderPubkey)
-            WhistleLogger.marmot.info("Leave request from \(message.senderPubkey.prefix(8)) in group \(message.mlsGroupId)")
 
         default:
             WhistleLogger.marmot.debug("Unknown application message kind \(message.kind) in group \(message.mlsGroupId)")
@@ -1474,6 +1497,7 @@ final class MarmotService: ObservableObject {
         case noRelaysConnected
         case reAddFailed(String)
         case avatarTooLarge
+        case lastAdminCannotLeave
 
         var errorDescription: String? {
             switch self {
@@ -1491,6 +1515,8 @@ final class MarmotService: ObservableObject {
                 return "That picture is too large to share. Try a different one."
             case .reAddFailed:
                 return "Removed the member, but re-adding them failed. Tap Resync again to retry."
+            case .lastAdminCannotLeave:
+                return "You're the only admin of this group. Promote another member to admin before leaving."
             }
         }
     }

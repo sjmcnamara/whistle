@@ -21,14 +21,10 @@ final class GroupListViewModel: ObservableObject {
     private let mls: MLSService
     private let displayName: () -> String
     let pendingInviteStore: PendingInviteStore
-    let pendingLeaveStore: PendingLeaveStore
     let pendingWelcomeStore: PendingWelcomeStore
     let healthTracker: GroupHealthTracker
     private let settings: AppSettings
     private var cancellables = Set<AnyCancellable>()
-
-    /// Group IDs where the admin has pending actions (e.g. leave approval).
-    @Published private(set) var pendingAdminActionGroupIds: Set<String> = []
 
     // MARK: - Unread tracking
 
@@ -77,7 +73,6 @@ final class GroupListViewModel: ObservableObject {
         marmot: MarmotService,
         mls: MLSService,
         pendingInviteStore: PendingInviteStore,
-        pendingLeaveStore: PendingLeaveStore,
         pendingWelcomeStore: PendingWelcomeStore,
         settings: AppSettings = .shared,
         displayName: @escaping () -> String = { "" }
@@ -85,7 +80,6 @@ final class GroupListViewModel: ObservableObject {
         self.marmot = marmot
         self.mls = mls
         self.pendingInviteStore = pendingInviteStore
-        self.pendingLeaveStore = pendingLeaveStore
         self.pendingWelcomeStore = pendingWelcomeStore
         self.settings = settings
         self.healthTracker = marmot.healthTracker
@@ -114,14 +108,6 @@ final class GroupListViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Track groups with pending admin actions (leave requests, etc.)
-        settings.$pendingLeaveRequests
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] requests in
-                self?.pendingAdminActionGroupIds = Set(requests.filter { !$0.value.isEmpty }.keys)
-            }
-            .store(in: &cancellables)
-
         // Reflect per-group pause toggles immediately, without waiting for the
         // next marmot.$groups emission to rebuild the whole list.
         settings.$pausedGroupIds
@@ -136,9 +122,8 @@ final class GroupListViewModel: ObservableObject {
             .store(in: &cancellables)
 
         // Merge child objectWillChange and debounce to avoid cascading renders.
-        Publishers.Merge3(
+        Publishers.Merge(
             pendingInviteStore.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-            pendingLeaveStore.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             healthTracker.objectWillChange.map { _ in () }.eraseToAnyPublisher()
         )
         .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
@@ -195,14 +180,7 @@ final class GroupListViewModel: ObservableObject {
             ))
         }
         let pendingWelcomeIds = Set(pendingWelcomeStore.pendingWelcomes.map(\.mlsGroupId))
-        self.groups = items.filter {
-            !pendingLeaveStore.contains($0.id) && !pendingWelcomeIds.contains($0.id)
-        }
-
-        // Clean up pending leaves for groups that no longer exist
-        // (admin processed the removal).
-        let activeIds = Set(items.map(\.id))
-        pendingLeaveStore.removeResolved(activeGroupIds: activeIds)
+        self.groups = items.filter { !pendingWelcomeIds.contains($0.id) }
     }
 
     // MARK: - Actions
@@ -226,13 +204,12 @@ final class GroupListViewModel: ObservableObject {
         await marmot.fetchMissedGiftWraps()
     }
 
-    /// Send a leave request to the group and mark it as "Leaving…" locally.
-    func requestLeaveGroup(id: String) async {
+    /// Leave a group directly — takes effect immediately, no admin action needed.
+    func leaveGroup(id: String) async {
         do {
-            try await marmot.sendLeaveRequest(groupId: id)
-            pendingLeaveStore.add(id)
+            try await marmot.leaveGroup(groupId: id)
         } catch {
-            WhistleLogger.chat.error("Failed to request leave for group \(id): \(error)")
+            WhistleLogger.chat.error("Failed to leave group \(id): \(error)")
         }
     }
 
@@ -247,10 +224,6 @@ final class GroupListViewModel: ObservableObject {
         // whistle://invite/ link. Matches Android's joinGroup, which does
         // the same re-encode before calling acceptInvite.
         try await marmot.acceptInvite(invite.encode())
-
-        // If the user previously left this group, clear the stale pending leave
-        // marker so the group reappears once Welcome is accepted.
-        pendingLeaveStore.remove(invite.groupId)
 
         // Record as pending — will be auto-removed when Welcome arrives.
         pendingInviteStore.add(PendingInvite(

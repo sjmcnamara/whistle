@@ -194,33 +194,6 @@ class AppSettingsTest {
 
     // endregion
 
-    // region Pending Leave Requests
-
-    @Test
-    fun `pendingLeaveRequests starts empty`() {
-        assertTrue(settings.pendingLeaveRequests.isEmpty())
-    }
-
-    @Test
-    fun `addPendingLeaveRequest and round-trip`() {
-        settings.addPendingLeaveRequest("group-1", "pubkey-a")
-        settings.addPendingLeaveRequest("group-1", "pubkey-b")
-        val map = settings.pendingLeaveRequests
-        assertEquals(1, map.size)
-        assertEquals(setOf("pubkey-a", "pubkey-b"), map["group-1"])
-    }
-
-    @Test
-    fun `removePendingLeaveRequest`() {
-        settings.addPendingLeaveRequest("group-1", "pubkey-a")
-        settings.addPendingLeaveRequest("group-1", "pubkey-b")
-        settings.removePendingLeaveRequest("group-1", "pubkey-a")
-        val map = settings.pendingLeaveRequests
-        assertEquals(setOf("pubkey-b"), map["group-1"])
-    }
-
-    // endregion
-
     // region Pending Gift Wrap Event IDs
 
     @Test

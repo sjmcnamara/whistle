@@ -62,7 +62,7 @@ Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.
 
 ## Known test failures (pre-existing, not ours)
 
-None currently known. All 475 iOS tests should pass on simulator.
+None currently known. All 468 iOS tests should pass on simulator.
 
 Note: the avatar `downscaled` helpers (`MemberAvatarStore`, `LocalGroupAvatarStore`) render at `format.scale = 1` so output is exactly `targetEdge` pixels. Before v1.8.1 they produced `targetEdge × screen-scale` pixels (e.g. 384px on a @3x device for a 128pt target), which made `MemberAvatarStoreTests.testEncodeDownscalesToTargetEdge` fail on any @2x/@3x simulator. If it regresses, check the renderer scale.
 
@@ -95,4 +95,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.9.1 — iOS background-relaunch visibility** (bugfix, iOS). See ROADMAP.md for next steps.
+Current version: **v1.10.0 — Real self-remove for "Leave Group"** (feature, iOS & Android). See ROADMAP.md for next steps.

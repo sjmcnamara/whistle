@@ -46,7 +46,6 @@ class MarmotServiceTest {
             memberAvatarStore = mockk(relaxed = true),
             sharedGroupAvatarStore = mockk(relaxed = true),
             pendingInviteStore = mockk(relaxed = true),
-            pendingLeaveStore = mockk(relaxed = true),
             pendingWelcomeStore = mockk(relaxed = true),
             joinRequestStore = mockk(relaxed = true),
             locationCache = mockk(relaxed = true),

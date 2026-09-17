@@ -35,7 +35,6 @@ class AppSettings @Inject constructor(
         private val KEY_APP_LOCK_REAUTH = AppDefaults.Keys.appLockReauthOnForeground
         private val KEY_LAST_EVENT_TIMESTAMP = AppDefaults.Keys.lastEventTimestamp
         private val KEY_PROCESSED_EVENT_IDS = AppDefaults.Keys.processedEventIds
-        private val KEY_PENDING_LEAVE_REQUESTS = AppDefaults.Keys.pendingLeaveRequests
         private val KEY_PENDING_GIFT_WRAP_EVENT_IDS = AppDefaults.Keys.pendingGiftWrapEventIds
         private val KEY_KEY_ROTATION_INTERVAL_DAYS = AppDefaults.Keys.keyRotationIntervalDays
         private val KEY_PAUSED_GROUP_IDS = AppDefaults.Keys.pausedGroupIds
@@ -142,45 +141,6 @@ class AppSettings @Inject constructor(
 
     fun isEventProcessed(id: String): Boolean {
         return processedEventIds.contains(id)
-    }
-
-    // --- Pending leave requests ---
-
-    var pendingLeaveRequests: MutableMap<String, MutableSet<String>>
-        get() {
-            val json = prefs.getString(KEY_PENDING_LEAVE_REQUESTS, null) ?: return mutableMapOf()
-            return try {
-                val obj = JSONObject(json)
-                val map = mutableMapOf<String, MutableSet<String>>()
-                for (key in obj.keys()) {
-                    val arr = obj.getJSONArray(key)
-                    val set = mutableSetOf<String>()
-                    for (i in 0 until arr.length()) set.add(arr.getString(i))
-                    map[key] = set
-                }
-                map
-            } catch (_: Exception) { mutableMapOf() }
-        }
-        set(value) {
-            val obj = JSONObject()
-            for ((key, set) in value) {
-                val arr = JSONArray()
-                for (s in set) arr.put(s)
-                obj.put(key, arr)
-            }
-            prefs.edit().putString(KEY_PENDING_LEAVE_REQUESTS, obj.toString()).apply()
-        }
-
-    fun addPendingLeaveRequest(groupId: String, pubkey: String) {
-        val map = pendingLeaveRequests
-        map.getOrPut(groupId) { mutableSetOf() }.add(pubkey)
-        pendingLeaveRequests = map
-    }
-
-    fun removePendingLeaveRequest(groupId: String, pubkey: String) {
-        val map = pendingLeaveRequests
-        map[groupId]?.remove(pubkey)
-        pendingLeaveRequests = map
     }
 
     // --- Pending gift wrap event IDs ---

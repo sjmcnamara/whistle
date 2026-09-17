@@ -247,7 +247,6 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                         mls = viewModel.mls,
                         nicknameStore = viewModel.nicknameStore,
                         myPubkeyHex = viewModel.identity.publicKeyHex ?: "",
-                        pendingLeaveStore = viewModel.pendingLeaveStore,
                         settings = viewModel.settings
                     )
                 }
@@ -268,9 +267,8 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                 val locationViewModel = viewModel.locationViewModel
 
                 val marmotGroups by viewModel.marmotService.groups.collectAsState()
-                val pendingLeaves by viewModel.pendingLeaveStore.pendingLeaves.collectAsState()
                 val activeGroups = marmotGroups
-                    .filter { it.state == "active" && it.mlsGroupId !in pendingLeaves }
+                    .filter { it.state == "active" }
                     .map { GroupOption(id = it.mlsGroupId, name = it.name) }
 
                 val whistleState by viewModel.whistleState.collectAsState()

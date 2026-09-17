@@ -64,11 +64,6 @@ final class AppSettings: ObservableObject {
         didSet { saveProcessedEventIds() }
     }
 
-    /// Pending leave requests per group — stored until processed by admin.
-    @Published var pendingLeaveRequests: [String: Set<String>] {
-        didSet { savePendingLeaveRequests() }
-    }
-
     /// Groups the user has paused *their own* outbound location broadcast to.
     /// Independent of `isLocationPaused` (the global switch): a paused group is
     /// skipped by `AppViewModel.broadcastLocation`, but the user keeps receiving
@@ -160,13 +155,6 @@ final class AppSettings: ObservableObject {
             self.processedEventIds = []
         }
 
-        if let data = UserDefaults.standard.data(forKey: Keys.pendingLeaveRequests),
-           let decoded = try? JSONDecoder().decode([String: Set<String>].self, from: data) {
-            self.pendingLeaveRequests = decoded
-        } else {
-            self.pendingLeaveRequests = [:]
-        }
-
         if let data = UserDefaults.standard.data(forKey: Keys.pendingGiftWrapEventIds),
            let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {
             self.pendingGiftWrapEventIds = decoded
@@ -191,12 +179,6 @@ final class AppSettings: ObservableObject {
     private func saveProcessedEventIds() {
         if let data = try? JSONEncoder().encode(processedEventIds) {
             UserDefaults.standard.set(data, forKey: Keys.processedEventIds)
-        }
-    }
-
-    private func savePendingLeaveRequests() {
-        if let data = try? JSONEncoder().encode(pendingLeaveRequests) {
-            UserDefaults.standard.set(data, forKey: Keys.pendingLeaveRequests)
         }
     }
 
