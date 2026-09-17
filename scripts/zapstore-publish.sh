@@ -4,8 +4,11 @@ set -euo pipefail
 # Publish the latest GitHub release's APK to Zapstore.
 #
 # Usage:
-#   SIGN_WITH=nsec1... ./scripts/zapstore-publish.sh          # publish
-#   SIGN_WITH=nsec1... ./scripts/zapstore-publish.sh --check  # dry run (no publish)
+#   SIGN_WITH=nsec1... ./scripts/zapstore-publish.sh              # publish
+#   SIGN_WITH=nsec1... ./scripts/zapstore-publish.sh --check      # dry run (no publish)
+#   SIGN_WITH=nsec1... ./scripts/zapstore-publish.sh --overwrite  # replace an already-published
+#                                                                  # release with the same version
+#                                                                  # code (e.g. to fix bad metadata)
 #
 # Requires the `zsp` CLI (https://github.com/zapstore/zsp) and a SIGN_WITH
 # value the Zapstore relay has already whitelisted — see zapstore.yaml's
@@ -29,6 +32,10 @@ if [ "${1:-}" = "--check" ]; then
     echo "▸ Dry run: verifying zapstore.yaml resolves the latest release..."
     zsp publish --check zapstore.yaml
     echo "✓ Config is valid — nothing published"
+elif [ "${1:-}" = "--overwrite" ]; then
+    echo "▸ Republishing latest GitHub release to Zapstore (overwriting same version code)..."
+    zsp publish zapstore.yaml --quiet --overwrite-release
+    echo "✓ Published"
 else
     echo "▸ Publishing latest GitHub release to Zapstore..."
     zsp publish zapstore.yaml --quiet

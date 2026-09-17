@@ -11,4 +11,3 @@ license: Unlicense
 website: https://getwhistle.org
 icon: ./website/docs/assets/whistle-icon.png
 tags: [location, nostr, privacy, encryption, mls]
-release_notes: ./CHANGELOG.md
