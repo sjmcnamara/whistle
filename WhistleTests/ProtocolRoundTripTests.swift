@@ -486,6 +486,26 @@ final class ProtocolRoundTripTests: XCTestCase {
     /// MIP-03: the last admin cannot self-demote at all — there's no one to
     /// hand admin duties to. This means a solo group (you're the only member)
     /// can never be left via `leaveGroup`; that case needs different handling.
+    /// Non-admin selfDemote throws a distinct message ("only admins can
+    /// perform this operation") from the last-admin case ("last active
+    /// admin") — this is how `leaveGroup` distinguishes them without relying
+    /// on our own cached admin list, which can diverge from MDK's live truth.
+    func testSelfDemote_nonAdmin_throwsDistinctError() async throws {
+        let groupId = try await createAndMergeGroup()
+        try await addBobAsPlainMember(to: groupId)
+
+        do {
+            _ = try await mls2.selfDemote(groupId: groupId)
+            XCTFail("Non-admin should not be able to self-demote")
+        } catch let error as MdkUniffiError {
+            guard case .Mdk(let message) = error else {
+                XCTFail("Expected .Mdk error case, got \(error)")
+                return
+            }
+            XCTAssertTrue(message.contains("only admins can perform this operation"), "Got: \(message)")
+        }
+    }
+
     func testSelfDemote_lastAdmin_throws() async throws {
         let groupId = try await createAndMergeGroup()
         do {

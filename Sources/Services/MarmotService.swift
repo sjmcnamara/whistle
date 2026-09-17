@@ -669,6 +669,18 @@ final class MarmotService: ObservableObject {
     ///   rather than let the raw MDK message surface. The caller must promote
     ///   another member to admin first.
     ///
+    /// Deliberately does NOT decide which case we're in by reading our own
+    /// cached `Group.adminPubkeys` (via `getGroup`) — that field has been
+    /// observed to diverge from what MDK's own `leaveGroup`/`selfDemote`
+    /// enforcement reads from the live MLS state, even right after calling
+    /// `syncGroupMetadataFromMls`. Instead we just attempt `selfDemote`
+    /// unconditionally and interpret MDK's own authoritative response:
+    /// success means we were admin and are now demoted; `"only admins can
+    /// perform this operation"` means we weren't admin, which is fine, fall
+    /// through to a plain leave; `"last active admin"` means the caller must
+    /// promote someone else first, so we surface that as a clear error
+    /// rather than the raw MDK message. Any other error propagates as-is.
+    ///
     /// Verified commit throughout (same anti-fork pattern as `removeMember`):
     /// an unconfirmed leave would strand the remaining members thinking we're
     /// still present. Unlike other mutations, the final leave commit is never
@@ -687,21 +699,19 @@ final class MarmotService: ObservableObject {
             return
         }
 
-        // Refresh the cached admin list from live MLS state before checking it —
-        // our cache can drift from what MLS actually enforces (e.g. admin
-        // status can be live without our cache reflecting it), and checking
-        // the stale cache here would wrongly skip straight to `mls.leaveGroup`,
-        // which MDK then rejects outright since it enforces self-demote
-        // against the real, current admin list regardless of what we think.
-        try await mls.syncGroupMetadataFromMls(groupId: groupId)
-        if let group = try await mls.getGroup(mlsGroupId: groupId),
-           group.adminPubkeys.contains(publicKeyHex) {
-            guard group.adminPubkeys.count > 1 else {
-                throw MarmotError.lastAdminCannotLeave
-            }
+        do {
             let demoteResult = try await mls.selfDemote(groupId: groupId)
             try await mls.mergePendingCommit(groupId: groupId)
             try await publishAndVerifyCommits(demoteResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+        } catch let error as MdkUniffiError {
+            guard case .Mdk(let message) = error else { throw error }
+            if message.contains("last active admin") {
+                throw MarmotError.lastAdminCannotLeave
+            }
+            guard message.contains("only admins can perform this operation") else {
+                throw error
+            }
+            // Not actually an admin — fall through to a plain leave below.
         }
 
         let result = try await mls.leaveGroup(groupId: groupId)
