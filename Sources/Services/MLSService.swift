@@ -358,6 +358,16 @@ actor MLSService {
         try instance().getGroup(mlsGroupId: mlsGroupId)
     }
 
+    /// Refresh the locally cached group metadata (name/admins/relays/etc.) from
+    /// the authoritative live MLS state. Our cached copy (read by `getGroup`)
+    /// can drift from what MLS itself enforces — e.g. admin status can be live
+    /// in the group's real state without our cache reflecting it, so a
+    /// `leaveGroup` admin check against the stale cache can miss that a
+    /// self-demote is actually required, or vice versa.
+    func syncGroupMetadataFromMls(groupId: String) throws {
+        try instance().syncGroupMetadataFromMls(mlsGroupId: groupId)
+    }
+
     /// Delete all local state for a group. Used to finalize a self-leave
     /// (see `MarmotService.leaveGroup`) — a self-remove commit is never
     /// merged locally, so this is what actually forgets the group.

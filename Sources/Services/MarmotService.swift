@@ -687,7 +687,14 @@ final class MarmotService: ObservableObject {
             return
         }
 
-        if let group = groups.first(where: { $0.mlsGroupId == groupId }),
+        // Refresh the cached admin list from live MLS state before checking it —
+        // our cache can drift from what MLS actually enforces (e.g. admin
+        // status can be live without our cache reflecting it), and checking
+        // the stale cache here would wrongly skip straight to `mls.leaveGroup`,
+        // which MDK then rejects outright since it enforces self-demote
+        // against the real, current admin list regardless of what we think.
+        try await mls.syncGroupMetadataFromMls(groupId: groupId)
+        if let group = try await mls.getGroup(mlsGroupId: groupId),
            group.adminPubkeys.contains(publicKeyHex) {
             guard group.adminPubkeys.count > 1 else {
                 throw MarmotError.lastAdminCannotLeave

@@ -575,6 +575,13 @@ _Released 2026-09-17_
 
     **Known open issue**: the root cause of the stale-admin-in-an-old-group symptom itself is still unresolved — this only adds visibility, not a fix. Next step is comparing the revealed npub directly against the affected user's own Identity card.
 
+### v1.10.3 — Fix stale admin cache blocking leave ✅
+_Released 2026-09-17_
+
+- **(iOS & Android) Root cause found for the v1.10.2 stale-admin symptom, and a second, more actionable bug alongside it.** Revealing the npub confirmed the `Dublin` group's cached "Stephen"/Admin row really is a different, old pubkey — not the user, as suspected. But then attempting `Leave Group` (now working correctly since v1.10.0, for a *confirmed non-admin*) threw MDK's raw error instead: `"Admins must self-demote before leaving. Use self_demote() first."` — proving the user's *current* identity is also live-admin in Dublin's real MLS state, something the app's cached admin list never reflected (it only ever showed the one stale "Stephen" entry). Our cached copy of a group's metadata (`Group.adminPubkeys`, read via `getGroup()`) can drift from what MLS itself actually enforces; MDK exposes `syncGroupMetadataFromMls()` to refresh it from the live state, previously unused anywhere in the app. Wired it into the leave flow (before the admin check) and into Group Detail's own load, on both platforms.
+
+    **Still open**: how the cache actually diverged from live state in the first place, and how a second, unaccounted admin pubkey ended up live-admin in a group alongside the user, are both unresolved — most likely inherited from this identity's history predating today's fixes (possibly early dogfooding/testing under a different identity). Not reproducible in a unit test without the exact historical sequence; the fix here is verified safe and correct against real MDK, and awaits on-device confirmation that it actually lets the affected user leave `Dublin` cleanly.
+
 ---
 
 ### Deferred

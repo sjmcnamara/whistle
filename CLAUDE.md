@@ -103,4 +103,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.10.2 — Reveal a member's npub on Group Detail** (minor, iOS & Android). See ROADMAP.md for next steps.
+Current version: **v1.10.3 — Fix stale admin cache blocking leave** (bugfix, iOS & Android). See ROADMAP.md for next steps.

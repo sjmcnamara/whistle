@@ -645,7 +645,14 @@ class MarmotService @Inject constructor(
             return
         }
 
-        val group = groups.value.firstOrNull { it.mlsGroupId == groupId }
+        // Refresh the cached admin list from live MLS state before checking it --
+        // our cache can drift from what MLS actually enforces (e.g. admin
+        // status can be live without our cache reflecting it), and checking
+        // the stale cache here would wrongly skip straight to mls.leaveGroup,
+        // which MDK then rejects outright since it enforces self-demote
+        // against the real, current admin list regardless of what we think.
+        mls.syncGroupMetadataFromMls(groupId)
+        val group = mls.getGroup(groupId)
         val adminPubkeys = group?.adminPubkeys ?: emptyList()
         if (publicKeyHex in adminPubkeys) {
             if (adminPubkeys.size <= 1) {

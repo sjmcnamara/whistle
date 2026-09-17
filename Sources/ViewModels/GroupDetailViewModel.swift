@@ -92,6 +92,11 @@ final class GroupDetailViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
+            // Refresh cached metadata (name/admins/etc.) from live MLS state
+            // first — our cache can drift from what MLS actually enforces,
+            // which otherwise shows a stale admin list here.
+            try await mls.syncGroupMetadataFromMls(groupId: groupId)
+
             // Load group metadata
             if let group = try await mls.getGroup(mlsGroupId: groupId) {
                 groupName = group.name.isEmpty ? "Unnamed Group" : group.name

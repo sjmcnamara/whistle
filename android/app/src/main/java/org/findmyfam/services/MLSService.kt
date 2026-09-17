@@ -236,6 +236,17 @@ class MLSService @Inject constructor(
     suspend fun deleteGroup(mlsGroupId: String) =
         mutex.withLock { requireMdk().deleteGroup(mlsGroupId) }
 
+    /**
+     * Refresh the locally cached group metadata (name/admins/relays/etc.) from
+     * the authoritative live MLS state. Our cached copy (read by [getGroup])
+     * can drift from what MLS itself enforces -- e.g. admin status can be live
+     * in the group's real state without our cache reflecting it, so a
+     * leaveGroup admin check against the stale cache can miss that a
+     * self-demote is actually required, or vice versa.
+     */
+    suspend fun syncGroupMetadataFromMls(mlsGroupId: String) =
+        mutex.withLock { requireMdk().syncGroupMetadataFromMls(mlsGroupId) }
+
     suspend fun mergePendingCommit(mlsGroupId: String) =
         mutex.withLock { requireMdk().mergePendingCommit(mlsGroupId) }
 

@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.3] — 2026-09-17
+
+### Fixed
+- **(iOS & Android) `Leave Group` could throw a raw MDK error instead of self-demoting when it should have.** Root cause of the v1.10.2 "known open issue": our cached copy of a group's admin list (`Group.adminPubkeys`, read by `getGroup()`) can drift from what MLS itself actually enforces — a member's admin status can be live in the group's real MLS state without our local cache ever picking it up. `leaveGroup`'s admin check read the stale cache, wrongly concluded the caller wasn't an admin, and skipped straight to a plain `leaveGroup()` call — which MDK then rejected outright with `"Admins must self-demote before leaving"`, since it enforces that rule against the real, live admin list regardless of what our cache says. Now calls MDK's `syncGroupMetadataFromMls()` (refreshes the cache from live MLS state, previously unused anywhere in the app) before checking admin status in both the leave flow and Group Detail's own display, so both the leave decision and the "who's admin" UI reflect reality.
+
 ## [1.10.2] — 2026-09-17
 
 ### Added

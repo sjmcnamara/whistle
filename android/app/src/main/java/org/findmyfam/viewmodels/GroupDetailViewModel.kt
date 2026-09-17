@@ -106,6 +106,11 @@ class GroupDetailViewModel(
         scope.launch {
             _isLoading.value = true
             try {
+                // Refresh cached metadata (name/admins/etc.) from live MLS
+                // state first -- our cache can drift from what MLS actually
+                // enforces, which otherwise shows a stale admin list here.
+                mls.syncGroupMetadataFromMls(groupId)
+
                 // Load group metadata
                 val group = mls.getGroup(groupId)
                 if (group != null) {
