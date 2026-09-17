@@ -379,6 +379,14 @@ actor MLSService {
         try instance().getMembers(mlsGroupId: groupId)
     }
 
+    /// Returns the local member's own current MLS leaf index in a group —
+    /// independent of `getMembers`'s enumeration. Diagnostic tool: proves
+    /// whether this device holds a real leaf in the group's tree even when
+    /// `getMembers`'s returned list doesn't appear to include it.
+    func ownLeafIndex(groupId: String) throws -> UInt32 {
+        try instance().ownLeafIndex(groupIdHex: groupId)
+    }
+
     func getRelays(groupId: String) throws -> [String] {
         try instance().getRelays(mlsGroupId: groupId)
     }

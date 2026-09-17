@@ -295,6 +295,15 @@ class MLSService @Inject constructor(
     suspend fun getMembers(mlsGroupId: String): List<String> =
         mutex.withLock { requireMdk().getMembers(mlsGroupId) }
 
+    /**
+     * Returns the local member's own current MLS leaf index in a group --
+     * independent of [getMembers]'s enumeration. Diagnostic tool: proves
+     * whether this device holds a real leaf in the group's tree even when
+     * getMembers's returned list doesn't appear to include it.
+     */
+    suspend fun ownLeafIndex(mlsGroupId: String): UInt =
+        mutex.withLock { requireMdk().ownLeafIndex(mlsGroupId) }
+
     suspend fun getRelays(mlsGroupId: String): List<String> =
         mutex.withLock { requireMdk().getRelays(mlsGroupId) }
 

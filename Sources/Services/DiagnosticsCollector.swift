@@ -56,7 +56,8 @@ enum DiagnosticsCollector {
                         consecutiveFailures: marmot.healthTracker.failureCount(for: group.mlsGroupId),
                         // group.lastMessageAt advances on any MLS event (location,
                         // chat, nickname, commit) — nil means never recorded.
-                        secondsSinceLastEvent: group.lastMessageAt.map { max(0, now - Int($0)) }
+                        secondsSinceLastEvent: group.lastMessageAt.map { max(0, now - Int($0)) },
+                        ownLeafIndex: try? await mls.ownLeafIndex(groupId: group.mlsGroupId)
                     )
                 )
             }
