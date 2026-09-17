@@ -60,6 +60,10 @@ Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.
 
 `NostrSDK` is pinned with `exactVersion` in `project.yml`, not a floating `from:` range. It was `from: "0.44.2"` until 2026-08-06, when upstream's 0.45.0 release (published 2026-08-05) shipped a UniFFI-generated header with a C function parameter literally named `unsigned` (`uniffi_nostr_sdk_ffi_fn_method_*pow*_compute*`), which Clang rejects with `'type-name' cannot be signed or unsigned`. Nothing in our repo changed — SPM silently picked up the new minor version and CodeQL's fresh clone (no resolved-package cache) was the first build to hit it, same failure mode as the MDK `branch: main` incident above. Pinned back to `exactVersion: "0.44.8"` (last known-good). Bump the pin deliberately, and check upstream's generated header for reserved-word parameter names (`unsigned`, `id`, `new`, etc.) before doing so.
 
+## Zapstore publish (zsp CLI) dependency
+
+`.github/workflows/zapstore-publish.yml` and `scripts/zapstore-publish.sh` install the `zsp` CLI with `go install`, pinned to `github.com/zapstore/zsp/cmd/zsp@v0.5.1` — not `@latest`. Upstream's `v0.5.0`/`v0.5.1` (published 2026-09-15) moved `main` out of the repo root into `cmd/zsp`, so `go install github.com/zapstore/zsp@latest` started failing with `package github.com/zapstore/zsp is not a main package` — a floating-version break, same failure mode as the MDK `branch: main` and NostrSDK `from:` incidents above. Bump the pin deliberately, and confirm the new tag's main package still lives at `cmd/zsp` (check the repo root for a top-level `main.go` vs. a `cmd/` dir) before doing so.
+
 ## Known test failures (pre-existing, not ours)
 
 None currently known. All 468 iOS tests should pass on simulator.

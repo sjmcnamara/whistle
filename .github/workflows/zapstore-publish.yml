@@ -21,7 +21,7 @@ jobs:
           go-version: 'stable'
 
       - name: Install zsp
-        run: go install github.com/zapstore/zsp@latest
+        run: go install github.com/zapstore/zsp/cmd/zsp@v0.5.1
 
       - name: Publish latest release to Zapstore
         env:

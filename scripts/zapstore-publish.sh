@@ -13,7 +13,7 @@ set -euo pipefail
 # tying the release keystore's certificate to that pubkey.
 
 if ! command -v zsp >/dev/null 2>&1; then
-    echo "✗ zsp not found. Install: go install github.com/zapstore/zsp@latest" >&2
+    echo "✗ zsp not found. Install: go install github.com/zapstore/zsp/cmd/zsp@v0.5.1" >&2
     exit 1
 fi
 
