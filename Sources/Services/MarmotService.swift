@@ -725,14 +725,22 @@ final class MarmotService: ObservableObject {
     /// Promote a member to admin: update the group's admin list via MLS metadata.
     func promoteToAdmin(pubkeyHex: String, inGroup groupId: String) async throws {
         guard let group = groups.first(where: { $0.mlsGroupId == groupId }) else { return }
-        var admins = group.adminPubkeys
-        guard !admins.contains(pubkeyHex) else { return }
-        admins.append(pubkeyHex)
+        guard !group.adminPubkeys.contains(pubkeyHex) else { return }
+
+        // Always explicitly include ourselves — our own admin status can be
+        // live-true without the cached adminPubkeys list ever reflecting it
+        // (see leaveGroup's doc comment on the same divergence). Writing the
+        // cached list plus just the new promotee risks silently dropping our
+        // own admin status if the cache never listed us to begin with —
+        // `admins` replaces the whole list, it doesn't merge.
+        var admins = Set(group.adminPubkeys)
+        admins.insert(publicKeyHex)
+        admins.insert(pubkeyHex)
 
         let update = GroupDataUpdate(
             name: nil, description: nil, imageHash: nil,
             imageKey: nil, imageNonce: nil, relays: nil,
-            admins: admins
+            admins: Array(admins)
         )
         let result = try await mls.updateGroupData(groupId: groupId, update: update)
         try await mls.mergePendingCommit(groupId: groupId)

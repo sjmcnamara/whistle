@@ -134,9 +134,11 @@ fun GroupDetailScreen(
     // --- Sub-screens (full-screen swaps) ---
 
     if (subScreen == "members") {
+        // Not gated on viewModel.isAdmin -- see the comment at the other
+        // MemberListItem call site above.
         MembersSubScreen(
             members = members,
-            isAdmin = viewModel.isAdmin,
+            isAdmin = true,
             onPromote = { viewModel.promoteToAdmin(it) },
             onRemove = { viewModel.removeMember(it) },
             onResync = { resyncTargetPubkey = it },
@@ -441,9 +443,14 @@ fun GroupDetailScreen(
                 val isLarge = members.size > memberPreviewCap
                 val shown = if (isLarge) members.take(memberPreviewCap) else members
                 itemsIndexed(shown, key = { i, m -> "${m.id}_$i" }) { _, member ->
+                    // Not gated on viewModel.isAdmin -- that reads the same
+                    // cached admin list that can diverge from live MLS truth
+                    // (see leaveGroup's doc comment). The underlying call
+                    // fails safely with MDK's own "only admins can perform
+                    // this operation" error for a genuine non-admin.
                     MemberListItem(
                         member = member,
-                        canManage = viewModel.isAdmin && !isLarge,
+                        canManage = !isLarge,
                         onPromote = { viewModel.promoteToAdmin(it) },
                         onRemove = { viewModel.removeMember(it) },
                         onResync = { resyncTargetPubkey = it },

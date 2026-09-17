@@ -380,8 +380,14 @@ private struct MemberRowView: View {
         .sheet(isPresented: $showPubkey) {
             MemberPubkeySheet(member: member, npub: viewModel.fullNpub(for: member.pubkeyHex))
         }
+        // Not gated on `viewModel.isAdmin` — that reads the same cached admin
+        // list that can diverge from live MLS truth (see `leaveGroup`'s doc
+        // comment). Showing these to a genuine non-admin is a low-cost UX
+        // trade: the underlying call fails safely with MDK's own "only admins
+        // can perform this operation" error rather than silently hiding a
+        // legitimate admin's only way to act when the cache is wrong.
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if allowManage && viewModel.isAdmin && !member.isMe {
+            if allowManage && !member.isMe {
                 Button(role: .destructive) {
                     Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
                 } label: {
@@ -390,7 +396,7 @@ private struct MemberRowView: View {
             }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            if allowManage && viewModel.isAdmin && !member.isMe {
+            if allowManage && !member.isMe {
                 Button {
                     showResyncConfirm = true
                 } label: {

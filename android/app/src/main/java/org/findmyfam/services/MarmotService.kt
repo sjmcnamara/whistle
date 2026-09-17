@@ -712,6 +712,14 @@ class MarmotService @Inject constructor(
         val group = mls.getGroup(groupId) ?: throw IllegalStateException("Group not found: $groupId")
         val currentAdmins = group.adminPubkeys ?: emptyList()
         if (pubkeyHex in currentAdmins) return
+
+        // Always explicitly include ourselves -- our own admin status can be
+        // live-true without the cached adminPubkeys list ever reflecting it
+        // (see leaveGroup's doc comment on the same divergence). Writing the
+        // cached list plus just the new promotee risks silently dropping our
+        // own admin status if the cache never listed us to begin with --
+        // `admins` replaces the whole list, it doesn't merge.
+        val admins = (currentAdmins + publicKeyHex + pubkeyHex).distinct()
         val update = GroupDataUpdate(
             name = null,
             description = null,
@@ -719,7 +727,7 @@ class MarmotService @Inject constructor(
             imageKey = null,
             imageNonce = null,
             relays = null,
-            admins = currentAdmins + pubkeyHex
+            admins = admins
         )
         val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
         mls.mergePendingCommit(mlsGroupId = groupId)
