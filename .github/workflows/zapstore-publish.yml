@@ -31,4 +31,4 @@ jobs:
             echo "::error::ZAPSTORE_NSEC secret is not set"
             exit 1
           fi
-          zsp publish zapstore.yaml -q
+          zsp publish zapstore.yaml --quiet
