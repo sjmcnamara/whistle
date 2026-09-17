@@ -64,6 +64,8 @@ Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.
 
 `.github/workflows/zapstore-publish.yml` and `scripts/zapstore-publish.sh` install the `zsp` CLI with `go install`, pinned to `github.com/zapstore/zsp/cmd/zsp@v0.5.1` — not `@latest`. Upstream's `v0.5.0`/`v0.5.1` (published 2026-09-15) moved `main` out of the repo root into `cmd/zsp`, so `go install github.com/zapstore/zsp@latest` started failing with `package github.com/zapstore/zsp is not a main package` — a floating-version break, same failure mode as the MDK `branch: main` and NostrSDK `from:` incidents above. Bump the pin deliberately, and confirm the new tag's main package still lives at `cmd/zsp` (check the repo root for a top-level `main.go` vs. a `cmd/` dir) before doing so.
 
+Same v0.5.x restructuring also renamed the `publish` subcommand's short flag: `-q` no longer exists, use `--quiet`. Run `zsp publish --help` after bumping the pin to check for other flag renames before assuming the invocation still works.
+
 ## Known test failures (pre-existing, not ours)
 
 None currently known. All 468 iOS tests should pass on simulator.

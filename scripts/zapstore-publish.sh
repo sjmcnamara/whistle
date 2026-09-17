@@ -31,6 +31,6 @@ if [ "${1:-}" = "--check" ]; then
     echo "✓ Config is valid — nothing published"
 else
     echo "▸ Publishing latest GitHub release to Zapstore..."
-    zsp publish zapstore.yaml -q
+    zsp publish zapstore.yaml --quiet
     echo "✓ Published"
 fi
