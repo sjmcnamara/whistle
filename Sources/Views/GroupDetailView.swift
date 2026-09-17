@@ -14,6 +14,7 @@ struct GroupDetailView: View {
     @State private var showLeaveConfirmation = false
     @State private var showRename = false
     @State private var renameText = ""
+    @State private var copiedGroupId = false
     @ObservedObject private var avatars = LocalGroupAvatarStore.shared
     @EnvironmentObject private var sharedAvatars: SharedGroupAvatarStore
     @EnvironmentObject private var appViewModel: AppViewModel
@@ -155,6 +156,27 @@ struct GroupDetailView: View {
                 Text("\(viewModel.members.count) member\(viewModel.members.count == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                // Matches the id diagnostics exports show for this group (no
+                // name there, by design) — the only way to tell groups apart
+                // in a pasted diagnostics report when you're in more than one.
+                Button {
+                    UIPasteboard.general.string = viewModel.diagnosticsGroupId
+                    withAnimation(.spring(duration: 0.2)) { copiedGroupId = true }
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        withAnimation(.spring(duration: 0.2)) { copiedGroupId = false }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Diagnostics ID: \(viewModel.diagnosticsGroupId)")
+                            .font(.caption2.monospaced())
+                        Image(systemName: copiedGroupId ? "checkmark" : "doc.on.doc")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 20)

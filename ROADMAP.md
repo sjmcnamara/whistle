@@ -563,6 +563,11 @@ _Released 2026-09-17_
 
     **Known limitation, deliberately out of scope**: the sole-admin-of-a-multi-member-group case surfaces a clear error but no in-app flow to promote someone else and retry — that's the same open design question as the sole-admin case in the Burn Identity item below (MIP-03's "last admin must designate a successor" rule), and deserves the same deliberate treatment rather than an improvised UI here.
 
+### v1.10.1 — Diagnostics ID on Group Detail ✅
+_Released 2026-09-17_
+
+- **(iOS & Android) Diagnostics exports were impossible to interpret with more than one group.** The diagnostics report deliberately shows only an 8-char group-id prefix per group and no name, to keep a report meant for pasting elsewhere from leaking group names. But nothing on the Group Detail screen showed that same id, so there was no way to match a diagnostics entry back to an actual group. Added a small tap-to-copy "Diagnostics ID" row under the member count showing the identical prefix (`DiagnosticsReport.shortHex`) diagnostics already uses.
+
 ---
 
 ### Deferred

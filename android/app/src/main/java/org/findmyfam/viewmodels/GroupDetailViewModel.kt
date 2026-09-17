@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.findmyfam.services.*
+import org.findmyfam.shared.models.DiagnosticsReport
 import rust.nostr.sdk.PublicKey
 import timber.log.Timber
 
@@ -286,6 +287,14 @@ class GroupDetailViewModel(
      * their own Identity card, rather than meaningless raw hex.
      */
     fun displayIdentifier(pubkeyHex: String): String = nicknameStore.displayName(pubkeyHex)
+
+    /**
+     * The same 8-char group-id prefix diagnostics exports use -- lets you
+     * match a group in the diagnostics report (which deliberately shows no
+     * name, only this id) back to an actual group when you're in more than one.
+     */
+    val diagnosticsGroupId: String
+        get() = DiagnosticsReport.shortHex(groupId)
 
     /**
      * Whether the current user is an admin of this group.

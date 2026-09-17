@@ -1,5 +1,8 @@
 package org.findmyfam.ui.groups
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -65,6 +68,7 @@ fun GroupDetailScreen(
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
+    var copiedGroupId by remember { mutableStateOf(false) }
     var showInviteSheet by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
     var subScreen by remember { mutableStateOf("main") } // main | members | addNpub
@@ -317,6 +321,37 @@ fun GroupDetailScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        // Matches the id diagnostics exports show for this group (no
+                        // name there, by design) -- the only way to tell groups apart
+                        // in a pasted diagnostics report when you're in more than one.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("group id", viewModel.diagnosticsGroupId))
+                                copiedGroupId = true
+                            }
+                        ) {
+                            Text(
+                                "Diagnostics ID: ${viewModel.diagnosticsGroupId}",
+                                fontSize = 11.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                if (copiedGroupId) Icons.Default.Check else Icons.Default.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        LaunchedEffect(copiedGroupId) {
+                            if (copiedGroupId) {
+                                kotlinx.coroutines.delay(2000)
+                                copiedGroupId = false
+                            }
+                        }
                     }
                     HorizontalDivider()
                 }

@@ -279,6 +279,13 @@ final class GroupDetailViewModel: ObservableObject {
         nicknameStore.displayName(for: pubkeyHex)
     }
 
+    /// The same 8-char group-id prefix diagnostics exports use — lets you
+    /// match a group in the diagnostics report (which deliberately shows no
+    /// name, only this id) back to an actual group when you're in more than one.
+    var diagnosticsGroupId: String {
+        DiagnosticsReport.shortHex(groupId)
+    }
+
     /// Whether the current user is an admin of this group.
     var isAdmin: Bool {
         members.first(where: \.isMe)?.isAdmin ?? false

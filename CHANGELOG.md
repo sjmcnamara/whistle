@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.1] — 2026-09-17
+
+### Added
+- **(iOS & Android) Group Detail now shows the group's diagnostics id.** The diagnostics export deliberately shows only an 8-char group-id prefix per group, no name, to avoid putting group names in a report meant to be pasted somewhere for debugging. But with nothing on the Group Detail screen showing that same id, a diagnostics report was impossible to interpret for anyone in more than one group — there was no way to tell which entry was which group. Added a small tap-to-copy "Diagnostics ID" row under the member count, showing the identical 8-char prefix (`DiagnosticsReport.shortHex`) diagnostics uses, so the two can be matched directly.
+
 ## [1.10.0] — 2026-09-17
 
 ### Changed
