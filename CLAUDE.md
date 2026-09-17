@@ -66,6 +66,8 @@ Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.
 
 Same v0.5.x restructuring also renamed the `publish` subcommand's short flag: `-q` no longer exists, use `--quiet`. Run `zsp publish --help` after bumping the pin to check for other flag renames before assuming the invocation still works.
 
+**`release_notes` in `zapstore.yaml` must not point at a multi-version file.** It was `./CHANGELOG.md` until the v1.10.0 publish showed "All notable changes to Whistle will be documented in this file." as the listing's release notes — `zsp`'s `loadReleaseNotes` (`media.go`) has no per-version extraction at all, it just dumps the target file's raw bytes verbatim as the changelog field. Removed the field entirely: with `release_notes` unset, `zsp` falls back to the GitHub Release's own body, which is already correct per-version since `release-android.yml` creates it with `--generate-notes`. To fix an already-published listing's metadata after the fact (same version code, corrected content), re-run the "Zapstore publish" workflow with its `overwrite_release` input set to true (or `./scripts/zapstore-publish.sh --overwrite` locally) — plain re-publish of an unchanged version code is otherwise rejected.
+
 ## Known test failures (pre-existing, not ours)
 
 None currently known. All 468 iOS tests should pass on simulator.

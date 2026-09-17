@@ -5,7 +5,15 @@ name: Zapstore publish
 # the GitHub release (created by the "Android release" workflow) looks right
 # — there is no automatic trigger on tag push.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      overwrite_release:
+        description: >
+          Replace an already-published release with the same version code
+          (e.g. to fix bad metadata/release notes after the fact). Never
+          allows a downgrade. Leave off for a normal new-version publish.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,9 +34,14 @@ jobs:
       - name: Publish latest release to Zapstore
         env:
           SIGN_WITH: ${{ secrets.ZAPSTORE_NSEC }}
+          OVERWRITE_RELEASE: ${{ inputs.overwrite_release }}
         run: |
           if [ -z "$SIGN_WITH" ]; then
             echo "::error::ZAPSTORE_NSEC secret is not set"
             exit 1
           fi
-          zsp publish zapstore.yaml --quiet
+          args=(publish zapstore.yaml --quiet)
+          if [ "$OVERWRITE_RELEASE" = "true" ]; then
+            args+=(--overwrite-release)
+          fi
+          zsp "${args[@]}"
