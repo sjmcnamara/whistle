@@ -49,9 +49,7 @@ fun GroupListScreen(
     val groups by viewModel.groups.collectAsState()
     val pendingWelcomes by viewModel.pendingWelcomes.collectAsState()
     val pendingInvites by viewModel.pendingInvites.collectAsState()
-    val pendingLeaves by viewModel.pendingLeaves.collectAsState()
     val unhealthyGroupIds by viewModel.unhealthyGroupIds.collectAsState()
-    val pendingAdminActionGroupIds by viewModel.pendingAdminActionGroupIds.collectAsState()
     val error by viewModel.error.collectAsState()
     val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
     val sharedAvatarRevision by appViewModel.sharedGroupAvatarStore.revision.collectAsState()
@@ -236,7 +234,6 @@ fun GroupListScreen(
 
                 items(groups.filter { it.isActive }, key = { it.id }) { group ->
                     val isUnhealthy = group.id in unhealthyGroupIds
-                    val hasAdminAction = group.id in pendingAdminActionGroupIds
                     // Personal override wins over the group's shared photo —
                     // resolved in one place so this and the detail screen
                     // cannot drift apart.
@@ -260,17 +257,6 @@ fun GroupListScreen(
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(36.dp)
-                                    )
-                                }
-                                if (hasAdminAction) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .offset(x = 2.dp, y = (-2).dp)
-                                            .background(
-                                                color = androidx.compose.ui.graphics.Color(0xFFFF9500),
-                                                shape = androidx.compose.foundation.shape.CircleShape
-                                            )
                                     )
                                 }
                             }

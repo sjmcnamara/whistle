@@ -21,9 +21,8 @@ final class GroupDetailViewModel: ObservableObject {
 
     // Leave / rename state
     @Published var isLeaving = false
-    @Published var didRequestLeave = false
+    @Published var didLeave = false
     @Published var isRenaming = false
-    @Published private(set) var leaveRequestMembers: Set<String> = []  // pubkeys wanting to leave
 
     /// Pubkey currently being hard-resynced (remove + re-add), for per-row spinner.
     @Published private(set) var resyncingMemberPubkey: String?
@@ -48,7 +47,6 @@ final class GroupDetailViewModel: ObservableObject {
     private let mls: MLSService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
-    let pendingLeaveStore: PendingLeaveStore
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
@@ -58,15 +56,13 @@ final class GroupDetailViewModel: ObservableObject {
         marmot: MarmotService,
         mls: MLSService,
         nicknameStore: NicknameStore,
-        myPubkeyHex: String,
-        pendingLeaveStore: PendingLeaveStore
+        myPubkeyHex: String
     ) {
         self.groupId = groupId
         self.marmot = marmot
         self.mls = mls
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
-        self.pendingLeaveStore = pendingLeaveStore
 
         // Re-resolve display names when nicknames change
         nicknameStore.$nicknames
@@ -76,15 +72,6 @@ final class GroupDetailViewModel: ObservableObject {
                 self?.refreshDisplayNames()
             }
             .store(in: &cancellables)
-
-        // Listen for leave requests targeting this group
-        marmot.onLeaveRequestReceived = { [weak self] groupId, pubkey in
-            guard let self, groupId == self.groupId else { return }
-            self.leaveRequestMembers.insert(pubkey)
-        }
-
-        // Populate with any pending leave requests received before this view loaded
-        leaveRequestMembers = marmot.settings?.pendingLeaveRequests[groupId] ?? []
 
         // Surface incoming join-requests for this group (fires immediately with
         // the current contents, then on every update).
@@ -246,9 +233,6 @@ final class GroupDetailViewModel: ObservableObject {
         do {
             try await marmot.removeMember(publicKeyHex: pubkeyHex, inGroup: groupId)
 
-            // Clear the leave request since it's processed
-            marmot.settings?.pendingLeaveRequests[groupId]?.remove(pubkeyHex)
-
             // Reload member list
             await load()
             WhistleLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
@@ -302,19 +286,17 @@ final class GroupDetailViewModel: ObservableObject {
 
     // MARK: - Leave group
 
-    /// Send a leave request to the group admin. The member enters a "leaving"
-    /// state locally; the admin must process the actual removal for key rotation.
-    func requestLeave() async {
+    /// Leave the group directly — a self-remove MLS commit, takes effect immediately.
+    func leaveGroup() async {
         isLeaving = true
         defer { isLeaving = false }
         do {
-            try await marmot.sendLeaveRequest(groupId: groupId)
-            pendingLeaveStore.add(groupId)
-            didRequestLeave = true
+            try await marmot.leaveGroup(groupId: groupId)
+            didLeave = true
             error = nil
         } catch {
             self.error = error.localizedDescription
-            WhistleLogger.chat.error("Failed to send leave request: \(error)")
+            WhistleLogger.chat.error("Failed to leave group: \(error)")
         }
     }
 

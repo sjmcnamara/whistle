@@ -26,16 +26,14 @@ struct GroupDetailView: View {
         marmot: MarmotService,
         mls: MLSService,
         nicknameStore: NicknameStore,
-        myPubkeyHex: String,
-        pendingLeaveStore: PendingLeaveStore
+        myPubkeyHex: String
     ) {
         _viewModel = StateObject(wrappedValue: GroupDetailViewModel(
             groupId: groupId,
             marmot: marmot,
             mls: mls,
             nicknameStore: nicknameStore,
-            myPubkeyHex: myPubkeyHex,
-            pendingLeaveStore: pendingLeaveStore
+            myPubkeyHex: myPubkeyHex
         ))
     }
 
@@ -84,7 +82,7 @@ struct GroupDetailView: View {
                 )
             }
         }
-        .onChange(of: viewModel.didRequestLeave) { _, left in
+        .onChange(of: viewModel.didLeave) { _, left in
             if left { dismiss() }
         }
         .alert("Rename Group", isPresented: $showRename) {
@@ -94,11 +92,11 @@ struct GroupDetailView: View {
         }
         .alert("Leave Group?", isPresented: $showLeaveConfirmation) {
             Button("Leave", role: .destructive) {
-                Task { await viewModel.requestLeave() }
+                Task { await viewModel.leaveGroup() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The admin will be notified to remove you. You'll stop receiving updates once confirmed.")
+            Text("You'll stop sharing your location and lose access to the chat immediately.")
         }
     }
 
@@ -294,29 +292,20 @@ struct GroupDetailView: View {
 
     private var leaveSection: some View {
         Section {
-            if viewModel.pendingLeaveStore.contains(viewModel.groupId) {
+            Button(role: .destructive) {
+                showLeaveConfirmation = true
+            } label: {
                 HStack {
                     Spacer()
-                    Label("Leave Requested", systemImage: "hourglass")
-                        .foregroundStyle(.secondary)
+                    if viewModel.isLeaving {
+                        ProgressView()
+                    } else {
+                        Label("Leave Group", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
                     Spacer()
                 }
-            } else {
-                Button(role: .destructive) {
-                    showLeaveConfirmation = true
-                } label: {
-                    HStack {
-                        Spacer()
-                        if viewModel.isLeaving {
-                            ProgressView()
-                        } else {
-                            Label("Leave Group", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(viewModel.isLeaving)
             }
+            .disabled(viewModel.isLeaving)
         }
     }
 }
@@ -352,10 +341,6 @@ private struct MemberRowView: View {
                     if member.isAdmin {
                         Text("Admin").font(.caption).foregroundStyle(.blue)
                     }
-                    if viewModel.leaveRequestMembers.contains(member.pubkeyHex) {
-                        Label("Wants to leave", systemImage: "arrow.right.circle.fill")
-                            .font(.caption).foregroundStyle(.orange)
-                    }
                     if isResyncing {
                         Label("Resyncing…", systemImage: "arrow.triangle.2.circlepath")
                             .font(.caption).foregroundStyle(.secondary)
@@ -369,19 +354,10 @@ private struct MemberRowView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if allowManage && viewModel.isAdmin && !member.isMe {
-                if viewModel.leaveRequestMembers.contains(member.pubkeyHex) {
-                    Button {
-                        Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
-                    } label: {
-                        Label("Approve", systemImage: "checkmark.circle")
-                    }
-                    .tint(.green)
-                } else {
-                    Button(role: .destructive) {
-                        Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
-                    } label: {
-                        Label("Remove", systemImage: "person.badge.minus")
-                    }
+                Button(role: .destructive) {
+                    Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
+                } label: {
+                    Label("Remove", systemImage: "person.badge.minus")
                 }
             }
         }

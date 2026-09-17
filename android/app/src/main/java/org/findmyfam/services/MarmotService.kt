@@ -59,7 +59,6 @@ class MarmotService @Inject constructor(
     private val memberAvatarStore: MemberAvatarStore,
     private val sharedGroupAvatarStore: SharedGroupAvatarStore,
     private val pendingInviteStore: PendingInviteStore,
-    private val pendingLeaveStore: PendingLeaveStore,
     private val pendingWelcomeStore: PendingWelcomeStore,
     val joinRequestStore: JoinRequestStore,
     private val locationCache: LocationCache,
@@ -616,12 +615,53 @@ class MarmotService @Inject constructor(
     }
 
     /**
-     * Send a leave-request message (kind 2) to the group so the admin can
-     * process the removal and trigger MLS key rotation.
+     * Leave a group directly — a self-remove commit (MIP-03), no admin
+     * action needed for a plain member. Three cases:
+     * - Solo group (we're the only member): nobody to notify — just delete
+     *   our local copy.
+     * - Admin with at least one co-admin: MDK requires self-demoting before
+     *   `leaveGroup`, so we do that first, as its own verified commit.
+     * - Sole admin of a multi-member group: MDK has no one to hand admin
+     *   duties to and refuses to self-demote at all — we throw a clear error
+     *   rather than let the raw MDK message surface. The caller must promote
+     *   another member to admin first.
+     *
+     * Verified commit throughout (same anti-fork pattern as `removeMember`):
+     * an unconfirmed leave would strand the remaining members thinking we're
+     * still present. Unlike other mutations, the final leave commit is never
+     * merged locally — MDK's `mergePendingCommit` only applies to
+     * createGroup/addMembers/removeMembers/selfUpdate, since leaving means we
+     * no longer hold a leaf to merge into. `deleteGroup` wipes our local copy
+     * once the commit is confirmed on the relay — deleting before that would
+     * silently strand us with no way to retry.
      */
-    suspend fun sendLeaveRequest(groupId: String) {
-        sendMessage(content = "", groupId = groupId, kind = MarmotKind.LEAVE_REQUEST)
-        Timber.i("Sent leave request for group $groupId")
+    suspend fun leaveGroup(groupId: String) {
+        val members = mls.getMembers(groupId)
+        if (members.size <= 1) {
+            mls.deleteGroup(groupId)
+            locationCache.removeLocation(groupId, publicKeyHex)
+            refreshGroups()
+            Timber.i("Deleted solo group $groupId — no other members to notify")
+            return
+        }
+
+        val group = groups.value.firstOrNull { it.mlsGroupId == groupId }
+        val adminPubkeys = group?.adminPubkeys ?: emptyList()
+        if (publicKeyHex in adminPubkeys) {
+            if (adminPubkeys.size <= 1) {
+                throw MarmotException("You're the only admin of this group. Promote another member to admin before leaving.")
+            }
+            val demoteResult = mls.selfDemote(groupId)
+            mls.mergePendingCommit(mlsGroupId = groupId)
+            publishAndVerifyCommit(demoteResult.evolutionEventJson)
+        }
+
+        val result = mls.leaveGroup(groupId)
+        publishAndVerifyCommit(result.evolutionEventJson)
+        mls.deleteGroup(groupId)
+        locationCache.removeLocation(groupId, publicKeyHex)
+        refreshGroups()
+        Timber.i("Left group $groupId")
     }
 
     /**
@@ -863,9 +903,6 @@ class MarmotService @Inject constructor(
         // Clear matching pending invite now that we've joined
         pendingInviteStore.remove(groupHint = welcome.mlsGroupId)
 
-        // If we had requested leave earlier, clear it now that we're rejoined
-        pendingLeaveStore.remove(welcome.mlsGroupId)
-
         // Signal so AppViewModel can broadcast display name
         withContext(Dispatchers.Main) {
             _lastJoinedGroupId.value = welcome.mlsGroupId
@@ -1056,10 +1093,6 @@ class MarmotService @Inject constructor(
                     }
                     Timber.d("Plain chat message in group ${message.mlsGroupId}")
                 }
-            }
-            MarmotKind.LEAVE_REQUEST -> {
-                settings.addPendingLeaveRequest(message.mlsGroupId, message.senderPubkey)
-                Timber.i("Leave request from ${message.senderPubkey.take(8)} in group ${message.mlsGroupId}")
             }
             else -> {
                 Timber.d("Unknown application message kind ${message.kind} in group ${message.mlsGroupId}")

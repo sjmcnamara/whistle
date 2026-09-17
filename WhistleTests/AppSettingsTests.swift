@@ -7,10 +7,10 @@ import WhistleCore
 /// appearance → ColorScheme mapping, and relay JSON persistence.
 ///
 /// Partial parity with Android AppSettingsTest. Much of what the Android test
-/// covers (processed-event/pending-leave/gift-wrap/unread bookkeeping) lives in
-/// dedicated iOS stores — JoinRequestStore, PendingLeaveStore, PendingWelcomeStore —
-/// which have their own tests; on iOS AppSettings those are plain stored
-/// properties with no per-item method logic to exercise.
+/// covers (processed-event/gift-wrap/unread bookkeeping) lives in dedicated
+/// iOS stores — JoinRequestStore, PendingWelcomeStore — which have their own
+/// tests; on iOS AppSettings those are plain stored properties with no
+/// per-item method logic to exercise.
 ///
 /// AppSettings is a UserDefaults-backed singleton, so touched keys are
 /// snapshotted and restored to avoid leaking state across the suite.

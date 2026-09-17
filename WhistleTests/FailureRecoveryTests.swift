@@ -525,33 +525,6 @@ final class FailureRecoveryTests: XCTestCase {
         XCTAssertEqual(store.pendingInvites.first?.groupHint, "group-2")
     }
 
-    // MARK: - 18. PendingLeaveStore — Deduplication
-
-    func testPendingLeaveStore_deduplication() {
-        let store = PendingLeaveStore(skipLoad: true)
-        store.add("group-1")
-        store.add("group-1")
-        XCTAssertEqual(store.pendingLeaves.count, 1)
-    }
-
-    func testPendingLeaveStore_removeResolved() {
-        let store = PendingLeaveStore(skipLoad: true)
-        store.add("group-1")
-        store.add("group-2")
-        // group-1 is no longer in active groups — should be cleaned up
-        // removeResolved removes leaves whose groups are NOT in the active set
-        store.removeResolved(activeGroupIds: Set(["group-2"]))
-        XCTAssertFalse(store.pendingLeaves.contains("group-1"))
-        XCTAssertTrue(store.pendingLeaves.contains("group-2"))
-    }
-
-    func testPendingLeaveStore_contains() {
-        let store = PendingLeaveStore(skipLoad: true)
-        store.add("group-1")
-        XCTAssertTrue(store.contains("group-1"))
-        XCTAssertFalse(store.contains("group-2"))
-    }
-
     // MARK: - 19. PendingWelcomeStore — Deduplication
 
     func testPendingWelcomeStore_deduplication() {

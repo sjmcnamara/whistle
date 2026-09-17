@@ -40,7 +40,6 @@ class AppViewModel @Inject constructor(
     val sharedGroupAvatarStore: SharedGroupAvatarStore,
     val diagnosticsCollector: DiagnosticsCollector,
     val pendingInviteStore: PendingInviteStore,
-    val pendingLeaveStore: PendingLeaveStore,
     val pendingWelcomeStore: PendingWelcomeStore,
     val joinRequestStore: JoinRequestStore,
     val locationCache: LocationCache,
@@ -589,17 +588,15 @@ class AppViewModel @Inject constructor(
         memberAvatarStore.removeAll()
         sharedGroupAvatarStore.removeAll()
         pendingInviteStore.removeAll()
-        pendingLeaveStore.removeAll()
         pendingWelcomeStore.removeAll()
         joinRequestStore.removeAll()
         locationCache.clear()
         chatMessageCache.clear()
 
-        // Clear settings — including pendingLeaveRequests and chat timestamps
+        // Clear settings — including chat timestamps
         settings.lastEventTimestamp = 0u
         settings.processedEventIds.clear()
         settings.pendingGiftWrapEventIds.clear()
-        settings.pendingLeaveRequests = mutableMapOf()
         settings.clearChatTimestamps()
 
         // Reset MLS database — overwrites files with zeros before deletion

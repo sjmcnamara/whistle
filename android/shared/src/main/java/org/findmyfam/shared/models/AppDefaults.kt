@@ -32,7 +32,6 @@ object AppDefaults {
         const val appLockReauthOnForeground = "fmf.appLockReauthOnForeground"
         const val lastEventTimestamp = "fmf.lastEventTimestamp"
         const val processedEventIds = "fmf.processedEventIds"
-        const val pendingLeaveRequests = "fmf.pendingLeaveRequests"
         const val pendingGiftWrapEventIds = "fmf.pendingGiftWrapEventIds"
         const val pausedGroupIds = "fmf.pausedGroupIds"
         const val keyRotationIntervalDays = "fmf.keyRotationIntervalDays"

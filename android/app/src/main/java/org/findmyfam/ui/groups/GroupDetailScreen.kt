@@ -57,9 +57,8 @@ fun GroupDetailScreen(
     val error by viewModel.error.collectAsState()
     val addMemberNpub by viewModel.addMemberNpub.collectAsState()
     val isLeaving by viewModel.isLeaving.collectAsState()
-    val didRequestLeave by viewModel.didRequestLeave.collectAsState()
+    val didLeave by viewModel.didLeave.collectAsState()
     val isRenaming by viewModel.isRenaming.collectAsState()
-    val leaveRequestMembers by viewModel.leaveRequestMembers.collectAsState()
     val pendingJoiners by viewModel.pendingJoiners.collectAsState()
     val pausedGroupIds by appViewModel.settings.pausedGroupIdsFlow.collectAsState()
     val isSharingPaused = viewModel.groupId in pausedGroupIds
@@ -124,7 +123,7 @@ fun GroupDetailScreen(
     }
 
     LaunchedEffect(Unit) { viewModel.load() }
-    LaunchedEffect(didRequestLeave) { if (didRequestLeave) onLeaveComplete() }
+    LaunchedEffect(didLeave) { if (didLeave) onLeaveComplete() }
 
     val memberPreviewCap = 6
 
@@ -133,7 +132,6 @@ fun GroupDetailScreen(
     if (subScreen == "members") {
         MembersSubScreen(
             members = members,
-            leaveRequestMembers = leaveRequestMembers,
             isAdmin = viewModel.isAdmin,
             onPromote = { viewModel.promoteToAdmin(it) },
             onRemove = { viewModel.removeMember(it) },
@@ -409,7 +407,6 @@ fun GroupDetailScreen(
                 itemsIndexed(shown, key = { i, m -> "${m.id}_$i" }) { _, member ->
                     MemberListItem(
                         member = member,
-                        wantsToLeave = member.pubkeyHex in leaveRequestMembers,
                         canManage = viewModel.isAdmin && !isLarge,
                         onPromote = { viewModel.promoteToAdmin(it) },
                         onRemove = { viewModel.removeMember(it) },
@@ -504,10 +501,10 @@ fun GroupDetailScreen(
         AlertDialog(
             onDismissRequest = { showLeaveConfirm = false },
             title = { Text("Leave Group") },
-            text = { Text("Are you sure you want to leave this group? The admin will need to process your removal.") },
+            text = { Text("You'll stop sharing your location and lose access to the chat immediately.") },
             confirmButton = {
                 TextButton(
-                    onClick = { showLeaveConfirm = false; viewModel.requestLeave() },
+                    onClick = { showLeaveConfirm = false; viewModel.leaveGroup() },
                     enabled = !isLeaving
                 ) { Text("Leave", color = MaterialTheme.colorScheme.error) }
             },
@@ -552,7 +549,6 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun MemberListItem(
     member: GroupDetailViewModel.MemberItem,
-    wantsToLeave: Boolean,
     canManage: Boolean,
     onPromote: (String) -> Unit,
     onRemove: (String) -> Unit,
@@ -570,24 +566,13 @@ private fun MemberListItem(
             }
         },
         supportingContent = {
-            Column {
-                if (member.isAdmin) {
-                    Text("Admin", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                }
-                if (wantsToLeave) {
-                    Text("Wants to leave", fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
-                }
+            if (member.isAdmin) {
+                Text("Admin", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
             }
         },
         trailingContent = {
             if (canManage && !member.isMe) {
-                if (wantsToLeave) {
-                    TextButton(onClick = { onRemove(member.pubkeyHex) }) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Approve")
-                    }
-                } else if (isResyncing) {
+                if (isResyncing) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 } else {
                     Row {
@@ -617,7 +602,6 @@ private fun MemberListItem(
 @Composable
 private fun MembersSubScreen(
     members: List<GroupDetailViewModel.MemberItem>,
-    leaveRequestMembers: Set<String>,
     isAdmin: Boolean,
     onPromote: (String) -> Unit,
     onRemove: (String) -> Unit,
@@ -657,7 +641,6 @@ private fun MembersSubScreen(
                 itemsIndexed(filtered, key = { i, m -> "${m.id}_$i" }) { _, member ->
                     MemberListItem(
                         member = member,
-                        wantsToLeave = member.pubkeyHex in leaveRequestMembers,
                         canManage = isAdmin,
                         onPromote = onPromote,
                         onRemove = onRemove,

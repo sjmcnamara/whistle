@@ -22,7 +22,6 @@ class GroupDetailViewModel(
     private val mls: MLSService,
     private val nicknameStore: NicknameStore,
     private val myPubkeyHex: String,
-    private val pendingLeaveStore: PendingLeaveStore,
     private val settings: org.findmyfam.models.AppSettings? = null
 ) {
     // --- Item model ---
@@ -64,14 +63,11 @@ class GroupDetailViewModel(
     private val _isLeaving = MutableStateFlow(false)
     val isLeaving: StateFlow<Boolean> = _isLeaving.asStateFlow()
 
-    private val _didRequestLeave = MutableStateFlow(false)
-    val didRequestLeave: StateFlow<Boolean> = _didRequestLeave.asStateFlow()
+    private val _didLeave = MutableStateFlow(false)
+    val didLeave: StateFlow<Boolean> = _didLeave.asStateFlow()
 
     private val _isRenaming = MutableStateFlow(false)
     val isRenaming: StateFlow<Boolean> = _isRenaming.asStateFlow()
-
-    private val _leaveRequestMembers = MutableStateFlow<Set<String>>(emptySet())
-    val leaveRequestMembers: StateFlow<Set<String>> = _leaveRequestMembers.asStateFlow()
 
     /** Pubkey currently being hard-resynced (remove + re-add), for per-row spinner. */
     private val _resyncingMemberPubkey = MutableStateFlow<String?>(null)
@@ -130,9 +126,6 @@ class GroupDetailViewModel(
                 }.sortedWith(compareByDescending<MemberItem> { it.isMe }
                     .thenByDescending { it.isAdmin }
                     .thenBy { it.displayName })
-
-                // Populate leave request members from stored settings
-                _leaveRequestMembers.value = settings?.pendingLeaveRequests?.get(groupId) ?: emptySet()
 
                 _error.value = null
             } catch (e: Exception) {
@@ -253,11 +246,6 @@ class GroupDetailViewModel(
         scope.launch {
             try {
                 marmot.removeMember(pubkeyHex = pubkeyHex, groupId = groupId)
-
-                // Clear the leave request since it's processed
-                settings?.removePendingLeaveRequest(groupId, pubkeyHex)
-                _leaveRequestMembers.value = _leaveRequestMembers.value - pubkeyHex
-
                 load()
                 Timber.i("Removed member ${pubkeyHex.take(8)} from group $groupId")
             } catch (e: Exception) {
@@ -322,17 +310,17 @@ class GroupDetailViewModel(
 
     // --- Leave group ---
 
-    fun requestLeave() {
+    /** Leave the group directly -- a self-remove MLS commit, takes effect immediately. */
+    fun leaveGroup() {
         scope.launch {
             _isLeaving.value = true
             try {
-                marmot.sendLeaveRequest(groupId = groupId)
-                pendingLeaveStore.add(groupId)
-                _didRequestLeave.value = true
+                marmot.leaveGroup(groupId = groupId)
+                _didLeave.value = true
                 _error.value = null
             } catch (e: Exception) {
                 _error.value = e.message
-                Timber.e("Failed to send leave request: $e")
+                Timber.e("Failed to leave group: $e")
             } finally {
                 _isLeaving.value = false
             }
