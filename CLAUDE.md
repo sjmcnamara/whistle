@@ -103,4 +103,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.10.0 — Real self-remove for "Leave Group"** (feature, iOS & Android). See ROADMAP.md for next steps.
+Current version: **v1.10.1 — Diagnostics ID on Group Detail** (minor, iOS & Android). See ROADMAP.md for next steps.
