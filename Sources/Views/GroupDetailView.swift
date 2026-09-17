@@ -169,7 +169,7 @@ struct GroupDetailView: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Diagnostics ID: \(viewModel.diagnosticsGroupId)")
+                        Text("Group ID: \(viewModel.diagnosticsGroupId)")
                             .font(.caption2.monospaced())
                         Image(systemName: copiedGroupId ? "checkmark" : "doc.on.doc")
                             .font(.caption2)

@@ -333,7 +333,7 @@ fun GroupDetailScreen(
                             }
                         ) {
                             Text(
-                                "Diagnostics ID: ${viewModel.diagnosticsGroupId}",
+                                "Group ID: ${viewModel.diagnosticsGroupId}",
                                 fontSize = 11.sp,
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant

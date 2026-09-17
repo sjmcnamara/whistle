@@ -566,7 +566,7 @@ _Released 2026-09-17_
 ### v1.10.1 — Diagnostics ID on Group Detail ✅
 _Released 2026-09-17_
 
-- **(iOS & Android) Diagnostics exports were impossible to interpret with more than one group.** The diagnostics report deliberately shows only an 8-char group-id prefix per group and no name, to keep a report meant for pasting elsewhere from leaking group names. But nothing on the Group Detail screen showed that same id, so there was no way to match a diagnostics entry back to an actual group. Added a small tap-to-copy "Diagnostics ID" row under the member count showing the identical prefix (`DiagnosticsReport.shortHex`) diagnostics already uses.
+- **(iOS & Android) Diagnostics exports were impossible to interpret with more than one group.** The diagnostics report deliberately shows only an 8-char group-id prefix per group and no name, to keep a report meant for pasting elsewhere from leaking group names. But nothing on the Group Detail screen showed that same id, so there was no way to match a diagnostics entry back to an actual group. Added a small tap-to-copy "Group ID" row under the member count showing the identical prefix (`DiagnosticsReport.shortHex`) diagnostics already uses.
 
 ---
 
