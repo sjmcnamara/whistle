@@ -373,10 +373,15 @@ final class MarmotService: ObservableObject {
     /// Add a member to a group: fetch their key package, run MLS addMembers,
     /// gift-wrap the welcome, and publish group evolution events.
     func addMember(publicKeyHex memberHex: String, toGroup groupId: String, maxRetries: Int = 10) async throws {
-        // Pre-flight: don't add yourself
-        guard memberHex != publicKeyHex else {
-            throw MarmotError.alreadyMember
-        }
+        // No separate "don't add yourself" guard here on purpose. In the
+        // healthy case it's redundant — a live member is already caught by
+        // the real membership check just below — and in the identity-swap
+        // scenario (see Whistle.entitlements / IdentityService) it's actively
+        // wrong: the device can hold real admin rights in a group under a
+        // leaf whose credential no longer matches the app's current outward
+        // identity, and re-adding the current identity as a fresh member is
+        // the only way to recover. A hardcoded `memberHex == publicKeyHex`
+        // check would block exactly that recovery.
 
         // Pre-flight: check if member is already in the group
         if let existingMembers = try? await mls.getMembers(groupId: groupId),

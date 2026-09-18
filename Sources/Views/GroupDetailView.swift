@@ -400,6 +400,10 @@ private struct MemberRowView: View {
             }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            // Resync stays hidden on your own row — `resyncMember` has its
+            // own self-guard (removing+re-adding your own live device via a
+            // relay-fetched key package isn't a coherent operation) and isn't
+            // needed for the identity-recovery case below.
             if allowManage && !member.isMe {
                 Button {
                     showResyncConfirm = true
@@ -407,15 +411,22 @@ private struct MemberRowView: View {
                     Label("Resync", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .tint(.indigo)
+            }
 
-                if !member.isAdmin {
-                    Button {
-                        Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
-                    } label: {
-                        Label("Make Admin", systemImage: "shield.checkered")
-                    }
-                    .tint(.orange)
+            // Make Admin is deliberately NOT gated on `!member.isMe`: after an
+            // identity-swap recovery (add-your-current-npub-back-in, see
+            // MarmotService.addMember's doc comment), the row that needs
+            // promoting to finish the recovery is your own. MDK's promote
+            // doesn't care whether the promoter and promotee are "the same
+            // app identity" — only that the promoter's leaf is a real admin
+            // and the promotee is a real member, both true here.
+            if allowManage && !member.isAdmin {
+                Button {
+                    Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
+                } label: {
+                    Label("Make Admin", systemImage: "shield.checkered")
                 }
+                .tint(.orange)
             }
         }
         .confirmationDialog(

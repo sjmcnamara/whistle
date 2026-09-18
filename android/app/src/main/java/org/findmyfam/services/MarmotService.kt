@@ -351,10 +351,15 @@ class MarmotService @Inject constructor(
      * gift-wrap the welcome, and publish group evolution events.
      */
     suspend fun addMember(pubkeyHex: String, groupId: String, maxRetries: Int = 10) {
-        // Pre-flight: don't add yourself
-        if (pubkeyHex == publicKeyHex) {
-            throw MarmotException("Cannot add yourself to a group")
-        }
+        // No separate "don't add yourself" guard here on purpose. In the
+        // healthy case it's redundant -- a live member is already caught by
+        // the real membership check just below -- and in the identity-swap
+        // scenario (see IdentityService) it's actively wrong: the device can
+        // hold real admin rights in a group under a leaf whose credential no
+        // longer matches the app's current outward identity, and re-adding
+        // the current identity as a fresh member is the only way to recover.
+        // A hardcoded pubkeyHex == publicKeyHex check would block exactly
+        // that recovery.
 
         // Pre-flight: check if member is already in the group
         try {
