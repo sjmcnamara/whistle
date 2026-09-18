@@ -171,6 +171,55 @@ final class IdentityServiceTests: XCTestCase {
                        "Imported identity should survive relaunch")
     }
 
+    // MARK: - Identity anomaly (v1.10.3 — see Whistle.entitlements for the incident)
+
+    func testAnomalyDetectedWhenNoNsecButLocalDataExists() async throws {
+        let service = IdentityService(storage: store, hasExistingLocalData: { true })
+        await service.initialise()
+
+        XCTAssertTrue(service.identityAnomalyDetected)
+        XCTAssertNil(service.identity, "Should not silently generate an identity")
+        XCTAssertNil(service.keys)
+        XCTAssertNil(store.load(key: .nsec), "Should not have written a new nsec to storage")
+    }
+
+    func testNoAnomalyOnGenuineFirstLaunch() async throws {
+        let service = IdentityService(storage: store, hasExistingLocalData: { false })
+        await service.initialise()
+
+        XCTAssertFalse(service.identityAnomalyDetected)
+        XCTAssertNotNil(service.identity)
+        XCTAssertTrue(service.isNewUser)
+    }
+
+    func testNoAnomalyWhenNsecIsPresentRegardlessOfLocalData() async throws {
+        // Seed a real nsec first (genuine first launch, no local data yet).
+        let first = IdentityService(storage: store, hasExistingLocalData: { false })
+        await first.initialise()
+        XCTAssertFalse(first.identityAnomalyDetected)
+        let npub = first.identity?.npub
+
+        // An existing, reachable identity should never trigger the anomaly
+        // path on a later launch, even if hasExistingLocalData now says true.
+        let second = IdentityService(storage: store, hasExistingLocalData: { true })
+        await second.initialise()
+        XCTAssertFalse(second.identityAnomalyDetected)
+        XCTAssertEqual(second.identity?.npub, npub)
+    }
+
+    func testCreateNewIdentityDespiteAnomalyOverridesIt() async throws {
+        let service = IdentityService(storage: store, hasExistingLocalData: { true })
+        await service.initialise()
+        XCTAssertTrue(service.identityAnomalyDetected)
+
+        await service.createNewIdentityDespiteAnomaly()
+
+        XCTAssertFalse(service.identityAnomalyDetected)
+        XCTAssertNotNil(service.identity)
+        XCTAssertTrue(service.isNewUser)
+        XCTAssertNotNil(store.load(key: .nsec), "Explicit override should persist the new nsec")
+    }
+
     // MARK: - Secure Storage Delete
 
     func testInMemoryStorageDeleteRemovesKey() {

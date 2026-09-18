@@ -5,6 +5,15 @@
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)org.getwhistle.whistle</string>
+		<!-- Pre-v1.8.7 bundle id. The v1.8.7 rename (#203) dropped this group
+		     entirely instead of keeping both during a transition, which
+		     silently orphaned any identity stored here — IdentityService
+		     found no nsec under the new group and generated a fresh one with
+		     no warning, while the (unaffected, non-Keychain-scoped) MDK
+		     database kept every existing group's state under the old
+		     identity's MLS credentials. Keep this listed indefinitely so any
+		     device still on a pre-v1.8.7 install is never silently swapped. -->
+		<string>$(AppIdentifierPrefix)org.findmyfam.app</string>
 	</array>
 </dict>
 </plist>

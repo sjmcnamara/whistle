@@ -309,14 +309,14 @@ fun GroupDetailScreen(
                                 groupName.ifEmpty { "Unnamed Group" },
                                 fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
-                            if (viewModel.isAdmin) {
-                                IconButton(onClick = { renameText = groupName; showRenameDialog = true }) {
-                                    Icon(
-                                        Icons.Default.Edit, contentDescription = "Rename",
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                            // Not gated on viewModel.isAdmin -- see the comment
+                            // near the invite section below.
+                            IconButton(onClick = { renameText = groupName; showRenameDialog = true }) {
+                                Icon(
+                                    Icons.Default.Edit, contentDescription = "Rename",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                         Text(
@@ -359,8 +359,14 @@ fun GroupDetailScreen(
                     HorizontalDivider()
                 }
 
-                // Ready to Join (pending joiners) — admin only
-                if (viewModel.isAdmin && pendingJoiners.isNotEmpty()) {
+                // Ready to Join (pending joiners). Not gated on
+                // viewModel.isAdmin -- see the comment on the invite section
+                // below for why: that check reads a cached admin list that
+                // can diverge from live MLS truth, and hiding this would make
+                // it impossible to ever recover through the UI. The
+                // underlying call fails safely via MDK's own enforcement for
+                // a genuine non-admin.
+                if (pendingJoiners.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
@@ -419,23 +425,27 @@ fun GroupDetailScreen(
                     item { HorizontalDivider() }
                 }
 
-                // Invite People — admin only
-                if (viewModel.isAdmin) {
-                    item {
-                        SectionHeader("Invite People")
-                        ListItem(
-                            headlineContent = { Text("Invite via QR / Code") },
-                            leadingContent = { Icon(Icons.Default.Share, contentDescription = null) },
-                            modifier = Modifier.clickable { viewModel.generateInvite(); showInviteSheet = true }
-                        )
-                        ListItem(
-                            headlineContent = { Text("Add by npub") },
-                            leadingContent = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
-                            trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                            modifier = Modifier.clickable { subScreen = "addNpub" }
-                        )
-                        HorizontalDivider()
-                    }
+                // Invite People. Not gated on viewModel.isAdmin -- that reads
+                // a cached admin list that can diverge from live MLS truth,
+                // and hiding this would make it impossible to ever recover
+                // from that state through the UI (e.g. re-adding yourself as
+                // a genuine member after a stale-admin-cache incident). The
+                // underlying calls fail safely via MDK's own enforcement for
+                // a genuine non-admin.
+                item {
+                    SectionHeader("Invite People")
+                    ListItem(
+                        headlineContent = { Text("Invite via QR / Code") },
+                        leadingContent = { Icon(Icons.Default.Share, contentDescription = null) },
+                        modifier = Modifier.clickable { viewModel.generateInvite(); showInviteSheet = true }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Add by npub") },
+                        leadingContent = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
+                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        modifier = Modifier.clickable { subScreen = "addNpub" }
+                    )
+                    HorizontalDivider()
                 }
 
                 // Members (preview + See all)

@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.4] — 2026-09-18
+
+### Fixed
+- **(iOS) Root cause found for the `Dublin`-style "stale admin"/ghost-identity reports: a silent identity swap caused by the v1.8.7 bundle-id rename, not a live fork or a cache bug.** That rename (`#203`) dropped the old `keychain-access-groups` entitlement entirely instead of keeping both during a transition. On a device's first launch of v1.8.7+, the old Keychain access group — and the nsec stored in it — became unreachable; `IdentityService` saw "no nsec found" and treated it as a genuine first launch, silently generating a brand-new Nostr identity with no warning. The MLS database (`whistle.db`) isn't Keychain-scoped, so every existing group kept working under the *old* identity's MLS leaf and credential, indefinitely — the app just stopped recognizing that leaf as "you". Fixed both ends: `Whistle.entitlements` now lists the pre-rename access group alongside the current one, indefinitely, so no device is ever silently orphaned this way again; and `IdentityService` now distinguishes a genuine first launch from this anomaly (no nsec, but real local MLS/group data already on disk) and refuses to auto-generate a replacement identity in the latter case, instead surfacing a blocking screen that requires an explicit, deliberate choice ("Try Again" or "Create New Identity Anyway") rather than silently swapping identities under the user.
+- **(iOS & Android) "Invite People" (including "Add by npub"), "Ready to Join" approvals, and the group-rename button no longer depend on the same stale cached admin list that member-row actions were already fixed to ignore in v1.10.3.** Those sections were still gated on `viewModel.isAdmin`, which reads the same `Group.adminPubkeys` cache proven to diverge from live MLS truth — meaning a genuinely-live-admin user affected by the cache bug could see "Leave Group" work correctly (fixed in v1.10.3) but had no way to add themselves back into a group as a fresh, correctly-recognized member, since the exact UI needed to do that was hidden by the same broken check. All four now render unconditionally; the underlying MDK calls still fail safely with a clear error for a genuine non-admin, same as the member-row actions already did.
+
+### Known remaining gap
+- **(iOS & Android) The group-photo picker's admin gate, and `MarmotService.isAdmin(_:ofGroup:)` underneath it, still read the same stale cache.** Left as-is deliberately: lower stakes than being locked out of leaving or inviting, and tangled with an actual policy question (should any member be able to set the group photo?) not worth deciding as a side effect of this bug fix.
+
 ## [1.10.3] — 2026-09-17
 
 ### Fixed

@@ -42,12 +42,16 @@ struct GroupDetailView: View {
         List {
             heroSection
 
-            if viewModel.isAdmin && !viewModel.pendingJoiners.isEmpty {
+            // Not gated on `viewModel.isAdmin` — see the comment on
+            // `MemberRowView`'s swipe actions below for why: that check reads
+            // a cached admin list that can diverge from live MLS truth, and
+            // hiding these sections would make it impossible to ever recover
+            // from that state through the UI. The underlying calls fail
+            // safely via MDK's own enforcement for a genuine non-admin.
+            if !viewModel.pendingJoiners.isEmpty {
                 readyToJoinSection
             }
-            if viewModel.isAdmin {
-                invitePeopleSection
-            }
+            invitePeopleSection
             membersSection
             locationSharingSection
             leaveSection
@@ -140,18 +144,18 @@ struct GroupDetailView: View {
                     Text(viewModel.groupName.isEmpty ? "Unnamed Group" : viewModel.groupName)
                         .font(.title2.weight(.semibold))
                         .multilineTextAlignment(.center)
-                    if viewModel.isAdmin {
-                        Button {
-                            renameText = viewModel.groupName
-                            showRename = true
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.subheadline)
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Rename group")
+                    // Not gated on `viewModel.isAdmin` — see the comment above
+                    // `invitePeopleSection`'s call site.
+                    Button {
+                        renameText = viewModel.groupName
+                        showRename = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
                     }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Rename group")
                 }
                 Text("\(viewModel.members.count) member\(viewModel.members.count == 1 ? "" : "s")")
                     .font(.subheadline)
