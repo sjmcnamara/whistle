@@ -6,6 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.4] — 2026-09-18
+
+### Fixed
+- **(iOS) Root cause found for reports of a stale, unpromotable admin in a long-lived group: a silent identity swap caused by the v1.8.7 bundle-id rename.** That rename dropped the old `keychain-access-groups` entitlement instead of keeping both during a transition, so on a device's first v1.8.7+ launch the nsec under the old access group became unreachable — the app read that as a first launch and silently generated a new identity, no warning. The MLS database isn't Keychain-scoped, so existing groups kept running under the *old* identity's leaf indefinitely, unrecognized by the app as "you". `IdentityService` now detects this case (no nsec, but real local group data already on disk) and blocks with an explicit choice instead of silently generating a replacement identity.
+- **(iOS & Android) Closed remaining gaps in the v1.10.3 admin-cache fix.** "Invite People", "Ready to Join" approvals, and group rename no longer depend on the same stale cached admin list already fixed for member-row actions. `MarmotService.addMember` no longer refuses to add the app's own current pubkey. `MemberRowView`'s "Make Admin" swipe action no longer hides on your own row. Together these unblock recovering a group after the identity-swap scenario above: add your current identity back in and promote it.
+
+### Known remaining gap
+- **(iOS & Android) The group-photo picker's admin gate, and `MarmotService.isAdmin(_:ofGroup:)` underneath it, still read the same stale cache.** Lower stakes than being locked out of leaving or inviting, and tangled with a policy question (should any member set the group photo?) not worth deciding as a side effect here.
+- **(iOS) The old, pre-v1.8.7 identity is not recoverable from within the app.** It still exists, dormant, in Keychain, but a widened `keychain-access-groups` entitlement was tried and reverted after it broke a live account — see git history. Recovering it safely would need a dedicated one-time tool, not an ambient entitlements change.
+
+## [1.10.3] — 2026-09-17
+
+### Fixed
+- **(iOS & Android) `Leave Group` could throw a raw MDK error instead of self-demoting when it should have.** Our cached copy of a group's admin list can drift from what MLS itself enforces — a member's admin status can be live in the group's real state without the local cache ever picking it up. `leaveGroup` no longer decides admin status from that cache: it unconditionally attempts `selfDemote` first and interprets MDK's own authoritative response instead. Group Detail's own admin *display* can still read the stale cache — only the ability to actually leave is fixed here.
+
+## [1.10.2] — 2026-09-17
+
+### Added
+- **(iOS & Android) Tap a member row on Group Detail to reveal their full npub.** A nickname-less member already shows an abbreviated npub in place of a name, giving an out-of-band way to check "is this really who I think it is" — but once a nickname is cached, there was no way to see the pubkey behind it. Added a tap-to-reveal sheet/dialog showing the full npub with a copy button, so any named member's identity can be verified directly against what they read off their own Identity card.
+
 ## [1.10.1] — 2026-09-17
 
 ### Added

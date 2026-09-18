@@ -236,6 +236,17 @@ class MLSService @Inject constructor(
     suspend fun deleteGroup(mlsGroupId: String) =
         mutex.withLock { requireMdk().deleteGroup(mlsGroupId) }
 
+    /**
+     * Refresh the locally cached group metadata (name/admins/relays/etc.) from
+     * the authoritative live MLS state. Our cached copy (read by [getGroup])
+     * can drift from what MLS itself enforces -- e.g. admin status can be live
+     * in the group's real state without our cache reflecting it, so a
+     * leaveGroup admin check against the stale cache can miss that a
+     * self-demote is actually required, or vice versa.
+     */
+    suspend fun syncGroupMetadataFromMls(mlsGroupId: String) =
+        mutex.withLock { requireMdk().syncGroupMetadataFromMls(mlsGroupId) }
+
     suspend fun mergePendingCommit(mlsGroupId: String) =
         mutex.withLock { requireMdk().mergePendingCommit(mlsGroupId) }
 
@@ -283,6 +294,15 @@ class MLSService @Inject constructor(
 
     suspend fun getMembers(mlsGroupId: String): List<String> =
         mutex.withLock { requireMdk().getMembers(mlsGroupId) }
+
+    /**
+     * Returns the local member's own current MLS leaf index in a group --
+     * independent of [getMembers]'s enumeration. Diagnostic tool: proves
+     * whether this device holds a real leaf in the group's tree even when
+     * getMembers's returned list doesn't appear to include it.
+     */
+    suspend fun ownLeafIndex(mlsGroupId: String): UInt =
+        mutex.withLock { requireMdk().ownLeafIndex(mlsGroupId) }
 
     suspend fun getRelays(mlsGroupId: String): List<String> =
         mutex.withLock { requireMdk().getRelays(mlsGroupId) }

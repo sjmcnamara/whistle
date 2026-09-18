@@ -373,10 +373,15 @@ final class MarmotService: ObservableObject {
     /// Add a member to a group: fetch their key package, run MLS addMembers,
     /// gift-wrap the welcome, and publish group evolution events.
     func addMember(publicKeyHex memberHex: String, toGroup groupId: String, maxRetries: Int = 10) async throws {
-        // Pre-flight: don't add yourself
-        guard memberHex != publicKeyHex else {
-            throw MarmotError.alreadyMember
-        }
+        // No separate "don't add yourself" guard here on purpose. In the
+        // healthy case it's redundant — a live member is already caught by
+        // the real membership check just below — and in the identity-swap
+        // scenario (see Whistle.entitlements / IdentityService) it's actively
+        // wrong: the device can hold real admin rights in a group under a
+        // leaf whose credential no longer matches the app's current outward
+        // identity, and re-adding the current identity as a fresh member is
+        // the only way to recover. A hardcoded `memberHex == publicKeyHex`
+        // check would block exactly that recovery.
 
         // Pre-flight: check if member is already in the group
         if let existingMembers = try? await mls.getMembers(groupId: groupId),
@@ -669,6 +674,18 @@ final class MarmotService: ObservableObject {
     ///   rather than let the raw MDK message surface. The caller must promote
     ///   another member to admin first.
     ///
+    /// Deliberately does NOT decide which case we're in by reading our own
+    /// cached `Group.adminPubkeys` (via `getGroup`) — that field has been
+    /// observed to diverge from what MDK's own `leaveGroup`/`selfDemote`
+    /// enforcement reads from the live MLS state, even right after calling
+    /// `syncGroupMetadataFromMls`. Instead we just attempt `selfDemote`
+    /// unconditionally and interpret MDK's own authoritative response:
+    /// success means we were admin and are now demoted; `"only admins can
+    /// perform this operation"` means we weren't admin, which is fine, fall
+    /// through to a plain leave; `"last active admin"` means the caller must
+    /// promote someone else first, so we surface that as a clear error
+    /// rather than the raw MDK message. Any other error propagates as-is.
+    ///
     /// Verified commit throughout (same anti-fork pattern as `removeMember`):
     /// an unconfirmed leave would strand the remaining members thinking we're
     /// still present. Unlike other mutations, the final leave commit is never
@@ -687,14 +704,19 @@ final class MarmotService: ObservableObject {
             return
         }
 
-        if let group = groups.first(where: { $0.mlsGroupId == groupId }),
-           group.adminPubkeys.contains(publicKeyHex) {
-            guard group.adminPubkeys.count > 1 else {
-                throw MarmotError.lastAdminCannotLeave
-            }
+        do {
             let demoteResult = try await mls.selfDemote(groupId: groupId)
             try await mls.mergePendingCommit(groupId: groupId)
             try await publishAndVerifyCommits(demoteResult.publishPayload(relayURLs: relay.connectedRelayURLs).events)
+        } catch let error as MdkUniffiError {
+            guard case .Mdk(let message) = error else { throw error }
+            if message.contains("last active admin") {
+                throw MarmotError.lastAdminCannotLeave
+            }
+            guard message.contains("only admins can perform this operation") else {
+                throw error
+            }
+            // Not actually an admin — fall through to a plain leave below.
         }
 
         let result = try await mls.leaveGroup(groupId: groupId)
@@ -708,14 +730,22 @@ final class MarmotService: ObservableObject {
     /// Promote a member to admin: update the group's admin list via MLS metadata.
     func promoteToAdmin(pubkeyHex: String, inGroup groupId: String) async throws {
         guard let group = groups.first(where: { $0.mlsGroupId == groupId }) else { return }
-        var admins = group.adminPubkeys
-        guard !admins.contains(pubkeyHex) else { return }
-        admins.append(pubkeyHex)
+        guard !group.adminPubkeys.contains(pubkeyHex) else { return }
+
+        // Always explicitly include ourselves — our own admin status can be
+        // live-true without the cached adminPubkeys list ever reflecting it
+        // (see leaveGroup's doc comment on the same divergence). Writing the
+        // cached list plus just the new promotee risks silently dropping our
+        // own admin status if the cache never listed us to begin with —
+        // `admins` replaces the whole list, it doesn't merge.
+        var admins = Set(group.adminPubkeys)
+        admins.insert(publicKeyHex)
+        admins.insert(pubkeyHex)
 
         let update = GroupDataUpdate(
             name: nil, description: nil, imageHash: nil,
             imageKey: nil, imageNonce: nil, relays: nil,
-            admins: admins
+            admins: Array(admins)
         )
         let result = try await mls.updateGroupData(groupId: groupId, update: update)
         try await mls.mergePendingCommit(groupId: groupId)

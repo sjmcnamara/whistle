@@ -82,10 +82,17 @@ public struct DiagnosticsReport: Codable, Equatable {
         /// Seconds since this device last processed an MLS event for *this*
         /// group specifically. `nil` if never recorded (e.g. just joined).
         public let secondsSinceLastEvent: Int?
+        /// This device's own MLS leaf index in the group's ratchet tree, read
+        /// directly from MDK independent of the member-list enumeration used
+        /// for `memberCount`/`isAdmin`. `nil` if the lookup itself failed
+        /// (e.g. genuinely not a member). Included because those two can
+        /// disagree — this device can hold a real, working leaf while the
+        /// member list it reads elsewhere doesn't appear to include it.
+        public let ownLeafIndex: UInt32?
 
         public init(id: String, epoch: UInt64, memberCount: Int, adminCount: Int,
                     isAdmin: Bool, healthy: Bool, consecutiveFailures: Int,
-                    secondsSinceLastEvent: Int?) {
+                    secondsSinceLastEvent: Int?, ownLeafIndex: UInt32? = nil) {
             self.id = id
             self.epoch = epoch
             self.memberCount = memberCount
@@ -94,6 +101,7 @@ public struct DiagnosticsReport: Codable, Equatable {
             self.healthy = healthy
             self.consecutiveFailures = consecutiveFailures
             self.secondsSinceLastEvent = secondsSinceLastEvent
+            self.ownLeafIndex = ownLeafIndex
         }
     }
 

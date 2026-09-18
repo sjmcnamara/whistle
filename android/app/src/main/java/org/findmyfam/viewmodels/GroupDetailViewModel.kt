@@ -106,6 +106,11 @@ class GroupDetailViewModel(
         scope.launch {
             _isLoading.value = true
             try {
+                // Refresh cached metadata (name/admins/etc.) from live MLS
+                // state first -- our cache can drift from what MLS actually
+                // enforces, which otherwise shows a stale admin list here.
+                mls.syncGroupMetadataFromMls(groupId)
+
                 // Load group metadata
                 val group = mls.getGroup(groupId)
                 if (group != null) {
@@ -295,6 +300,16 @@ class GroupDetailViewModel(
      */
     val diagnosticsGroupId: String
         get() = DiagnosticsReport.shortHex(groupId)
+
+    /**
+     * Full npub for a member -- lets you verify a *named* member's identity
+     * out-of-band by comparing it against what they read off their own
+     * Identity card. Unlike a nickname-less fallback (which already shows an
+     * abbreviated npub in place of a name), a member with a cached nickname
+     * otherwise has no way to reveal the pubkey backing that name.
+     */
+    fun fullNpub(pubkeyHex: String): String =
+        try { PublicKey.parse(publicKey = pubkeyHex).toBech32() } catch (_: Exception) { pubkeyHex }
 
     /**
      * Whether the current user is an admin of this group.

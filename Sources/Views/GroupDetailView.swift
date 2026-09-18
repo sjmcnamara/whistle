@@ -42,12 +42,16 @@ struct GroupDetailView: View {
         List {
             heroSection
 
-            if viewModel.isAdmin && !viewModel.pendingJoiners.isEmpty {
+            // Not gated on `viewModel.isAdmin` — see the comment on
+            // `MemberRowView`'s swipe actions below for why: that check reads
+            // a cached admin list that can diverge from live MLS truth, and
+            // hiding these sections would make it impossible to ever recover
+            // from that state through the UI. The underlying calls fail
+            // safely via MDK's own enforcement for a genuine non-admin.
+            if !viewModel.pendingJoiners.isEmpty {
                 readyToJoinSection
             }
-            if viewModel.isAdmin {
-                invitePeopleSection
-            }
+            invitePeopleSection
             membersSection
             locationSharingSection
             leaveSection
@@ -140,18 +144,18 @@ struct GroupDetailView: View {
                     Text(viewModel.groupName.isEmpty ? "Unnamed Group" : viewModel.groupName)
                         .font(.title2.weight(.semibold))
                         .multilineTextAlignment(.center)
-                    if viewModel.isAdmin {
-                        Button {
-                            renameText = viewModel.groupName
-                            showRename = true
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.subheadline)
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Rename group")
+                    // Not gated on `viewModel.isAdmin` — see the comment above
+                    // `invitePeopleSection`'s call site.
+                    Button {
+                        renameText = viewModel.groupName
+                        showRename = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
                     }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Rename group")
                 }
                 Text("\(viewModel.members.count) member\(viewModel.members.count == 1 ? "" : "s")")
                     .font(.subheadline)
@@ -342,6 +346,7 @@ private struct MemberRowView: View {
     var allowManage: Bool = true
 
     @State private var showResyncConfirm = false
+    @State private var showPubkey = false
 
     private var isResyncing: Bool {
         viewModel.resyncingMemberPubkey == member.pubkeyHex
@@ -374,8 +379,19 @@ private struct MemberRowView: View {
                 ProgressView().controlSize(.small)
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture { showPubkey = true }
+        .sheet(isPresented: $showPubkey) {
+            MemberPubkeySheet(member: member, npub: viewModel.fullNpub(for: member.pubkeyHex))
+        }
+        // Not gated on `viewModel.isAdmin` — that reads the same cached admin
+        // list that can diverge from live MLS truth (see `leaveGroup`'s doc
+        // comment). Showing these to a genuine non-admin is a low-cost UX
+        // trade: the underlying call fails safely with MDK's own "only admins
+        // can perform this operation" error rather than silently hiding a
+        // legitimate admin's only way to act when the cache is wrong.
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if allowManage && viewModel.isAdmin && !member.isMe {
+            if allowManage && !member.isMe {
                 Button(role: .destructive) {
                     Task { await viewModel.removeMember(pubkeyHex: member.pubkeyHex) }
                 } label: {
@@ -384,22 +400,33 @@ private struct MemberRowView: View {
             }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            if allowManage && viewModel.isAdmin && !member.isMe {
+            // Resync stays hidden on your own row — `resyncMember` has its
+            // own self-guard (removing+re-adding your own live device via a
+            // relay-fetched key package isn't a coherent operation) and isn't
+            // needed for the identity-recovery case below.
+            if allowManage && !member.isMe {
                 Button {
                     showResyncConfirm = true
                 } label: {
                     Label("Resync", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .tint(.indigo)
+            }
 
-                if !member.isAdmin {
-                    Button {
-                        Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
-                    } label: {
-                        Label("Make Admin", systemImage: "shield.checkered")
-                    }
-                    .tint(.orange)
+            // Make Admin is deliberately NOT gated on `!member.isMe`: after an
+            // identity-swap recovery (add-your-current-npub-back-in, see
+            // MarmotService.addMember's doc comment), the row that needs
+            // promoting to finish the recovery is your own. MDK's promote
+            // doesn't care whether the promoter and promotee are "the same
+            // app identity" — only that the promoter's leaf is a real admin
+            // and the promotee is a real member, both true here.
+            if allowManage && !member.isAdmin {
+                Button {
+                    Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
+                } label: {
+                    Label("Make Admin", systemImage: "shield.checkered")
                 }
+                .tint(.orange)
             }
         }
         .confirmationDialog(
@@ -413,6 +440,58 @@ private struct MemberRowView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("They'll be briefly removed and re-added to rebuild encryption keys. Use this only if messages still can't be decrypted after a normal resync.")
+        }
+    }
+}
+
+// MARK: - Member pubkey reveal (out-of-band identity verification)
+
+/// Lets you verify a *named* member's identity by comparing their full npub
+/// against what they read off their own Identity card — a nickname-less
+/// member already shows an abbreviated npub in place of a name, but once a
+/// nickname is cached there was previously no way to see the pubkey behind it.
+private struct MemberPubkeySheet: View {
+    let member: GroupDetailViewModel.MemberItem
+    let npub: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Button {
+                        UIPasteboard.general.string = npub
+                        withAnimation(.spring(duration: 0.2)) { copied = true }
+                        Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            withAnimation(.spring(duration: 0.2)) { copied = false }
+                        }
+                    } label: {
+                        HStack(alignment: .top) {
+                            Text(npub)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.primary)
+                                .lineLimit(4)
+                            Spacer(minLength: 8)
+                            Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
+                                .foregroundStyle(copied ? .green : .blue)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text(member.displayName)
+                } footer: {
+                    Text("Compare against the npub they read off their own Identity card to confirm this is really who you think it is.")
+                }
+            }
+            .navigationTitle("Member Identity")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }

@@ -92,6 +92,11 @@ final class GroupDetailViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
+            // Refresh cached metadata (name/admins/etc.) from live MLS state
+            // first — our cache can drift from what MLS actually enforces,
+            // which otherwise shows a stale admin list here.
+            try await mls.syncGroupMetadataFromMls(groupId: groupId)
+
             // Load group metadata
             if let group = try await mls.getGroup(mlsGroupId: groupId) {
                 groupName = group.name.isEmpty ? "Unnamed Group" : group.name
@@ -284,6 +289,15 @@ final class GroupDetailViewModel: ObservableObject {
     /// name, only this id) back to an actual group when you're in more than one.
     var diagnosticsGroupId: String {
         DiagnosticsReport.shortHex(groupId)
+    }
+
+    /// Full npub for a member — lets you verify a *named* member's identity
+    /// out-of-band by comparing it against what they read off their own
+    /// Identity card. Unlike a nickname-less fallback (which already shows an
+    /// abbreviated npub in place of a name), a member with a cached nickname
+    /// otherwise has no way to reveal the pubkey backing that name.
+    func fullNpub(for pubkeyHex: String) -> String {
+        (try? PublicKey.parse(publicKey: pubkeyHex).toBech32()) ?? pubkeyHex
     }
 
     /// Whether the current user is an admin of this group.

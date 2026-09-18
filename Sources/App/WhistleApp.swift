@@ -57,6 +57,17 @@ struct WhistleApp: App {
                     .transition(.opacity)
                     .zIndex(2)
                 }
+
+                // Highest priority — nothing sensitive to protect with app
+                // lock yet if the identity itself couldn't be loaded.
+                if appViewModel.identityAnomalyDetected {
+                    IdentityAnomalyView(
+                        onRetry: { Task { await appViewModel.retryAfterIdentityAnomaly() } },
+                        onCreateNewAnyway: { Task { await appViewModel.confirmNewIdentityDespiteAnomaly() } }
+                    )
+                    .transition(.opacity)
+                    .zIndex(3)
+                }
             }
             .preferredColorScheme(appViewModel.settings.colorScheme)
             .task {

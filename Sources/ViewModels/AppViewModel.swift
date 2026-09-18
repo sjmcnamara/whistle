@@ -95,6 +95,11 @@ final class AppViewModel: ObservableObject {
 
     @Published private(set) var startupPhase: StartupPhase = .connecting
 
+    /// Mirrors `identity.identityAnomalyDetected` — surfaced here so
+    /// `WhistleApp`'s top-level view can react without observing
+    /// `IdentityService` directly. See that property's doc comment.
+    @Published private(set) var identityAnomalyDetected = false
+
     /// MLS initialisation error surfaced to the UI (non-fatal — app works without it).
     @Published private(set) var mlsError: String?
 
@@ -362,6 +367,28 @@ final class AppViewModel: ObservableObject {
         await performFullStartup()
     }
 
+    /// User tapped "Try Again" on the identity-anomaly screen — re-attempts
+    /// startup from scratch. Won't help within the same process unless
+    /// something external changed (e.g. this build's entitlements now
+    /// include a previously-dropped Keychain access group and the identity
+    /// becomes reachable), but costs nothing to offer.
+    func retryAfterIdentityAnomaly() async {
+        identityAnomalyDetected = false
+        didStart = false
+        startupPhase = .connecting
+        await performFullStartup()
+    }
+
+    /// User explicitly confirmed "Create New Identity Anyway" on the
+    /// identity-anomaly screen. Never called automatically.
+    func confirmNewIdentityDespiteAnomaly() async {
+        await identity.createNewIdentityDespiteAnomaly()
+        identityAnomalyDetected = false
+        didStart = false
+        startupPhase = .connecting
+        await performFullStartup()
+    }
+
     private func performFullStartup() async {
         // Load or generate the Nostr identity. Runs Rust FFI (Keys.generate/parse)
         // and Secure Enclave crypto on a background thread — these are slow on first
@@ -370,6 +397,17 @@ final class AppViewModel: ObservableObject {
 
         // Record the time so we can enforce a minimum splash display duration.
         let splashStart = ContinuousClock.now
+
+        if identity.identityAnomalyDetected {
+            // Existing local group data but no reachable identity — do NOT
+            // treat this as "first launch, show onboarding." Surface the
+            // anomaly screen instead and stop; WhistleApp blocks on
+            // `identityAnomalyDetected` until the user explicitly resolves it
+            // (relaunch after fixing access, or the explicit override).
+            identityAnomalyDetected = true
+            startupPhase = .ready
+            return
+        }
 
         guard let keys = identity.keys else {
             WhistleLogger.relay.error("No identity available — cannot connect to relays")

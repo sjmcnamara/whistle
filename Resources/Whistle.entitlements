@@ -4,6 +4,22 @@
 <dict>
 	<key>keychain-access-groups</key>
 	<array>
+		<!-- DO NOT add the pre-v1.8.7 "org.findmyfam.app" group back here.
+		     That was tried in v1.10.4 to recover identities orphaned by the
+		     v1.8.7 rename (#203) and reverted the same day: KeychainService's
+		     save/load/delete queries (and MDK's own internal keyring-core
+		     Keychain usage, which we don't control) never pin a specific
+		     kSecAttrAccessGroup. With only one group listed, that's fine —
+		     there's only ever one possible match. With two, any account that
+		     still has a dormant pre-rename Keychain item under the old group
+		     becomes ambiguous: a query with no explicit access group can
+		     resolve to either item, observed live to pick the wrong one for
+		     both the nsec and MDK's database encryption key, throwing
+		     "Wrong encryption key" and surfacing an unfamiliar old identity —
+		     with no data actually deleted, but with no way to fix it except
+		     dropping back to one group. If this needs revisiting, the safe
+		     version pins kSecAttrAccessGroup explicitly per query instead of
+		     widening this array. -->
 		<string>$(AppIdentifierPrefix)org.getwhistle.whistle</string>
 	</array>
 </dict>

@@ -2,6 +2,7 @@ package org.findmyfam.services
 
 import build.marmot.mdk.Group
 import build.marmot.mdk.GroupDataUpdate
+import build.marmot.mdk.MdkUniffiException
 import build.marmot.mdk.Message
 import build.marmot.mdk.ProcessMessageResult
 import kotlinx.coroutines.*
@@ -350,10 +351,15 @@ class MarmotService @Inject constructor(
      * gift-wrap the welcome, and publish group evolution events.
      */
     suspend fun addMember(pubkeyHex: String, groupId: String, maxRetries: Int = 10) {
-        // Pre-flight: don't add yourself
-        if (pubkeyHex == publicKeyHex) {
-            throw MarmotException("Cannot add yourself to a group")
-        }
+        // No separate "don't add yourself" guard here on purpose. In the
+        // healthy case it's redundant -- a live member is already caught by
+        // the real membership check just below -- and in the identity-swap
+        // scenario (see IdentityService) it's actively wrong: the device can
+        // hold real admin rights in a group under a leaf whose credential no
+        // longer matches the app's current outward identity, and re-adding
+        // the current identity as a fresh member is the only way to recover.
+        // A hardcoded pubkeyHex == publicKeyHex check would block exactly
+        // that recovery.
 
         // Pre-flight: check if member is already in the group
         try {
@@ -626,6 +632,18 @@ class MarmotService @Inject constructor(
      *   rather than let the raw MDK message surface. The caller must promote
      *   another member to admin first.
      *
+     * Deliberately does NOT decide which case we're in by reading our own
+     * cached `Group.adminPubkeys` (via `getGroup`) -- that field has been
+     * observed to diverge from what MDK's own `leaveGroup`/`selfDemote`
+     * enforcement reads from the live MLS state, even right after calling
+     * `syncGroupMetadataFromMls`. Instead we just attempt `selfDemote`
+     * unconditionally and interpret MDK's own authoritative response:
+     * success means we were admin and are now demoted; "only admins can
+     * perform this operation" means we weren't admin, which is fine, fall
+     * through to a plain leave; "last active admin" means the caller must
+     * promote someone else first, so we surface that as a clear error rather
+     * than the raw MDK message. Any other error propagates as-is.
+     *
      * Verified commit throughout (same anti-fork pattern as `removeMember`):
      * an unconfirmed leave would strand the remaining members thinking we're
      * still present. Unlike other mutations, the final leave commit is never
@@ -645,15 +663,18 @@ class MarmotService @Inject constructor(
             return
         }
 
-        val group = groups.value.firstOrNull { it.mlsGroupId == groupId }
-        val adminPubkeys = group?.adminPubkeys ?: emptyList()
-        if (publicKeyHex in adminPubkeys) {
-            if (adminPubkeys.size <= 1) {
-                throw MarmotException("You're the only admin of this group. Promote another member to admin before leaving.")
-            }
+        try {
             val demoteResult = mls.selfDemote(groupId)
             mls.mergePendingCommit(mlsGroupId = groupId)
             publishAndVerifyCommit(demoteResult.evolutionEventJson)
+        } catch (e: MdkUniffiException.Mdk) {
+            if (e.v1.contains("last active admin")) {
+                throw MarmotException("You're the only admin of this group. Promote another member to admin before leaving.")
+            }
+            if (!e.v1.contains("only admins can perform this operation")) {
+                throw e
+            }
+            // Not actually an admin -- fall through to a plain leave below.
         }
 
         val result = mls.leaveGroup(groupId)
@@ -696,6 +717,14 @@ class MarmotService @Inject constructor(
         val group = mls.getGroup(groupId) ?: throw IllegalStateException("Group not found: $groupId")
         val currentAdmins = group.adminPubkeys ?: emptyList()
         if (pubkeyHex in currentAdmins) return
+
+        // Always explicitly include ourselves -- our own admin status can be
+        // live-true without the cached adminPubkeys list ever reflecting it
+        // (see leaveGroup's doc comment on the same divergence). Writing the
+        // cached list plus just the new promotee risks silently dropping our
+        // own admin status if the cache never listed us to begin with --
+        // `admins` replaces the whole list, it doesn't merge.
+        val admins = (currentAdmins + publicKeyHex + pubkeyHex).distinct()
         val update = GroupDataUpdate(
             name = null,
             description = null,
@@ -703,7 +732,7 @@ class MarmotService @Inject constructor(
             imageKey = null,
             imageNonce = null,
             relays = null,
-            admins = currentAdmins + pubkeyHex
+            admins = admins
         )
         val result = mls.updateGroupData(mlsGroupId = groupId, update = update)
         mls.mergePendingCommit(mlsGroupId = groupId)

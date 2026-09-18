@@ -568,6 +568,30 @@ _Released 2026-09-17_
 
 - **(iOS & Android) Diagnostics exports were impossible to interpret with more than one group.** The diagnostics report deliberately shows only an 8-char group-id prefix per group and no name, to keep a report meant for pasting elsewhere from leaking group names. But nothing on the Group Detail screen showed that same id, so there was no way to match a diagnostics entry back to an actual group. Added a small tap-to-copy "Group ID" row under the member count showing the identical prefix (`DiagnosticsReport.shortHex`) diagnostics already uses.
 
+### v1.10.2 — Reveal a member's npub on Group Detail ✅
+_Released 2026-09-17_
+
+- **(iOS & Android) No way to verify a *named* member's identity out-of-band.** Found while investigating a report of a stale, non-"(you)" admin in a long-lived group. A nickname-less member already shows an abbreviated npub as a stand-in name; once a nickname is cached there was no way to see the pubkey behind it. Added a tap-to-reveal sheet/dialog on any member row showing the full npub with a copy button.
+
+### v1.10.3 — Fix stale admin cache blocking leave ✅
+_Released 2026-09-17_
+
+- **(iOS & Android) `leaveGroup`'s admin check read a cached admin list that can diverge from live MLS truth**, wrongly concluding a live admin wasn't one and throwing MDK's raw "must self-demote first" error instead of handling it. `leaveGroup` no longer decides admin status from any cached read — it unconditionally attempts `selfDemote` first and interprets MDK's own authoritative response.
+
+    **Known limitation**: Group Detail's own admin-status *display* still reads the same cache and can remain visibly wrong for an affected group — only the ability to actually leave is fixed here.
+
+### v1.10.4 — Root cause: silent identity swap from a bundle-id rename ✅
+_Released 2026-09-18_
+
+- **(iOS) Root cause found for the v1.10.2/1.10.3 stale-admin symptom.** Ruled out a true MLS fork via forward secrecy (the affected device decrypted a message encrypted moments earlier by another member, which a forked/behind device cannot do). Real cause: an earlier bundle-id rename removed the pre-rename Keychain access group from `Whistle.entitlements` outright instead of keeping both during a transition. On that device's first post-rename launch, the nsec under the old access group became unreachable; the app read "no nsec" as "first launch" and silently generated a new identity, no warning. The MLS database isn't Keychain-scoped, so it was untouched — every existing group kept running under the *old* identity's leaf and its fixed-at-creation credential, unrecognized by the app as "you". `IdentityService` now treats "no nsec, but real local group data already on disk" as a distinct anomaly and blocks on an explicit choice instead of silently generating a replacement identity.
+
+    **Same-day correction**: the first attempt at this fix also widened `Whistle.entitlements` to list the pre-rename access group indefinitely, to make the old identity reachable again. This broke a live, working account — Keychain queries (ours, and MDK's own internal keyring-core ones) don't pin a specific access group, so with two groups listed and a dormant pre-rename item present, an unscoped query became ambiguous and picked the wrong item for both the nsec and MDK's database encryption key. No data was destroyed; reverting to a single access group immediately restored the account. Recovering the dormant old identity, if ever wanted, needs a dedicated one-time tool, not an ambient entitlements change.
+- **(iOS & Android) Closed the remaining gaps in the v1.10.3 admin-cache fix.** "Invite People" (including "Add by npub"), "Ready to Join" approvals, and group rename no longer read the same stale cached admin list. `MarmotService.addMember` no longer refuses to add the app's own current pubkey — it was doing so unconditionally, before ever checking real membership. `MemberRowView`'s "Make Admin" swipe action no longer hides on your own row (Resync/Remove correctly still do). Together, these let an account affected by the identity-swap scenario above recover: add the current identity back into the group and promote it. Confirmed live end-to-end on the originally-affected account.
+
+    **Kept from earlier v1.10.x commits, after re-review**: `leaveGroup`'s cache-free `selfDemote`-first rewrite; `promoteToAdmin`'s "always include your own pubkey" hardening; the `syncGroupMetadataFromMls()` call in `GroupDetailViewModel.load()` (still correct and useful generally, just not sufficient alone for a group whose live extension genuinely lacks the user's identity).
+
+    **Known remaining gap, deliberately deferred**: the group-photo picker's admin gate and `MarmotService.isAdmin(_:ofGroup:)` underneath it still read the same stale cache. Lower stakes than being locked out of leaving or inviting, and tangled with a policy question (should any member set the group photo?) not worth deciding as a side effect here.
+
 ---
 
 ### Deferred

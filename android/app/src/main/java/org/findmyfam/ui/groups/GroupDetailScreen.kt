@@ -134,13 +134,16 @@ fun GroupDetailScreen(
     // --- Sub-screens (full-screen swaps) ---
 
     if (subScreen == "members") {
+        // Not gated on viewModel.isAdmin -- see the comment at the other
+        // MemberListItem call site above.
         MembersSubScreen(
             members = members,
-            isAdmin = viewModel.isAdmin,
+            isAdmin = true,
             onPromote = { viewModel.promoteToAdmin(it) },
             onRemove = { viewModel.removeMember(it) },
             onResync = { resyncTargetPubkey = it },
             resyncingPubkey = resyncingPubkey,
+            fullNpub = { viewModel.fullNpub(it) },
             onBack = { subScreen = "main" }
         )
         return
@@ -306,14 +309,14 @@ fun GroupDetailScreen(
                                 groupName.ifEmpty { "Unnamed Group" },
                                 fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
-                            if (viewModel.isAdmin) {
-                                IconButton(onClick = { renameText = groupName; showRenameDialog = true }) {
-                                    Icon(
-                                        Icons.Default.Edit, contentDescription = "Rename",
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                            // Not gated on viewModel.isAdmin -- see the comment
+                            // near the invite section below.
+                            IconButton(onClick = { renameText = groupName; showRenameDialog = true }) {
+                                Icon(
+                                    Icons.Default.Edit, contentDescription = "Rename",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                         Text(
@@ -356,8 +359,14 @@ fun GroupDetailScreen(
                     HorizontalDivider()
                 }
 
-                // Ready to Join (pending joiners) — admin only
-                if (viewModel.isAdmin && pendingJoiners.isNotEmpty()) {
+                // Ready to Join (pending joiners). Not gated on
+                // viewModel.isAdmin -- see the comment on the invite section
+                // below for why: that check reads a cached admin list that
+                // can diverge from live MLS truth, and hiding this would make
+                // it impossible to ever recover through the UI. The
+                // underlying call fails safely via MDK's own enforcement for
+                // a genuine non-admin.
+                if (pendingJoiners.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
@@ -416,23 +425,27 @@ fun GroupDetailScreen(
                     item { HorizontalDivider() }
                 }
 
-                // Invite People — admin only
-                if (viewModel.isAdmin) {
-                    item {
-                        SectionHeader("Invite People")
-                        ListItem(
-                            headlineContent = { Text("Invite via QR / Code") },
-                            leadingContent = { Icon(Icons.Default.Share, contentDescription = null) },
-                            modifier = Modifier.clickable { viewModel.generateInvite(); showInviteSheet = true }
-                        )
-                        ListItem(
-                            headlineContent = { Text("Add by npub") },
-                            leadingContent = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
-                            trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                            modifier = Modifier.clickable { subScreen = "addNpub" }
-                        )
-                        HorizontalDivider()
-                    }
+                // Invite People. Not gated on viewModel.isAdmin -- that reads
+                // a cached admin list that can diverge from live MLS truth,
+                // and hiding this would make it impossible to ever recover
+                // from that state through the UI (e.g. re-adding yourself as
+                // a genuine member after a stale-admin-cache incident). The
+                // underlying calls fail safely via MDK's own enforcement for
+                // a genuine non-admin.
+                item {
+                    SectionHeader("Invite People")
+                    ListItem(
+                        headlineContent = { Text("Invite via QR / Code") },
+                        leadingContent = { Icon(Icons.Default.Share, contentDescription = null) },
+                        modifier = Modifier.clickable { viewModel.generateInvite(); showInviteSheet = true }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Add by npub") },
+                        leadingContent = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
+                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        modifier = Modifier.clickable { subScreen = "addNpub" }
+                    )
+                    HorizontalDivider()
                 }
 
                 // Members (preview + See all)
@@ -440,13 +453,19 @@ fun GroupDetailScreen(
                 val isLarge = members.size > memberPreviewCap
                 val shown = if (isLarge) members.take(memberPreviewCap) else members
                 itemsIndexed(shown, key = { i, m -> "${m.id}_$i" }) { _, member ->
+                    // Not gated on viewModel.isAdmin -- that reads the same
+                    // cached admin list that can diverge from live MLS truth
+                    // (see leaveGroup's doc comment). The underlying call
+                    // fails safely with MDK's own "only admins can perform
+                    // this operation" error for a genuine non-admin.
                     MemberListItem(
                         member = member,
-                        canManage = viewModel.isAdmin && !isLarge,
+                        canManage = !isLarge,
                         onPromote = { viewModel.promoteToAdmin(it) },
                         onRemove = { viewModel.removeMember(it) },
                         onResync = { resyncTargetPubkey = it },
-                        resyncingPubkey = resyncingPubkey
+                        resyncingPubkey = resyncingPubkey,
+                        fullNpub = { viewModel.fullNpub(it) }
                     )
                 }
                 if (isLarge) {
@@ -588,10 +607,50 @@ private fun MemberListItem(
     onPromote: (String) -> Unit,
     onRemove: (String) -> Unit,
     onResync: (String) -> Unit,
-    resyncingPubkey: String?
+    resyncingPubkey: String?,
+    fullNpub: (String) -> String
 ) {
     val isResyncing = resyncingPubkey == member.pubkeyHex
+    var showPubkey by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var copiedNpub by remember { mutableStateOf(false) }
+
+    if (showPubkey) {
+        AlertDialog(
+            onDismissRequest = { showPubkey = false },
+            title = { Text(member.displayName) },
+            text = {
+                Column {
+                    Text(
+                        fullNpub(member.pubkeyHex),
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Compare against the npub they read off their own Identity card to confirm this is really who you think it is.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("npub", fullNpub(member.pubkeyHex)))
+                    copiedNpub = true
+                }) {
+                    Text(if (copiedNpub) "Copied!" else "Copy npub")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPubkey = false }) { Text("Done") }
+            }
+        )
+    }
+
     ListItem(
+        modifier = Modifier.clickable { showPubkey = true },
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(member.displayName)
@@ -606,17 +665,30 @@ private fun MemberListItem(
             }
         },
         trailingContent = {
-            if (canManage && !member.isMe) {
-                if (isResyncing) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                } else {
-                    Row {
-                        if (!member.isAdmin) {
-                            IconButton(onClick = { onPromote(member.pubkeyHex) }) {
-                                Icon(Icons.Default.Shield, contentDescription = "Make admin",
-                                    tint = MaterialTheme.colorScheme.primary)
-                            }
+            if (canManage && isResyncing) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else if (canManage) {
+                Row {
+                    // Make Admin is deliberately NOT gated on !member.isMe:
+                    // after an identity-swap recovery (add-your-current-npub
+                    // back in, see MarmotService.addMember's doc comment),
+                    // the row that needs promoting to finish the recovery is
+                    // your own. MDK's promote doesn't care whether the
+                    // promoter and promotee are "the same app identity" --
+                    // only that the promoter's leaf is a real admin and the
+                    // promotee is a real member, both true here.
+                    if (!member.isAdmin) {
+                        IconButton(onClick = { onPromote(member.pubkeyHex) }) {
+                            Icon(Icons.Default.Shield, contentDescription = "Make admin",
+                                tint = MaterialTheme.colorScheme.primary)
                         }
+                    }
+                    // Resync and Remove stay hidden on your own row -- resync
+                    // (removing+re-adding your own live device via a
+                    // relay-fetched key package) isn't a coherent self
+                    // operation, and self-removal has its own dedicated
+                    // "Leave Group" flow.
+                    if (!member.isMe) {
                         IconButton(onClick = { onResync(member.pubkeyHex) }, enabled = resyncingPubkey == null) {
                             Icon(Icons.Default.Refresh, contentDescription = "Resync member",
                                 tint = MaterialTheme.colorScheme.primary)
@@ -642,6 +714,7 @@ private fun MembersSubScreen(
     onRemove: (String) -> Unit,
     onResync: (String) -> Unit,
     resyncingPubkey: String?,
+    fullNpub: (String) -> String,
     onBack: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
@@ -680,7 +753,8 @@ private fun MembersSubScreen(
                         onPromote = onPromote,
                         onRemove = onRemove,
                         onResync = onResync,
-                        resyncingPubkey = resyncingPubkey
+                        resyncingPubkey = resyncingPubkey,
+                        fullNpub = fullNpub
                     )
                 }
             }

@@ -63,7 +63,8 @@ class DiagnosticsCollector @Inject constructor(
                 consecutiveFailures = marmotService.healthTracker.failureCount(group.mlsGroupId),
                 // group.lastMessageAt advances on any MLS event (location,
                 // chat, nickname, commit) -- null means never recorded.
-                secondsSinceLastEvent = group.lastMessageAt?.let { maxOf(0L, now - it.toLong()).toInt() }
+                secondsSinceLastEvent = group.lastMessageAt?.let { maxOf(0L, now - it.toLong()).toInt() },
+                ownLeafIndex = runCatching { mls.ownLeafIndex(group.mlsGroupId) }.getOrNull()
             )
         }
 
