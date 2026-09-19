@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.5] — 2026-09-19
+
+### Fixed
+- **(iOS) "Make Admin" no longer shows on your own member row.** v1.10.4 deliberately unhid it there to let an identity-swap-recovery account promote itself after being re-added. On review, that's a wider self-promotion surface than the one-time recovery it was meant for, and this repo can't independently confirm that `MDK.updateGroupData`'s admin-list change is rejected on receiving devices when the sender isn't already an admin — `mdk-core`'s Rust source isn't vendored here, only the compiled bindings, and unlike the neighboring `upgradeGroupCapabilities` call, `updateGroupData`'s own doc comment carries no explicit admin-only annotation. Rather than rely on unverified protocol-level enforcement, reverted to hiding "Make Admin" on your own row, same as Resync.
+
 ## [1.10.4] — 2026-09-18
 
 ### Fixed
