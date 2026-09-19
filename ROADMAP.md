@@ -597,6 +597,11 @@ _Released 2026-09-19_
 
 - **(iOS) "Make Admin" no longer shows on your own member row.** Unhidden deliberately in v1.10.4 to let an identity-swap-recovery account promote itself after being re-added to a group. On review this is a broader self-promotion surface than that one-time recovery needs, and the receive-side enforcement it depends on (does `MDK.updateGroupData`'s admin-list change get rejected by other devices when the sender isn't already an admin?) can't be confirmed from this repo — `mdk-core`'s Rust source isn't vendored, only the compiled bindings, and `updateGroupData` carries no explicit admin-only doc annotation unlike the neighboring `upgradeGroupCapabilities`. Reverted to hiding on your own row, same as Resync, rather than depend on unverified protocol enforcement for a capability the identity-swap recovery no longer needs day to day.
 
+### v1.10.6 — Re-hide self-promote swipe action (Android) ✅
+_Released 2026-09-19_
+
+- **(Android) "Make Admin" no longer shows on your own member row.** v1.10.5's revert only touched iOS's `GroupDetailView.swift`; Android's `GroupDetailScreen.kt:680-685` had the identical "deliberately not gated on `isMe`" change from the same v1.10.4 commit (`15bc238`) and was missed — caught when asked why v1.10.5 was labeled iOS-only. Same fix and rationale as v1.10.5: reverted to hiding on your own row, same as Resync/Remove. Lesson: a CHANGELOG entry tagged "(iOS & Android)" doesn't guarantee a later single-platform revert covers both — check the other platform's equivalent file explicitly.
+
 ---
 
 ### Deferred

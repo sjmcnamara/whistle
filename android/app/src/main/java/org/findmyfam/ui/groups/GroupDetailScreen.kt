@@ -669,15 +669,7 @@ private fun MemberListItem(
                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
             } else if (canManage) {
                 Row {
-                    // Make Admin is deliberately NOT gated on !member.isMe:
-                    // after an identity-swap recovery (add-your-current-npub
-                    // back in, see MarmotService.addMember's doc comment),
-                    // the row that needs promoting to finish the recovery is
-                    // your own. MDK's promote doesn't care whether the
-                    // promoter and promotee are "the same app identity" --
-                    // only that the promoter's leaf is a real admin and the
-                    // promotee is a real member, both true here.
-                    if (!member.isAdmin) {
+                    if (!member.isMe && !member.isAdmin) {
                         IconButton(onClick = { onPromote(member.pubkeyHex) }) {
                             Icon(Icons.Default.Shield, contentDescription = "Make admin",
                                 tint = MaterialTheme.colorScheme.primary)

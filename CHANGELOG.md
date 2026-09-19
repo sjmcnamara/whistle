@@ -6,6 +6,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.10.6] — 2026-09-19
+
+### Fixed
+- **(Android) "Make Admin" no longer shows on your own member row.** The v1.10.5 fix for this only touched iOS's `GroupDetailView.swift` — Android's `GroupDetailScreen.kt` had the identical "deliberately not gated on `isMe`" change from v1.10.4 and was missed, so Android kept exposing self-promotion after iOS no longer did. Same fix, same rationale as v1.10.5: reverted to hiding on your own row, same as Resync/Remove.
+
 ## [1.10.5] — 2026-09-19
 
 ### Fixed
