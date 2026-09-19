@@ -592,6 +592,11 @@ _Released 2026-09-18_
 
     **Known remaining gap, deliberately deferred**: the group-photo picker's admin gate and `MarmotService.isAdmin(_:ofGroup:)` underneath it still read the same stale cache. Lower stakes than being locked out of leaving or inviting, and tangled with a policy question (should any member set the group photo?) not worth deciding as a side effect here.
 
+### v1.10.5 — Re-hide self-promote swipe action ✅
+_Released 2026-09-19_
+
+- **(iOS) "Make Admin" no longer shows on your own member row.** Unhidden deliberately in v1.10.4 to let an identity-swap-recovery account promote itself after being re-added to a group. On review this is a broader self-promotion surface than that one-time recovery needs, and the receive-side enforcement it depends on (does `MDK.updateGroupData`'s admin-list change get rejected by other devices when the sender isn't already an admin?) can't be confirmed from this repo — `mdk-core`'s Rust source isn't vendored, only the compiled bindings, and `updateGroupData` carries no explicit admin-only doc annotation unlike the neighboring `upgradeGroupCapabilities`. Reverted to hiding on your own row, same as Resync, rather than depend on unverified protocol enforcement for a capability the identity-swap recovery no longer needs day to day.
+
 ---
 
 ### Deferred

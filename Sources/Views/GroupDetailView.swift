@@ -413,14 +413,7 @@ private struct MemberRowView: View {
                 .tint(.indigo)
             }
 
-            // Make Admin is deliberately NOT gated on `!member.isMe`: after an
-            // identity-swap recovery (add-your-current-npub-back-in, see
-            // MarmotService.addMember's doc comment), the row that needs
-            // promoting to finish the recovery is your own. MDK's promote
-            // doesn't care whether the promoter and promotee are "the same
-            // app identity" — only that the promoter's leaf is a real admin
-            // and the promotee is a real member, both true here.
-            if allowManage && !member.isAdmin {
+            if allowManage && !member.isMe && !member.isAdmin {
                 Button {
                     Task { await viewModel.promoteToAdmin(pubkeyHex: member.pubkeyHex) }
                 } label: {
