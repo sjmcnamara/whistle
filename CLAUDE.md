@@ -103,4 +103,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.10.5 — Re-hide self-promote swipe action** (bugfix, iOS). See ROADMAP.md for next steps.
+Current version: **v1.10.6 — Re-hide self-promote swipe action (Android)** (bugfix, Android). See ROADMAP.md for next steps.
