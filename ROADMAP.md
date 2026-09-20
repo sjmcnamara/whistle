@@ -602,6 +602,14 @@ _Released 2026-09-19_
 
 - **(Android) "Make Admin" no longer shows on your own member row.** v1.10.5's revert only touched iOS's `GroupDetailView.swift`; Android's `GroupDetailScreen.kt:680-685` had the identical "deliberately not gated on `isMe`" change from the same v1.10.4 commit (`15bc238`) and was missed — caught when asked why v1.10.5 was labeled iOS-only. Same fix and rationale as v1.10.5: reverted to hiding on your own row, same as Resync/Remove. Lesson: a CHANGELOG entry tagged "(iOS & Android)" doesn't guarantee a later single-platform revert covers both — check the other platform's equivalent file explicitly.
 
+### v1.11.0 — Profile re-announce on join + Burn Identity leaves groups ✅
+_Released 2026-09-20_
+
+- **(iOS & Android) Burn Identity now leaves every group it safely can.** Closes items 2 and 3 of the "Burn Identity leaves zombie members" Deferred entry below. A pre-burn plan is computed before any confirmation: not-sole-admin groups are queued for the real self-remove `leaveGroup()`; sole-admin groups surface a combined review screen with a per-group picker to promote another member (defaulting to "end this group" rather than guessing) or accept the group ends. Admin lists are re-synced from live MLS state first — this is a one-way decision, so it shouldn't be made against a cache that can drift (same guard `GroupDetailViewModel` already uses). Execution is best-effort per group; one group's failure doesn't block the burn. The common case (no sole-admin groups) skips the review screen and goes straight to the existing confirmation, reworded to describe the new auto-leave behavior accurately.
+- **(iOS & Android) A new joiner sees existing members' avatars and correct nicknames immediately.** Found live: an admin's avatar never reached a member who joined after it was set — the group photo already re-announces on any membership change, personal avatars and nicknames didn't. Both now piggyback on the same `lastGroupMembershipChangeId` signal the group photo uses; no designated-sender guard needed since each device resends only its own profile. Scaling note: costs one extra message per existing member with a profile set, per membership change — fine for a small group, would need throttling at scale.
+
+    **Process note**: this shipped as two separate PRs merged together into one release rather than two point releases, since neither individually warranted its own tag/TestFlight/Zapstore cycle — batch small related changes into one release rather than shipping each the moment it's committed.
+
 ---
 
 ### Deferred
@@ -611,7 +619,7 @@ _Released 2026-09-19_
     Three things to fix, in order of severity:
 
     1. ~~**The confirmation text is factually wrong.**~~ ✅ Fixed — both platforms now state that burning does not remove you from your groups, that other members will still see you, and that you cannot rejoin unless another admin re-adds you.
-    2. **The sole-admin case is unrecoverable for everyone else — present it as a choice, not a block.** `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member.
+    2. ~~**The sole-admin case is unrecoverable for everyone else — present it as a choice, not a block.**~~ ✅ Fixed (v1.11.0) — see below. `adminPubkeys` lives in group state, and only an admin can remove or re-add a member. If the only admin burns, the group can never remove the dead leaf, never re-add them, and never promote anyone — it is permanently frozen for every remaining member.
 
         A hard block was considered and rejected: someone burning a compromised key must not be trapped. The honest framing is **"promote someone else first, or end this group now"** — name the groups where the user is the only admin, offer to promote a member, and require an explicit acknowledgement that those groups are finished if they proceed. Detection is cheap (`adminPubkeys.count == 1 && adminPubkeys.first == myPubkey` across active groups).
 
@@ -625,7 +633,7 @@ _Released 2026-09-19_
         Never block. A compromised key is a worse problem than a frozen family group, and the person holding the key is the one best placed to weigh that.
 
         Post-burn cleanup needs nothing new: the new admin removes the dead leaf with the existing remove-member action (relay-verified since v1.6.4), and if the burned user re-imports, their app publishes a fresh KeyPackage on launch so they can be re-added by npub.
-    3. **Offer leave-before-burn.** Since v1.10.0, leaving is instant and self-service (no admin involved) for any group where you're not the sole admin. The correct sequence is to leave every such group, then burn — nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible. Groups where you *are* the sole admin still can't be left at all (see above) — burning there strands them regardless, same as today.
+    3. ~~**Offer leave-before-burn.**~~ ✅ Fixed (v1.11.0) — see below. Since v1.10.0, leaving is instant and self-service (no admin involved) for any group where you're not the sole admin. The correct sequence is to leave every such group, then burn — nothing prompts this today. A "leave your groups first" step (or an explicit "burn anyway, stranding N groups" acknowledgement) would make the trade visible. Groups where you *are* the sole admin still can't be left at all (see above) — burning there strands them regardless, same as today.
 
     Related: the hard-resync path from v1.6.3 (admin remove + re-add) is the only existing remedy, and it requires an admin who is not the burned identity.
 
