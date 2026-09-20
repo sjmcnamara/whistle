@@ -19,6 +19,7 @@ struct BurnPlanReviewView: View {
                     Section {
                         ForEach(plan.leaving) { group in
                             Label(group.groupName, systemImage: "arrow.right.circle")
+                                .font(.body)
                                 .foregroundStyle(.secondary)
                         }
                     } header: {
@@ -53,6 +54,7 @@ struct BurnPlanReviewView: View {
                                     }
                                 }
                                 .pickerStyle(.navigationLink)
+                                .font(.body)
                             }
                         }
                     } header: {
@@ -66,6 +68,7 @@ struct BurnPlanReviewView: View {
                     Section {
                         ForEach(plan.ending) { group in
                             Label(group.groupName, systemImage: "xmark.circle")
+                                .font(.body)
                                 .foregroundStyle(.secondary)
                         }
                     } header: {

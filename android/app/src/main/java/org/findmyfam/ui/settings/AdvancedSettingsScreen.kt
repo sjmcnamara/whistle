@@ -538,7 +538,7 @@ fun AdvancedSettingsScreen(
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(group.groupName, style = MaterialTheme.typography.bodyLarge)
+                                    Text(group.groupName)
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
