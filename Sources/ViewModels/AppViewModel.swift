@@ -868,10 +868,11 @@ final class AppViewModel: ObservableObject {
     /// ends when we burn.
     func prepareBurnPlan() async -> BurnPlan {
         guard let marmot, let myPubkey = myPubkeyHex else {
-            return BurnPlan(autoLeaveGroupIds: [], soleAdminGroups: [])
+            return BurnPlan(leaving: [], promoteOrEnd: [], ending: [])
         }
-        var autoLeave: [String] = []
-        var soleAdmin: [BurnPlan.SoleAdminGroup] = []
+        var leaving: [BurnPlan.LeavingGroup] = []
+        var promoteOrEnd: [BurnPlan.PromoteOrEndGroup] = []
+        var ending: [BurnPlan.EndingGroup] = []
         for group in marmot.groups where group.isActive {
             let groupId = group.mlsGroupId
             // Admin lists can drift from live MLS truth (see
@@ -881,8 +882,10 @@ final class AppViewModel: ObservableObject {
             let freshGroup = try? await mls.getGroup(mlsGroupId: groupId)
             let adminPubkeys = freshGroup?.adminPubkeys ?? group.adminPubkeys
             let amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.count == 1
+            let rawName = freshGroup?.name ?? group.name
+            let name = rawName.isEmpty ? "Unnamed Group" : rawName
             guard amSoleAdmin else {
-                autoLeave.append(groupId)
+                leaving.append(BurnPlan.LeavingGroup(groupId: groupId, groupName: name))
                 continue
             }
             let members = (try? await mls.getMembers(groupId: groupId)) ?? []
@@ -890,14 +893,13 @@ final class AppViewModel: ObservableObject {
                 .filter { $0 != myPubkey }
                 .map { BurnPlan.Candidate(pubkeyHex: $0, displayName: nicknameStore.displayName(for: $0)) }
                 .sorted { $0.displayName < $1.displayName }
-            let name = freshGroup?.name ?? group.name
-            soleAdmin.append(BurnPlan.SoleAdminGroup(
-                groupId: groupId,
-                groupName: name.isEmpty ? "Unnamed Group" : name,
-                candidates: candidates
-            ))
+            if candidates.isEmpty {
+                ending.append(BurnPlan.EndingGroup(groupId: groupId, groupName: name))
+            } else {
+                promoteOrEnd.append(BurnPlan.PromoteOrEndGroup(groupId: groupId, groupName: name, candidates: candidates))
+            }
         }
-        return BurnPlan(autoLeaveGroupIds: autoLeave, soleAdminGroups: soleAdmin)
+        return BurnPlan(leaving: leaving, promoteOrEnd: promoteOrEnd, ending: ending)
     }
 
     /// Execute a reviewed burn plan: promote where chosen, leave everything
@@ -905,8 +907,8 @@ final class AppViewModel: ObservableObject {
     /// a compromised key being burned is a worse problem than one frozen or
     /// stranded group, so we log and continue rather than abort.
     func executeBurnPlan(_ plan: BurnPlan, promotions: [String: String]) async {
-        var toLeave = plan.autoLeaveGroupIds
-        for group in plan.soleAdminGroups {
+        var toLeave = plan.leaving.map(\.groupId)
+        for group in plan.promoteOrEnd {
             guard let promoteePubkey = promotions[group.groupId] else { continue }
             do {
                 try await marmot?.promoteToAdmin(pubkeyHex: promoteePubkey, inGroup: group.groupId)

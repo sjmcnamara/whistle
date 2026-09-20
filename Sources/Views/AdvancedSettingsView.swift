@@ -39,7 +39,7 @@ struct AdvancedSettingsView: View {
         }
         .alert("Burn Identity?", isPresented: $showBurnConfirmation) {
             Button("Burn Everything", role: .destructive) {
-                let plan = burnPlan ?? BurnPlan(autoLeaveGroupIds: [], soleAdminGroups: [])
+                let plan = burnPlan ?? BurnPlan(leaving: [], promoteOrEnd: [], ending: [])
                 Task { await appViewModel.executeBurnPlan(plan, promotions: burnPromotions) }
             }
             Button("Cancel", role: .cancel) {}

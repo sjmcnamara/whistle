@@ -624,9 +624,10 @@ class AppViewModel @Inject constructor(
      * when we burn.
      */
     suspend fun prepareBurnPlan(): BurnPlan {
-        val myPubkey = identity.publicKeyHex ?: return BurnPlan(emptyList(), emptyList())
-        val autoLeave = mutableListOf<String>()
-        val soleAdmin = mutableListOf<BurnPlan.SoleAdminGroup>()
+        val myPubkey = identity.publicKeyHex ?: return BurnPlan(emptyList(), emptyList(), emptyList())
+        val leaving = mutableListOf<BurnPlan.LeavingGroup>()
+        val promoteOrEnd = mutableListOf<BurnPlan.PromoteOrEndGroup>()
+        val ending = mutableListOf<BurnPlan.EndingGroup>()
         for (group in marmotService.groups.value.filter { it.isActive }) {
             val groupId = group.mlsGroupId
             // Admin lists can drift from live MLS truth -- re-sync before
@@ -639,8 +640,9 @@ class AppViewModel @Inject constructor(
             val freshGroup = try { mls.getGroup(groupId) } catch (e: Exception) { null }
             val adminPubkeys = freshGroup?.adminPubkeys ?: group.adminPubkeys
             val amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.size == 1
+            val name = (freshGroup?.name ?: group.name).ifEmpty { "Unnamed Group" }
             if (!amSoleAdmin) {
-                autoLeave.add(groupId)
+                leaving.add(BurnPlan.LeavingGroup(groupId, name))
                 continue
             }
             val members = try { mls.getMembers(groupId) } catch (e: Exception) { emptyList() }
@@ -648,16 +650,13 @@ class AppViewModel @Inject constructor(
                 .filter { it != myPubkey }
                 .map { BurnPlan.Candidate(it, nicknameStore.displayName(it)) }
                 .sortedBy { it.displayName }
-            val name = freshGroup?.name ?: group.name
-            soleAdmin.add(
-                BurnPlan.SoleAdminGroup(
-                    groupId = groupId,
-                    groupName = name.ifEmpty { "Unnamed Group" },
-                    candidates = candidates
-                )
-            )
+            if (candidates.isEmpty()) {
+                ending.add(BurnPlan.EndingGroup(groupId, name))
+            } else {
+                promoteOrEnd.add(BurnPlan.PromoteOrEndGroup(groupId, name, candidates))
+            }
         }
-        return BurnPlan(autoLeave, soleAdmin)
+        return BurnPlan(leaving, promoteOrEnd, ending)
     }
 
     /**
@@ -667,8 +666,8 @@ class AppViewModel @Inject constructor(
      * stranded group, so we log and continue rather than abort.
      */
     suspend fun executeBurnPlan(plan: BurnPlan, promotions: Map<String, String>) {
-        val toLeave = plan.autoLeaveGroupIds.toMutableList()
-        for (group in plan.soleAdminGroups) {
+        val toLeave = plan.leaving.map { it.groupId }.toMutableList()
+        for (group in plan.promoteOrEnd) {
             val promoteePubkey = promotions[group.groupId] ?: continue
             try {
                 marmotService.promoteToAdmin(promoteePubkey, group.groupId)

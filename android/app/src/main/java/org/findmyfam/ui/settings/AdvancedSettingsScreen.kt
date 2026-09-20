@@ -39,7 +39,7 @@ fun AdvancedSettingsScreen(
     onFuzzSettingChanged: () -> Unit = {},
     onExportKey: () -> Unit = {},
     onImportKey: () -> Unit = {},
-    onPrepareBurnPlan: suspend () -> BurnPlan = { BurnPlan(emptyList(), emptyList()) },
+    onPrepareBurnPlan: suspend () -> BurnPlan = { BurnPlan(emptyList(), emptyList(), emptyList()) },
     onExecuteBurnPlan: suspend (BurnPlan, Map<String, String>) -> Unit = { _, _ -> },
     onDiagnostics: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -465,28 +465,40 @@ fun AdvancedSettingsScreen(
                 title = { Text("Review Before Burning") },
                 text = {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                        if (plan.autoLeaveGroupIds.isNotEmpty()) {
+                        if (plan.leaving.isNotEmpty()) {
                             Text(
-                                "You'll be automatically removed from ${plan.autoLeaveGroupIds.size} other group(s).",
+                                "Leaving",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            plan.leaving.forEach { group ->
+                                Text(group.groupName, modifier = Modifier.padding(vertical = 2.dp))
+                            }
+                            Text(
+                                "Another admin remains — these groups continue without you.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                             )
                         }
-                        plan.soleAdminGroups.forEach { group ->
-                            Text(group.groupName, style = MaterialTheme.typography.titleSmall)
-                            if (group.candidates.isEmpty()) {
+
+                        if (plan.promoteOrEnd.isNotEmpty()) {
+                            Text(
+                                "Choose a new admin",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                "You're the only admin in these groups. Promote someone to keep it going, or let it end.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                            plan.promoteOrEnd.forEach { group ->
                                 Text(
-                                    "No other members — this group will end.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 12.dp, top = 2.dp)
-                                )
-                            } else {
-                                Text(
-                                    "You're the only admin. Promote someone to keep this group going, or it will end.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    group.groupName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(top = 8.dp)
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -518,8 +530,25 @@ fun AdvancedSettingsScreen(
                                         Text(candidate.displayName)
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(12.dp))
                             }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        if (plan.ending.isNotEmpty()) {
+                            Text(
+                                "Will end",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            plan.ending.forEach { group ->
+                                Text(group.groupName, modifier = Modifier.padding(vertical = 2.dp))
+                            }
+                            Text(
+                                "No other members — burning ends these groups.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
                         }
                     }
                 },
@@ -559,7 +588,7 @@ fun AdvancedSettingsScreen(
                 TextButton(
                     onClick = {
                         showBurnConfirm = false
-                        val plan = burnPlan ?: BurnPlan(emptyList(), emptyList())
+                        val plan = burnPlan ?: BurnPlan(emptyList(), emptyList(), emptyList())
                         val promotions = burnPromotions
                         coroutineScope.launch { onExecuteBurnPlan(plan, promotions) }
                     }
