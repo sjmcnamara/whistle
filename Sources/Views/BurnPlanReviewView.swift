@@ -32,29 +32,26 @@ struct BurnPlanReviewView: View {
                 if !plan.promoteOrEnd.isEmpty {
                     Section {
                         ForEach(plan.promoteOrEnd) { group in
-                            HStack {
-                                // Mirrors the icon in "Leaving"/"Will end" —
-                                // reflects this row's *current* choice, so it
-                                // updates live as the picker selection changes.
-                                Image(systemName: promotions[group.groupId] == nil ? "xmark.circle" : "arrow.right.circle")
+                            // Built from the same Label used in "Leaving"/"Will
+                            // end" rather than a Picker(.navigationLink), whose
+                            // title text renders at a subtly different weight
+                            // than a plain Label in the same row — this
+                            // guarantees identical text instead of hoping a
+                            // .font() override lands the same way.
+                            NavigationLink {
+                                promoteOrEndDestination(for: group)
+                            } label: {
+                                HStack {
+                                    Label(
+                                        group.groupName,
+                                        systemImage: promotions[group.groupId] == nil ? "xmark.circle" : "arrow.right.circle"
+                                    )
+                                    .font(.body)
                                     .foregroundStyle(.secondary)
-                                Picker(group.groupName, selection: Binding(
-                                    get: { promotions[group.groupId] },
-                                    set: { newValue in
-                                        if let newValue {
-                                            promotions[group.groupId] = newValue
-                                        } else {
-                                            promotions.removeValue(forKey: group.groupId)
-                                        }
-                                    }
-                                )) {
-                                    Text("End this group").tag(String?.none)
-                                    ForEach(group.candidates) { candidate in
-                                        Text(candidate.displayName).tag(String?.some(candidate.pubkeyHex))
-                                    }
+                                    Spacer()
+                                    Text(selectedPromoteeName(for: group))
+                                        .foregroundStyle(.secondary)
                                 }
-                                .pickerStyle(.navigationLink)
-                                .font(.body)
                             }
                         }
                     } header: {
@@ -91,5 +88,43 @@ struct BurnPlanReviewView: View {
                 }
             }
         }
+    }
+
+    private func selectedPromoteeName(for group: BurnPlan.PromoteOrEndGroup) -> String {
+        guard let pubkey = promotions[group.groupId] else { return "End this group" }
+        return group.candidates.first { $0.pubkeyHex == pubkey }?.displayName ?? "End this group"
+    }
+
+    @ViewBuilder
+    private func promoteOrEndDestination(for group: BurnPlan.PromoteOrEndGroup) -> some View {
+        List {
+            Button {
+                promotions.removeValue(forKey: group.groupId)
+            } label: {
+                HStack {
+                    Text("End this group")
+                    Spacer()
+                    if promotions[group.groupId] == nil {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+            .foregroundStyle(.primary)
+            ForEach(group.candidates) { candidate in
+                Button {
+                    promotions[group.groupId] = candidate.pubkeyHex
+                } label: {
+                    HStack {
+                        Text(candidate.displayName)
+                        Spacer()
+                        if promotions[group.groupId] == candidate.pubkeyHex {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
+        }
+        .navigationTitle(group.groupName)
     }
 }
