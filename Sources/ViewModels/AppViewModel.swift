@@ -522,15 +522,21 @@ final class AppViewModel: ObservableObject {
         // --- Everything below runs after the splash dismisses. ---
         // The UI is now interactive; these are background housekeeping tasks.
 
-        // Re-announce the group photo when membership changes, so a new joiner
-        // sees it without waiting for the next edit. Guarded to the designated
-        // admin inside — every admin observes the same change.
+        // Re-announce the group photo, and our own nickname/avatar, when
+        // membership changes, so a new joiner picks up existing members'
+        // profiles without waiting for each of them to next launch or edit.
+        // The group photo is guarded to the designated admin inside (a shared
+        // value, so only one sender should push it); the nickname/avatar
+        // re-announce has no such guard — every existing member's device
+        // independently resends only its own profile, so there's no
+        // duplicate-sender problem to avoid.
         marmotService.$lastGroupMembershipChangeId
             .compactMap { $0?.0 }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] groupId in
                 Task { [weak self] in
                     await self?.rebroadcastGroupAvatarIfDesignated(groupId: groupId)
+                    await self?.reannounceOwnProfile(toGroup: groupId)
                 }
             }
             .store(in: &cancellables)
@@ -986,11 +992,37 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    /// Re-announce our own nickname and avatar to one group after a
+    /// membership change there, so a newly-joined member picks up existing
+    /// members' profiles instead of only ever seeing their npub. Each device
+    /// resends only its own profile — no coordination needed, unlike the
+    /// group photo above.
+    private func reannounceOwnProfile(toGroup groupId: String) async {
+        guard let marmot, let pubkey = myPubkeyHex else { return }
+        let name = settings.displayName
+        if !name.isEmpty {
+            do {
+                try await marmot.sendNicknameUpdate(name: name, toGroup: groupId)
+            } catch {
+                WhistleLogger.chat.error("Nickname re-announce failed for \(groupId): \(error)")
+            }
+        }
+        if let payload = memberAvatarStore.ownPayload(pubkeyHex: pubkey) {
+            do {
+                try await marmot.sendAvatarUpdate(payload, toGroup: groupId)
+                WhistleLogger.chat.info("Re-announced own avatar to \(groupId) after membership change")
+            } catch {
+                WhistleLogger.chat.error("Avatar re-announce failed for \(groupId): \(error)")
+            }
+        }
+    }
+
     /// Send an avatar payload to every active group.
     ///
     /// Unlike nicknames this is deliberately *not* re-broadcast on launch: a
     /// name is a few bytes, whereas an avatar is several KB per group per
-    /// launch. Change and join are the only triggers.
+    /// launch. Change, join, and another member's membership-change
+    /// re-announce (see `reannounceOwnProfile`) are the only triggers.
     private func broadcastAvatar(_ payload: AvatarPayload) async {
         guard let marmot else { return }
         let active = marmot.groups.filter(\.isActive)
