@@ -144,18 +144,27 @@ struct GroupDetailView: View {
                     Text(viewModel.groupName.isEmpty ? "Unnamed Group" : viewModel.groupName)
                         .font(.title2.weight(.semibold))
                         .multilineTextAlignment(.center)
-                    // Not gated on `viewModel.isAdmin` — see the comment above
-                    // `invitePeopleSection`'s call site.
-                    Button {
-                        renameText = viewModel.groupName
-                        showRename = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.subheadline)
+                    // Unlike Invite People/Make Admin/Ready to Join, there's no
+                    // local-only fallback for a rename — MDK's own enforcement
+                    // doesn't reject a non-admin's `updateGroupData` call
+                    // locally, so it merges on this device only and then gets
+                    // silently overwritten by the next live sync, with no
+                    // error ever shown. Gating on `isAdmin` here (unlike those
+                    // three) avoids that dead-end instead of relying on
+                    // enforcement that doesn't actually fail safely for this
+                    // specific operation.
+                    if viewModel.isAdmin {
+                        Button {
+                            renameText = viewModel.groupName
+                            showRename = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Rename group")
                     }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Rename group")
                 }
                 Text("\(viewModel.members.count) member\(viewModel.members.count == 1 ? "" : "s")")
                     .font(.subheadline)
