@@ -3,6 +3,7 @@ package org.findmyfam.ui.settings
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,7 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
+import org.findmyfam.models.BurnPlan
 import org.findmyfam.services.IdentityService
 import org.findmyfam.services.RelayService
 import org.findmyfam.shared.models.RelayConfig
@@ -36,7 +39,8 @@ fun AdvancedSettingsScreen(
     onFuzzSettingChanged: () -> Unit = {},
     onExportKey: () -> Unit = {},
     onImportKey: () -> Unit = {},
-    onBurnIdentity: () -> Unit = {},
+    onPrepareBurnPlan: suspend () -> BurnPlan = { BurnPlan(emptyList(), emptyList()) },
+    onExecuteBurnPlan: suspend (BurnPlan, Map<String, String>) -> Unit = { _, _ -> },
     onDiagnostics: () -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -45,6 +49,10 @@ fun AdvancedSettingsScreen(
     var appLockEnabled by remember { mutableStateOf(settings.isAppLockEnabled) }
     var rotationDays by remember { mutableIntStateOf(settings.keyRotationIntervalDays) }
     var showBurnConfirm by remember { mutableStateOf(false) }
+    var showBurnPlanReview by remember { mutableStateOf(false) }
+    var burnPlan by remember { mutableStateOf<BurnPlan?>(null) }
+    var burnPromotions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val coroutineScope = rememberCoroutineScope()
     var relays by remember { mutableStateOf(settings.relays) }
     var showAddRelay by remember { mutableStateOf(false) }
     var newRelayURL by remember { mutableStateOf("wss://") }
@@ -347,7 +355,18 @@ fun AdvancedSettingsScreen(
             SectionHeader("Danger Zone")
 
             Button(
-                onClick = { showBurnConfirm = true },
+                onClick = {
+                    coroutineScope.launch {
+                        val plan = onPrepareBurnPlan()
+                        burnPlan = plan
+                        burnPromotions = emptyMap()
+                        if (plan.needsReview) {
+                            showBurnPlanReview = true
+                        } else {
+                            showBurnConfirm = true
+                        }
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
@@ -435,18 +454,114 @@ fun AdvancedSettingsScreen(
         )
     }
 
+    if (showBurnPlanReview) {
+        burnPlan?.let { plan ->
+            AlertDialog(
+                onDismissRequest = {
+                    showBurnPlanReview = false
+                    burnPlan = null
+                    burnPromotions = emptyMap()
+                },
+                title = { Text("Review Before Burning") },
+                text = {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        if (plan.autoLeaveGroupIds.isNotEmpty()) {
+                            Text(
+                                "You'll be automatically removed from ${plan.autoLeaveGroupIds.size} other group(s).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                        }
+                        plan.soleAdminGroups.forEach { group ->
+                            Text(group.groupName, style = MaterialTheme.typography.titleSmall)
+                            if (group.candidates.isEmpty()) {
+                                Text(
+                                    "No other members — this group will end.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 12.dp, top = 2.dp)
+                                )
+                            } else {
+                                Text(
+                                    "You're the only admin. Promote someone to keep this group going, or it will end.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { burnPromotions = burnPromotions - group.groupId }
+                                ) {
+                                    RadioButton(
+                                        selected = burnPromotions[group.groupId] == null,
+                                        onClick = { burnPromotions = burnPromotions - group.groupId }
+                                    )
+                                    Text("End this group")
+                                }
+                                group.candidates.forEach { candidate ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                burnPromotions = burnPromotions + (group.groupId to candidate.pubkeyHex)
+                                            }
+                                    ) {
+                                        RadioButton(
+                                            selected = burnPromotions[group.groupId] == candidate.pubkeyHex,
+                                            onClick = {
+                                                burnPromotions = burnPromotions + (group.groupId to candidate.pubkeyHex)
+                                            }
+                                        )
+                                        Text(candidate.displayName)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showBurnPlanReview = false
+                            showBurnConfirm = true
+                        }
+                    ) {
+                        Text("Continue")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showBurnPlanReview = false
+                            burnPlan = null
+                            burnPromotions = emptyMap()
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+
     if (showBurnConfirm) {
         AlertDialog(
             onDismissRequest = { showBurnConfirm = false },
             title = { Text("Burn Identity?") },
             text = {
-                Text("This permanently destroys your identity and erases every group and message on this device. It does not remove you from your groups — other members will still see you, and you won't be able to rejoin unless another admin re-adds you. This cannot be undone.")
+                Text("This will remove you from every group where you're not the only admin, then permanently destroy your identity and erase everything on this device. This cannot be undone.")
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showBurnConfirm = false
-                        onBurnIdentity()
+                        val plan = burnPlan ?: BurnPlan(emptyList(), emptyList())
+                        val promotions = burnPromotions
+                        coroutineScope.launch { onExecuteBurnPlan(plan, promotions) }
                     }
                 ) {
                     Text("Burn Everything", color = MaterialTheme.colorScheme.error)

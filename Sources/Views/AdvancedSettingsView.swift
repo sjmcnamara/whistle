@@ -4,6 +4,9 @@ import WhistleCore
 struct AdvancedSettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @State private var showBurnConfirmation = false
+    @State private var showBurnPlanReview = false
+    @State private var burnPlan: BurnPlan?
+    @State private var burnPromotions: [String: String] = [:]
     @State private var showAddRelay = false
     @State private var newRelayURL = ""
     @State private var relayError: String?
@@ -27,13 +30,21 @@ struct AdvancedSettingsView: View {
                 try? await Task.sleep(for: .seconds(5))
             }
         }
+        .sheet(isPresented: $showBurnPlanReview) {
+            if let burnPlan {
+                BurnPlanReviewView(plan: burnPlan, promotions: $burnPromotions) {
+                    showBurnConfirmation = true
+                }
+            }
+        }
         .alert("Burn Identity?", isPresented: $showBurnConfirmation) {
             Button("Burn Everything", role: .destructive) {
-                Task { try? await appViewModel.burnIdentity() }
+                let plan = burnPlan ?? BurnPlan(autoLeaveGroupIds: [], soleAdminGroups: [])
+                Task { await appViewModel.executeBurnPlan(plan, promotions: burnPromotions) }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently destroys your identity and erases every group and message on this device. It does not remove you from your groups — other members will still see you, and you won't be able to rejoin unless another admin re-adds you. This cannot be undone.")
+            Text("This will remove you from every group where you're not the only admin, then permanently destroy your identity and erase everything on this device. This cannot be undone.")
         }
     }
 
@@ -222,7 +233,16 @@ struct AdvancedSettingsView: View {
     private var dangerSection: some View {
         Section {
             Button(role: .destructive) {
-                showBurnConfirmation = true
+                Task {
+                    let plan = await appViewModel.prepareBurnPlan()
+                    burnPlan = plan
+                    burnPromotions = [:]
+                    if plan.needsReview {
+                        showBurnPlanReview = true
+                    } else {
+                        showBurnConfirmation = true
+                    }
+                }
             } label: {
                 Label("Burn Identity", systemImage: "flame.fill")
             }
