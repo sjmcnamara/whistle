@@ -52,6 +52,7 @@ fun AdvancedSettingsScreen(
     var showBurnPlanReview by remember { mutableStateOf(false) }
     var burnPlan by remember { mutableStateOf<BurnPlan?>(null) }
     var burnPromotions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isPreparingBurnPlan by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var relays by remember { mutableStateOf(settings.relays) }
     var showAddRelay by remember { mutableStateOf(false) }
@@ -356,8 +357,16 @@ fun AdvancedSettingsScreen(
 
             Button(
                 onClick = {
+                    isPreparingBurnPlan = true
                     coroutineScope.launch {
+                        // Every active group needs its own MLS round-trip
+                        // (serialized behind MLSService's mutex) to re-sync
+                        // admin state before this can be decided -- with
+                        // several groups this is genuinely a few seconds,
+                        // not free. The spinner exists so that reads as
+                        // "working", not "frozen".
                         val plan = onPrepareBurnPlan()
+                        isPreparingBurnPlan = false
                         burnPlan = plan
                         burnPromotions = emptyMap()
                         if (plan.needsReview) {
@@ -367,6 +376,7 @@ fun AdvancedSettingsScreen(
                         }
                     }
                 },
+                enabled = !isPreparingBurnPlan,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
@@ -374,7 +384,15 @@ fun AdvancedSettingsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Icon(Icons.Default.LocalFireDepartment, contentDescription = null, modifier = Modifier.size(18.dp))
+                if (isPreparingBurnPlan) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onError
+                    )
+                } else {
+                    Icon(Icons.Default.LocalFireDepartment, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Burn Identity")
             }
