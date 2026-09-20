@@ -907,23 +907,38 @@ final class AppViewModel: ObservableObject {
     /// a compromised key being burned is a worse problem than one frozen or
     /// stranded group, so we log and continue rather than abort.
     func executeBurnPlan(_ plan: BurnPlan, promotions: [String: String]) async {
+        var groupNames: [String: String] = [:]
+        for g in plan.leaving { groupNames[g.groupId] = g.groupName }
+        for g in plan.promoteOrEnd { groupNames[g.groupId] = g.groupName }
+
+        WhistleLogger.chat.info(
+            "Burn plan starting: \(plan.leaving.count) leaving, \(plan.promoteOrEnd.count) promote-or-end, \(plan.ending.count) ending"
+        )
+
         var toLeave = plan.leaving.map(\.groupId)
         for group in plan.promoteOrEnd {
-            guard let promoteePubkey = promotions[group.groupId] else { continue }
+            guard let promoteePubkey = promotions[group.groupId] else {
+                WhistleLogger.chat.info("Burn plan: \(group.groupName) (\(group.groupId)) — no promotee chosen, group will end")
+                continue
+            }
             do {
                 try await marmot?.promoteToAdmin(pubkeyHex: promoteePubkey, inGroup: group.groupId)
+                WhistleLogger.chat.info("Burn plan: promoted \(promoteePubkey) in \(group.groupName) (\(group.groupId))")
                 toLeave.append(group.groupId)
             } catch {
-                WhistleLogger.chat.error("Pre-burn promote failed for \(group.groupId): \(error) — group will end")
+                WhistleLogger.chat.error("Burn plan: promote FAILED for \(group.groupName) (\(group.groupId)): \(error) — group will end")
             }
         }
         for groupId in toLeave {
+            let name = groupNames[groupId] ?? groupId
             do {
                 try await marmot?.leaveGroup(groupId: groupId)
+                WhistleLogger.chat.info("Burn plan: left \(name) (\(groupId)) successfully")
             } catch {
-                WhistleLogger.chat.error("Pre-burn leave failed for \(groupId): \(error)")
+                WhistleLogger.chat.error("Burn plan: leave FAILED for \(name) (\(groupId)): \(error)")
             }
         }
+        WhistleLogger.chat.info("Burn plan complete, proceeding to destroy identity")
         try? await burnIdentity()
     }
 
