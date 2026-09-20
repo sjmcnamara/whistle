@@ -490,7 +490,18 @@ fun AdvancedSettingsScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             plan.leaving.forEach { group ->
-                                Text(group.groupName, modifier = Modifier.padding(vertical = 2.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowCircleRight, contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(group.groupName)
+                                }
                             }
                             Text(
                                 "Another admin remains — these groups continue without you.",
@@ -513,11 +524,22 @@ fun AdvancedSettingsScreen(
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                             plan.promoteOrEnd.forEach { group ->
-                                Text(
-                                    group.groupName,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(top = 8.dp)
-                                )
+                                ) {
+                                    // Mirrors the icon in "Leaving"/"Will end" --
+                                    // reflects this group's *current* choice, so
+                                    // it updates live as the radio selection changes.
+                                    Icon(
+                                        if (burnPromotions[group.groupId] == null) Icons.Default.Cancel else Icons.Default.ArrowCircleRight,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(group.groupName, style = MaterialTheme.typography.bodyLarge)
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
@@ -559,7 +581,18 @@ fun AdvancedSettingsScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             plan.ending.forEach { group ->
-                                Text(group.groupName, modifier = Modifier.padding(vertical = 2.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Cancel, contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(group.groupName)
+                                }
                             }
                             Text(
                                 "No other members — burning ends these groups.",

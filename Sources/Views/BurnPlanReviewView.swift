@@ -31,22 +31,29 @@ struct BurnPlanReviewView: View {
                 if !plan.promoteOrEnd.isEmpty {
                     Section {
                         ForEach(plan.promoteOrEnd) { group in
-                            Picker(group.groupName, selection: Binding(
-                                get: { promotions[group.groupId] },
-                                set: { newValue in
-                                    if let newValue {
-                                        promotions[group.groupId] = newValue
-                                    } else {
-                                        promotions.removeValue(forKey: group.groupId)
+                            HStack {
+                                // Mirrors the icon in "Leaving"/"Will end" —
+                                // reflects this row's *current* choice, so it
+                                // updates live as the picker selection changes.
+                                Image(systemName: promotions[group.groupId] == nil ? "xmark.circle" : "arrow.right.circle")
+                                    .foregroundStyle(.secondary)
+                                Picker(group.groupName, selection: Binding(
+                                    get: { promotions[group.groupId] },
+                                    set: { newValue in
+                                        if let newValue {
+                                            promotions[group.groupId] = newValue
+                                        } else {
+                                            promotions.removeValue(forKey: group.groupId)
+                                        }
+                                    }
+                                )) {
+                                    Text("End this group").tag(String?.none)
+                                    ForEach(group.candidates) { candidate in
+                                        Text(candidate.displayName).tag(String?.some(candidate.pubkeyHex))
                                     }
                                 }
-                            )) {
-                                Text("End this group").tag(String?.none)
-                                ForEach(group.candidates) { candidate in
-                                    Text(candidate.displayName).tag(String?.some(candidate.pubkeyHex))
-                                }
+                                .pickerStyle(.navigationLink)
                             }
-                            .pickerStyle(.navigationLink)
                         }
                     } header: {
                         Text("Choose a new admin")
