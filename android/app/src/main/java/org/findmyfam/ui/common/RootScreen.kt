@@ -335,8 +335,9 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                     onExportKey = { navController.navigate(Routes.EXPORT_KEY) },
                     onImportKey = { navController.navigate(Routes.IMPORT_KEY) },
                     onDiagnostics = { navController.navigate(Routes.DIAGNOSTICS) },
-                    onBurnIdentity = {
-                        viewModel.burnIdentity()
+                    onPrepareBurnPlan = { viewModel.prepareBurnPlan() },
+                    onExecuteBurnPlan = { plan, promotions ->
+                        viewModel.executeBurnPlan(plan, promotions)
                         navController.popBackStack(Routes.GROUP_LIST, inclusive = false)
                     },
                     onBack = { navController.popBackStack() },

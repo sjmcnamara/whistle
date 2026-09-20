@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
+import org.findmyfam.models.BurnPlan
 import org.findmyfam.shared.models.AvatarPayload
 import org.findmyfam.shared.models.GroupAvatarPayload
 import org.findmyfam.shared.models.LocationPayload
@@ -601,6 +602,10 @@ class AppViewModel @Inject constructor(
     /**
      * Destroy the current identity and all associated state, generate a
      * fresh keypair, and restart. One-way operation.
+     *
+     * Fire-and-forget entry point for callers with nothing to review (no
+     * active groups). Normal callers should go through [prepareBurnPlan] /
+     * [executeBurnPlan] below so groups are left first.
      */
     fun burnIdentity() {
         viewModelScope.launch {
@@ -609,6 +614,80 @@ class AppViewModel @Inject constructor(
             settings.displayName = ""
             replaceIdentityInternal(freshNsec)
         }
+    }
+
+    /**
+     * Compute what burning will do to every active group, before showing any
+     * confirmation. A group where we're the sole admin can't just be left --
+     * [MarmotService.leaveGroup] already refuses that -- so those need an
+     * explicit decision: promote another member, or accept that group ends
+     * when we burn.
+     */
+    suspend fun prepareBurnPlan(): BurnPlan {
+        val myPubkey = identity.publicKeyHex ?: return BurnPlan(emptyList(), emptyList())
+        val autoLeave = mutableListOf<String>()
+        val soleAdmin = mutableListOf<BurnPlan.SoleAdminGroup>()
+        for (group in marmotService.groups.value.filter { it.isActive }) {
+            val groupId = group.mlsGroupId
+            // Admin lists can drift from live MLS truth -- re-sync before
+            // deciding whether this group can just be left.
+            try {
+                mls.syncGroupMetadataFromMls(groupId)
+            } catch (e: Exception) {
+                Timber.w("Pre-burn sync failed for $groupId: ${e.message}")
+            }
+            val freshGroup = try { mls.getGroup(groupId) } catch (e: Exception) { null }
+            val adminPubkeys = freshGroup?.adminPubkeys ?: group.adminPubkeys
+            val amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.size == 1
+            if (!amSoleAdmin) {
+                autoLeave.add(groupId)
+                continue
+            }
+            val members = try { mls.getMembers(groupId) } catch (e: Exception) { emptyList() }
+            val candidates = members
+                .filter { it != myPubkey }
+                .map { BurnPlan.Candidate(it, nicknameStore.displayName(it)) }
+                .sortedBy { it.displayName }
+            val name = freshGroup?.name ?: group.name
+            soleAdmin.add(
+                BurnPlan.SoleAdminGroup(
+                    groupId = groupId,
+                    groupName = name.ifEmpty { "Unnamed Group" },
+                    candidates = candidates
+                )
+            )
+        }
+        return BurnPlan(autoLeave, soleAdmin)
+    }
+
+    /**
+     * Execute a reviewed burn plan: promote where chosen, leave everything
+     * leavable, then burn. Never blocks on an individual group's failure --
+     * a compromised key being burned is a worse problem than one frozen or
+     * stranded group, so we log and continue rather than abort.
+     */
+    suspend fun executeBurnPlan(plan: BurnPlan, promotions: Map<String, String>) {
+        val toLeave = plan.autoLeaveGroupIds.toMutableList()
+        for (group in plan.soleAdminGroups) {
+            val promoteePubkey = promotions[group.groupId] ?: continue
+            try {
+                marmotService.promoteToAdmin(promoteePubkey, group.groupId)
+                toLeave.add(group.groupId)
+            } catch (e: Exception) {
+                Timber.w("Pre-burn promote failed for ${group.groupId}: ${e.message} -- group will end")
+            }
+        }
+        for (groupId in toLeave) {
+            try {
+                marmotService.leaveGroup(groupId)
+            } catch (e: Exception) {
+                Timber.w("Pre-burn leave failed for $groupId: ${e.message}")
+            }
+        }
+        val freshKeys = rust.nostr.sdk.Keys.generate()
+        val freshNsec = freshKeys.secretKey().toBech32()
+        settings.displayName = ""
+        replaceIdentityInternal(freshNsec)
     }
 
     private suspend fun replaceIdentityInternal(nsec: String) {

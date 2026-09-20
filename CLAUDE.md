@@ -103,4 +103,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.10.6 — Re-hide self-promote swipe action (Android)** (bugfix, Android). See ROADMAP.md for next steps.
+Current version: **v1.11.0 — Profile re-announce on join + Burn Identity leaves groups** (feature, iOS & Android). See ROADMAP.md for next steps.

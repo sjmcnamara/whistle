@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.11.0] — 2026-09-20
+
+### Added
+- **(iOS & Android) Burn Identity now leaves every group it safely can, instead of only wiping local state.** Previously, burning sent no leave or removal proposal at all — every other member kept the burned leaf in their tree indefinitely (zombie membership), and a group where the burner was the sole admin was permanently frozen for everyone else with no warning. A pre-burn plan is now computed before any confirmation: groups where the user isn't the sole admin are left automatically via the real self-remove `leaveGroup()`; groups where they are the sole admin surface a review screen with a per-group picker to promote another member (defaulting to "end this group" rather than guessing a promotee) or explicitly accept the group ends. Admin lists are re-synced from live MLS state first, since this is a one-way decision that shouldn't be made against a cached list. Execution is best-effort per group — one group's promote/leave failure doesn't block the burn, since a compromised key being burned is a worse problem than one stranded group. The common case (no sole-admin groups) skips the review screen entirely.
+- **(iOS & Android) A new joiner now sees existing members' avatars and correct nicknames immediately, without waiting for each of them to next launch or edit.** The group photo already re-announced on any membership change; personal avatars and nicknames didn't — an avatar only ever went out on your own join or an explicit change, and a nickname only self-healed on the sender's next app launch. Both now piggyback on the same membership-change signal the group photo already uses, with no coordination needed (unlike the group photo, each device resends only its own profile). Every membership change now costs one extra message per existing member with a profile set, on top of what the group photo already does — fine for a small group, would need throttling if a group grows large.
+
 ## [1.10.6] — 2026-09-19
 
 ### Fixed
