@@ -993,6 +993,17 @@ class MarmotService @Inject constructor(
             }
             is ProcessMessageResult.Proposal -> {
                 val updateResult = result.result
+                // Auto-committed proposal: MDK prepared the resulting commit
+                // but -- unlike every other self-authored commit path in
+                // this file (promoteToAdmin, renameGroup, self-update:
+                // generate -> merge -> publish) -- doesn't merge it into
+                // our own local state automatically. Skipping this left the
+                // auto-committing admin's own device never actually
+                // applying the commit it just generated, even though the
+                // broadcast below is correct for every other member who
+                // receives it as a normal Commit. Regression test (iOS):
+                // ProtocolRoundTripTests.testBurnSequence_promoteThenSelfDemoteThenSelfRemove_receiverAppliesAllThree.
+                mls.mergePendingCommit(updateResult.mlsGroupId)
                 val evolutionEventJson = updateResult.evolutionEventJson
                 publishGroupEvent(evolutionEventJson)
                 Timber.d("Processed and published auto-committed proposal")

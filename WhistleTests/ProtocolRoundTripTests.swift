@@ -559,6 +559,99 @@ final class ProtocolRoundTripTests: XCTestCase {
         }
     }
 
+    // MARK: - 6c. Regression: burn's rapid promote → self-demote → self-remove
+
+    /// Live bug (2026-09-21): burning an identity with a sole-admin group
+    /// where another member is promoted fires three commits on that group
+    /// back-to-back (promoteToAdmin, then leaveGroup's own self-demote +
+    /// self-remove) — no delay between them, since it's all one
+    /// `executeBurnPlan` call. On a real two-device test, the promote
+    /// landed on the promoted admin's device (confirmed admin, correct
+    /// epoch), but the group still showed the leaver as a member — even
+    /// after a full app restart, with zero new failures recorded, and MDK
+    /// having already verified the self-remove commit reached the relay
+    /// from the leaver's side.
+    ///
+    /// Reproduces the exact sequence against two real, in-memory MDK
+    /// instances via the actual production code path (`MarmotService`,
+    /// not raw `mls` calls) with no artificial delay between commits, and
+    /// delivers each published event to the second party immediately —
+    /// the fastest this could possibly happen, to see whether MDK itself
+    /// mishandles same-group rapid-fire commits or whether the bug must be
+    /// somewhere else (real relay/subscription timing, not reproducible
+    /// against in-memory MDK at all).
+    func testBurnSequence_promoteThenSelfDemoteThenSelfRemove_receiverAppliesAllThree() async throws {
+        let groupId = try await createAndMergeGroup(name: "Craic Test")
+        try await addBobAsPlainMember(to: groupId)
+        await sut.refreshGroups()
+
+        var bobMembers = try await mls2.getMembers(groupId: groupId)
+        XCTAssertEqual(bobMembers.count, 2, "Bob should see both members before any commits")
+
+        // Bypass verifyEventOnRelay's fetch-back for every publish in this
+        // test — the mock ignores the filter and returns whatever is
+        // configured here, regardless of which of the three events it's
+        // "verifying" (mirrors testMarmotServiceLeaveGroup_nonAdmin above).
+        let anyEventJson = try await mls.createMessage(groupId: groupId, senderPublicKeyHex: pubHex, content: "x")
+        mockRelay.eventsToReturn = [try Event.fromJson(json: anyEventJson)]
+
+        // 1. Alice promotes Bob — the exact call executeBurnPlan makes.
+        try await sut.promoteToAdmin(pubkeyHex: pub2Hex, inGroup: groupId)
+        XCTAssertEqual(mockRelay.sentEvents.count, 1, "Promote should publish exactly one event")
+
+        let promoteReceived = try await mls2.processIncomingEvent(eventJson: mockRelay.sentEvents[0])
+        guard case .commit = promoteReceived else {
+            XCTFail("Expected Bob to apply the promote commit, got \(promoteReceived)")
+            return
+        }
+        var bobGroup = try await mls2.getGroup(mlsGroupId: groupId)
+        XCTAssertEqual(Set(bobGroup?.adminPubkeys ?? []), Set([pubHex, pub2Hex]),
+                       "Bob should see both admins after the promote commit")
+
+        // 2 & 3. Alice leaves — production leaveGroup does self-demote then
+        // self-remove as two separate commits, back-to-back, no delay.
+        try await sut.leaveGroup(groupId: groupId)
+        XCTAssertEqual(mockRelay.sentEvents.count, 3, "promote + self-demote + self-remove = 3 published events")
+
+        let demoteReceived = try await mls2.processIncomingEvent(eventJson: mockRelay.sentEvents[1])
+        guard case .commit = demoteReceived else {
+            XCTFail("Expected Bob to apply the self-demote commit, got \(demoteReceived)")
+            return
+        }
+        bobGroup = try await mls2.getGroup(mlsGroupId: groupId)
+        XCTAssertEqual(bobGroup?.adminPubkeys, [pub2Hex], "Bob should see Alice demoted, himself as sole admin")
+
+        // By this point Alice is a plain member (already demoted), so her
+        // self-remove arrives as a *proposal* Bob's device must auto-commit
+        // — not a ready-made .commit like the previous two steps, where
+        // Alice still held admin/commit authority when she authored them.
+        let removeReceived = try await mls2.processIncomingEvent(eventJson: mockRelay.sentEvents[2])
+        guard case .proposal(let autoCommitResult) = removeReceived else {
+            XCTFail("Expected Bob to auto-commit Alice's self-remove proposal, got \(removeReceived)")
+            return
+        }
+
+        // THE BUG: production's `.proposal` handler (MarmotService.
+        // handleGroupEvent) publishes autoCommitResult's evolution event but
+        // never merges it locally first — unlike every other self-authored
+        // commit path in this file. Without that merge, Bob's own device
+        // never actually applies the removal it just auto-committed, even
+        // though the broadcast evolution event is correct for everyone else
+        // who receives it as a normal .commit. Confirm the un-merged state
+        // first, matching the live bug exactly...
+        bobMembers = try await mls2.getMembers(groupId: groupId)
+        XCTAssertEqual(bobMembers.count, 2,
+                       "Reproduces the live bug: without merging, Bob's own device still shows Alice as a member")
+
+        // ...then confirm the fix: merging before/after publishing (mirrors
+        // every other self-authored commit path) makes Bob's own state
+        // correct too.
+        try await mls2.mergePendingCommit(groupId: groupId)
+        bobMembers = try await mls2.getMembers(groupId: groupId)
+        XCTAssertEqual(bobMembers.count, 1, "After merging, Bob should see only himself")
+        XCTAssertFalse(bobMembers.contains(pubHex), "Alice should no longer be listed as a member")
+    }
+
     // MARK: - 7. Nickname Broadcast via MarmotService
 
     func testNicknameBroadcast_publishesEvent() async throws {
