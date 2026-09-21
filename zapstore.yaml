@@ -10,4 +10,9 @@ description: >
 license: Unlicense
 website: https://getwhistle.org
 icon: ./website/docs/assets/whistle-icon.png
+images:
+  - ./screenshots/android/1-map.png
+  - ./screenshots/android/2-join-group.png
+  - ./screenshots/android/3-settings.png
+  - ./screenshots/android/4-advanced.png
 tags: [location, nostr, privacy, encryption, mls]
