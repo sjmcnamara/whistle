@@ -309,14 +309,23 @@ fun GroupDetailScreen(
                                 groupName.ifEmpty { "Unnamed Group" },
                                 fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
-                            // Not gated on viewModel.isAdmin -- see the comment
-                            // near the invite section below.
-                            IconButton(onClick = { renameText = groupName; showRenameDialog = true }) {
-                                Icon(
-                                    Icons.Default.Edit, contentDescription = "Rename",
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            // Unlike Invite People/Make Admin/Ready to Join, there's
+                            // no local-only fallback for a rename -- MDK's own
+                            // enforcement doesn't reject a non-admin's
+                            // updateGroupData call locally, so it merges on this
+                            // device only and then gets silently overwritten by
+                            // the next live sync, with no error ever shown. Gating
+                            // on isAdmin here (unlike those three) avoids that
+                            // dead end instead of relying on enforcement that
+                            // doesn't actually fail safely for this operation.
+                            if (viewModel.isAdmin) {
+                                IconButton(onClick = { renameText = groupName; showRenameDialog = true }) {
+                                    Icon(
+                                        Icons.Default.Edit, contentDescription = "Rename",
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                         Text(

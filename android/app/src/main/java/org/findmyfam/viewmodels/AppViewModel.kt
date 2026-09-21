@@ -624,9 +624,10 @@ class AppViewModel @Inject constructor(
      * when we burn.
      */
     suspend fun prepareBurnPlan(): BurnPlan {
-        val myPubkey = identity.publicKeyHex ?: return BurnPlan(emptyList(), emptyList())
-        val autoLeave = mutableListOf<String>()
-        val soleAdmin = mutableListOf<BurnPlan.SoleAdminGroup>()
+        val myPubkey = identity.publicKeyHex ?: return BurnPlan(emptyList(), emptyList(), emptyList())
+        val leaving = mutableListOf<BurnPlan.LeavingGroup>()
+        val promoteOrEnd = mutableListOf<BurnPlan.PromoteOrEndGroup>()
+        val ending = mutableListOf<BurnPlan.EndingGroup>()
         for (group in marmotService.groups.value.filter { it.isActive }) {
             val groupId = group.mlsGroupId
             // Admin lists can drift from live MLS truth -- re-sync before
@@ -639,8 +640,9 @@ class AppViewModel @Inject constructor(
             val freshGroup = try { mls.getGroup(groupId) } catch (e: Exception) { null }
             val adminPubkeys = freshGroup?.adminPubkeys ?: group.adminPubkeys
             val amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.size == 1
+            val name = (freshGroup?.name ?: group.name).ifEmpty { "Unnamed Group" }
             if (!amSoleAdmin) {
-                autoLeave.add(groupId)
+                leaving.add(BurnPlan.LeavingGroup(groupId, name))
                 continue
             }
             val members = try { mls.getMembers(groupId) } catch (e: Exception) { emptyList() }
@@ -648,16 +650,13 @@ class AppViewModel @Inject constructor(
                 .filter { it != myPubkey }
                 .map { BurnPlan.Candidate(it, nicknameStore.displayName(it)) }
                 .sortedBy { it.displayName }
-            val name = freshGroup?.name ?: group.name
-            soleAdmin.add(
-                BurnPlan.SoleAdminGroup(
-                    groupId = groupId,
-                    groupName = name.ifEmpty { "Unnamed Group" },
-                    candidates = candidates
-                )
-            )
+            if (candidates.isEmpty()) {
+                ending.add(BurnPlan.EndingGroup(groupId, name))
+            } else {
+                promoteOrEnd.add(BurnPlan.PromoteOrEndGroup(groupId, name, candidates))
+            }
         }
-        return BurnPlan(autoLeave, soleAdmin)
+        return BurnPlan(leaving, promoteOrEnd, ending)
     }
 
     /**
@@ -667,23 +666,39 @@ class AppViewModel @Inject constructor(
      * stranded group, so we log and continue rather than abort.
      */
     suspend fun executeBurnPlan(plan: BurnPlan, promotions: Map<String, String>) {
-        val toLeave = plan.autoLeaveGroupIds.toMutableList()
-        for (group in plan.soleAdminGroups) {
-            val promoteePubkey = promotions[group.groupId] ?: continue
+        val groupNames = mutableMapOf<String, String>()
+        plan.leaving.forEach { groupNames[it.groupId] = it.groupName }
+        plan.promoteOrEnd.forEach { groupNames[it.groupId] = it.groupName }
+
+        Timber.i(
+            "Burn plan starting: ${plan.leaving.size} leaving, ${plan.promoteOrEnd.size} promote-or-end, ${plan.ending.size} ending"
+        )
+
+        val toLeave = plan.leaving.map { it.groupId }.toMutableList()
+        for (group in plan.promoteOrEnd) {
+            val promoteePubkey = promotions[group.groupId]
+            if (promoteePubkey == null) {
+                Timber.i("Burn plan: ${group.groupName} (${group.groupId}) -- no promotee chosen, group will end")
+                continue
+            }
             try {
                 marmotService.promoteToAdmin(promoteePubkey, group.groupId)
+                Timber.i("Burn plan: promoted $promoteePubkey in ${group.groupName} (${group.groupId})")
                 toLeave.add(group.groupId)
             } catch (e: Exception) {
-                Timber.w("Pre-burn promote failed for ${group.groupId}: ${e.message} -- group will end")
+                Timber.w("Burn plan: promote FAILED for ${group.groupName} (${group.groupId}): ${e.message} -- group will end")
             }
         }
         for (groupId in toLeave) {
+            val name = groupNames[groupId] ?: groupId
             try {
                 marmotService.leaveGroup(groupId)
+                Timber.i("Burn plan: left $name ($groupId) successfully")
             } catch (e: Exception) {
-                Timber.w("Pre-burn leave failed for $groupId: ${e.message}")
+                Timber.w("Burn plan: leave FAILED for $name ($groupId): ${e.message}")
             }
         }
+        Timber.i("Burn plan complete, proceeding to destroy identity")
         val freshKeys = rust.nostr.sdk.Keys.generate()
         val freshNsec = freshKeys.secretKey().toBech32()
         settings.displayName = ""

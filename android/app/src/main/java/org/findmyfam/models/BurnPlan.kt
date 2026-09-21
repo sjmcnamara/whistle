@@ -3,22 +3,36 @@ package org.findmyfam.models
 /**
  * What burning identity will do to each of the user's active groups,
  * computed before showing any confirmation UI so the user sees the real
- * consequences rather than a generic warning.
+ * consequences rather than a generic warning. Every active group falls
+ * into exactly one of three camps.
  */
 data class BurnPlan(
-    /** Groups the user can just leave automatically -- not the sole admin. */
-    val autoLeaveGroupIds: List<String>,
+    /** Camp 1: another admin remains -- leaving is automatic, the group
+     * survives untouched. */
+    val leaving: List<LeavingGroup>,
 
-    /** Groups needing a decision: promote someone, or accept the group ends. */
-    val soleAdminGroups: List<SoleAdminGroup>
+    /** Camp 2: the user is the sole admin and at least one other member
+     * exists -- needs a decision: promote someone, or let it end. */
+    val promoteOrEnd: List<PromoteOrEndGroup>,
+
+    /** Camp 3: a solo group (sole admin, no other members) -- burning
+     * always ends it, and there is nothing to decide. */
+    val ending: List<EndingGroup>
 ) {
-    /** A group where the user is currently the sole admin. Burning without
-     * resolving this ends the group for everyone unless another member is
-     * promoted first. */
-    data class SoleAdminGroup(
+    data class LeavingGroup(
+        val groupId: String,
+        val groupName: String
+    )
+
+    data class PromoteOrEndGroup(
         val groupId: String,
         val groupName: String,
         val candidates: List<Candidate>
+    )
+
+    data class EndingGroup(
+        val groupId: String,
+        val groupName: String
     )
 
     data class Candidate(
@@ -26,5 +40,5 @@ data class BurnPlan(
         val displayName: String
     )
 
-    val needsReview: Boolean get() = soleAdminGroups.isNotEmpty()
+    val needsReview: Boolean get() = promoteOrEnd.isNotEmpty() || ending.isNotEmpty()
 }

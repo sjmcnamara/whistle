@@ -7,6 +7,7 @@ struct AdvancedSettingsView: View {
     @State private var showBurnPlanReview = false
     @State private var burnPlan: BurnPlan?
     @State private var burnPromotions: [String: String] = [:]
+    @State private var isPreparingBurnPlan = false
     @State private var showAddRelay = false
     @State private var newRelayURL = ""
     @State private var relayError: String?
@@ -39,7 +40,7 @@ struct AdvancedSettingsView: View {
         }
         .alert("Burn Identity?", isPresented: $showBurnConfirmation) {
             Button("Burn Everything", role: .destructive) {
-                let plan = burnPlan ?? BurnPlan(autoLeaveGroupIds: [], soleAdminGroups: [])
+                let plan = burnPlan ?? BurnPlan(leaving: [], promoteOrEnd: [], ending: [])
                 Task { await appViewModel.executeBurnPlan(plan, promotions: burnPromotions) }
             }
             Button("Cancel", role: .cancel) {}
@@ -233,8 +234,15 @@ struct AdvancedSettingsView: View {
     private var dangerSection: some View {
         Section {
             Button(role: .destructive) {
+                isPreparingBurnPlan = true
                 Task {
+                    // Every active group needs its own MLS actor round-trip
+                    // to re-sync admin state before this can be decided (see
+                    // prepareBurnPlan's doc comment) — with several groups
+                    // this is genuinely a few seconds, not free. The spinner
+                    // exists so that reads as "working", not "frozen".
                     let plan = await appViewModel.prepareBurnPlan()
+                    isPreparingBurnPlan = false
                     burnPlan = plan
                     burnPromotions = [:]
                     if plan.needsReview {
@@ -244,8 +252,15 @@ struct AdvancedSettingsView: View {
                     }
                 }
             } label: {
-                Label("Burn Identity", systemImage: "flame.fill")
+                HStack {
+                    Label("Burn Identity", systemImage: "flame.fill")
+                    if isPreparingBurnPlan {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
             }
+            .disabled(isPreparingBurnPlan)
         } header: {
             Text("Danger Zone")
         } footer: {

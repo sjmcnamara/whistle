@@ -39,7 +39,7 @@ fun AdvancedSettingsScreen(
     onFuzzSettingChanged: () -> Unit = {},
     onExportKey: () -> Unit = {},
     onImportKey: () -> Unit = {},
-    onPrepareBurnPlan: suspend () -> BurnPlan = { BurnPlan(emptyList(), emptyList()) },
+    onPrepareBurnPlan: suspend () -> BurnPlan = { BurnPlan(emptyList(), emptyList(), emptyList()) },
     onExecuteBurnPlan: suspend (BurnPlan, Map<String, String>) -> Unit = { _, _ -> },
     onDiagnostics: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -52,6 +52,7 @@ fun AdvancedSettingsScreen(
     var showBurnPlanReview by remember { mutableStateOf(false) }
     var burnPlan by remember { mutableStateOf<BurnPlan?>(null) }
     var burnPromotions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isPreparingBurnPlan by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var relays by remember { mutableStateOf(settings.relays) }
     var showAddRelay by remember { mutableStateOf(false) }
@@ -356,8 +357,16 @@ fun AdvancedSettingsScreen(
 
             Button(
                 onClick = {
+                    isPreparingBurnPlan = true
                     coroutineScope.launch {
+                        // Every active group needs its own MLS round-trip
+                        // (serialized behind MLSService's mutex) to re-sync
+                        // admin state before this can be decided -- with
+                        // several groups this is genuinely a few seconds,
+                        // not free. The spinner exists so that reads as
+                        // "working", not "frozen".
                         val plan = onPrepareBurnPlan()
+                        isPreparingBurnPlan = false
                         burnPlan = plan
                         burnPromotions = emptyMap()
                         if (plan.needsReview) {
@@ -367,6 +376,7 @@ fun AdvancedSettingsScreen(
                         }
                     }
                 },
+                enabled = !isPreparingBurnPlan,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
@@ -374,7 +384,15 @@ fun AdvancedSettingsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Icon(Icons.Default.LocalFireDepartment, contentDescription = null, modifier = Modifier.size(18.dp))
+                if (isPreparingBurnPlan) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onError
+                    )
+                } else {
+                    Icon(Icons.Default.LocalFireDepartment, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Burn Identity")
             }
@@ -465,29 +483,63 @@ fun AdvancedSettingsScreen(
                 title = { Text("Review Before Burning") },
                 text = {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                        if (plan.autoLeaveGroupIds.isNotEmpty()) {
+                        if (plan.leaving.isNotEmpty()) {
                             Text(
-                                "You'll be automatically removed from ${plan.autoLeaveGroupIds.size} other group(s).",
+                                "Leaving",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            plan.leaving.forEach { group ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowCircleRight, contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(group.groupName)
+                                }
+                            }
+                            Text(
+                                "Another admin remains — these groups continue without you.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                             )
                         }
-                        plan.soleAdminGroups.forEach { group ->
-                            Text(group.groupName, style = MaterialTheme.typography.titleSmall)
-                            if (group.candidates.isEmpty()) {
-                                Text(
-                                    "No other members — this group will end.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 12.dp, top = 2.dp)
-                                )
-                            } else {
-                                Text(
-                                    "You're the only admin. Promote someone to keep this group going, or it will end.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+
+                        if (plan.promoteOrEnd.isNotEmpty()) {
+                            Text(
+                                "Choose a new admin",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                "You're the only admin in these groups. Promote someone to keep it going, or let it end.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                            plan.promoteOrEnd.forEach { group ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                ) {
+                                    // Mirrors the icon in "Leaving"/"Will end" --
+                                    // reflects this group's *current* choice, so
+                                    // it updates live as the radio selection changes.
+                                    Icon(
+                                        if (burnPromotions[group.groupId] == null) Icons.Default.Cancel else Icons.Default.ArrowCircleRight,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(group.groupName)
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
@@ -518,8 +570,36 @@ fun AdvancedSettingsScreen(
                                         Text(candidate.displayName)
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(12.dp))
                             }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        if (plan.ending.isNotEmpty()) {
+                            Text(
+                                "Will end",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            plan.ending.forEach { group ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Cancel, contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(group.groupName)
+                                }
+                            }
+                            Text(
+                                "No other members — burning ends these groups.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
                         }
                     }
                 },
@@ -559,7 +639,7 @@ fun AdvancedSettingsScreen(
                 TextButton(
                     onClick = {
                         showBurnConfirm = false
-                        val plan = burnPlan ?: BurnPlan(emptyList(), emptyList())
+                        val plan = burnPlan ?: BurnPlan(emptyList(), emptyList(), emptyList())
                         val promotions = burnPromotions
                         coroutineScope.launch { onExecuteBurnPlan(plan, promotions) }
                     }
