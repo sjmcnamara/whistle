@@ -1037,7 +1037,17 @@ final class MarmotService: ObservableObject {
             lastGroupMembershipChangeId = (groupId, Date())
 
         case .proposal(let updateResult):
-            // Auto-committed proposal — publish the evolution event
+            // Auto-committed proposal: MDK prepared the resulting commit
+            // but — unlike every other self-authored commit path in this
+            // file (promoteToAdmin, renameGroup, self-update: generate →
+            // merge → publish) — doesn't merge it into our own local state
+            // automatically. Skipping this left the auto-committing admin's
+            // own device never actually applying the commit it just
+            // generated, even though the broadcast below is correct for
+            // every other member who receives it as a normal .commit.
+            // Regression test: ProtocolRoundTripTests.
+            // testBurnSequence_promoteThenSelfDemoteThenSelfRemove_receiverAppliesAllThree.
+            try await mls.mergePendingCommit(groupId: updateResult.mlsGroupId)
             let payload = updateResult.publishPayload(relayURLs: relay.connectedRelayURLs)
             for json in payload.events {
                 try await publishGroupEvent(eventJson: json)
