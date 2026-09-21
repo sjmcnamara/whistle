@@ -610,6 +610,13 @@ _Released 2026-09-20_
 
     **Process note**: this shipped as two separate PRs merged together into one release rather than two point releases, since neither individually warranted its own tag/TestFlight/Zapstore cycle — batch small related changes into one release rather than shipping each the moment it's committed.
 
+### v1.11.1 — Burn review UI polish + auto-committed proposal merge fix ✅
+_Released 2026-09-21_
+
+- **(iOS & Android) Burn review's promote-or-end section split into three clearly labeled camps** ("Leaving" / "Choose a new admin" / "Will end") with group names and an outcome icon in every section — previously "leaving" was a bare count and the sole-admin section mixed groups with a real decision alongside dead solo groups with nothing to decide. Icon in the middle section is dynamic, tracking the current promote/end choice live.
+- **(iOS & Android) Group rename pencil hidden for non-admins.** A non-admin could tap it, type a new name, and save with no error shown — the edit never survived a live sync, since MDK's `updateGroupData` merges locally for a non-admin caller instead of rejecting it, and the next metadata sync silently reverted it. Gated on `isAdmin` instead of relying on enforcement that doesn't hold for this specific operation.
+- **(iOS & Android) Root cause found and fixed for v1.11.0's auto-leave: a departed member stayed listed on the promoted admin's device, confirmed live even after a full restart.** A plain member's self-remove — what a burning admin's leave becomes once they've already self-demoted — arrives on other devices as an auto-committed proposal, not a ready commit. MDK prepares the resulting commit but doesn't merge it into the auto-committing device's own local state automatically, unlike every other self-authored commit path in this codebase (promote, rename, self-update: generate → merge → publish). That device broadcasts a correct evolution event everyone else applies fine as a normal commit — it just never applied the commit to itself. Regression test reproduces the exact production sequence against two real in-memory MDK instances; fix confirmed live on a real two-device burn (member count correctly dropped to 1 on both previously-affected groups).
+
 ---
 
 ### Deferred

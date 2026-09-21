@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.11.1] — 2026-09-21
+
+### Fixed
+- **(iOS & Android) Burn Identity's promote-or-end review screen split into three clearly labeled sections** ("Leaving", "Choose a new admin", "Will end") instead of lumping groups with a real decision to make together with dead solo groups that have nothing to decide. All three now list group names consistently (previously the "leaving" case was just a bare count), and each row has a leading icon reflecting its current outcome — dynamic in the "Choose a new admin" section, updating live as the promote/end choice changes.
+- **(iOS & Android) Group rename pencil hidden for non-admins.** A non-admin could tap it, type a new name, and save — it looked like it worked (no error shown) but the edit never survived a live sync, since MDK's `updateGroupData` merges locally for a non-admin caller instead of rejecting it outright, and the next metadata sync silently reverted it with no feedback. Gated on `isAdmin` instead of relying on enforcement that doesn't actually hold for this operation.
+- **(iOS & Android) Root cause found for a live burn-identity bug: a departed member stayed listed on the promoted admin's device, even after a full restart.** A plain member's self-remove — which is what a burning admin's leave becomes once they've already self-demoted — arrives on other devices as an auto-committed proposal, not a ready commit. MDK prepares the resulting commit but doesn't merge it into the auto-committing device's own local state automatically, unlike every other self-authored commit path in this codebase (promote, rename, self-update: generate → merge → publish). That device broadcasts a correct evolution event that every other member applies fine as a normal commit — it just never applied the commit to itself. Added a regression test reproducing the exact production sequence against two real in-memory MDK instances.
+
 ## [1.11.0] — 2026-09-20
 
 ### Added

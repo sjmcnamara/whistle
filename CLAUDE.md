@@ -103,4 +103,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.11.0 — Profile re-announce on join + Burn Identity leaves groups** (feature, iOS & Android). See ROADMAP.md for next steps.
+Current version: **v1.11.1 — Three-camp burn review UI + auto-committed proposal merge fix** (bugfix, iOS & Android). See ROADMAP.md for next steps.
