@@ -657,10 +657,10 @@ final class ProtocolRoundTripTests: XCTestCase {
 
     /// Confirms the bug this fix targets is real at the MDK layer, with no
     /// `MarmotService` involved: once a commit arrives ahead of its
-    /// predecessor, MDK doesn't just fail it — it permanently blacklists
-    /// that exact message, even after the prerequisite epoch lands and a
-    /// retry would otherwise succeed.
-    func testOutOfOrderCommitDeliveredDirectlyToMDK_isPermanentlyBlacklistedEvenAfterPredecessorLands() async throws {
+    /// predecessor, MDK doesn't just fail it — it permanently refuses to
+    /// re-apply that exact message, even after the prerequisite epoch lands
+    /// and a retry would otherwise succeed.
+    func testOutOfOrderCommitDeliveredDirectlyToMDK_isPermanentlyRefusedEvenAfterPredecessorLands() async throws {
         let groupId = try await createAndMergeGroup(name: "Reorder Bug")
         try await addBobAsPlainMember(to: groupId)
 
@@ -722,8 +722,8 @@ final class ProtocolRoundTripTests: XCTestCase {
     /// Confirms the fix: `MarmotService` buffers kind-445 events until the
     /// relay signals end-of-stored-events for the group subscription, then
     /// replays them sorted by `created_at` — so the same reverse-order
-    /// delivery from the test above applies cleanly instead of blacklisting
-    /// the newer commit.
+    /// delivery from the test above applies cleanly instead of permanently
+    /// refusing the newer commit.
     func testCatchUpBuffer_outOfOrderDelivery_appliesBothCommitsInOrderAfterEOSE() async throws {
         let groupId = try await createAndMergeGroup(name: "Reorder Fix")
         try await addBobAsPlainMember(to: groupId)
