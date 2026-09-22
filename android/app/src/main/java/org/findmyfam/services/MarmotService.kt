@@ -29,6 +29,7 @@ import rust.nostr.sdk.HandleNotification
 import rust.nostr.sdk.Kind
 import rust.nostr.sdk.PublicKey
 import rust.nostr.sdk.RelayMessage
+import rust.nostr.sdk.RelayMessageEnum
 import rust.nostr.sdk.RelayUrl
 import rust.nostr.sdk.Tag
 import rust.nostr.sdk.TagKind
@@ -106,6 +107,20 @@ class MarmotService @Inject constructor(
     private var subscriptionJob: Job? = null
     private var groupEventSubId: String? = null
     private var giftWrapSubId: String? = null
+
+    /**
+     * Kind-445 events received before the relay signals end-of-stored-events
+     * for [groupEventSubId], held so backlog replay can be re-sorted by
+     * `created_at` before any of it reaches MDK. NIP-01 gives no ordering
+     * guarantee for stored-event replay, and multiple relays fan in to the
+     * same subscription -- either can hand MDK a commit ahead of its
+     * predecessor, which MDK marks Unprocessable once and then permanently
+     * PreviouslyFailed on every redelivery, with no retry path. See
+     * ROADMAP.md: "MLS commits are applied in relay-delivery order, not
+     * epoch order."
+     */
+    private val groupEventCatchUpBuffer = mutableListOf<Event>()
+    private var groupEventCatchUpComplete = false
 
     private val publicKeyHex: String
         get() = identity.publicKeyHex ?: ""
@@ -759,6 +774,15 @@ class MarmotService @Inject constructor(
 
         val kind = event.kind().asU16()
 
+        // Hold kind-445 events until backlog catch-up finishes so they can be
+        // re-sorted by `created_at` before reaching MDK -- see
+        // groupEventCatchUpBuffer.
+        if (kind == MarmotKind.GROUP_EVENT && !groupEventCatchUpComplete) {
+            groupEventCatchUpBuffer.add(event)
+            Timber.d("Buffering group event ${eventId.take(8)} for catch-up ordering (${groupEventCatchUpBuffer.size} queued)")
+            return
+        }
+
         try {
             when (kind) {
                 MarmotKind.GIFT_WRAP -> handleGiftWrap(event)
@@ -1217,6 +1241,12 @@ class MarmotService @Inject constructor(
     private suspend fun openSubscriptionsAndListen() {
         val myPK = PublicKey.parse(publicKey = publicKeyHex)
 
+        // Reset catch-up state for this subscription lifecycle -- a fresh
+        // subscribe (or a reconnect's smaller `since`-bounded backlog) needs
+        // its own EOSE-bounded sort.
+        groupEventCatchUpBuffer.clear()
+        groupEventCatchUpComplete = false
+
         // Build filters
         var groupFilter = Filter()
             .kind(kind = Kind(kind = MarmotKind.GROUP_EVENT))
@@ -1243,9 +1273,41 @@ class MarmotService @Inject constructor(
             }
 
             override suspend fun handleMsg(relayUrl: RelayUrl, message: RelayMessage) {
-                // No-op for relay messages
+                val msg = message.asEnum()
+                if (msg is RelayMessageEnum.EndOfStoredEvents) {
+                    handleGroupEventCatchUpComplete(msg.subscriptionId)
+                }
             }
         })
+    }
+
+    /**
+     * Flush [groupEventCatchUpBuffer] once the relay signals end-of-stored-events
+     * for the group subscription, re-sorted by `created_at` so backlog replay
+     * reaches MDK in the order it was published rather than the order the
+     * relay happened to return it. Ignores EOSE for any other subscription
+     * (e.g. the gift-wrap one) and ignores a second EOSE for the same
+     * subscription (relays can resend it).
+     */
+    suspend fun handleGroupEventCatchUpComplete(subscriptionId: String) {
+        if (subscriptionId != groupEventSubId || groupEventCatchUpComplete) return
+        groupEventCatchUpComplete = true
+
+        // `created_at` only has 1-second resolution, so a burst of commits
+        // published within the same second ties on it -- explicitly break
+        // ties by arrival index so same-second events at least fall back to
+        // relay-delivery order instead of an arbitrary one.
+        val ordered = groupEventCatchUpBuffer
+            .withIndex()
+            .sortedWith(compareBy({ it.value.createdAt().asSecs() }, { it.index }))
+            .map { it.value }
+        groupEventCatchUpBuffer.clear()
+
+        if (ordered.isEmpty()) return
+        Timber.i("Group-event catch-up complete: replaying ${ordered.size} buffered event(s) in created_at order")
+        for (event in ordered) {
+            handleIncomingEvent(event)
+        }
     }
 
     /**

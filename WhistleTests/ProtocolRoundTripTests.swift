@@ -652,6 +652,121 @@ final class ProtocolRoundTripTests: XCTestCase {
         XCTAssertFalse(bobMembers.contains(pubHex), "Alice should no longer be listed as a member")
     }
 
+    // MARK: - 6b. Relay-Delivery-Order Commits (ROADMAP: "MLS commits are
+    // applied in relay-delivery order, not epoch order")
+
+    /// Confirms the bug this fix targets is real at the MDK layer, with no
+    /// `MarmotService` involved: once a commit arrives ahead of its
+    /// predecessor, MDK doesn't just fail it — it permanently blacklists
+    /// that exact message, even after the prerequisite epoch lands and a
+    /// retry would otherwise succeed.
+    func testOutOfOrderCommitDeliveredDirectlyToMDK_isPermanentlyBlacklistedEvenAfterPredecessorLands() async throws {
+        let groupId = try await createAndMergeGroup(name: "Reorder Bug")
+        try await addBobAsPlainMember(to: groupId)
+
+        // Bypass verifyEventOnRelay's fetch-back for both renames below —
+        // the mock ignores the filter and returns whatever is configured
+        // here (mirrors the burn-sequence test above).
+        let anyEventJson = try await mls.createMessage(groupId: groupId, senderPublicKeyHex: pubHex, content: "x")
+        mockRelay.eventsToReturn = [try Event.fromJson(json: anyEventJson)]
+
+        // Alice fires two sequential admin-authored commits a second apart
+        // (created_at has 1-second resolution — same-second commits can't
+        // be distinguished by timestamp at all, a separate, narrower gap
+        // this fix does not close).
+        try await sut.renameGroup(groupId, to: "First")
+        try await Task.sleep(for: .seconds(1.1))
+        try await sut.renameGroup(groupId, to: "Second")
+        XCTAssertEqual(mockRelay.sentEvents.count, 2)
+
+        let firstEventJson = mockRelay.sentEvents[0]
+        let secondEventJson = mockRelay.sentEvents[1]
+
+        // The relay hands Bob the newer commit first — exactly what NIP-01
+        // permits during backlog replay across relays. MDK throws rather
+        // than returning a typed `.unprocessable` here (a decrypt failure,
+        // not a recognised-but-inapplicable message) — this is the "thrown
+        // decrypt exceptions" `GroupHealthTracker` blind spot noted
+        // separately in ROADMAP.md.
+        do {
+            _ = try await mls2.processIncomingEvent(eventJson: secondEventJson)
+            XCTFail("Expected the out-of-order commit to fail decryption")
+            return
+        } catch {
+            // Expected — wrong epoch's exporter secret.
+        }
+
+        // Its predecessor then lands and applies cleanly.
+        let firstAttempt = try await mls2.processIncomingEvent(eventJson: firstEventJson)
+        guard case .commit = firstAttempt else {
+            XCTFail("Expected the first commit to apply once delivered, got \(firstAttempt)")
+            return
+        }
+
+        // Retrying the second commit now that its prerequisite epoch has
+        // landed is where MDK's design bites: rather than re-attempting
+        // decryption (which would now succeed — Bob is at the right epoch),
+        // it comes back `.unprocessable` again. It never gets a second
+        // chance once it has failed once.
+        let retry = try await mls2.processIncomingEvent(eventJson: secondEventJson)
+        guard case .unprocessable = retry else {
+            XCTFail("Expected MDK to still refuse the retried commit, got \(retry)")
+            return
+        }
+
+        let bobGroup = try await mls2.getGroup(mlsGroupId: groupId)
+        XCTAssertEqual(bobGroup?.name, "First",
+                       "Bob is stuck one epoch behind forever without client-side reordering")
+    }
+
+    /// Confirms the fix: `MarmotService` buffers kind-445 events until the
+    /// relay signals end-of-stored-events for the group subscription, then
+    /// replays them sorted by `created_at` — so the same reverse-order
+    /// delivery from the test above applies cleanly instead of blacklisting
+    /// the newer commit.
+    func testCatchUpBuffer_outOfOrderDelivery_appliesBothCommitsInOrderAfterEOSE() async throws {
+        let groupId = try await createAndMergeGroup(name: "Reorder Fix")
+        try await addBobAsPlainMember(to: groupId)
+
+        let anyEventJson = try await mls.createMessage(groupId: groupId, senderPublicKeyHex: pubHex, content: "x")
+        mockRelay.eventsToReturn = [try Event.fromJson(json: anyEventJson)]
+
+        try await sut.renameGroup(groupId, to: "First")
+        try await Task.sleep(for: .seconds(1.1))
+        try await sut.renameGroup(groupId, to: "Second")
+        XCTAssertEqual(mockRelay.sentEvents.count, 2)
+
+        let firstEvent = try Event.fromJson(json: mockRelay.sentEvents[0])
+        let secondEvent = try Event.fromJson(json: mockRelay.sentEvents[1])
+
+        // Start Bob's subscription so `groupEventSubId` is set, matching
+        // production's `openSubscriptionsAndListen`. The mock's
+        // `handleNotifications` is a no-op, so this returns almost
+        // immediately — wait for the subscribe calls it makes first.
+        mockRelay2.subscriptionIdToReturn = "bob-group-sub"
+        await sut2.startSubscriptions()
+        while mockRelay2.subscribeFilters.count < 2 {
+            await Task.yield()
+        }
+
+        // The relay hands Bob the newer commit first, before end-of-stored-events.
+        await sut2.handleIncomingEvent(secondEvent)
+        await sut2.handleIncomingEvent(firstEvent)
+
+        // Neither has reached MDK yet — both are held in the catch-up buffer.
+        var bobGroup = try await mls2.getGroup(mlsGroupId: groupId)
+        XCTAssertEqual(bobGroup?.name, "Reorder Fix",
+                       "Buffered events must not reach MDK before end-of-stored-events")
+
+        // End-of-stored-events arrives — the buffer flushes sorted by
+        // created_at, applying First then Second in the right order.
+        await sut2.handleGroupEventCatchUpComplete(subscriptionId: "bob-group-sub")
+
+        bobGroup = try await mls2.getGroup(mlsGroupId: groupId)
+        XCTAssertEqual(bobGroup?.name, "Second",
+                       "Both commits should apply, in created_at order, once catch-up completes")
+    }
+
     // MARK: - 7. Nickname Broadcast via MarmotService
 
     func testNicknameBroadcast_publishesEvent() async throws {
