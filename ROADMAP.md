@@ -630,7 +630,13 @@ _Released 2026-09-22_
 
 ### Deferred
 
-- **MDK 2.0 / MarmotKit migration** _(planned major version, blocks nothing yet — plan confirmed 2026-09-23, not started)_: we are pinned to `mdk-swift` at MDK 0.8.0 (frozen, archived 2026-08-05, protocol v1 — deprecated per upstream). Upstream's rewrite is done and published: **MarmotKit `marmotkit-v0.10.4`** (tagged 2026-09-20) runs Marmot protocol v2 and is a real, consumable release (Swift package + Kotlin bindings), not just an announcement to wait for.
+- **MDK 2.0 / MarmotKit migration** _(planned major version, blocks nothing yet — plan confirmed 2026-09-23, **iOS spike in progress** on `feature/v2.0-marmotkit-spike`)_: we are pinned to `mdk-swift` at MDK 0.8.0 (frozen, archived 2026-08-05, protocol v1 — deprecated per upstream). Upstream's rewrite is done and published: **MarmotKit `marmotkit-v0.10.4`** (tagged 2026-09-20) runs Marmot protocol v2 and is a real, consumable release (Swift package + Kotlin bindings), not just an announcement to wait for.
+
+    **Corrections from the spike, verified directly against source (2026-09-23) — the plan below is accurate except for these**:
+    - MarmotKit is **not** a git-hosted SPM package — no repo named "MarmotKit" exists; it's GitHub Release assets published from inside `marmot-protocol/mdk`. Consumers hand-author the wrapper `Package.swift`. See CLAUDE.md's new MDK 2.0 section for the full mechanics (iOS-18.0 minimum, the XCFramework/NostrSDK modulemap collision and its fix, `mdk#1990`'s Android 16KB-page blocker).
+    - `confirm_group_rejoin` takes `(account_ref, welcome_id_hex, local_state_token)`, not `(account_ref, group_id_hex)` like its sibling recovery calls — don't assume the uniform signature pattern holds for it.
+    - The reserved-kind rejection list's real spelling is "group system" and "push token" (two words each), not "group-system"/"push".
+    - Danny, who supplies the recommended migration path in `mdk#938`, is tagged `CONTRIBUTOR` there, not `MEMBER` — Erskine Gardner (`MEMBER`) hasn't personally re-confirmed the "skip low-level bindings, use managed transport" recommendation since his 2026-08-12 comment. The API surface itself backs it up regardless (verified against source, not just docs), so this doesn't block anything — just don't cite it as an official maintainer sign-off.
 
     **Confirmed directly with upstream** ([mdk#938](https://github.com/marmot-protocol/mdk/issues/938)) and cross-checked against MarmotKit's own `API-REFERENCE.md` rather than taken on paraphrase:
     - Danny (maintainer) recommends we adopt MarmotKit's managed transport and stop driving our own relay pub/sub: `invite_members(account_ref, group_id_hex, member_refs)` for adding members, `send_custom_event(account_ref, group_id_hex, kind, tags, content)` for our own payloads (location/nickname/leave-notice as custom kinds — MDK rejects kinds it owns: chat, reaction, edit, delete, agent, group-system, push), `subscribe_messages(account_ref, group_id_hex: Option, limit, kinds: Option<Vec<u64>>)` to replace our single relay-wide kind-445 filter, and `update_message_retention(account_ref, group_id_hex, disappearing_message_secs)` — which incidentally solves location-history-piling-up, a problem we don't currently solve at all.
@@ -645,14 +651,14 @@ _Released 2026-09-22_
     - `MarmotService.swift` (1,563 lines) becomes a thin wrapper rather than an owner — most of it (relay pub/sub loop, gift-wrap handling, the `handleGroupEvent` switch, the catch-up buffer) gets replaced by MDK calls plus `subscribe_messages`/`subscribe_group_state` streams. This is a full rewrite of the file, not an incremental patch.
 
     **Planned sequencing**:
-    1. iOS spike branch, no UI changes: pull in `MarmotKit-0.10.4.swift` + FFI xcframework via SPM (note the 0.10.4 release's migration note about copying `PrivacyInfo.xcprivacy` into the wrapper target), prove one identity + one group + one custom-kind message round-trip in a test.
+    1. ✅ **iOS spike branch, no UI changes** — `MarmotKitBindings` (hand-authored wrapper package, per the correction above) wired into `WhistleTests` only, not the app target yet. Resolves and compiles cleanly, full existing suite (477 tests) still passes with zero regressions. A gated round-trip test (`MarmotKitSpikeTests.swift`, `MARMOTKIT_SPIKE_LIVE_RELAY` env var, skipped by default) proves the real API's call shapes against `API-REFERENCE.md` — but hasn't been run to an actual pass yet: the env var didn't propagate into the simulator test host's environment on the `xcodebuild test` invocation. Next-session follow-up: fix that propagation and confirm the live round-trip, then decide whether to keep the iOS-18.0 bump and move `MarmotKitBindings` into the app target for real, or hold it at test-only a while longer.
     2. Map our existing payload kinds (chat=9, location=1, leaveRequest=2) against MDK's reserved-kind rejection list — confirm no collisions, finalize kind numbers.
     3. Rewrite `MarmotService` around the new API. Delete `GroupHealthTracker`/resync paths/the v1.11.2 buffer only after the adversarial two-device test above confirms MDK's convergence handling actually covers what they covered.
     4. Rebuild the invite/join UI around reversed-QR + `invite_members` — treat as a real UX change worth a screenshot review, not a silent swap.
     5. Port to Android second, once iOS proves the shape out (same order as every other feature in this project).
     6. Ship as **v2.0.0** — protocol-breaking, groups don't carry over, release notes need to say so as clearly as the Dublin-group recovery communication did.
 
-    See `CLAUDE.md` MDK section for the 0.8.0 pin details this entry supersedes — that section needs its own update once the spike branch lands.
+    See `CLAUDE.md`'s MDK 2.0 / MarmotKit migration section (added 2026-09-23) for the spike's technical details; its older 0.8.0-pin section stays accurate only for as long as `MDKBindings`/mdk-swift remains wired into the shipping app, which doesn't change until step 3 lands.
 
 - **Android onboarding parity with iOS** _(parity backlog)_: iOS has a three-card welcome carousel + permission framing before the system location prompt (`OnboardingView`); Android goes straight to the main screen on first launch. Parity matters.
 
