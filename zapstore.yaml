@@ -15,4 +15,7 @@ images:
   - ./screenshots/android/2-join-group.png
   - ./screenshots/android/3-settings.png
   - ./screenshots/android/4-advanced.png
+  - ./screenshots/android/5-group-details.png
+  - ./screenshots/android/6-review.png
+  - ./screenshots/android/7-chat.png
 tags: [location, nostr, privacy, encryption, mls]
