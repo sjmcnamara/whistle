@@ -12,14 +12,22 @@ final class NotificationHandler: HandleNotification {
     /// Called on a background thread — implementations must hop to MainActor.
     private let onEvent: @Sendable (String, Event) -> Void
 
-    init(onEvent: @escaping @Sendable (String, Event) -> Void) {
+    /// Callback invoked when a relay signals end-of-stored-events for a subscription.
+    /// Called on a background thread — implementations must hop to MainActor.
+    private let onEose: @Sendable (String) -> Void
+
+    init(onEvent: @escaping @Sendable (String, Event) -> Void,
+         onEose: @escaping @Sendable (String) -> Void) {
         self.onEvent = onEvent
+        self.onEose = onEose
     }
 
     // MARK: - HandleNotification
 
     func handleMsg(relayUrl: RelayUrl, msg: RelayMessage) async {
-        // We only care about individual events, handled in `handle` below.
+        if case .endOfStoredEvents(let subscriptionId) = msg.asEnum() {
+            onEose(subscriptionId)
+        }
     }
 
     func handle(relayUrl: RelayUrl, subscriptionId: String, event: Event) async {

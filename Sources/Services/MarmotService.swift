@@ -104,6 +104,18 @@ final class MarmotService: ObservableObject {
     private var groupEventSubId: String?
     private var giftWrapSubId: String?
 
+    /// Kind-445 events received before the relay signals end-of-stored-events
+    /// for `groupEventSubId`, held so backlog replay can be re-sorted by
+    /// `created_at` before any of it reaches MDK. NIP-01 gives no ordering
+    /// guarantee for stored-event replay, and multiple relays fan in to the
+    /// same subscription — either can hand MDK a commit ahead of its
+    /// predecessor, which MDK marks `.unprocessable` once and then
+    /// permanently `.previouslyFailed` on every redelivery, with no retry
+    /// path. See ROADMAP.md: "MLS commits are applied in relay-delivery
+    /// order, not epoch order."
+    private var groupEventCatchUpBuffer: [Event] = []
+    private var groupEventCatchUpComplete = false
+
     // MARK: - Init
 
     /// - Parameters:
@@ -795,6 +807,15 @@ final class MarmotService: ObservableObject {
 
         let kind = event.kind().asU16()
 
+        // Hold kind-445 events until backlog catch-up finishes so they can be
+        // re-sorted by `created_at` before reaching MDK — see
+        // `groupEventCatchUpBuffer`.
+        if kind == MarmotKind.groupEvent, !groupEventCatchUpComplete {
+            groupEventCatchUpBuffer.append(event)
+            WhistleLogger.marmot.debug("Buffering group event \(eventId.prefix(8)) for catch-up ordering (\(self.groupEventCatchUpBuffer.count) queued)")
+            return
+        }
+
         do {
             switch kind {
             case MarmotKind.giftWrap:
@@ -1259,6 +1280,12 @@ final class MarmotService: ObservableObject {
     private func openSubscriptionsAndListen() async throws {
         let myPK = try PublicKey.parse(publicKey: publicKeyHex)
 
+        // Reset catch-up state for this subscription lifecycle — a fresh
+        // subscribe (or a reconnect's smaller `since`-bounded backlog) needs
+        // its own EOSE-bounded sort.
+        groupEventCatchUpBuffer = []
+        groupEventCatchUpComplete = false
+
         // Build filters — apply `since` if we have a stored timestamp
         var groupFilter = Filter()
             .kind(kind: Kind(kind: MarmotKind.groupEvent))
@@ -1282,12 +1309,51 @@ final class MarmotService: ObservableObject {
         WhistleLogger.marmot.info("Subscriptions started (group=\(self.groupEventSubId ?? "?"), gift=\(self.giftWrapSubId ?? "?"))")
 
         // Register notification handler — runs until error or disconnect
-        let handler = NotificationHandler { [weak self] _, event in
-            Task { @MainActor [weak self] in
-                await self?.handleIncomingEvent(event)
+        let handler = NotificationHandler(
+            onEvent: { [weak self] _, event in
+                Task { @MainActor [weak self] in
+                    await self?.handleIncomingEvent(event)
+                }
+            },
+            onEose: { [weak self] subscriptionId in
+                Task { @MainActor [weak self] in
+                    await self?.handleGroupEventCatchUpComplete(subscriptionId: subscriptionId)
+                }
             }
-        }
+        )
         try await relay.handleNotifications(handler: handler)
+    }
+
+    /// Flush `groupEventCatchUpBuffer` once the relay signals end-of-stored-events
+    /// for the group subscription, re-sorted by `created_at` so backlog replay
+    /// reaches MDK in the order it was published rather than the order the
+    /// relay happened to return it. Ignores EOSE for any other subscription
+    /// (e.g. the gift-wrap one) and ignores a second EOSE for the same
+    /// subscription (relays can resend it).
+    func handleGroupEventCatchUpComplete(subscriptionId: String) async {
+        guard subscriptionId == groupEventSubId, !groupEventCatchUpComplete else { return }
+        groupEventCatchUpComplete = true
+
+        // `created_at` only has 1-second resolution, so a burst of commits
+        // published within the same second ties on it — explicitly break
+        // ties by arrival index (rather than relying on `sorted`'s stability,
+        // which the stdlib does not guarantee) so same-second events at
+        // least fall back to relay-delivery order instead of an arbitrary one.
+        let ordered = groupEventCatchUpBuffer
+            .enumerated()
+            .sorted { lhs, rhs in
+                let lts = lhs.element.createdAt().asSecs()
+                let rts = rhs.element.createdAt().asSecs()
+                return lts != rts ? lts < rts : lhs.offset < rhs.offset
+            }
+            .map(\.element)
+        groupEventCatchUpBuffer = []
+
+        guard !ordered.isEmpty else { return }
+        WhistleLogger.marmot.info("Group-event catch-up complete: replaying \(ordered.count) buffered event(s) in created_at order")
+        for event in ordered {
+            await handleIncomingEvent(event)
+        }
     }
 
     /// Reconnect to relays if the connection has dropped.

@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.11.2] — 2026-09-22
+
+### Fixed
+- **(iOS & Android) MLS commits could reach MDK out of the order they were published, permanently stranding a device one epoch behind.** `handleIncomingEvent` handed kind-445 events to MDK as they arrived from the relay(s), with no ordering guarantee — NIP-01 doesn't promise chronological backlog replay, and multiple relays fan in to the same subscription. A commit reaching MDK ahead of its predecessor fails to decrypt (wrong epoch's exporter secret) and, worse, MDK refuses it again as `unprocessable` even after the predecessor lands and decryption would otherwise succeed — there is no retry path once a message has failed once. Fixed by buffering kind-445 events per subscription until the relay signals end-of-stored-events, then replaying them sorted by `created_at` (ties broken by arrival order, since `created_at` only has 1-second resolution) before any of it reaches MDK. Live post-catch-up delivery is left unbuffered — deliberately, to avoid adding latency to every chat/location message for a reordering risk that's rare outside backlog replay. Added regression tests: one reproducing the bug directly against MDK (confirms retrying an out-of-order commit never succeeds, even after its predecessor applies), one confirming the buffer fixes it.
+
+---
+
 ## [1.11.1] — 2026-09-21
 
 ### Fixed

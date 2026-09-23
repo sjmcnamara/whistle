@@ -13,8 +13,8 @@ android {
         applicationId = "org.getwhistle.whistle"
         minSdk = 26
         targetSdk = 34
-        versionCode = 69
-        versionName = "1.11.1"
+        versionCode = 70
+        versionName = "1.11.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
