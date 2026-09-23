@@ -67,7 +67,22 @@ Branch `feature/v2.0-marmotkit-spike` — see ROADMAP.md's "Deferred" section fo
   - `scripts/vendor_marmotkit.py` + `build.sh`'s `ensure_local_marmotkit()`/`restore_marmotkit_changes()` mirror `ci_use_local_mdk.py`'s vendor/patch/restore pattern for `project.yml` — but with one critical difference: `restore_marmotkit_changes()` must run **after** the `xcodebuild` invocation, not right after `xcodegen generate` like `project.yml`'s restore does. `project.yml`'s content stops mattering once xcodegen bakes it into the `.xcodeproj`; `MarmotKitBindings/Package.swift`'s content is read live by SwiftPM during xcodebuild's own package resolution, so restoring it early silently un-does the local patch before it's ever used.
 - **`mdk#1990`** (opened 2026-09-23, unresolved) — MarmotKit 0.10.4's Android `.so` has 4KB ELF load-segment alignment, failing Google Play's 16KB page-size check (Play currently permits it; Android 15+ updates must comply from 2027-02-01). Discovered via White Noise Android hitting a real Play Store warning. Doesn't block the iOS spike; relevant when migration step 5 (Android port) starts.
 - **Verified as of this spike**: `MarmotKitBindings` wired into `WhistleTests` only (not the app target) resolves and compiles cleanly (`./scripts/build.sh compile-tests`), and the full existing suite (477 tests) still passes with zero regressions. A gated round-trip test (`WhistleTests/MarmotKitSpikeTests.swift`, `MARMOTKIT_SPIKE_LIVE_RELAY` env var, skipped by default) proves the real generated API's call shapes against `crates/marmot-uniffi/API-REFERENCE.md` — but hasn't yet been run to a real pass: setting that env var on the `xcodebuild test` invocation didn't propagate into the simulator-hosted test process's own environment. Unresolved, next-session follow-up, not investigated further this session.
-- **Not yet done**: migration step 2 onward (kind mapping, `MarmotService` rewrite, invite/join UI, Android port).
+- **Step 2 (kind mapping) resolved.** MDK's reserved inner-kind check is purely kind-value-based (`RESERVED_APP_EVENT_KINDS.contains(&kind)` in `crates/marmot-app/src/messages/intents.rs`'s `validate_custom_event_kind`, called unconditionally from `send_custom_event` — no call-path exception), against constants defined once in `crates/traits` and `crates/marmot-app` (shared by every binding, iOS and Android alike):
+
+  | Name | Kind | Name | Kind |
+  |---|---|---|---|
+  | DELETE | 5 | AGENT_STREAM_START | 1200 |
+  | REACTION | 7 | AGENT_ACTIVITY | 1201 |
+  | **CHAT** | **9** | AGENT_OPERATION | 1202 |
+  | PUSH_TOKEN_UPDATE | 447 | GROUP_SYSTEM | 1210 |
+  | PUSH_TOKEN_LIST | 448 | REPORT | 1984 |
+  | PUSH_TOKEN_REMOVAL | 449 | REVIEW | 1985 |
+  | EDIT | 1009 | REMOVE | 4891 |
+  | POLL_RESPONSE | 1018 | POLL | 1068 |
+
+  Whistle's own `chat = 9` (`WhistleCore/Sources/WhistleCore/MarmotKind.swift`) collides directly with MDK's own `CHAT = 9` — `send_custom_event(kind: 9, ...)` will be rejected outright once we're actually calling it. `location = 1` and `leaveRequest = 2` are clear of every value above. **Target v2.0 numbering: `chat` renumbered to `3`.** Not written into `MarmotKind.swift` yet — see ROADMAP.md's step 2 entry for why (that constant is live in the shipping 0.8 protocol; bumping it now, before the real cutover, would desync chat rendering between pre/post-update clients on existing groups for no reason connected to this migration). Apply the rename as part of step 3, alongside every other breaking change.
+
+- **Not yet done**: `MarmotService` rewrite (step 3), invite/join UI (step 4), Android port (step 5).
 
 ## NostrSDK dependency
 
