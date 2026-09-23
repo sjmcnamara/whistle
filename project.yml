@@ -3,7 +3,7 @@ name: Whistle
 options:
   bundleIdPrefix: org.getwhistle
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "18.0"
   xcodeVersion: "16.1"
   createIntermediateGroups: true
   groupSortPosition: top
@@ -22,6 +22,8 @@ packages:
   QRCode:
     url: https://github.com/dagronf/QRCode
     exactVersion: "9.2.1"
+  MarmotKitBindings:
+    path: MarmotKitBindings
 
 settings:
   base:
@@ -82,6 +84,8 @@ targets:
       - path: WhistleTests
     dependencies:
       - target: Whistle
+      - package: MarmotKitBindings
+        product: MarmotKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.getwhistle.whistle.tests
