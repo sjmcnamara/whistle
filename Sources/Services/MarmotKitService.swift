@@ -44,23 +44,18 @@ final class MarmotKitService: ObservableObject {
     @Published private(set) var lastJoinedGroupId: String?
     @Published private(set) var lastGroupMembershipChangeId: (String, Date)?
 
-    // MARK: - Injected stores — deliberately absent until the cutover
+    // MARK: - Injected stores
     //
-    // The v1 service takes LocationCache, NicknameStore, MemberAvatarStore,
-    // SharedGroupAvatarStore and BatteryAlertService by injection, and this
-    // service will need the same set. They cannot be declared yet: those
-    // types live in the Whistle app module, and this file is compiled into
-    // WhistleTests until step 3d moves it into the app target (see
-    // project.yml). Referencing them here would not compile.
-    //
-    // No loss in practice — they are only consumed by the receive loop that
-    // routes decrypted payloads into app state, which is itself part of
-    // wiring the app. They arrive together at 3d.
-    //
-    // Two of v1's injection points will NOT come across: pendingInviteStore
-    // and joinRequestStore. Protocol v2 has no out-of-group messaging, so
-    // there is no join-request to collect and no pending-invite state to
-    // track (ROADMAP.md step 4).
+    // Same set as the v1 service, minus two that protocol v2 makes
+    // meaningless: `pendingInviteStore` and `joinRequestStore`. With no
+    // out-of-group messaging there is no join-request to collect and no
+    // pending-invite state to track (ROADMAP.md step 4).
+
+    var locationCache: LocationCache?
+    var nicknameStore: NicknameStore?
+    var memberAvatarStore: MemberAvatarStore?
+    var sharedGroupAvatarStore: SharedGroupAvatarStore?
+    var batteryAlertService: BatteryAlertService?
 
     // MARK: - Errors
 
@@ -598,10 +593,8 @@ final class MarmotKitService: ObservableObject {
         do {
             groups = try await groups()
         } catch {
-            // No WhistleLogger here: it lives in the app module and this file
-            // is compiled into WhistleTests until the cutover. `lastError` is
-            // the observable signal either way; logging joins at 3d.
             lastError = error.localizedDescription
+            WhistleLogger.marmot.error("refreshGroups failed: \(error)")
         }
     }
 
@@ -727,6 +720,114 @@ final class MarmotKitService: ObservableObject {
             throw ServiceError.reAddFailed(memberRef)
         }
         lastGroupMembershipChangeId = (groupIdHex, Date())
+    }
+
+    // MARK: - Receive loop
+
+    private var receiveTask: Task<Void, Never>?
+
+    /// Start consuming decrypted messages and routing them into app state.
+    ///
+    /// Far smaller than v1's equivalent, and deliberately so. v1 opened raw
+    /// kind-445 and kind-1059 relay subscriptions, tracked a `since`
+    /// high-water mark, buffered events until EOSE so it could re-sort them
+    /// by `created_at`, and polled for missed gift-wraps. MarmotKit owns the
+    /// subscription, the ordering and the catch-up — all of which step 3c
+    /// verified rather than assumed — so what is left is a loop that decodes
+    /// payloads.
+    ///
+    /// Subscribes account-wide (`toGroup: nil`) rather than per group, so a
+    /// group joined while running needs no re-subscribe.
+    func startSubscriptions() {
+        guard receiveTask == nil else { return }
+        receiveTask = Task { [weak self] in
+            guard let stream = await self?.openStream() else { return }
+            while !Task.isCancelled, let message = await stream.next() {
+                await self?.route(message)
+            }
+        }
+    }
+
+    func stopSubscriptions() {
+        receiveTask?.cancel()
+        receiveTask = nil
+        WhistleLogger.marmot.info("Subscriptions stopped")
+    }
+
+    private func openStream() async -> MessageStream? {
+        do {
+            return try await subscribe()
+        } catch {
+            lastError = error.localizedDescription
+            WhistleLogger.marmot.error("Failed to open message subscription: \(error)")
+            return nil
+        }
+    }
+
+    /// Route one decrypted payload. Mirrors v1's `routeApplicationMessage`,
+    /// including the parts that must not change.
+    private func route(_ message: WhistleMessage) async {
+        switch message.kind {
+        case MarmotKind.ProtocolV2.location:
+            do {
+                let payload = try LocationPayload.from(jsonString: message.content)
+                locationCache?.update(
+                    groupId: message.mlsGroupId,
+                    memberPubkeyHex: message.senderPubkey,
+                    payload: payload
+                )
+                batteryAlertService?.check(pubkeyHex: message.senderPubkey, battery: payload.batt)
+            } catch {
+                WhistleLogger.marmot.error("Failed to decode location payload: \(error)")
+            }
+
+        case MarmotKind.ProtocolV2.chat:
+            await routeChatPayload(message)
+
+        default:
+            WhistleLogger.marmot.debug("Ignoring unknown inner kind \(message.kind)")
+        }
+    }
+
+    /// Nickname, avatar and group-avatar share the chat kind and are told
+    /// apart by a `type` discriminator — unchanged from v1, since only the
+    /// transport moved.
+    private func routeChatPayload(_ message: WhistleMessage) async {
+        switch message.payloadType {
+        case "chat", nil:
+            // A nil type is plain text from an older client; v1 treated it as
+            // chat and dropping it would silently lose messages.
+            lastChatMessageGroupId = message.mlsGroupId
+
+        case "nickname":
+            if let payload = try? NicknamePayload.from(jsonString: message.content) {
+                nicknameStore?.set(name: payload.name, for: message.senderPubkey)
+            }
+
+        case "avatar":
+            if let payload = try? AvatarPayload.from(jsonString: message.content) {
+                memberAvatarStore?.apply(payload, from: message.senderPubkey)
+            }
+
+        case "group_avatar":
+            // Admin-only, and this check is the only thing enforcing it.
+            // Step 3c confirmed MarmotKit accepts a non-admin's custom event
+            // intact, so nothing below the app rejects a spoofed group photo
+            // — exactly as in v1. Verified by
+            // testNonAdminCustomEventIsAcceptedSoTheAppMustCheckAdminItself.
+            if await isAdmin(message.senderPubkey, ofGroup: message.mlsGroupId) {
+                if let payload = try? GroupAvatarPayload.from(jsonString: message.content) {
+                    sharedGroupAvatarStore?.apply(payload, for: message.mlsGroupId)
+                }
+            } else {
+                WhistleLogger.chat.warning(
+                    "Ignored group avatar from non-admin \(message.senderPubkey.prefix(8))"
+                )
+            }
+
+        case .some(let other):
+            WhistleLogger.chat.debug("Unknown chat sub-type '\(other)'")
+        }
     }
 
     // MARK: - Mapping
