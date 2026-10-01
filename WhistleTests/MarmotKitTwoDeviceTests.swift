@@ -37,19 +37,57 @@ final class MarmotKitTwoDeviceTests: XCTestCase {
         super.tearDown()
     }
 
-    /// A MarmotKit instance with its own database and secret store, pointed at
-    /// the harness relay. Separate roots are what make these two independent
-    /// "devices" rather than one account seen twice.
-    @MainActor
-    private func makeService() throws -> MarmotKitService {
+    /// The parts of a simulated device that survive a restart: its database
+    /// directory and its secret store. Reusing both is what makes a relaunch
+    /// resume the same account instead of creating a second one — the signing
+    /// key lives in the store, the account in the database.
+    private struct DeviceStorage {
+        let rootPath: String
+        let secretStore: InMemorySecretStore
+    }
+
+    private func makeStorage() -> DeviceStorage {
         let root = NSTemporaryDirectory().appending("marmotkit-2dev-\(UUID().uuidString)")
         rootPaths.append(root)
-        return try MarmotKitService(
-            rootPath: root,
+        return DeviceStorage(rootPath: root, secretStore: InMemorySecretStore())
+    }
+
+    /// A MarmotKit instance over the given storage, pointed at the harness
+    /// relay. Separate storage is what makes two instances independent
+    /// "devices" rather than one account seen twice.
+    @MainActor
+    private func makeService(on storage: DeviceStorage) throws -> MarmotKitService {
+        try MarmotKitService(
+            rootPath: storage.rootPath,
             relayUrls: [try XCTUnwrap(relay.url)],
             allowLoopback: true,
-            secretStore: InMemorySecretStore()
+            secretStore: storage.secretStore
         )
+    }
+
+    @MainActor
+    private func makeService() throws -> MarmotKitService {
+        try makeService(on: makeStorage())
+    }
+
+    /// Alice (group creator and admin) and Bob (invited member), both settled.
+    /// Most scenarios below need this as a starting point.
+    @MainActor
+    private func makePair(
+        groupName: String = "Dublin"
+    ) async throws -> (alice: MarmotKitService, bob: MarmotKitService, bobRef: String, groupId: String) {
+        let alice = try makeService()
+        let bob = try makeService()
+        try await alice.startWithNewIdentity()
+        let bobRef = try await bob.startWithNewIdentity()
+        try await bob.publishKeyPackage()
+
+        let groupId = try await alice.createGroup(name: groupName)
+        try await alice.invite(memberRefs: [bobRef], toGroup: groupId)
+        try await eventually("Bob to converge on the group") {
+            try await bob.group(id: groupId) != nil
+        }
+        return (alice, bob, bobRef, groupId)
     }
 
     /// Poll until `condition` holds.
@@ -216,5 +254,158 @@ final class MarmotKitTwoDeviceTests: XCTestCase {
             """
         )
         XCTAssertGreaterThan(final.epoch, epochBefore, "epoch never advanced")
+    }
+}
+
+// MARK: - Step 5: the message round trip
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Closes the last unexercised path in `MarmotKitService`: a custom event
+    /// sent by one instance and received, decrypted, by the other.
+    ///
+    /// This is Whistle's actual payload shape — location and chat ride as
+    /// custom events on non-reserved kinds — so it is the single most
+    /// load-bearing behaviour of the migration.
+    @MainActor
+    func testCustomEventSentByOneInstanceReachesTheOther() async throws {
+        let pair = try await makePair()
+
+        let stream = try await pair.bob.subscribe(toGroup: pair.groupId)
+        let payload = LocationPayload(
+            latitude: 53.3498,
+            longitude: -6.2603,
+            altitude: 20,
+            accuracy: 5,
+            timestamp: Date()
+        )
+        try await pair.alice.sendLocation(payload, toGroup: pair.groupId)
+
+        let received = await Self.next(from: stream, timeout: 20)
+        let message = try XCTUnwrap(received, "Bob's subscription never yielded Alice's location event")
+        XCTAssertEqual(message.kind, MarmotKind.ProtocolV2.location)
+        XCTAssertEqual(message.mlsGroupId, pair.groupId)
+
+        let decoded = try LocationPayload.from(jsonString: message.content)
+        XCTAssertEqual(decoded.lat, payload.lat, accuracy: 0.0001)
+        XCTAssertEqual(decoded.lon, payload.lon, accuracy: 0.0001)
+    }
+
+    /// `next()` blocks until a message arrives, so races it against a timeout
+    /// rather than hanging the suite when nothing comes.
+    private static func next(
+        from stream: MarmotKitService.MessageStream,
+        timeout seconds: TimeInterval
+    ) async -> WhistleMessage? {
+        await withTaskGroup(of: WhistleMessage?.self) { group in
+            group.addTask { await stream.next() }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                return nil
+            }
+            // Iterating yields the element type directly; `group.next()` would
+            // hand back a double optional needing a flattening coalesce.
+            for await value in group {
+                group.cancelAll()
+                return value
+            }
+            return nil
+        }
+    }
+}
+
+// MARK: - Step 6: admin rules, typed rather than string-matched
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Authorises deleting v1's error-string parsing.
+    ///
+    /// `MarmotService.leaveGroup` currently decides what happened by matching
+    /// MDK's error *text* — `"last active admin"`, `"only admins can perform
+    /// this operation"` — because 0.8 surfaced these untyped. If MarmotKit
+    /// raises the typed equivalents, that matching goes away at step 3d.
+    @MainActor
+    func testSoleAdminCannotLeaveAndSaysWhy() async throws {
+        let pair = try await makePair()
+
+        // Alice created the group, so she is its only admin, and Bob is still
+        // a member — the exact shape v1 guards against.
+        do {
+            try await pair.alice.leaveGroup(pair.groupId)
+            XCTFail("sole admin was allowed to leave a group that still has members")
+        } catch let error as MarmotKitService.ServiceError {
+            guard case .lastAdminCannotLeave = error else {
+                return XCTFail("expected .lastAdminCannotLeave, got \(error)")
+            }
+            // The user-facing wording is the contract here: v1 surfaced this
+            // same guidance, and losing it would leave the user stuck with no
+            // idea that promoting someone first is the way out.
+            XCTAssertEqual(
+                error.errorDescription,
+                "You're the only admin of this group. Promote another member to admin before leaving."
+            )
+        }
+    }
+
+    /// A plain member leaving is the ordinary case and must still work —
+    /// otherwise the test above would pass simply because leaving is broken.
+    @MainActor
+    func testPlainMemberCanLeave() async throws {
+        let pair = try await makePair()
+
+        try await pair.bob.leaveGroup(pair.groupId)
+
+        try await eventually("Alice to see Bob leave") {
+            let members = try await pair.alice.members(ofGroup: pair.groupId)
+            return !members.contains(pair.bobRef)
+        }
+    }
+}
+
+// MARK: - Step 7: what MarmotKit does NOT enforce
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Proves a v1 check must be **kept**, not deleted.
+    ///
+    /// Whistle treats a `group_avatar` payload as admin-only, and the only
+    /// thing enforcing that is a receiver-side check: MLS proves the sender is
+    /// a *member*, not an admin, so a modified client could send one anyway.
+    /// If MarmotKit accepts a custom event from a non-admin — which it should,
+    /// since custom events carry no admin semantics — then
+    /// `routeApplicationMessage`'s `isAdmin` check has to survive the
+    /// migration intact.
+    @MainActor
+    func testNonAdminCustomEventIsAcceptedSoTheAppMustCheckAdminItself() async throws {
+        let pair = try await makePair()
+
+        let members = try await pair.alice.members(ofGroup: pair.groupId)
+        XCTAssertTrue(members.contains(pair.bobRef), "precondition: Bob is a member")
+        let group = try await pair.alice.group(id: pair.groupId)
+        XCTAssertFalse(
+            try XCTUnwrap(group).adminPubkeys.contains(pair.bobRef),
+            "precondition: Bob is not an admin"
+        )
+
+        let stream = try await pair.alice.subscribe(toGroup: pair.groupId)
+
+        // Bob, a non-admin, sends the admin-only payload shape.
+        let groupAvatar = #"{"type":"group_avatar","image":"not-really-an-image"}"#
+        try await pair.bob.send(
+            content: groupAvatar,
+            kind: MarmotKind.ProtocolV2.chat,
+            toGroup: pair.groupId
+        )
+
+        let received = await Self.next(from: stream, timeout: 20)
+        let message = try XCTUnwrap(
+            received,
+            "MarmotKit dropped a non-admin custom event — if that is reproducible it enforces more than expected"
+        )
+        XCTAssertEqual(message.senderPubkey, pair.bobRef)
+        XCTAssertEqual(message.payloadType, "group_avatar")
+        // The point: it arrived. Nothing below the app rejected it, so the
+        // receiver-side admin check in routeApplicationMessage is the only
+        // thing standing between a modified client and a spoofed group photo.
     }
 }

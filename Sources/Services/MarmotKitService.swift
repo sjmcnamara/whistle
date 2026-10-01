@@ -189,6 +189,46 @@ final class MarmotKitService {
         return accountRef
     }
 
+    /// Resume the account already stored under this service's root.
+    ///
+    /// The counterpart to `startWithNewIdentity` for a restart: the signing
+    /// key lives in the secret store and the account in the database, so a
+    /// relaunch signs back in rather than creating a second identity.
+    @discardableResult
+    func resumeExistingIdentity() async throws -> String {
+        try await Self.run {
+            try await marmot.start()
+            guard let existing = try marmot.listAccounts().first else {
+                throw ServiceError.notStarted
+            }
+            let summary = try await marmot.signInAccount(accountRef: existing.accountIdHex)
+            accountRef = summary.accountIdHex
+            return summary.accountIdHex
+        }
+    }
+
+    /// Stop the runtime.
+    ///
+    /// Root ownership outlives this call — upstream notes it is held "until
+    /// the final `Marmot`/runtime handle is dropped, even after
+    /// `Marmot::shutdown`" — so constructing another service on the same root
+    /// requires releasing this object first, or the new one fails with
+    /// `RuntimeBusy`.
+    func shutdown() async {
+        await marmot.shutdown()
+    }
+
+    /// Ask the runtime to catch up on anything it missed while not running.
+    ///
+    /// MarmotKit's own equivalent of v1's `catchUpGroup`, which re-fetches 30
+    /// days of kind-445 events by hand. Whether this covers the same ground
+    /// is what step 3c has to establish before that code is deleted.
+    func catchUpAccounts() async throws {
+        try await Self.run {
+            try await marmot.catchUpAccounts()
+        }
+    }
+
     /// Publish a fresh KeyPackage and return its published-at timestamp.
     ///
     /// `createIdentityWithProfile` returns at local-ready, before publication
