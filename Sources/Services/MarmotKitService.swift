@@ -244,6 +244,68 @@ final class MarmotKitService: ObservableObject {
         }
     }
 
+    /// Start, adopting an identity the app already has.
+    ///
+    /// This is the upgrade path, and it is what stops the cutover costing
+    /// users their identity. MarmotKit owns accounts itself —
+    /// `createIdentityWithProfile` mints a *new* key — so starting that way on
+    /// an existing install would hand every user a new npub and silently
+    /// orphan them from everyone who knows them. v2.0 breaking groups is
+    /// agreed; breaking identity is not.
+    ///
+    /// `beginOnboarding` persists the supplied nsec and "returns before any
+    /// network preflight or publication", so the account exists locally
+    /// straight away and publication progress is observed through
+    /// `setupReadiness` rather than blocking startup.
+    ///
+    /// Idempotent: on every launch after the first, the account is already in
+    /// MarmotKit's database and this signs back into it instead of
+    /// re-onboarding.
+    @discardableResult
+    func start(adoptingNsec nsec: String, discoveryRelays: [String] = []) async throws -> String {
+        try await Self.run {
+            try await marmot.start()
+
+            // Already adopted on a previous launch — sign in rather than
+            // onboard again.
+            if let existing = try marmot.listAccounts().first {
+                let summary = try await marmot.signInAccount(accountRef: existing.accountIdHex)
+                accountRef = summary.accountIdHex
+                return summary.accountIdHex
+            }
+
+            let usableRelays = allowedRelays(from: relayUrls)
+            let snapshot = try await marmot.beginOnboarding(
+                nsec: nsec,
+                options: OnboardingOptionsFfi(
+                    defaultRelays: usableRelays,
+                    discoveryRelays: discoveryRelays.isEmpty ? usableRelays : discoveryRelays
+                )
+            )
+            // `snapshot.ready` is false at this point by design — publication
+            // has not been attempted yet. Readiness is observed through
+            // `setupReadiness()`, which is what `MemberCodeView` gates on.
+            accountRef = snapshot.accountIdHex
+            return snapshot.accountIdHex
+        }
+    }
+
+    /// The account's nsec, for key backup and export.
+    ///
+    /// v1 read this from its own Keychain entry; under v2 MarmotKit holds the
+    /// key, so export has to come from here. Throws `KeystoreUnavailable`
+    /// when the keychain is locked and `SecretNotFound` for a watch-only
+    /// account, both of which a backup screen should report distinctly rather
+    /// than as a generic failure.
+    func revealNsec() throws -> String {
+        let account = try requireAccount()
+        do {
+            return try marmot.revealNsec(accountRef: account)
+        } catch {
+            throw Self.mapError(error)
+        }
+    }
+
     private func requireAccount() throws -> String {
         guard let accountRef else { throw ServiceError.notStarted }
         return accountRef

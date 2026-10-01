@@ -690,3 +690,52 @@ extension MarmotKitTwoDeviceTests {
         }
     }
 }
+
+// MARK: - Step 12: the identity survives the cutover
+
+extension MarmotKitTwoDeviceTests {
+
+    /// The upgrade path. MarmotKit mints its own keys, so starting a v2
+    /// install with `createIdentityWithProfile` would give every existing user
+    /// a new npub and orphan them from everyone who knows them. Adopting the
+    /// nsec the app already holds is what prevents that.
+    @MainActor
+    func testAdoptingAnExistingNsecPreservesTheAccountIdentity() async throws {
+        // Stand in for a v1 install: an identity that already exists.
+        let original = try makeService()
+        let originalRef = try await original.startWithNewIdentity()
+        let nsec = try original.revealNsec()
+        XCTAssertTrue(nsec.hasPrefix("nsec"), "expected a bech32 nsec, got \(nsec.prefix(8))…")
+
+        // A fresh v2 install — separate database and keyring — adopting it.
+        let upgraded = try makeService()
+        let adoptedRef = try await upgraded.start(adoptingNsec: nsec)
+
+        XCTAssertEqual(
+            adoptedRef, originalRef,
+            "adopting the nsec produced a different account — users would lose their npub on upgrade"
+        )
+        XCTAssertEqual(upgraded.myMemberCode(), original.myMemberCode())
+    }
+
+    /// Relaunching must sign back in, not onboard a second account — doing the
+    /// latter would accumulate accounts and make `listAccounts().first`
+    /// ambiguous.
+    @MainActor
+    func testRelaunchSignsBackInRatherThanOnboardingAgain() async throws {
+        let storage = makeStorage()
+
+        let firstRef: String
+        do {
+            let service = try makeService(on: storage)
+            let seed = try makeService()
+            _ = try await seed.startWithNewIdentity()
+            firstRef = try await service.start(adoptingNsec: try seed.revealNsec())
+            await service.shutdown()
+        }
+
+        let relaunched = try makeService(on: storage)
+        let secondRef = try await relaunched.start(adoptingNsec: "nsec-should-be-ignored-on-relaunch")
+        XCTAssertEqual(secondRef, firstRef, "relaunch did not resume the adopted account")
+    }
+}
