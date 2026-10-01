@@ -1,7 +1,6 @@
 import Foundation
 import WhistleCore
 import Combine
-import MDKBindings
 
 /// Drives the Groups tab group list — observes `MarmotService.groups`.
 @MainActor
@@ -18,7 +17,6 @@ final class GroupListViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let marmot: MarmotService
-    private let mls: MLSService
     private let displayName: () -> String
     let pendingInviteStore: PendingInviteStore
     let pendingWelcomeStore: PendingWelcomeStore
@@ -71,14 +69,12 @@ final class GroupListViewModel: ObservableObject {
 
     init(
         marmot: MarmotService,
-        mls: MLSService,
         pendingInviteStore: PendingInviteStore,
         pendingWelcomeStore: PendingWelcomeStore,
         settings: AppSettings = .shared,
         displayName: @escaping () -> String = { "" }
     ) {
         self.marmot = marmot
-        self.mls = mls
         self.pendingInviteStore = pendingInviteStore
         self.pendingWelcomeStore = pendingWelcomeStore
         self.settings = settings
@@ -151,11 +147,11 @@ final class GroupListViewModel: ObservableObject {
         await marmot.refreshGroups()
     }
 
-    private func refreshItems(from mdkGroups: [Group]) async {
+    private func refreshItems(from groups: [WhistleGroup]) async {
         // Fetch member counts first — this is the only async work.
         var memberCounts: [String: Int] = [:]
-        for group in mdkGroups {
-            memberCounts[group.mlsGroupId] = (try? await mls.getMembers(groupId: group.mlsGroupId).count) ?? 0
+        for group in groups {
+            memberCounts[group.mlsGroupId] = (try? await marmot.members(ofGroup: group.mlsGroupId).count) ?? 0
         }
         // Read timestamps AFTER all awaits so any markAsRead calls that happened
         // during suspension are reflected — avoids showing already-read groups as unread.
@@ -164,14 +160,14 @@ final class GroupListViewModel: ObservableObject {
         let readTimestamps = lastReadTimestamps
         let chatTimestamps = lastChatTimestamps
         var items: [GroupListItem] = []
-        for group in mdkGroups {
+        for group in groups {
             let lastMessageEpoch = group.lastMessageAt.map { TimeInterval($0) }
             let lastChatEpoch = chatTimestamps[group.mlsGroupId]
             let lastRead = readTimestamps[group.mlsGroupId] ?? 0
             let hasUnread = lastChatEpoch.map { $0 > lastRead } ?? false
             items.append(GroupListItem(
                 id: group.mlsGroupId,
-                name: group.name.isEmpty ? "Unnamed Group" : group.name,
+                name: group.displayName,
                 memberCount: memberCounts[group.mlsGroupId] ?? 0,
                 lastActivity: lastMessageEpoch.map { Date(timeIntervalSince1970: $0) },
                 isActive: group.isActive,

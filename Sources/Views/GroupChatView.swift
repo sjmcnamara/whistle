@@ -14,7 +14,6 @@ struct GroupChatView: View {
     init(
         groupId: String,
         marmot: MarmotService,
-        mls: MLSService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
         messageCache: ChatMessageCache,
@@ -25,7 +24,6 @@ struct GroupChatView: View {
         _viewModel = StateObject(wrappedValue: ChatViewModel(
             groupId: groupId,
             marmot: marmot,
-            mls: mls,
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex,
             messageCache: messageCache

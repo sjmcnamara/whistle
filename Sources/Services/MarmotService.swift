@@ -78,7 +78,7 @@ final class MarmotService: ObservableObject {
     // MARK: - Published state
 
     /// Active MLS groups, refreshed after mutations.
-    @Published private(set) var groups: [Group] = []
+    @Published private(set) var groups: [WhistleGroup] = []
 
     /// Last error for UI display (non-fatal).
     @Published private(set) var lastError: String?
@@ -1585,12 +1585,61 @@ final class MarmotService: ObservableObject {
     /// Refresh the local groups list from MLS.
     func refreshGroups() async {
         do {
-            let loaded = try await mls.getGroups()
+            let loaded = try await mls.getGroups().map(\.snapshot)
             groups = loaded
             WhistleLogger.marmot.info("refreshGroups: \(loaded.count) group(s) loaded from MDK — active: \(loaded.filter(\.isActive).count)")
         } catch {
             WhistleLogger.marmot.error("refreshGroups FAILED: \(error)")
         }
+    }
+
+    // MARK: - Group & message queries
+
+    // The app layer reads MLS state through these rather than holding an
+    // `MLSService` of its own, so the MLS backend stays replaceable without
+    // touching ViewModels. See ROADMAP.md's MDK 2.0 / MarmotKit migration.
+
+    /// A single group's current state, read live from MLS rather than the
+    /// published `groups` cache.
+    func group(id groupId: String) async throws -> WhistleGroup? {
+        try await mls.getGroup(mlsGroupId: groupId)?.snapshot
+    }
+
+    /// Member pubkeys for a group, from the live MLS ratchet tree.
+    func members(ofGroup groupId: String) async throws -> [String] {
+        try await mls.getMembers(groupId: groupId)
+    }
+
+    /// A page of decrypted messages, newest-first as the store returns them.
+    ///
+    /// Messages whose inner plaintext cannot be read are dropped here rather
+    /// than surfaced as `nil`s for the caller to filter — hence the page also
+    /// carries the raw row count, which is what paging offsets index against.
+    func messages(
+        inGroup groupId: String,
+        limit: UInt32? = 50,
+        offset: UInt32? = nil
+    ) async throws -> WhistleMessage.Page {
+        let raw = try await mls.getMessages(
+            groupId: groupId,
+            limit: limit,
+            offset: offset,
+            sortOrder: MLSSortOrder.createdAtFirst
+        )
+        return WhistleMessage.Page(
+            messages: raw.compactMap(\.snapshot),
+            rawCount: raw.count
+        )
+    }
+
+    /// Re-read a group's metadata from the MLS state into the group store.
+    func syncGroupMetadata(groupId: String) async throws {
+        try await mls.syncGroupMetadataFromMls(groupId: groupId)
+    }
+
+    /// This device's leaf index in a group's ratchet tree — diagnostics only.
+    func ownLeafIndex(inGroup groupId: String) async throws -> UInt32 {
+        try await mls.ownLeafIndex(groupId: groupId)
     }
 
     // MARK: - Errors

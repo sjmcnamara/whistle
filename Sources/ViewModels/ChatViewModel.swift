@@ -1,7 +1,6 @@
 import Foundation
 import WhistleCore
 import Combine
-import MDKBindings
 
 /// Drives the single-group chat thread — loads messages from MDK,
 /// observes incoming message notifications, and sends new messages.
@@ -37,7 +36,6 @@ final class ChatViewModel: ObservableObject {
 
     let groupId: String
     private let marmot: MarmotService
-    private let mls: MLSService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
     private let messageCache: ChatMessageCache
@@ -62,14 +60,12 @@ final class ChatViewModel: ObservableObject {
     init(
         groupId: String,
         marmot: MarmotService,
-        mls: MLSService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
         messageCache: ChatMessageCache
     ) {
         self.groupId = groupId
         self.marmot = marmot
-        self.mls = mls
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
         self.messageCache = messageCache
@@ -151,16 +147,15 @@ final class ChatViewModel: ObservableObject {
     /// Load (or reload) the most recent page of messages.
     func loadMessages() async {
         do {
-            let mdkMessages = try await mls.getMessages(
-                groupId: groupId,
+            let page = try await marmot.messages(
+                inGroup: groupId,
                 limit: pageSize,
-                offset: nil,
-                sortOrder: MLSSortOrder.createdAtFirst
+                offset: nil
             )
-            // MDK returns newest-first; reverse so oldest is at the top
+            // The store returns newest-first; reverse so oldest is at the top
             // and newest at the bottom (natural chat order).
-            let recent = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
-            let recentRawCount = UInt32(mdkMessages.count)
+            let recent = Array(page.messages.compactMap { mapMessage($0) }.reversed())
+            let recentRawCount = UInt32(page.rawCount)
 
             if messages.isEmpty {
                 // Cold load: the recent page is the whole thread we know about.
@@ -168,7 +163,7 @@ final class ChatViewModel: ObservableObject {
                 // Advance by the RAW page size consumed, not the mapped chat
                 // count — the offset indexes the raw store (see `currentOffset`).
                 currentOffset = recentRawCount
-                hasMore = mdkMessages.count == Int(pageSize)
+                hasMore = page.rawCount == Int(pageSize)
             } else {
                 // A thread is already showing (seeded from cache, or the user
                 // paged back). Merge the recent page in — picking up new/edited
@@ -222,17 +217,16 @@ final class ChatViewModel: ObservableObject {
         while hasMore, collected.isEmpty, pages < maxPagesPerLoadMore {
             pages += 1
             do {
-                let mdkMessages = try await mls.getMessages(
-                    groupId: groupId,
+                let page = try await marmot.messages(
+                    inGroup: groupId,
                     limit: pageSize,
-                    offset: currentOffset,
-                    sortOrder: MLSSortOrder.createdAtFirst
+                    offset: currentOffset
                 )
                 // Advance by the RAW count so successive pages don't overlap.
-                currentOffset += UInt32(mdkMessages.count)
-                hasMore = mdkMessages.count == Int(pageSize)
+                currentOffset += UInt32(page.rawCount)
+                hasMore = page.rawCount == Int(pageSize)
                 // Older page → its bubbles belong above anything gathered so far.
-                let mapped = Array(mdkMessages.compactMap { mapMessage($0) }.reversed())
+                let mapped = Array(page.messages.compactMap { mapMessage($0) }.reversed())
                 collected.insert(contentsOf: mapped, at: 0)
             } catch {
                 WhistleLogger.chat.error("Failed to load more messages: \(error)")
@@ -253,7 +247,7 @@ final class ChatViewModel: ObservableObject {
     func loadMemberNames() async {
         do {
           WhistleLogger.chat.info("Loading member names for group \(self.groupId)")
-            let pubkeys = try await mls.getMembers(groupId: groupId)
+            let pubkeys = try await marmot.members(ofGroup: groupId)
             WhistleLogger.chat.info("Got \(pubkeys.count) pubkeys: \(pubkeys)")
             let names = pubkeys.map { nicknameStore.displayName(for: $0) }
             memberNames = names.joined(separator: ", ")
@@ -290,14 +284,13 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Mapping
 
-    /// Convert an MDK `Message` into a display-ready `ChatMessageItem`.
-    private func mapMessage(_ message: Message) -> ChatMessageItem? {
-        guard let content = message.plaintextContent else { return nil }
+    /// Convert a decrypted message into a display-ready `ChatMessageItem`.
+    private func mapMessage(_ message: WhistleMessage) -> ChatMessageItem? {
+        let content = message.content
 
-        // Only map "chat" type messages (skip nickname broadcasts, etc.)
-        if let data = content.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let type = json["type"] as? String, type != "chat" {
+        // Only map "chat" type messages (skip nickname broadcasts, etc.).
+        // A nil type is plain text from an older client — treat as chat.
+        if let type = message.payloadType, type != "chat" {
             return nil
         }
 
@@ -309,7 +302,7 @@ final class ChatViewModel: ObservableObject {
             timestamp = payload.date
         } else {
             text = content
-            timestamp = Date(timeIntervalSince1970: TimeInterval(message.createdAt))
+            timestamp = message.date
         }
 
         return ChatMessageItem(
