@@ -988,3 +988,79 @@ final class MarmotKitRootPathTests: XCTestCase {
         )
     }
 }
+
+// MARK: - Does MarmotKit actually reject a symlinked root?
+
+/// The experiment that should have been run before any fix was pushed.
+///
+/// The device failure was `Io("open complete authorized directory path at
+/// /var/mobile/…: Too many levels of symbolic links (os error 62)")`, and the
+/// diagnosis — that MarmotKit refuses a symlink anywhere in its root path —
+/// was inferred from the message rather than tested. It is testable locally:
+/// point a runtime at a root reached through a symlink and see what happens.
+/// `/var` on iOS is just one instance of that.
+final class MarmotKitSymlinkedRootTests: XCTestCase {
+
+    private var base: URL!
+
+    override func setUpWithError() throws {
+        base = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("symlink-root-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: base)
+        base = nil
+    }
+
+    @MainActor
+    func testRootReachedThroughASymlinkIsRejected() throws {
+        let real = base.appendingPathComponent("real", isDirectory: true)
+        let link = base.appendingPathComponent("link", isDirectory: true)
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+
+        // The unresolved path — the shape the device was given.
+        do {
+            _ = try MarmotKitService(
+                rootPath: link.path,
+                relayUrls: [],
+                secretStore: InMemorySecretStore()
+            )
+            XCTFail(
+                """
+                MarmotKit accepted a symlinked root. The device ELOOP therefore has \
+                some other cause, and `fullyResolved` is not the fix.
+                """
+            )
+        } catch {
+            // Confirms the diagnosis. Recorded in the message so a future
+            // reader sees the evidence rather than the inference.
+            XCTAssertTrue(
+                "\(error)".contains("symbolic link") || "\(error)".contains("os error 62"),
+                "rejected, but not for the reason assumed — got: \(error)"
+            )
+        }
+    }
+
+    /// The other half: the same root, resolved, must be accepted. Without this
+    /// the test above only proves symlinks are rejected, not that resolving
+    /// them is sufficient.
+    @MainActor
+    func testSameRootResolvedIsAccepted() throws {
+        let real = base.appendingPathComponent("real", isDirectory: true)
+        let link = base.appendingPathComponent("link", isDirectory: true)
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+
+        let resolved = MarmotKitService.fullyResolved(link.path)
+        XCTAssertFalse(resolved.hasSuffix("/link"), "realpath did not see through the symlink")
+
+        _ = try MarmotKitService(
+            rootPath: resolved,
+            relayUrls: [],
+            secretStore: InMemorySecretStore()
+        )
+    }
+}
