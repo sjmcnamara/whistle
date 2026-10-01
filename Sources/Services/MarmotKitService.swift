@@ -136,10 +136,22 @@ final class MarmotKitService {
     ///     (`RelayPolicyFfi.allowLoopback`); it is what lets a test point this
     ///     service at a relay it controls, since MarmotKit exposes no
     ///     injectable transport.
-    init(rootPath: String, relayUrls: [String], allowLoopback: Bool = false) throws {
+    ///   - secretStore: Where account signing keys live. `nil` uses
+    ///     MarmotKit's default platform keyring, which is right for the app
+    ///     but unavailable to an XCTest bundle — without the app's
+    ///     entitlement the runtime fails with `KeystoreUnavailable` before it
+    ///     reaches the network at all, which reads misleadingly like a
+    ///     connectivity fault. Tests pass their own store.
+    init(
+        rootPath: String,
+        relayUrls: [String],
+        allowLoopback: Bool = false,
+        secretStore: SecretStore? = nil
+    ) throws {
         self.relayUrls = relayUrls
         let options = MarmotOptions(
-            relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly
+            relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly,
+            secretStore: secretStore
         )
         self.marmot = try Marmot.newWithConfiguration(
             rootPath: rootPath,
@@ -175,6 +187,62 @@ final class MarmotKitService {
     private func requireAccount() throws -> String {
         guard let accountRef else { throw ServiceError.notStarted }
         return accountRef
+    }
+
+    /// Resume the account already stored under this service's root.
+    ///
+    /// The counterpart to `startWithNewIdentity` for a restart: the signing
+    /// key lives in the secret store and the account in the database, so a
+    /// relaunch signs back in rather than creating a second identity.
+    @discardableResult
+    func resumeExistingIdentity() async throws -> String {
+        try await Self.run {
+            try await marmot.start()
+            guard let existing = try marmot.listAccounts().first else {
+                throw ServiceError.notStarted
+            }
+            let summary = try await marmot.signInAccount(accountRef: existing.accountIdHex)
+            accountRef = summary.accountIdHex
+            return summary.accountIdHex
+        }
+    }
+
+    /// Stop the runtime.
+    ///
+    /// Root ownership outlives this call — upstream notes it is held "until
+    /// the final `Marmot`/runtime handle is dropped, even after
+    /// `Marmot::shutdown`" — so constructing another service on the same root
+    /// requires releasing this object first, or the new one fails with
+    /// `RuntimeBusy`.
+    func shutdown() async {
+        await marmot.shutdown()
+    }
+
+    /// Ask the runtime to catch up on anything it missed while not running.
+    ///
+    /// MarmotKit's own equivalent of v1's `catchUpGroup`, which re-fetches 30
+    /// days of kind-445 events by hand. Whether this covers the same ground
+    /// is what step 3c has to establish before that code is deleted.
+    func catchUpAccounts() async throws {
+        try await Self.run {
+            try await marmot.catchUpAccounts()
+        }
+    }
+
+    /// Publish a fresh KeyPackage and return its published-at timestamp.
+    ///
+    /// `createIdentityWithProfile` returns at local-ready, before publication
+    /// completes, so an account can exist while nothing discoverable about it
+    /// has reached a relay yet. Anyone inviting this account needs its
+    /// KeyPackage to be fetchable first — which is also why onboarding has to
+    /// gate "show my invite QR" on publication rather than on identity
+    /// creation (ROADMAP.md step 4).
+    @discardableResult
+    func publishKeyPackage() async throws -> UInt64 {
+        let account = try requireAccount()
+        return try await Self.run {
+            try await marmot.publishNewKeyPackage(accountRef: account)
+        }
     }
 
     // MARK: - Groups
