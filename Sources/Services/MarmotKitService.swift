@@ -136,10 +136,22 @@ final class MarmotKitService {
     ///     (`RelayPolicyFfi.allowLoopback`); it is what lets a test point this
     ///     service at a relay it controls, since MarmotKit exposes no
     ///     injectable transport.
-    init(rootPath: String, relayUrls: [String], allowLoopback: Bool = false) throws {
+    ///   - secretStore: Where account signing keys live. `nil` uses
+    ///     MarmotKit's default platform keyring, which is right for the app
+    ///     but unavailable to an XCTest bundle — without the app's
+    ///     entitlement the runtime fails with `KeystoreUnavailable` before it
+    ///     reaches the network at all, which reads misleadingly like a
+    ///     connectivity fault. Tests pass their own store.
+    init(
+        rootPath: String,
+        relayUrls: [String],
+        allowLoopback: Bool = false,
+        secretStore: SecretStore? = nil
+    ) throws {
         self.relayUrls = relayUrls
         let options = MarmotOptions(
-            relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly
+            relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly,
+            secretStore: secretStore
         )
         self.marmot = try Marmot.newWithConfiguration(
             rootPath: rootPath,
