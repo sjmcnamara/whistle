@@ -98,6 +98,15 @@ final class LoopbackRelay {
     }
     private var clientsBySubscription: [SubscriptionKey: LoopbackWebSocketServer.Client] = [:]
 
+    /// A fan-out deferred by `holdLiveDelivery`.
+    private struct HeldDelivery {
+        let client: LoopbackWebSocketServer.Client
+        let subscriptionId: String
+        let event: StoredEvent
+    }
+    private var isHoldingLiveDelivery = false
+    private var heldDeliveries: [HeldDelivery] = []
+
     /// `ws://127.0.0.1:<port>`, once started.
     var url: String? { server.url }
 
@@ -128,6 +137,55 @@ final class LoopbackRelay {
     func setReplayOrder(_ newOrder: ReplayOrder) {
         lock.lock(); defer { lock.unlock() }
         order = newOrder
+    }
+
+    // MARK: - Live delivery control
+
+    /// Stop delivering to open subscriptions, queueing instead.
+    ///
+    /// This is how the v1.11.2 failure is reproduced. That bug was not about
+    /// backlog replay alone: NIP-01 gives no ordering guarantee and several
+    /// relays fan into one subscription, so either can hand a client a commit
+    /// ahead of the commit it builds on — to a *live* subscriber, with no
+    /// reconnect involved. Holding delivery and releasing in a chosen order
+    /// reproduces that directly, without needing to restart a client or
+    /// resume its account.
+    ///
+    /// Publishers still get their `OK`, so the sender cannot tell.
+    func holdLiveDelivery() {
+        lock.lock(); defer { lock.unlock() }
+        isHoldingLiveDelivery = true
+    }
+
+    /// Deliver everything queued since `holdLiveDelivery`, in `order`, and
+    /// resume immediate delivery.
+    func releaseLiveDelivery(order releaseOrder: ReplayOrder = .asReceived) {
+        lock.lock()
+        isHoldingLiveDelivery = false
+        let queued = heldDeliveries
+        heldDeliveries = []
+        let ordered = apply(order: releaseOrder, to: queued.map(\.event))
+        // Re-pair the reordered events with their destinations. Identity is by
+        // event id plus subscription, since one event can be held for several
+        // subscriptions.
+        var pending: [(LoopbackWebSocketServer.Client, String, StoredEvent)] = []
+        for event in ordered {
+            for held in queued where held.event.id == event.id {
+                pending.append((held.client, held.subscriptionId, held.event))
+            }
+        }
+        lock.unlock()
+
+        // Outside the lock: sending re-enters the socket layer.
+        for (client, subId, event) in pending {
+            send(event: event, subscriptionId: subId, to: client)
+        }
+    }
+
+    /// Number of deliveries currently held back.
+    var heldDeliveryCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return heldDeliveries.count
     }
 
     // MARK: - Message handling
@@ -177,9 +235,19 @@ final class LoopbackRelay {
                   let client = clientsBySubscription[key] else { return nil }
             return (client, key.id)
         }
+        let holding = isHoldingLiveDelivery
+        if holding {
+            heldDeliveries.append(contentsOf: targets.map {
+                HeldDelivery(client: $0.0, subscriptionId: $0.1, event: event)
+            })
+        }
         lock.unlock()
 
+        // The publisher is acknowledged either way: a relay that reorders
+        // delivery to other subscribers still accepts the write, so the sender
+        // has no way to detect it.
         client.send(encode(["OK", id, true, ""]))
+        guard !holding else { return }
         for (target, subId) in targets {
             send(event: event, subscriptionId: subId, to: target)
         }
