@@ -667,7 +667,22 @@ _Released 2026-09-22_
         - ✅ **MarmotKit can use the real platform keyring.** Confirmed on device: identity created and cleanly removed. Every automated test injects an in-memory `SecretStore`, because an XCTest bundle has no keychain entitlement and MarmotKit fails with `KeystoreUnavailable` *before any networking* — so this was untested until the dev build.
         - ⚠️ **MarmotKit refuses "retired" relay hosts at the dial boundary**, failing identity creation outright rather than skipping them — and `wss://relay.damus.io` is rejected (verified on device: `relay.damus.io=retired`, `nos.lol=allowed`, `relay.primal.net=allowed`) — and it is the *first* entry in `AppDefaults.defaultRelays`. 3d must filter relay lists through `classifyRelayEndpoints` before handing them to MarmotKit, and `AppDefaults.defaultRelays` likely needs revising. This also makes the "Advanced Settings Relays UI can stay as-is" note above **too optimistic**: it needs validation plus a way to tell the user a relay is unusable. Pairs with step 4.
         - ⚠️ **`RuntimeBusy` is a realistic production failure.** Root ownership is held until the `Marmot` handle is *dropped*, even after `shutdown`. Any flow that rebuilds the service — re-login, account switch, retry after failure — must release the previous handle first. Hit twice during this work, once in twenty lines of probe code.
-    4. Rebuild the invite/join UI around reversed-QR + `invite_members` — treat as a real UX change worth a screenshot review, not a silent swap.
+    4. **Replace the invite/join flow — it shrinks rather than being ported.** *(Corrected 2026-10-01; supersedes the "reversed-QR" framing above, which was drafted by an AI session and treated the old flow as something to invert rather than remove.)*
+
+        Upstream confirmed on [mdk#938](https://github.com/marmot-protocol/mdk/issues/938) that protocol v2 has **no out-of-group messaging at all**. The consequence is sharper than "reverse the QR": the **admin/group invite QR becomes useless**, because a non-member who scans it has no action available to them. Previously a prospect scanned the admin's code and then acted — published a KeyPackage, gift-wrapped a join-request rumour. Neither is possible now.
+
+        The only remaining flow is **scan-to-invite**: the prospective member displays their own npub QR, an admin scans it and calls `invite_members`. One direction, no negotiation, no pending state.
+
+        So this step mostly **deletes** (~550 lines plus tests):
+        - `InviteCode`, `JoinRequest`, `PendingInviteStore`, `JoinRequestStore`
+        - `InviteShareView` (admin showing a group QR), `JoinGroupView` (entering an invite code)
+        - `MarmotService`'s `generateInviteCode`, `acceptInvite`, `addMembers(_ requests:)`, `giftWrapAndPublishWelcomes`, `routeWelcomes`, `firstETag`, and `AppViewModel`'s pending-invite wiring
+
+        Kept and re-pointed: `QRScannerView`, now scanning a member npub on the admin side.
+
+        Added: a "show my code" screen for the prospective member. **It must gate on the KeyPackage being published, not merely on an identity existing** — `createIdentityWithProfile` returns at local-ready, and the two-device tests only worked once `publishKeyPackage()` had been called explicitly. A code shown too early cannot be invited, and that failure looks like a broken scanner rather than a timing problem.
+
+        Still a real UX change worth a screenshot review, but a simplification rather than a rebuild — and it removes the step 3/step 4 coupling the earlier entry implied, since there is no new join protocol to build first.
     5. Port to Android second, once iOS proves the shape out (same order as every other feature in this project).
     6. Ship as **v2.0.0** — protocol-breaking, groups don't carry over, release notes need to say so as clearly as the Dublin-group recovery communication did.
 
