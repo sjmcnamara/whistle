@@ -6,6 +6,8 @@ set -euo pipefail
 #   ./scripts/build.sh              # generate + build
 #   ./scripts/build.sh compile-tests # type-check the test target (no run)
 #   ./scripts/build.sh test         # generate + build + test
+#   ./scripts/build.sh xcode        # generate, then leave the tree patched for Xcode
+#   ./scripts/build.sh restore      # undo what `xcode` left patched
 #   ./scripts/build.sh clean        # clean build artifacts
 
 COMMAND=${1:-build}
@@ -222,8 +224,51 @@ case "$COMMAND" in
         echo "✓ Clean complete"
         ;;
 
+    xcode)
+        # Prepare the working tree for building *in Xcode*, then deliberately
+        # leave the local-MDK and local-MarmotKit patches in place.
+        #
+        # Every other command here restores them before returning, because
+        # xcodegen has already consumed project.yml by then. Xcode is
+        # different: it resolves MarmotKitBindings/Package.swift itself, every
+        # time it builds, long after this script has exited. With the patch
+        # restored it fetches the pristine upstream XCFramework, whose bare
+        # Headers/module.modulemap collides with NostrSDK's in the shared
+        # include/ directory — "Multiple commands produce ...
+        # include/module.modulemap" (swiftlang/swift-build#1746). See
+        # scripts/vendor_marmotkit.py.
+        #
+        # So this leaves the tree patched, which means `git status` will show
+        # MarmotKitBindings/Package.swift modified until you run
+        # `./scripts/build.sh restore`. That dirt is the point: it is visible,
+        # and it is what makes Xcode resolve the stripped local copy.
+        echo "▸ Generating Xcode project..."
+        ensure_local_mdk
+        ensure_local_marmotkit
+        xcodegen generate
+        restore_local_changes   # project.yml is already baked into the project
+
+        # Hand the MarmotKit patch to Xcode rather than undoing it.
+        MARMOTKIT_PACKAGE_SWIFT_BACKUP=""
+
+        echo "✓ Ready for Xcode."
+        echo "  MarmotKitBindings/Package.swift is intentionally left pointing at"
+        echo "  vendor/MarmotKitFFI.xcframework so Xcode resolves the stripped copy."
+        echo "  Run './scripts/build.sh restore' when you are done."
+        ;;
+
+    restore)
+        # Undo what `xcode` left patched.
+        if git diff --quiet -- MarmotKitBindings/Package.swift; then
+            echo "✓ Nothing to restore — MarmotKitBindings/Package.swift is unmodified."
+        else
+            git checkout -- MarmotKitBindings/Package.swift
+            echo "✓ Restored MarmotKitBindings/Package.swift to the committed remote pin."
+        fi
+        ;;
+
     *)
-        echo "Usage: $0 [build|compile-tests|test|clean]"
+        echo "Usage: $0 [build|compile-tests|test|xcode|restore|clean]"
         exit 1
         ;;
 esac
