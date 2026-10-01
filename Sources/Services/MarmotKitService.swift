@@ -755,22 +755,28 @@ final class MarmotKitService: ObservableObject {
         snapshot: OnboardingSnapshotFfi,
         attempted: inout Set<String>
     ) async throws -> OnboardingSnapshotFfi? {
-        for strategy in Self.strategies(for: state) {
+        let stepName = String(describing: state.step)
+        for strategy in Self.strategies(for: state, snapshot: snapshot) {
             let key = "\(state.step)|\(strategy.rawValue)"
-            guard attempted.insert(key).inserted else { continue }
-            let stepName = String(describing: state.step)
+            if attempted.contains(key) { continue }
             do {
-                if let next = try await run(strategy, step: state.step, account: account, snapshot: snapshot) {
-                    WhistleLogger.marmot.info("Onboarding \(stepName): \(strategy.rawValue) accepted")
-                    return next
+                guard let next = try await run(strategy, step: state.step, account: account, snapshot: snapshot) else {
+                    // Not applicable *yet* — deliberately not recorded as
+                    // attempted. `approveRepair` is inapplicable until a
+                    // proposal exists, and recording it on the first pass
+                    // would permanently skip the only action the machine
+                    // later offers.
+                    continue
                 }
-                WhistleLogger.marmot.info("Onboarding \(stepName): \(strategy.rawValue) not applicable")
+                attempted.insert(key)
+                WhistleLogger.marmot.info("Onboarding \(stepName): \(strategy.rawValue) accepted")
+                return next
             } catch {
+                attempted.insert(key)
                 let reason = String(describing: error)
                 WhistleLogger.marmot.warning("Onboarding \(stepName): \(strategy.rawValue) failed — \(reason)")
             }
         }
-        let stepName = String(describing: state.step)
         let offered = String(describing: state.actions)
         WhistleLogger.marmot.error("Onboarding \(stepName) exhausted every strategy; offered \(offered)")
         return nil
@@ -790,7 +796,24 @@ final class MarmotKitService: ObservableObject {
     /// Strategy order per step. Not gated on the offered action list — that
     /// list proved unreliable as a precondition, so each strategy is simply
     /// tried and allowed to fail.
-    private static func strategies(for state: OnboardingStepStateFfi) -> [OnboardingStrategy] {
+    ///
+    /// A pending repair proposal takes precedence over everything. Observed on
+    /// device: setting the inbox relay list published it correctly
+    /// (`complete: true`, kind 10050 present) but left the step at
+    /// `needsInput`, because the machine had raised a proposal and reduced the
+    /// step's actions to `[approveRepair, cancelRepair, cancelOnboarding]`.
+    /// Approving is the only way forward; the earlier strategy list omitted it
+    /// entirely, so the run exhausted itself while the machine was waiting on
+    /// consent it had explicitly asked for.
+    private static func strategies(
+        for state: OnboardingStepStateFfi,
+        snapshot: OnboardingSnapshotFfi
+    ) -> [OnboardingStrategy] {
+        let repairFirst: [OnboardingStrategy] = snapshot.proposal != nil ? [.approveRepair] : []
+        return repairFirst + stepStrategies(for: state)
+    }
+
+    private static func stepStrategies(for state: OnboardingStepStateFfi) -> [OnboardingStrategy] {
         switch state.step {
         case .profile, .follows:
             // Whistle publishes no public Nostr profile and has no social
@@ -863,8 +886,14 @@ final class MarmotKitService: ObservableObject {
             )
 
         case .approveRepair:
-            guard snapshot.proposal != nil else { return nil }
-            return try await marmot.approveOnboardingRepair(accountRef: account, revision: snapshot.revision)
+            // Re-read rather than trusting the snapshot we were handed: the
+            // revision moves as the machine works, and `approveOnboardingRepair`
+            // is revision-scoped.
+            guard let current = try marmot.onboardingSnapshot(accountRef: account),
+                  current.proposal != nil else { return nil }
+            return try await marmot.approveOnboardingRepair(
+                accountRef: account, revision: current.revision
+            )
         }
     }
 
