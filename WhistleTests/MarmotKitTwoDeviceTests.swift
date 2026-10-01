@@ -1064,3 +1064,101 @@ final class MarmotKitSymlinkedRootTests: XCTestCase {
         )
     }
 }
+
+// MARK: - Account setup completion
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Why "my member code" failed on device with `OnboardingRequired` while
+    /// every test passed: the tests reached an account through
+    /// `startWithNewIdentity`, the app reaches it through
+    /// `start(adoptingNsec:)`, and nothing asserted the adopt path got past
+    /// identity creation.
+    ///
+    /// Asserts `.networkReady` outright rather than comparing against the
+    /// create path. Measured: the two genuinely end in different states —
+    /// `startWithNewIdentity` settles at `localReady` with no onboarding
+    /// session at all, while the adopt path runs the onboarding machine
+    /// through to `networkReady`. Comparing them was the wrong test, and it
+    /// failed for the opposite of the reason it was written for.
+    @MainActor
+    func testAdoptedAccountReachesNetworkReady() async throws {
+        let nsec: String, ref: String
+        do {
+            let seed = try makeService()
+            ref = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let adopted = try makeService()
+        _ = try await adopted.start(adoptingNsec: nsec, expecting: ref)
+        XCTAssertEqual(
+            try adopted.setupReadiness(), .initializing,
+            "adopt is expected to stop short of publication — that is what makes launch fast"
+        )
+
+        let readiness = try await adopted.completeAccountSetup()
+        XCTAssertEqual(
+            readiness, .networkReady,
+            """
+            account setup did not complete. Onboarding is a sequential machine that             blocks on caller input — a single `runOnboarding` stalls on `profile` and             every later step stays pending behind it.
+            """
+        )
+    }
+
+    /// Diagnostic, not an assertion of desired behaviour: dumps the onboarding
+    /// state machine so the steps that actually stall are visible instead of
+    /// guessed at. Onboarding steps can sit at `needsInput` awaiting a caller
+    /// action, and `runOnboarding` advances past only what it can decide
+    /// itself.
+    @MainActor
+    func testDumpsOnboardingStateForAnAdoptedAccount() async throws {
+        let nsec: String, ref: String
+        do {
+            let seed = try makeService()
+            ref = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let service = try makeService()
+        _ = try await service.start(adoptingNsec: nsec, expecting: ref)
+        print("ONBOARD-DIAG readiness after adopt: \(try service.setupReadiness())")
+        for line in try service.onboardingDiagnostics() { print("ONBOARD-DIAG \(line)") }
+
+        _ = try? await service.completeAccountSetup()
+        print("ONBOARD-DIAG readiness after runOnboarding: \(try service.setupReadiness())")
+        for line in try service.onboardingDiagnostics() { print("ONBOARD-DIAG \(line)") }
+    }
+
+    /// The specific operation that failed on device. It needs a published
+    /// account, so it is the sharpest check that setup actually completed.
+    @MainActor
+    func testKeyPackageRotationWorksOnAnAdoptedAccount() async throws {
+        let nsec: String, ref: String
+        do {
+            let seed = try makeService()
+            ref = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let service = try makeService()
+        _ = try await service.start(adoptingNsec: nsec, expecting: ref)
+        try await service.completeAccountSetup()
+
+        // Before the fix this threw `OnboardingRequired`.
+        _ = try await service.publishKeyPackage()
+    }
+
+    /// Completing twice must be harmless — it runs on every launch.
+    @MainActor
+    func testCompletingSetupTwiceIsIdempotent() async throws {
+        let service = try makeService()
+        _ = try await service.startWithNewIdentity()
+        let first = try await service.completeAccountSetup()
+        let second = try await service.completeAccountSetup()
+        XCTAssertEqual(first, second)
+    }
+}

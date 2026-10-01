@@ -507,18 +507,23 @@ final class AppViewModel: ObservableObject {
         // Deferred work — runs after UI is interactive so startup feels snappy.
         await broadcastNicknameToAllGroups()
 
-        // Publish a fresh KeyPackage so an admin can add us by scanning our
-        // code. Without this the code in `MemberCodeView` is unusable: the
-        // admin's invite fails with no indication that the cause was a missing
-        // KeyPackage rather than a bad scan.
+        // Finish account setup. `beginOnboarding` stops at local-ready by
+        // design, so until this runs the account has no published relay list
+        // or KeyPackage and anything needing one fails with
+        // `OnboardingRequired` — which is what "my member code" hit.
+        //
+        // Deliberately here rather than on the launch path: this is the half
+        // that waits on relays, and `MemberCodeView` already gates the code
+        // on `setupReadiness()` reaching `.networkReady`, so showing the
+        // screen early degrades to "Publishing your key…" instead of handing
+        // out a code no admin can invite.
         do {
-            let published = try await service.publishKeyPackage()
-            WhistleLogger.marmot.info("Published key package (revision \(published))")
+            let readiness = try await service.completeAccountSetup()
+            WhistleLogger.marmot.info("Account setup readiness: \(String(describing: readiness))")
         } catch {
-            // Non-fatal — retried on next launch, and the readiness gate in
-            // MemberCodeView stops a half-published account being shown as
-            // scannable.
-            WhistleLogger.marmot.warning("Key package publish failed: \(error)")
+            // Non-fatal — retried on next launch, and the readiness gate
+            // stops a half-published account being shown as scannable.
+            WhistleLogger.marmot.warning("Account setup did not complete: \(error)")
         }
     }
 

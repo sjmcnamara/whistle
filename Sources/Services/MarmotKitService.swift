@@ -578,6 +578,163 @@ final class MarmotKitService: ObservableObject {
     /// KeyPackage to be fetchable first — which is also why onboarding has to
     /// gate "show my invite QR" on publication rather than on identity
     /// creation (ROADMAP.md step 4).
+    /// Human-readable dump of the onboarding state machine, for diagnosing a
+    /// setup that will not complete. Steps can sit at `needsInput` awaiting a
+    /// caller action, and the action list says which.
+    func onboardingDiagnostics() throws -> [String] {
+        let account = try requireAccount()
+        guard let snapshot = try marmot.onboardingSnapshot(accountRef: account) else {
+            return ["no onboarding session (account was not created via beginOnboarding)"]
+        }
+        var lines = [
+            "ready=\(snapshot.ready) revision=\(snapshot.revision) "
+                + "cancellationPending=\(snapshot.cancellationPending) "
+                + "proposal=\(snapshot.proposal != nil) singleDevice=\(snapshot.singleDeviceNotice != nil)"
+        ]
+        for state in snapshot.steps {
+            lines.append(
+                "step=\(state.step) status=\(state.status) "
+                    + "actions=\(state.actions) findings=\(state.findings.count)"
+            )
+        }
+        return lines
+    }
+
+    /// Drive account setup from local-ready to network-ready.
+    ///
+    /// `beginOnboarding` stops at local-ready — it persists the identity and
+    /// returns "before any network preflight or publication" — so until this
+    /// completes, anything needing a published account is rejected with
+    /// `OnboardingRequired`. That is what "my member code" hit on device.
+    ///
+    /// Onboarding is a **sequential state machine that blocks on caller
+    /// input**, not a single call. Observed directly: after `beginOnboarding`
+    /// all six steps are `pending`; one `runOnboarding` moves `profile` to
+    /// `needsInput` and every later step stays `pending` behind it. So
+    /// `runOnboarding` on its own can never finish — it advances only what it
+    /// can decide itself, and the caller has to clear each blocking step. This
+    /// loop does that until the snapshot reports `ready`, bounded, and
+    /// stopping if a pass produces no revision change (nothing left that we
+    /// know how to resolve).
+    ///
+    /// Called off the launch path, since this is the half that waits on
+    /// relays. `MemberCodeView` gates the member code on `setupReadiness()`
+    /// reaching `.networkReady`, so showing it early degrades to
+    /// "Publishing your key…" rather than handing out a code no admin can
+    /// invite.
+    @discardableResult
+    func completeAccountSetup() async throws -> AccountSetupReadinessFfi {
+        let account = try requireAccount()
+        return try await Self.run {
+            if try marmot.accountSetupReadiness(accountRef: account) == .networkReady {
+                return .networkReady
+            }
+            // No session means the account came from `createIdentityWithProfile`,
+            // which runs its own setup — `runOnboarding` would throw
+            // `OnboardingActionUnavailable`.
+            guard try marmot.onboardingSnapshot(accountRef: account) != nil else {
+                return try marmot.accountSetupReadiness(accountRef: account)
+            }
+
+            var lastRevision: UInt64 = 0
+            for _ in 0..<24 {
+                var snapshot = try await marmot.runOnboarding(accountRef: account)
+                if snapshot.ready { break }
+
+                if let blocked = snapshot.steps.first(where: {
+                    $0.status == .needsInput || $0.status == .retryableFailure
+                }) {
+                    snapshot = try await resolveOnboardingStep(blocked, account: account, snapshot: snapshot)
+                }
+
+                // No forward movement and nothing we could resolve — stop
+                // rather than spin. Readiness below reports how far it got.
+                if snapshot.revision == lastRevision { break }
+                lastRevision = snapshot.revision
+                if snapshot.ready { break }
+            }
+            return try marmot.accountSetupReadiness(accountRef: account)
+        }
+    }
+
+    /// Clear one blocking onboarding step, choosing from the actions the step
+    /// itself offers rather than assuming which are valid.
+    private func resolveOnboardingStep(
+        _ state: OnboardingStepStateFfi,
+        account: String,
+        snapshot: OnboardingSnapshotFfi
+    ) async throws -> OnboardingSnapshotFfi {
+        WhistleLogger.marmot.info(
+            "Onboarding step \(String(describing: state.step)) needs input; actions \(String(describing: state.actions))"
+        )
+        switch state.step {
+        case .profile, .follows:
+            // Whistle publishes no public Nostr profile and has no social
+            // graph: display names and avatars travel *inside* the group as
+            // MLS payloads, so a kind-0 profile and a follow list are not
+            // merely optional here, they are out of scope. Skipping is the
+            // designed escape — `continueWithout` is in the offered actions.
+            if state.actions.contains(.continueWithout) {
+                return try await marmot.continueOnboardingWithout(accountRef: account, step: state.step)
+            }
+
+        case .relays, .inboxRelays:
+            // Propose our own list rather than accepting recommendations:
+            // these are the policy-filtered relays the user configured, and
+            // adopting unknown ones could reintroduce a retired host.
+            if state.actions.contains(.editRelays) {
+                let relays = allowedRelays(from: relayUrls)
+                if !relays.isEmpty {
+                    return try await marmot.proposeOnboardingRelays(
+                        accountRef: account,
+                        step: state.step,
+                        readRelays: relays,
+                        writeRelays: relays
+                    )
+                }
+            }
+            if state.actions.contains(.useRecommendedRelays) {
+                return try await marmot.proposeOnboardingRecommendedRelays(accountRef: account, step: state.step)
+            }
+
+        case .singleDevice:
+            // One device is the normal case for this app, not a warning to
+            // escalate.
+            return try await marmot.acknowledgeOnboardingSingleDevice(
+                accountRef: account,
+                revision: snapshot.revision
+            )
+
+        case .keyPackage:
+            if state.actions.contains(.retry) {
+                return try await marmot.retryOnboardingStep(accountRef: account, step: state.step)
+            }
+        }
+
+        // Fallbacks, in order of preference: try again, then skip. Never
+        // `cancelOnboarding` — that would discard the account.
+        if state.actions.contains(.retry) {
+            return try await marmot.retryOnboardingStep(accountRef: account, step: state.step)
+        }
+        if state.actions.contains(.continueWithout) {
+            return try await marmot.continueOnboardingWithout(accountRef: account, step: state.step)
+        }
+        if state.actions.contains(.approveRepair), snapshot.proposal != nil {
+            return try await marmot.approveOnboardingRepair(accountRef: account, revision: snapshot.revision)
+        }
+        WhistleLogger.marmot.warning(
+            "No usable action for onboarding step \(String(describing: state.step))"
+        )
+        return snapshot
+    }
+
+    /// Mint and publish a **fresh** KeyPackage, superseding the current slot.
+    ///
+    /// Not a startup call. Upstream documents this as the sanctioned repair
+    /// for an epoch-stalled group (`publish_new_key_package` is the legacy
+    /// name for `rotateKeyPackage`); the *first* KeyPackage is published by
+    /// onboarding, so calling this at launch both fails before setup
+    /// completes and needlessly rotates afterwards.
     @discardableResult
     func publishKeyPackage() async throws -> UInt64 {
         let account = try requireAccount()
