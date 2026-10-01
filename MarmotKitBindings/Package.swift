@@ -9,8 +9,11 @@ import PackageDescription
 // https://github.com/marmot-protocol/mdk/blob/v0.10.4/crates/marmot-uniffi/DISTRIBUTION.md
 //
 // MarmotKitFFI-0.10.4.xcframework.zip requires iOS 18.0+ (DISTRIBUTION.md,
-// "SwiftPM" section) — this is why Whistle's own deploymentTarget moved to 18.0
-// alongside this package.
+// "SwiftPM" section). That floor is applied to the WhistleTests target alone
+// (see project.yml), not app-wide: this package is only wired into the test
+// target for now, and raising the app's own minimum would drop iOS 17 support
+// from the shipping 1.x line for no benefit. The app-wide bump belongs with
+// the v2.0 cutover, when this package moves into the Whistle target.
 //
 // MarmotKitFFI's own xcframework ships a bare `Headers/module.modulemap` —
 // consuming it directly collides with NostrSDK's own xcframework-embedded

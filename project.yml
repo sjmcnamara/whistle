@@ -3,7 +3,7 @@ name: Whistle
 options:
   bundleIdPrefix: org.getwhistle
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "17.0"
   xcodeVersion: "16.1"
   createIntermediateGroups: true
   groupSortPosition: top
@@ -90,6 +90,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.getwhistle.whistle.tests
         GENERATE_INFOPLIST_FILE: YES
+        # MarmotKitFFI's XCFramework requires iOS 18.0+ (DISTRIBUTION.md), and
+        # MarmotKitBindings is wired into this test target only. Scoped here
+        # rather than raised app-wide so the shipping 1.x line keeps supporting
+        # iOS 17 — the app-wide bump belongs with the v2.0 cutover, when the
+        # package actually moves into the Whistle target.
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
 
 schemes:
   Whistle:
