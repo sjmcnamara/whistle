@@ -393,6 +393,23 @@ final class MarmotKitService: ObservableObject {
         marmot.accountIdHex(reference: scanned.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
+    /// This account's npub — the code a member shows to be invited.
+    ///
+    /// Uses MarmotKit's own encoder rather than NostrSDK's `toBech32`, for the
+    /// same reason `normalisedAccountReference` uses its decoder: one parser
+    /// per direction, not two that can disagree.
+    ///
+    /// npub rather than the raw hex because it is the portable Nostr form —
+    /// a member can paste it into a message if scanning is impractical — and
+    /// `accountIdHex(reference:)` normalises either on the way back in.
+    /// Main-actor isolated, unlike its decoding counterpart: it reads
+    /// `accountRef`, which is mutable actor state. Callers are SwiftUI views,
+    /// which are already on the main actor.
+    func myMemberCode() -> String? {
+        guard let accountRef else { return nil }
+        return marmot.npub(accountIdHex: accountRef)
+    }
+
     /// Invite whoever a scanned code refers to.
     ///
     /// Throws `.unrecognisedMemberCode` for anything that isn't a public
