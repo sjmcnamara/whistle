@@ -409,3 +409,138 @@ extension MarmotKitTwoDeviceTests {
         // thing standing between a modified client and a spoofed group photo.
     }
 }
+
+// MARK: - Step 8: catching up after being offline
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Authorises deleting v1's `catchUpGroup` soft resync.
+    ///
+    /// v1 re-fetches 30 days of kind-445 events by hand when a device may
+    /// have missed a commit, because MDK 0.8 offered nothing better. If
+    /// MarmotKit picks up a missed commit on relaunch — on its own, or via
+    /// `catchUpAccounts` — that hand-rolled lookback can go at step 3d.
+    ///
+    /// Restart is modelled properly rather than by holding delivery: the
+    /// point is a client that was *absent* while the commit sat on the relay,
+    /// then reconnected and had to fetch stored events, which is a different
+    /// path from late live fan-out.
+    @MainActor
+    func testPicksUpACommitMissedWhileShutDown() async throws {
+        let aliceStorage = makeStorage()
+        let bobStorage = makeStorage()
+
+        let alice = try makeService(on: aliceStorage)
+        try await alice.startWithNewIdentity()
+
+        // Bob is scoped so he can be released before the restart. Root
+        // ownership survives `shutdown` until the handle is dropped, so a
+        // second service on the same root would otherwise hit RuntimeBusy.
+        let groupId: String
+        let bobRef: String
+        do {
+            let bob = try makeService(on: bobStorage)
+            bobRef = try await bob.startWithNewIdentity()
+            try await bob.publishKeyPackage()
+
+            groupId = try await alice.createGroup(name: "Dublin")
+            try await alice.invite(memberRefs: [bobRef], toGroup: groupId)
+            try await eventually("Bob to converge before going offline") {
+                try await bob.group(id: groupId) != nil
+            }
+            await bob.shutdown()
+        }
+
+        // Bob is gone; Alice advances the group without him.
+        try await alice.rename(group: groupId, to: "Dublin While Away")
+
+        // Bob relaunches on the same storage and signs back in.
+        let bobAgain = try makeService(on: bobStorage)
+        let resumedRef = try await bobAgain.resumeExistingIdentity()
+        XCTAssertEqual(resumedRef, bobRef, "relaunch resumed a different account")
+
+        try await bobAgain.catchUpAccounts()
+
+        try await eventually("Bob to pick up the commit made while he was offline", timeout: 25) {
+            try await bobAgain.group(id: groupId)?.name == "Dublin While Away"
+        }
+    }
+}
+
+// MARK: - Step 9: a genuine fork
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Probes what MarmotKit does with a true fork — two commits built on the
+    /// same epoch by different members, neither having seen the other.
+    ///
+    /// This is the case v1 cannot repair: MDK marks such a commit
+    /// `.previouslyFailed` permanently, `catchUpGroup` explicitly cannot help,
+    /// and only `resyncMember`'s remove-then-re-add rebuilds the member's
+    /// leaf. Upstream documents `GroupUnrecoverableRepairRequired` as "halted
+    /// until another member re-admits this device", which says MarmotKit
+    /// *detects* the state but still needs an admin-driven repair — so
+    /// `resyncMember` is expected to survive while `GroupHealthTracker`'s
+    /// failure-counting, which only ever guessed at this state, can go.
+    ///
+    /// Deliberately records what happens rather than asserting a particular
+    /// recovery: the useful output is which of the two it is.
+    @MainActor
+    func testConcurrentCommitsFromTwoAdminsAreReportedNotSilentlyLost() async throws {
+        let pair = try await makePair()
+
+        // Both must be admins to issue competing metadata commits.
+        try await pair.alice.promoteToAdmin(pair.bobRef, inGroup: pair.groupId)
+        try await eventually("Bob to see his own promotion") {
+            let group = try await pair.bob.group(id: pair.groupId)
+            return group?.adminPubkeys.contains(pair.bobRef) ?? false
+        }
+
+        // Neither sees the other's commit before making its own: that is what
+        // makes this a fork rather than a sequence.
+        relay.holdLiveDelivery()
+        try await pair.alice.rename(group: pair.groupId, to: "Alice's Name")
+        try await pair.bob.rename(group: pair.groupId, to: "Bob's Name")
+        XCTAssertGreaterThan(
+            relay.heldDeliveryCount, 0,
+            "nothing held, so this would not be a fork and the test would be vacuous"
+        )
+        relay.releaseLiveDelivery()
+
+        // Let the dust settle, then report the outcome rather than demanding
+        // a specific one.
+        try? await Task.sleep(nanoseconds: 5_000_000_000)
+
+        let aliceView = try await pair.alice.group(id: pair.groupId)
+        let bobView = try await pair.bob.group(id: pair.groupId)
+
+        let summary = """
+        fork outcome — \
+        alice: name=\(aliceView?.name ?? "<gone>") epoch=\(aliceView?.epoch ?? 0), \
+        bob: name=\(bobView?.name ?? "<gone>") epoch=\(bobView?.epoch ?? 0)
+        """
+
+        // The one thing that must hold: neither side may silently sit on a
+        // stale view believing it is current. Either they converge on one
+        // winner, or the group is reported as needing repair — both are
+        // actionable. Diverging names with no signal is not.
+        let converged = aliceView?.name == bobView?.name && aliceView?.epoch == bobView?.epoch
+        if !converged {
+            // Not a failure in itself — it is the v1 situation, and means
+            // resyncMember must be ported forward. Assert it is at least
+            // *detectable* via the send path, which is where MarmotKit raises
+            // GroupUnrecoverableRepairRequired.
+            var sendOutcome = "send succeeded (no repair signalled)"
+            do {
+                try await pair.bob.send(
+                    content: #"{"type":"chat","text":"probe"}"#,
+                    kind: MarmotKind.ProtocolV2.chat,
+                    toGroup: pair.groupId
+                )
+            } catch let error as MarmotKitService.ServiceError {
+                sendOutcome = "send threw \(error)"
+            }
+            XCTFail("\(summary); \(sendOutcome)")
+        }
+    }
+}
