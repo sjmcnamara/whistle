@@ -217,6 +217,16 @@ final class MarmotKitService: ObservableObject {
     /// keeping the two stores apart means an install that falls back to v1
     /// still finds its data intact.
     ///
+    /// **The path must be fully symlink-resolved.** MarmotKit opens this as a
+    /// "complete authorized directory path" and refuses any symlink along the
+    /// way with `ELOOP` ("Too many levels of symbolic links", os error 62) —
+    /// and on iOS `/var` *is* a symlink to `/private/var`, which is exactly
+    /// what `FileManager.urls(for:in:)` hands back. On device that failed
+    /// startup outright with an error naming the leaf directory, which reads
+    /// like the directory is broken rather than the prefix. The spike harness
+    /// that worked on device used `NSTemporaryDirectory()`, which is already
+    /// `/private/var/…`, so nothing caught this until the real root was used.
+    ///
     /// Suffixed with a generation number, which `advanceIdentityGeneration()`
     /// bumps on identity replacement. A runtime owns its root until its handle
     /// is *dropped*, not until `shutdown()` returns, and the handle can
@@ -229,29 +239,39 @@ final class MarmotKitService: ObservableObject {
     ///
     /// Superseded generations are deleted here, at launch, when exactly one
     /// service exists and nothing can still be holding them.
-    static func defaultRootPath() -> String {
+    ///
+    /// Throws rather than returning a best-effort path: a directory that
+    /// could not be created surfaces downstream as an opaque MarmotKit I/O
+    /// error about a path the reader has no reason to suspect, which is how
+    /// the symlink bug above presented.
+    nonisolated static func defaultRootPath() throws -> String {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let container = base.appendingPathComponent("marmotkit", isDirectory: true)
-        try? FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+
+        // Resolved *after* creation — `resolvingSymlinksInPath()` only
+        // resolves components that exist, so doing it earlier would leave the
+        // `/var` prefix in place on a first launch.
+        let resolved = container.resolvingSymlinksInPath()
 
         let generation = UserDefaults.standard.integer(forKey: generationKey)
         let name = "gen-\(generation)"
-        purgeSupersededGenerations(in: container, keeping: name)
+        purgeSupersededGenerations(in: resolved, keeping: name)
 
-        let root = container.appendingPathComponent(name, isDirectory: true)
-        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        return root.path
+        let root = resolved.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root.resolvingSymlinksInPath().path
     }
 
     /// Move to a fresh root for the next identity. Call before rebuilding the
     /// service on identity replacement.
-    static func advanceIdentityGeneration() {
+    nonisolated static func advanceIdentityGeneration() {
         let next = UserDefaults.standard.integer(forKey: generationKey) + 1
         UserDefaults.standard.set(next, forKey: generationKey)
         WhistleLogger.marmot.info("Advanced MarmotKit root generation to \(next)")
     }
 
-    private static func purgeSupersededGenerations(in container: URL, keeping current: String) {
+    nonisolated private static func purgeSupersededGenerations(in container: URL, keeping current: String) {
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: container, includingPropertiesForKeys: nil
         )) ?? []
@@ -282,12 +302,19 @@ final class MarmotKitService: ObservableObject {
     /// begins at `start()`, which this probe never calls.
     nonisolated static func allowedRelayEndpoints(from endpoints: [String]) -> [String] {
         guard !endpoints.isEmpty else { return [] }
+        // Same symlink requirement as `defaultRootPath()` — created first so
+        // `resolvingSymlinksInPath()` has something to resolve. This one
+        // happened to work on device already, because the temporary directory
+        // is reported as `/private/var/…` rather than `/var/…`, but relying on
+        // that distinction silently is what hid the bug in the first place.
         let probeRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("marmotkit-relay-policy-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: probeRoot) }
+        try? FileManager.default.createDirectory(at: probeRoot, withIntermediateDirectories: true)
+        let resolvedProbeRoot = probeRoot.resolvingSymlinksInPath()
+        defer { try? FileManager.default.removeItem(at: resolvedProbeRoot) }
 
         guard let probe = try? Marmot.newWithConfiguration(
-            rootPath: probeRoot.path,
+            rootPath: resolvedProbeRoot.path,
             relayUrls: [],
             options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil)
         ) else {

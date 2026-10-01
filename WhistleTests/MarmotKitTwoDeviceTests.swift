@@ -904,3 +904,62 @@ final class MarmotKitRelayPolicyTests: XCTestCase {
         XCTAssertEqual(MarmotKitService.allowedRelayEndpoints(from: []), [])
     }
 }
+
+// MARK: - Root path
+
+final class MarmotKitRootPathTests: XCTestCase {
+
+    /// The device failure this exists for: MarmotKit opens its root as a
+    /// "complete authorized directory path" and rejects any symlink in it with
+    /// `ELOOP` (os error 62). On iOS `/var` is a symlink to `/private/var`,
+    /// and `FileManager.urls(for:in:)` returns the unresolved form — so
+    /// startup failed with an I/O error naming the leaf directory, which reads
+    /// like the leaf is broken rather than the prefix.
+    ///
+    /// The simulator's container is not under a symlinked prefix, so this
+    /// cannot reproduce the device path. What it *can* pin is the invariant
+    /// that was violated: the path handed to MarmotKit must already equal its
+    /// own fully-resolved form.
+    func testRootPathIsFullySymlinkResolved() throws {
+        let path = try MarmotKitService.defaultRootPath()
+        XCTAssertEqual(
+            URL(fileURLWithPath: path).resolvingSymlinksInPath().path, path,
+            "root path contains an unresolved symlink — MarmotKit rejects these with ELOOP"
+        )
+    }
+
+    func testRootPathExistsAsADirectory() throws {
+        let path = try MarmotKitService.defaultRootPath()
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
+    }
+
+    /// Advancing is what makes identity replacement safe from `RuntimeBusy`,
+    /// so a new generation must genuinely be a different directory.
+    func testAdvancingGenerationYieldsADifferentRoot() throws {
+        let before = try MarmotKitService.defaultRootPath()
+        MarmotKitService.advanceIdentityGeneration()
+        let after = try MarmotKitService.defaultRootPath()
+        XCTAssertNotEqual(before, after)
+        XCTAssertEqual(
+            URL(fileURLWithPath: after).resolvingSymlinksInPath().path, after,
+            "a new generation must be as symlink-free as the first"
+        )
+    }
+
+    /// The previous generation is deleted at launch, when nothing can still
+    /// hold it — otherwise every import or burn leaves a database behind.
+    func testSupersededGenerationIsPurgedOnNextResolve() throws {
+        let stale = try MarmotKitService.defaultRootPath()
+        FileManager.default.createFile(atPath: stale + "/marker", contents: nil)
+        MarmotKitService.advanceIdentityGeneration()
+
+        // Resolving the new generation is what sweeps the old one.
+        _ = try MarmotKitService.defaultRootPath()
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: stale),
+            "superseded generation survived — identity replacement would accumulate databases"
+        )
+    }
+}

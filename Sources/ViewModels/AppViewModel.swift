@@ -379,7 +379,7 @@ final class AppViewModel: ObservableObject {
         let service: MarmotKitService
         do {
             service = try MarmotKitService(
-                rootPath: MarmotKitService.defaultRootPath(),
+                rootPath: try MarmotKitService.defaultRootPath(),
                 relayUrls: usable.isEmpty
                     ? MarmotKitService.allowedRelayEndpoints(from: AppDefaults.defaultRelays)
                     : usable
