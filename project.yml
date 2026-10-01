@@ -22,6 +22,8 @@ packages:
   QRCode:
     url: https://github.com/dagronf/QRCode
     exactVersion: "9.2.1"
+  MarmotKitBindings:
+    path: MarmotKitBindings
 
 settings:
   base:
@@ -82,10 +84,18 @@ targets:
       - path: WhistleTests
     dependencies:
       - target: Whistle
+      - package: MarmotKitBindings
+        product: MarmotKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.getwhistle.whistle.tests
         GENERATE_INFOPLIST_FILE: YES
+        # MarmotKitFFI's XCFramework requires iOS 18.0+ (DISTRIBUTION.md), and
+        # MarmotKitBindings is wired into this test target only. Scoped here
+        # rather than raised app-wide so the shipping 1.x line keeps supporting
+        # iOS 17 — the app-wide bump belongs with the v2.0 cutover, when the
+        # package actually moves into the Whistle target.
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
 
 schemes:
   Whistle:

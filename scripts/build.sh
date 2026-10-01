@@ -51,6 +51,11 @@ fi
 # it to point at vendor/mdk-swift. Restored verbatim afterwards.
 PROJECT_YML_BACKUP=""
 
+# Same idea for MarmotKitBindings/Package.swift and vendor_marmotkit.py — see
+# that script's header comment for why (swift-build#1746 module.modulemap
+# collision between MarmotKitFFI and NostrSDK's nostr_sdkFFI).
+MARMOTKIT_PACKAGE_SWIFT_BACKUP=""
+
 ensure_local_mdk() {
     local revision
     revision=$(python3 scripts/ci_use_local_mdk.py --print-revision)
@@ -64,9 +69,18 @@ ensure_local_mdk() {
     python3 scripts/ci_use_local_mdk.py
 }
 
+ensure_local_marmotkit() {
+    MARMOTKIT_PACKAGE_SWIFT_BACKUP=$(mktemp)
+    cp MarmotKitBindings/Package.swift "$MARMOTKIT_PACKAGE_SWIFT_BACKUP"
+    python3 scripts/vendor_marmotkit.py
+}
+
 # Undo only the local-MDK patch. Restores the exact bytes we saw before
 # patching, so uncommitted edits (e.g. a MARKETING_VERSION bump) survive —
-# a `git checkout -- project.yml` here would silently discard them.
+# a `git checkout --` here would silently discard them. Safe to call right
+# after `xcodegen generate`: xcodegen has already baked project.yml's package
+# reference into the .xcodeproj, so project.yml's on-disk content stops
+# mattering at that point.
 restore_local_changes() {
     if [ -n "$PROJECT_YML_BACKUP" ] && [ -f "$PROJECT_YML_BACKUP" ]; then
         cp "$PROJECT_YML_BACKUP" project.yml
@@ -75,14 +89,31 @@ restore_local_changes() {
     fi
 }
 
-# `set -e` means a failing xcodegen would otherwise leave project.yml
-# pointing at vendor/mdk-swift.
-trap restore_local_changes EXIT
+# Undo the local-MarmotKit patch. Unlike project.yml, MarmotKitBindings is a
+# local SPM package referenced BY PATH — xcodegen only records that path in
+# the .xcodeproj, it does not bake in the package's own Package.swift
+# contents. SwiftPM re-reads Package.swift from disk during xcodebuild's own
+# package-resolution step, so this must stay patched until AFTER xcodebuild
+# runs (never call this right after `xcodegen generate` the way
+# restore_local_changes is called — that would restore the remote
+# url+checksum binaryTarget before SwiftPM ever resolves the local one).
+restore_marmotkit_changes() {
+    if [ -n "$MARMOTKIT_PACKAGE_SWIFT_BACKUP" ] && [ -f "$MARMOTKIT_PACKAGE_SWIFT_BACKUP" ]; then
+        cp "$MARMOTKIT_PACKAGE_SWIFT_BACKUP" MarmotKitBindings/Package.swift
+        rm -f "$MARMOTKIT_PACKAGE_SWIFT_BACKUP"
+        MARMOTKIT_PACKAGE_SWIFT_BACKUP=""
+    fi
+}
+
+# `set -e` means a failing xcodegen/xcodebuild would otherwise leave
+# project.yml/Package.swift pointing at the vendored copies.
+trap 'restore_local_changes; restore_marmotkit_changes' EXIT
 
 case "$COMMAND" in
     build)
         echo "▸ Generating Xcode project..."
         ensure_local_mdk
+        ensure_local_marmotkit
         xcodegen generate
         restore_local_changes
 
@@ -94,6 +125,7 @@ case "$COMMAND" in
             -quiet \
             CODE_SIGNING_ALLOWED=NO
 
+        restore_marmotkit_changes
         echo "✓ Build succeeded"
         ;;
 
@@ -107,6 +139,7 @@ case "$COMMAND" in
         # target. Cheaper than discovering it in CI.
         echo "▸ Generating Xcode project..."
         ensure_local_mdk
+        ensure_local_marmotkit
         xcodegen generate
         restore_local_changes
 
@@ -118,6 +151,7 @@ case "$COMMAND" in
             -quiet \
             CODE_SIGNING_ALLOWED=NO
 
+        restore_marmotkit_changes
         echo "✓ Test target compiles (not run — use CI or an arm64 Mac to execute)"
         ;;
 
@@ -135,6 +169,7 @@ case "$COMMAND" in
 
         echo "▸ Generating Xcode project..."
         ensure_local_mdk
+        ensure_local_marmotkit
         xcodegen generate
         restore_local_changes
 
@@ -145,6 +180,7 @@ case "$COMMAND" in
             -destination "$DESTINATION" \
             CODE_SIGNING_ALLOWED=NO
 
+        restore_marmotkit_changes
         echo "✓ Tests passed"
         ;;
 
