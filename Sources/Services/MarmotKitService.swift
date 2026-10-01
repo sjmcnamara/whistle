@@ -32,7 +32,35 @@ import MarmotKit
 /// - **Admin rules are typed.** `WouldRemoveLastAdmin` / `AdminCannotSelfRemove`
 ///   / `NotGroupAdmin` replace v1's parsing of MDK error *strings*.
 @MainActor
-final class MarmotKitService {
+final class MarmotKitService: ObservableObject {
+
+    // MARK: - Published state
+
+    /// Mirrors `MarmotService`'s published surface so the app layer can be
+    /// swapped onto this service without ViewModels changing shape.
+    @Published private(set) var groups: [WhistleGroup] = []
+    @Published private(set) var lastError: String?
+    @Published private(set) var lastChatMessageGroupId: String?
+    @Published private(set) var lastJoinedGroupId: String?
+    @Published private(set) var lastGroupMembershipChangeId: (String, Date)?
+
+    // MARK: - Injected stores — deliberately absent until the cutover
+    //
+    // The v1 service takes LocationCache, NicknameStore, MemberAvatarStore,
+    // SharedGroupAvatarStore and BatteryAlertService by injection, and this
+    // service will need the same set. They cannot be declared yet: those
+    // types live in the Whistle app module, and this file is compiled into
+    // WhistleTests until step 3d moves it into the app target (see
+    // project.yml). Referencing them here would not compile.
+    //
+    // No loss in practice — they are only consumed by the receive loop that
+    // routes decrypted payloads into app state, which is itself part of
+    // wiring the app. They arrive together at 3d.
+    //
+    // Two of v1's injection points will NOT come across: pendingInviteStore
+    // and joinRequestStore. Protocol v2 has no out-of-group messaging, so
+    // there is no join-request to collect and no pending-invite state to
+    // track (ROADMAP.md step 4).
 
     // MARK: - Errors
 
@@ -49,6 +77,8 @@ final class MarmotKitService {
         /// reported outright.
         case groupNeedsRepair
         case sendQueueFull
+        case avatarTooLarge
+        case reAddFailed(String)
         case underlying(String)
 
         var errorDescription: String? {
@@ -69,6 +99,10 @@ final class MarmotKitService {
                 return "This group needs to be re-joined. Ask an admin to re-invite you."
             case .sendQueueFull:
                 return "This group is stuck sending. Try again once it catches up."
+            case .avatarTooLarge:
+                return "That picture is too large to share. Try a different one."
+            case .reAddFailed:
+                return "Removed the member, but re-adding them failed. Tap Resync again to retry."
             case .underlying(let detail):
                 return detail
             }
@@ -158,6 +192,34 @@ final class MarmotKitService {
             relayUrls: relayUrls,
             options: options
         )
+    }
+
+    // MARK: - Relay policy
+
+    /// Hostnames MarmotKit "will never dial or adopt".
+    ///
+    /// The app's own default relay list is not automatically acceptable:
+    /// MarmotKit enforces a relay safety policy at the dial boundary and
+    /// refuses retired hosts outright, failing identity creation with a
+    /// `Runtime` error rather than quietly skipping them. Verified on device —
+    /// `wss://relay.damus.io` is retired, and it is the first entry in
+    /// `AppDefaults.defaultRelays`.
+    nonisolated func retiredRelayHosts() -> [String] {
+        marmot.retiredRelayHosts()
+    }
+
+    /// Classify relay URLs with the same policy applied when dialling.
+    nonisolated func classifyRelays(_ endpoints: [String]) -> [(endpoint: String, policy: String)] {
+        marmot.classifyRelayEndpoints(endpoints: endpoints).map {
+            ($0.endpoint, String(describing: $0.policy))
+        }
+    }
+
+    /// The subset of `endpoints` MarmotKit is willing to dial.
+    nonisolated func allowedRelays(from endpoints: [String]) -> [String] {
+        marmot.classifyRelayEndpoints(endpoints: endpoints)
+            .filter { $0.policy == .allowed }
+            .map { $0.normalizedEndpoint ?? $0.endpoint }
     }
 
     // MARK: - Lifecycle
@@ -473,6 +535,144 @@ final class MarmotKitService {
         }
     }
 
+    // MARK: - Group queries (parity with the v1 service)
+
+    /// Refresh the published `groups` list.
+    func refreshGroups() async {
+        do {
+            groups = try await groups()
+        } catch {
+            // No WhistleLogger here: it lives in the app module and this file
+            // is compiled into WhistleTests until the cutover. `lastError` is
+            // the observable signal either way; logging joins at 3d.
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Is this pubkey an admin of the group, per live MLS state?
+    func isAdmin(_ pubkeyHex: String, ofGroup groupIdHex: String) async -> Bool {
+        (try? await group(id: groupIdHex))?.isAdmin(pubkeyHex) ?? false
+    }
+
+    /// The admin responsible for re-announcing group state to new joiners.
+    ///
+    /// Lexicographically smallest admin pubkey, as in v1: every admin sees a
+    /// join, so without a rule a three-admin group would send three copies of
+    /// the group photo, and "first in the array" resolves differently per
+    /// device.
+    func designatedBroadcaster(forGroup groupIdHex: String) async -> String? {
+        (try? await group(id: groupIdHex))?.adminPubkeys.min()
+    }
+
+    /// Relays MarmotKit is actually willing to dial from the configured set.
+    var activeRelayURLs: [String] {
+        allowedRelays(from: relayUrls)
+    }
+
+    // MARK: - Message history
+
+    /// One page of history, newest-first, ending before `beforeMessageId`.
+    ///
+    /// Cursor-based, unlike v1's offset paging — which makes v1's careful
+    /// raw-row-count bookkeeping unnecessary rather than merely different.
+    /// Offsets drift when new messages land mid-scroll, so v1 had to advance
+    /// by the raw store count and infer "more" from `count == pageSize`;
+    /// MarmotKit reports `hasMoreBefore` outright and a cursor cannot drift.
+    /// - Parameter before: the oldest message already held, or `nil` for the
+    ///   newest page. Takes a whole message rather than an id because the
+    ///   cursor is compound: the backend rejects a bare id with "timeline
+    ///   pagination requires before and before_message_id together", since
+    ///   `timelineAt` has one-second resolution and needs the id to break
+    ///   ties. Passing the message keeps that detail out of callers.
+    func messages(
+        inGroup groupIdHex: String,
+        before: WhistleMessage? = nil,
+        limit: UInt32 = 50
+    ) async throws -> (messages: [WhistleMessage], hasMoreBefore: Bool) {
+        let account = try requireAccount()
+        return try await Self.run {
+            let page = try marmot.timelineMessages(
+                accountRef: account,
+                query: TimelineMessageQueryFfi(
+                    groupIdHex: groupIdHex,
+                    search: nil,
+                    before: before?.createdAt,
+                    beforeMessageId: before?.id,
+                    after: nil,
+                    afterMessageId: nil,
+                    limit: limit
+                )
+            )
+            // The backend treats `before` as *inclusive* and returns the
+            // cursor row again, so consecutive pages overlap by one. Dropped
+            // here rather than left to callers: v1's ChatViewModel dedupes by
+            // id and would have hidden the duplicate instead of surfacing it,
+            // and anything that trusted the page contents would double-render
+            // one message per page.
+            let mapped = page.messages
+                .map { Self.map(timeline: $0) }
+                .filter { $0.id != before?.id }
+            return (mapped, page.hasMoreBefore)
+        }
+    }
+
+    // MARK: - Chat sub-type senders
+
+    /// Nickname, member avatar and group avatar all ride the chat kind with a
+    /// `type` discriminator, exactly as in v1 — the wire shape of these
+    /// payloads is unchanged by the migration, only the transport is.
+    func sendNicknameUpdate(name: String, toGroup groupIdHex: String) async throws {
+        try await send(
+            content: try NicknamePayload(name: name).jsonString(),
+            kind: MarmotKind.ProtocolV2.chat,
+            toGroup: groupIdHex
+        )
+    }
+
+    func sendAvatarUpdate(_ payload: AvatarPayload, toGroup groupIdHex: String) async throws {
+        guard payload.isWithinSizeLimit else { throw ServiceError.avatarTooLarge }
+        try await send(
+            content: try payload.jsonString(),
+            kind: MarmotKind.ProtocolV2.chat,
+            toGroup: groupIdHex
+        )
+    }
+
+    func sendGroupAvatarUpdate(_ payload: GroupAvatarPayload, toGroup groupIdHex: String) async throws {
+        guard payload.isWithinSizeLimit else { throw ServiceError.avatarTooLarge }
+        try await send(
+            content: try payload.jsonString(),
+            kind: MarmotKind.ProtocolV2.chat,
+            toGroup: groupIdHex
+        )
+    }
+
+    // MARK: - Fork repair
+
+    /// Remove a member and immediately re-invite them.
+    ///
+    /// Ported forward deliberately. Step 3c showed MarmotKit resolving a
+    /// two-admin concurrent-commit fork on its own, but upstream still
+    /// documents `GroupUnrecoverableRepairRequired` as a group "halted until
+    /// another member re-admits this device" — a state that only exists if
+    /// some divergence is unrecoverable, and this is the only cure for it.
+    ///
+    /// Ordering matches v1: nothing is removed until the re-invite is possible,
+    /// and a failure after removal is reported distinctly so the caller can
+    /// retry rather than silently stranding the member.
+    func resyncMember(_ memberRef: String, inGroup groupIdHex: String) async throws {
+        let members = try await members(ofGroup: groupIdHex)
+        if members.contains(memberRef) {
+            try await removeMembers([memberRef], fromGroup: groupIdHex)
+        }
+        do {
+            try await invite(memberRefs: [memberRef], toGroup: groupIdHex)
+        } catch {
+            throw ServiceError.reAddFailed(memberRef)
+        }
+        lastGroupMembershipChangeId = (groupIdHex, Date())
+    }
+
     // MARK: - Mapping
 
     nonisolated private static func map(row: ChatListRowFfi, details: GroupDetailsFfi?) -> WhistleGroup {
@@ -488,6 +688,17 @@ final class MarmotKitService {
             adminPubkeys: details?.group.admins ?? [],
             // 0 means "no activity recorded", which v1 represents as nil.
             lastMessageAt: row.activitySortAt == 0 ? nil : row.activitySortAt
+        )
+    }
+
+    nonisolated private static func map(timeline record: TimelineMessageRecordFfi) -> WhistleMessage {
+        WhistleMessage(
+            id: record.messageIdHex,
+            mlsGroupId: record.groupIdHex,
+            senderPubkey: record.sender,
+            kind: UInt16(truncatingIfNeeded: record.kind),
+            content: record.plaintext,
+            createdAt: record.timelineAt
         )
     }
 
