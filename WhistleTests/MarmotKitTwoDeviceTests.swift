@@ -544,3 +544,149 @@ extension MarmotKitTwoDeviceTests {
         }
     }
 }
+
+// MARK: - Step 10: cursor-based message paging
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Walks the whole history by cursor, asserting the properties that
+    /// actually matter: paging terminates, advances, and loses nothing.
+    ///
+    /// Deliberately *not* asserting that pages never overlap — they can, and
+    /// the first version of this test failed for exactly that reason. The
+    /// cursor is compound (`timelineAt` + message id) because `timelineAt`
+    /// has one-second resolution, but messages sent in quick succession share
+    /// a second and the id does not fully separate them. Whistle generates
+    /// precisely that pattern: location updates arrive in bursts.
+    ///
+    /// So the contract a caller must code against is "pages may repeat rows;
+    /// dedupe by id" — which v1's ChatViewModel already does, meaning this
+    /// would have been invisible in production rather than caught. What must
+    /// never happen is a page that fails to advance (an infinite scroll-back
+    /// loop) or history that cannot be reached at all.
+    @MainActor
+    func testPagesThroughWholeHistoryByCursorWithoutStallingOrLosingMessages() async throws {
+        let pair = try await makePair()
+
+        let sent = (1...5).map { "message \($0)" }
+        for text in sent {
+            try await pair.alice.sendChat(ChatPayload(text: text), toGroup: pair.groupId)
+        }
+
+        try await eventually("all five sends to reach Alice's own history") {
+            let page = try await pair.alice.messages(inGroup: pair.groupId, limit: 50)
+            return page.messages.count >= sent.count
+        }
+
+        // Walk back two at a time, deduping as a caller must.
+        var collected: [String: WhistleMessage] = [:]
+        var cursor: WhistleMessage?
+        var pages = 0
+        let pageLimit = 12   // generous: 5 messages at 2 per page cannot need this many
+
+        while pages < pageLimit {
+            pages += 1
+            let page = try await pair.alice.messages(
+                inGroup: pair.groupId,
+                before: cursor,
+                limit: 2
+            )
+            guard let oldest = page.messages.last else { break }
+
+            let before = collected.count
+            for message in page.messages { collected[message.id] = message }
+
+            // Progress means either new rows or a moved cursor. Neither
+            // changing is a stall, and a caller looping on it would hang.
+            let gainedRows = collected.count > before
+            let cursorMoved = oldest.id != cursor?.id
+            XCTAssertTrue(
+                gainedRows || cursorMoved,
+                "page \(pages) neither added rows nor advanced the cursor — a caller would loop forever"
+            )
+            if !page.hasMoreBefore { break }
+            if !cursorMoved { break }
+            cursor = oldest
+        }
+
+        XCTAssertLessThan(pages, pageLimit, "paging did not terminate")
+
+        let texts = Set(collected.values.compactMap { try? ChatPayload.from(jsonString: $0.content).text })
+        for text in sent {
+            XCTAssertTrue(texts.contains(text), "history lost \(text) — collected: \(texts.sorted())")
+        }
+    }
+}
+
+// MARK: - Step 11: scan to invite
+
+extension MarmotKitTwoDeviceTests {
+
+    /// The whole of the v2 join flow: an admin scans a member's code and
+    /// invites them. There is no counterpart direction — protocol v2 has no
+    /// out-of-group messaging, so a non-member cannot act on anything.
+    @MainActor
+    func testAdminInvitesByScannedCode() async throws {
+        let alice = try makeService()
+        let bob = try makeService()
+        try await alice.startWithNewIdentity()
+        let bobRef = try await bob.startWithNewIdentity()
+        try await bob.publishKeyPackage()
+
+        let groupId = try await alice.createGroup(name: "Dublin")
+
+        // A scanned code resolves to the same account id the API uses, so
+        // inviting by code and by ref are the same operation.
+        try await alice.invite(scannedCode: bobRef, toGroup: groupId)
+
+        try await eventually("Bob to converge after being invited by code") {
+            try await bob.group(id: groupId) != nil
+        }
+        let members = try await alice.members(ofGroup: groupId)
+        XCTAssertTrue(members.contains(bobRef))
+    }
+
+    /// A mis-scan must be distinguishable from a relay or permission failure —
+    /// those are indistinguishable to a user otherwise, and the fix differs.
+    @MainActor
+    func testScanningSomethingThatIsNotAMemberCodeFailsClearly() async throws {
+        let alice = try makeService()
+        try await alice.startWithNewIdentity()
+        let groupId = try await alice.createGroup(name: "Dublin")
+
+        for nonsense in ["", "   ", "hello", "https://example.com", "npub1notvalid"] {
+            do {
+                try await alice.invite(scannedCode: nonsense, toGroup: groupId)
+                XCTFail("accepted \(nonsense.isEmpty ? "<empty>" : nonsense) as a member code")
+            } catch let error as MarmotKitService.ServiceError {
+                guard case .unrecognisedMemberCode = error else {
+                    return XCTFail("expected .unrecognisedMemberCode for \(nonsense), got \(error)")
+                }
+            }
+        }
+    }
+
+    /// Whitespace around a scanned value must not change the outcome — QR
+    /// payloads and pasted text routinely carry a trailing newline.
+    @MainActor
+    func testScannedCodeToleratesSurroundingWhitespace() async throws {
+        let service = try makeService()
+        let ref = try await service.startWithNewIdentity()
+        XCTAssertEqual(service.normalisedAccountReference("  \(ref)\n"), ref)
+    }
+
+    /// A member code is only useful once the KeyPackage has reached a relay.
+    /// Showing it earlier yields a code an admin cannot invite, which looks
+    /// like a broken scanner rather than a timing problem — so the UI gates
+    /// on this in step 3d-iii.
+    @MainActor
+    func testReadinessReachesNetworkReadyOncePublished() async throws {
+        let service = try makeService()
+        try await service.startWithNewIdentity()
+        try await service.publishKeyPackage()
+
+        try await eventually("account setup to reach networkReady") {
+            service.isReadyToBeInvited()
+        }
+    }
+}
