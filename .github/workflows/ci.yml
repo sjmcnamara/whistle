@@ -71,7 +71,7 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: derived-data-${{ hashFiles('Sources/**', 'WhistleCore/**', 'WhistleTests/**', 'project.yml') }}
+          key: derived-data-${{ hashFiles('Sources/**', 'WhistleCore/**', 'WhistleTests/**', 'project.yml', 'MarmotKitBindings/**') }}
           restore-keys: derived-data-
 
       # Key the mdk-swift cache on the pinned MDK revision alone, not the whole
@@ -96,10 +96,27 @@ jobs:
           git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
           cd vendor/mdk-swift && git checkout "$REV" && git lfs pull
 
+      # MarmotKit's release XCFramework has to be vendored and repackaged
+      # locally, not resolved from its remote URL — see
+      # scripts/vendor_marmotkit.py for why (swift-build#1746 modulemap
+      # collision with NostrSDK's own xcframework). Cache the downloaded zip
+      # rather than the 347MB extracted tree: re-extracting is seconds, and
+      # the script skips the download whenever the verified zip is present.
+      - name: Resolve MarmotKit version
+        id: marmotkit-ver
+        run: echo "version=$(python3 scripts/vendor_marmotkit.py --print-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache MarmotKit XCFramework zip
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: vendor/MarmotKitFFI-${{ steps.marmotkit-ver.outputs.version }}.xcframework.zip
+          key: marmotkit-ffi-${{ steps.marmotkit-ver.outputs.version }}
+
       - name: Generate Xcode project
         run: |
           brew install xcodegen
           python3 scripts/ci_use_local_mdk.py
+          python3 scripts/vendor_marmotkit.py
           xcodegen generate
 
       - name: Boot simulator

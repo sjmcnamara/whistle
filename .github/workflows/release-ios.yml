@@ -57,10 +57,26 @@ jobs:
           git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
           cd vendor/mdk-swift && git checkout "$REV" && git lfs pull
 
+      # Same MarmotKit vendoring as ci.yml — see scripts/vendor_marmotkit.py.
+      # Not strictly load-bearing while MarmotKitBindings is only wired into
+      # WhistleTests (archive builds the app target alone), but it is here
+      # before step 3 of the migration moves the package into the app target,
+      # so a release never becomes the first job to discover the gap.
+      - name: Resolve MarmotKit version
+        id: marmotkit-ver
+        run: echo "version=$(python3 scripts/vendor_marmotkit.py --print-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache MarmotKit XCFramework zip
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: vendor/MarmotKitFFI-${{ steps.marmotkit-ver.outputs.version }}.xcframework.zip
+          key: marmotkit-ffi-${{ steps.marmotkit-ver.outputs.version }}
+
       - name: Generate Xcode project
         run: |
           brew install xcodegen
           python3 scripts/ci_use_local_mdk.py
+          python3 scripts/vendor_marmotkit.py
           xcodegen generate
 
       # Imports the Apple Distribution certificate into a job-scoped temporary
