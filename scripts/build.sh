@@ -12,6 +12,30 @@ COMMAND=${1:-build}
 PROJECT="Whistle.xcodeproj"
 SCHEME="Whistle"
 
+# Refuse to run two builds at once.
+#
+# Both ensure_local_mdk and ensure_local_marmotkit patch a tracked file
+# (project.yml, MarmotKitBindings/Package.swift), run xcodegen against it, and
+# restore it afterwards. Two concurrent invocations interleave those steps: one
+# restores the file while the other is still building against the patched
+# version, so SwiftPM resolves the unpatched remote XCFramework and the build
+# fails for reasons found nowhere in the diff. Worse, whichever finishes last
+# can restore a snapshot taken when the file was already patched, leaving the
+# working tree dirty with a vendored path.
+#
+# Failing loudly beats debugging that. flock is unavailable on macOS, so this
+# uses an atomic mkdir — the only portable create-if-absent primitive here.
+LOCK_DIR=".build-lock"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo "✗ Another ./scripts/build.sh is already running (lock: $LOCK_DIR)." >&2
+    echo "  Builds patch project.yml and MarmotKitBindings/Package.swift in place," >&2
+    echo "  so running two at once corrupts both. Wait for the other to finish." >&2
+    echo "  If no build is running, the previous one was killed: rm -rf $LOCK_DIR" >&2
+    exit 1
+fi
+# Released on every exit path, including the restore trap installed below.
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+
 detect_simulator() {
     # Prefer the newest available iPhone simulator
     xcrun simctl list devices available --json 2>/dev/null \
@@ -107,7 +131,11 @@ restore_marmotkit_changes() {
 
 # `set -e` means a failing xcodegen/xcodebuild would otherwise leave
 # project.yml/Package.swift pointing at the vendored copies.
-trap 'restore_local_changes; restore_marmotkit_changes' EXIT
+#
+# This replaces the lock-only trap installed above rather than adding to it —
+# bash keeps one handler per signal — so it has to release the lock too, or the
+# lock would outlive the build and block every subsequent run.
+trap 'restore_local_changes; restore_marmotkit_changes; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 case "$COMMAND" in
     build)

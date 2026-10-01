@@ -341,7 +341,7 @@ final class MarmotKitService {
 
     /// Send an app payload as a custom event.
     ///
-    /// `kind` must be outside MDK's reserved set — use `MarmotKind.V2`, which
+    /// `kind` must be outside MDK's reserved set — use `MarmotKind.ProtocolV2`, which
     /// exists precisely because v1's `chat = 9` collides with MDK's own CHAT
     /// and would be rejected here.
     func send(content: String, kind: UInt16, toGroup groupIdHex: String) async throws {
@@ -360,7 +360,7 @@ final class MarmotKitService {
     func sendLocation(_ payload: LocationPayload, toGroup groupIdHex: String) async throws {
         try await send(
             content: try payload.jsonString(),
-            kind: MarmotKind.V2.location,
+            kind: MarmotKind.ProtocolV2.location,
             toGroup: groupIdHex
         )
     }
@@ -368,7 +368,7 @@ final class MarmotKitService {
     func sendChat(_ payload: ChatPayload, toGroup groupIdHex: String) async throws {
         try await send(
             content: try payload.jsonString(),
-            kind: MarmotKind.V2.chat,
+            kind: MarmotKind.ProtocolV2.chat,
             toGroup: groupIdHex
         )
     }
@@ -383,7 +383,7 @@ final class MarmotKitService {
     /// messages. `kinds` filters server-side rather than after decryption.
     func subscribe(
         toGroup groupIdHex: String? = nil,
-        kinds: [UInt16] = [MarmotKind.V2.location, MarmotKind.V2.chat, MarmotKind.V2.leaveRequest]
+        kinds: [UInt16] = [MarmotKind.ProtocolV2.location, MarmotKind.ProtocolV2.chat, MarmotKind.ProtocolV2.leaveRequest]
     ) async throws -> MessageStream {
         let account = try requireAccount()
         let subscription = try await Self.run {
@@ -419,7 +419,7 @@ final class MarmotKitService {
 
     // MARK: - Mapping
 
-    private nonisolated static func map(row: ChatListRowFfi, details: GroupDetailsFfi?) -> WhistleGroup {
+    nonisolated private static func map(row: ChatListRowFfi, details: GroupDetailsFfi?) -> WhistleGroup {
         WhistleGroup(
             mlsGroupId: row.groupIdHex,
             name: row.groupName,
@@ -435,7 +435,7 @@ final class MarmotKitService {
         )
     }
 
-    private nonisolated static func map(received: ReceivedMessageFfi) -> WhistleMessage {
+    nonisolated private static func map(received: ReceivedMessageFfi) -> WhistleMessage {
         WhistleMessage(
             id: received.messageIdHex,
             mlsGroupId: received.groupIdHex,

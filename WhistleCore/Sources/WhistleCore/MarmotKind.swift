@@ -52,7 +52,7 @@ public enum MarmotKind {
     /// `location` and `leaveRequest` keep their v1 values, which are clear of
     /// every reserved kind. The two kind sets are never on the wire together:
     /// v1 and v2 are not wire-compatible, and v2 groups are created fresh.
-    public enum V2 {
+    public enum ProtocolV2 {
         /// 9 is reserved by MDK, so chat moves to an unreserved low value.
         public static let chat: UInt16 = 3
         public static let location: UInt16 = MarmotKind.location
