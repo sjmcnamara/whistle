@@ -688,7 +688,14 @@ _Released 2026-09-22_
         Added: a "show my code" screen for the prospective member. **It must gate on the KeyPackage being published, not merely on an identity existing** — `createIdentityWithProfile` returns at local-ready, and the two-device tests only worked once `publishKeyPackage()` had been called explicitly. A code shown too early cannot be invited, and that failure looks like a broken scanner rather than a timing problem.
 
         Still a real UX change worth a screenshot review, but a simplification rather than a rebuild — and it removes the step 3/step 4 coupling the earlier entry implied, since there is no new join protocol to build first.
-    5. Port to Android second, once iOS proves the shape out (same order as every other feature in this project).
+    5. **Port to Android second**, once iOS proves the shape out (same order as every other feature in this project) — but note this is *not* a case where iOS can ship alone. v2.0 is wire-incompatible with v1, so an iOS-v2 client cannot talk to an Android-v1 client at all: every mixed-platform group would break. **Android is a release gate for v2.0, not a follow-up.**
+        - **Blocked upstream**: `mdk#1990` — MarmotKit 0.10.4's Android `.so` has 4KB ELF load-segment alignment and fails Google Play's 16KB page-size check. Play permits it today; Android 15+ updates must comply from **2027-02-01**.
+        - **The port inherits every finding from 3d-iii-c1, because they are all shared-architecture rather than iOS quirks.** Carry them across deliberately instead of rediscovering them:
+          1. Adopt the existing nsec (`beginOnboarding`) — do not let MarmotKit mint a new key, or every Android user loses their npub too.
+          2. Match the account **by id**, never `listAccounts().first` — otherwise an import or burn silently resumes the old identity.
+          3. Remove the account *before* dropping the runtime handle, and give each identity generation its own root — Android's `filesDir` equivalent has the same `RuntimeBusy` ownership semantics.
+          4. `AppDefaults.defaultRelays` still has `wss://relay.damus.io` at `[0]` on Android (`android/shared/.../AppDefaults.kt`, pinned by `AppDefaultsTest`). Left alone deliberately for now — Android is still v1, where that host dials fine and changing it would be a behaviour change with no v1 benefit. It must change *with* the port, not before it.
+          5. Chat paging is cursor-based in v2; Android's equivalent of `ChatViewModel`'s offset tracking needs the same rework.
     6. Ship as **v2.0.0** — protocol-breaking, groups don't carry over, release notes need to say so as clearly as the Dublin-group recovery communication did.
 
     See `CLAUDE.md`'s MDK 2.0 / MarmotKit migration section (added 2026-09-23) for the spike's technical details; its older 0.8.0-pin section stays accurate only for as long as `MDKBindings`/mdk-swift remains wired into the shipping app, which doesn't change until step 3 lands.

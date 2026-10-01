@@ -17,6 +17,12 @@ Requires XcodeGen (`brew install xcodegen`). The script auto-detects the newest 
 
 **Intel Mac:** `./scripts/build.sh test` is not supported — mdk-swift only ships arm64 slices and building x86_64-apple-ios requires the full Rust toolchain. Use CI to *run* the suite.
 
+**`./scripts/build.sh test` does NOT run WhistleCore's own test suite.** It builds the Xcode `WhistleTests` target; `WhistleCore` is a separate SPM package with its own tests, run by CI's "WhistleCore Tests" job. A green local `build.sh test` therefore says nothing about them — a change to `AppDefaults` passed 514 Xcode tests locally and went red in CI for the WhistleCore assertions on the same constant. Before pushing a change that touches `WhistleCore/`:
+
+```bash
+cd WhistleCore && swift test   # 78 tests, not covered by build.sh
+```
+
 **Always run `./scripts/build.sh compile-tests` before pushing.** Plain `build.sh` only builds the app target, so `WhistleTests` can stop compiling while the build still passes — and that surfaces as a red CI run rather than a local error. `compile-tests` builds the test target for a generic arm64 device, which works on Intel Macs even though running it does not. It catches signature changes that break test call sites (a service turning `async`, a model gaining a field).
 
 For Android: `cd android && ./gradlew assembleDebug` / `./gradlew test`.
