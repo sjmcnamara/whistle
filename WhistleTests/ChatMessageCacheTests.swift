@@ -41,37 +41,34 @@ final class ChatMessageCacheTests: XCTestCase {
 
     func testStoreThenThreadReturnsSameMessages() {
         let messages = [item(id: "m1"), item(id: "m2", sender: bob)]
-        cache.store(groupId: group1, messages: messages, offset: 5, hasMore: true)
+        cache.store(groupId: group1, messages: messages, hasMore: true)
 
         let thread = cache.thread(for: group1)
         XCTAssertEqual(thread?.messages, messages)
-        XCTAssertEqual(thread?.offset, 5)
         XCTAssertEqual(thread?.hasMore, true)
     }
 
     func testStorePreservesPaginationCursor() {
-        cache.store(groupId: group1, messages: [item(id: "m1")], offset: 42, hasMore: false)
+        cache.store(groupId: group1, messages: [item(id: "m1")], hasMore: false)
 
         let thread = cache.thread(for: group1)
-        XCTAssertEqual(thread?.offset, 42)
         XCTAssertEqual(thread?.hasMore, false)
     }
 
     func testStoreReplacesExistingThread() {
-        cache.store(groupId: group1, messages: [item(id: "m1")], offset: 1, hasMore: true)
-        cache.store(groupId: group1, messages: [item(id: "m2"), item(id: "m3")], offset: 9, hasMore: false)
+        cache.store(groupId: group1, messages: [item(id: "m1")], hasMore: true)
+        cache.store(groupId: group1, messages: [item(id: "m2"), item(id: "m3")], hasMore: false)
 
         let thread = cache.thread(for: group1)
         XCTAssertEqual(thread?.messages.map(\.id), ["m2", "m3"])
-        XCTAssertEqual(thread?.offset, 9)
         XCTAssertEqual(thread?.hasMore, false)
     }
 
     // MARK: - Isolation between groups
 
     func testGroupsAreIsolated() {
-        cache.store(groupId: group1, messages: [item(id: "a1")], offset: 1, hasMore: true)
-        cache.store(groupId: group2, messages: [item(id: "b1")], offset: 2, hasMore: false)
+        cache.store(groupId: group1, messages: [item(id: "a1")], hasMore: true)
+        cache.store(groupId: group2, messages: [item(id: "b1")], hasMore: false)
 
         XCTAssertEqual(cache.thread(for: group1)?.messages.map(\.id), ["a1"])
         XCTAssertEqual(cache.thread(for: group2)?.messages.map(\.id), ["b1"])
@@ -80,8 +77,8 @@ final class ChatMessageCacheTests: XCTestCase {
     // MARK: - Clear single group
 
     func testClearGroupDropsOnlyThatGroup() {
-        cache.store(groupId: group1, messages: [item(id: "a1")], offset: 1, hasMore: true)
-        cache.store(groupId: group2, messages: [item(id: "b1")], offset: 2, hasMore: false)
+        cache.store(groupId: group1, messages: [item(id: "a1")], hasMore: true)
+        cache.store(groupId: group2, messages: [item(id: "b1")], hasMore: false)
 
         cache.clear(groupId: group1)
 
@@ -90,7 +87,7 @@ final class ChatMessageCacheTests: XCTestCase {
     }
 
     func testClearGroupIsNoOpForUnknownGroup() {
-        cache.store(groupId: group1, messages: [item(id: "a1")], offset: 1, hasMore: true)
+        cache.store(groupId: group1, messages: [item(id: "a1")], hasMore: true)
         cache.clear(groupId: "does-not-exist")
         XCTAssertNotNil(cache.thread(for: group1))
     }
@@ -98,8 +95,8 @@ final class ChatMessageCacheTests: XCTestCase {
     // MARK: - Clear all
 
     func testClearAllDropsEveryThread() {
-        cache.store(groupId: group1, messages: [item(id: "a1")], offset: 1, hasMore: true)
-        cache.store(groupId: group2, messages: [item(id: "b1")], offset: 2, hasMore: false)
+        cache.store(groupId: group1, messages: [item(id: "a1")], hasMore: true)
+        cache.store(groupId: group2, messages: [item(id: "b1")], hasMore: false)
 
         cache.clear()
 
@@ -110,7 +107,7 @@ final class ChatMessageCacheTests: XCTestCase {
     // MARK: - Empty messages are still a valid cached state
 
     func testStoreEmptyMessagesIsDistinctFromUnstored() {
-        cache.store(groupId: group1, messages: [], offset: 0, hasMore: false)
+        cache.store(groupId: group1, messages: [], hasMore: false)
         let thread = cache.thread(for: group1)
         XCTAssertNotNil(thread, "an empty-but-loaded thread must be cached, not treated as absent")
         XCTAssertEqual(thread?.messages.count, 0)

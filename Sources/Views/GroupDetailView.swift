@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Group management — a WhatsApp-style hero header (icon + name + rename) over
-/// Settings-style grouped sections: pending joiners, invite actions, members
-/// (preview + "See all" for large groups), and leave.
+/// Settings-style grouped sections: add-member actions, members (preview +
+/// "See all" for large groups), and leave.
 struct GroupDetailView: View {
     // Owned via @StateObject so it survives parent re-renders. The parent row's
     // body re-evaluates whenever marmot.groups changes (e.g. after an add), and
@@ -10,7 +10,7 @@ struct GroupDetailView: View {
     // instance mid-view — leaving the detail screen unpopulated after "Add all".
     @StateObject private var viewModel: GroupDetailViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var showInvite = false
+    @State private var showScanner = false
     @State private var showLeaveConfirmation = false
     @State private var showRename = false
     @State private var renameText = ""
@@ -24,7 +24,7 @@ struct GroupDetailView: View {
 
     init(
         groupId: String,
-        marmot: MarmotService,
+        marmot: MarmotKitService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String
     ) {
@@ -42,14 +42,11 @@ struct GroupDetailView: View {
 
             // Not gated on `viewModel.isAdmin` — see the comment on
             // `MemberRowView`'s swipe actions below for why: that check reads
-            // a cached admin list that can diverge from live MLS truth, and
+            // a cached admin list that can diverge from live group state, and
             // hiding these sections would make it impossible to ever recover
             // from that state through the UI. The underlying calls fail
-            // safely via MDK's own enforcement for a genuine non-admin.
-            if !viewModel.pendingJoiners.isEmpty {
-                readyToJoinSection
-            }
-            invitePeopleSection
+            // safely via MarmotKit's own enforcement for a genuine non-admin.
+            addMemberSection
             membersSection
             locationSharingSection
             leaveSection
@@ -74,14 +71,12 @@ struct GroupDetailView: View {
             .padding(.leading, 12)
         }
         .task { await viewModel.load() }
-        .sheet(isPresented: $showInvite) {
-            if let code = viewModel.inviteCode {
-                InviteShareView(
-                    inviteCode: code,
+        .sheet(isPresented: $showScanner) {
+            if let marmot = appViewModel.marmot {
+                ScanMemberCodeView(
+                    groupId: viewModel.groupId,
                     groupName: viewModel.groupName,
-                    groupAvatar: SharedGroupAvatarStore.resolvedImage(
-                        for: viewModel.groupId, local: avatars, shared: sharedAvatars
-                    )
+                    marmot: marmot
                 )
             }
         }
@@ -196,76 +191,18 @@ struct GroupDetailView: View {
         }
     }
 
-    // MARK: - Ready to Join (pending joiners)
+    // MARK: - Add Member
 
-    private var readyToJoinSection: some View {
-        Section {
-            ForEach(viewModel.pendingJoiners, id: \.pubkey) { joiner in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(joiner.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Anonymous")
-                        // Abbreviated npub, not raw hex — matchable against what
-                        // the joiner can read off their own Identity card.
-                        Text(viewModel.displayIdentifier(for: joiner.pubkey))
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    // Same checkmark/xmark-circle-fill pairing used for the
-                    // invitee-side "pending welcome" accept/decline in
-                    // GroupListView — one consistent approve/deny idiom.
-                    Button {
-                        Task { await viewModel.addPendingJoiner(joiner) }
-                    } label: {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title2)
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .green)
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(viewModel.isAddingMember)
-                    .accessibilityLabel("Approve")
-
-                    Button(role: .destructive) {
-                        viewModel.dismissPendingJoiner(joiner)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .red.opacity(0.8))
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Deny")
-                }
-            }
-        } header: {
-            HStack {
-                Text("Ready to Join (\(viewModel.pendingJoiners.count))")
-                if viewModel.pendingJoiners.count > 1 {
-                    Spacer()
-                    Button {
-                        Task { await viewModel.addAllPendingJoiners() }
-                    } label: {
-                        Text("Add all")
-                    }
-                    .textCase(nil)
-                    .disabled(viewModel.isAddingMember)
-                }
-            }
-        }
-    }
-
-    // MARK: - Invite People
-
-    private var invitePeopleSection: some View {
-        Section("Invite People") {
+    /// Scanning is the primary path and sharing a code is not offered at all.
+    /// Under protocol v2 an invite code would be useless: there is no
+    /// out-of-group messaging, so a non-member holding one has no way to act on
+    /// it. The person joining shows their code; an admin here scans it.
+    private var addMemberSection: some View {
+        Section("Add Member") {
             Button {
-                viewModel.generateInvite()
-                showInvite = true
+                showScanner = true
             } label: {
-                Label("Invite via QR / Code", systemImage: "qrcode")
+                Label("Scan their code", systemImage: "qrcode.viewfinder")
             }
             NavigationLink {
                 AddByNpubView(viewModel: viewModel)

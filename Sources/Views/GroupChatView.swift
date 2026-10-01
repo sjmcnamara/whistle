@@ -13,7 +13,7 @@ struct GroupChatView: View {
 
     init(
         groupId: String,
-        marmot: MarmotService,
+        marmot: MarmotKitService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
         messageCache: ChatMessageCache,

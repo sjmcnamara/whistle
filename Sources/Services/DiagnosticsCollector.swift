@@ -9,17 +9,22 @@ import WhistleCore
 @MainActor
 enum DiagnosticsCollector {
 
-    /// MDK revision this build was compiled against.
+    /// MDK build this app was compiled against.
     ///
-    /// Hand-maintained because the pin lives in `project.yml`, which is a build
-    /// input rather than something readable at runtime. **Update this whenever
-    /// the `MDKBindings` revision changes** — a report naming the wrong
-    /// protocol build is worse than one naming none, because it sends whoever
-    /// reads it looking at the wrong source.
-    static let pinnedMDKRevision = "8a7a0a5"
+    /// Hand-maintained because the pin lives in a build input
+    /// (`MarmotKitBindings/Package.swift`) rather than anywhere readable at
+    /// runtime. **Update this whenever that pin changes** — a report naming
+    /// the wrong protocol build is worse than one naming none, because it
+    /// sends whoever reads it looking at the wrong source.
+    ///
+    /// Now names the MarmotKit release rather than an mdk-swift commit: the
+    /// app target runs protocol v2, and the two are not wire-compatible, so a
+    /// report still citing `8a7a0a5` (MDK 0.8.0 / protocol v1) would point at
+    /// the wrong protocol entirely.
+    static let pinnedMDKRevision = "marmotkit-v0.10.4"
 
     static func collect(
-        marmot: MarmotService?,
+        marmot: MarmotKitService?,
         identity: IdentityService,
         settings: AppSettings,
         relay: RelayService
@@ -54,10 +59,17 @@ enum DiagnosticsCollector {
                         memberCount: (try? await marmot.members(ofGroup: group.mlsGroupId))?.count ?? 0,
                         adminCount: admins.count,
                         isAdmin: admins.contains(myPubkey),
-                        healthy: !marmot.healthTracker.isUnhealthy(groupId: group.mlsGroupId),
-                        consecutiveFailures: marmot.healthTracker.failureCount(for: group.mlsGroupId),
+                        // v1 inferred health by counting consecutive decrypt
+                        // failures. MarmotKit reports an unrecoverable group
+                        // outright, so there is nothing to tally — a group
+                        // that loads is healthy by the only measure available.
+                        healthy: true,
+                        consecutiveFailures: 0,
                         secondsSinceLastEvent: group.lastMessageAt.map { max(0, now - Int($0)) },
-                        ownLeafIndex: try? await marmot.ownLeafIndex(inGroup: group.mlsGroupId)
+                        // Not exposed by MarmotKit's domain-level API — it
+                        // was an MLS ratchet-tree detail of the low-level
+                        // bindings, with no equivalent here.
+                        ownLeafIndex: nil
                     )
                 )
             }
@@ -84,9 +96,13 @@ enum DiagnosticsCollector {
         formatter.timeZone = TimeZone(identifier: "UTC")
         let volatile = DiagnosticsReport.Volatile(generatedAt: formatter.string(from: Date()))
 
-        let recentFailures = (marmot?.healthTracker.failureTypeCountsSnapshot() ?? [:]).map {
-            DiagnosticsReport.FailureCount(type: $0.key, count: $0.value)
-        }
+        // Always empty under protocol v2. v1 tallied decrypt failures by type
+        // because the MDK boundary gave it nothing better to go on — a stuck
+        // group could only be recognised by counting how often it failed.
+        // MarmotKit reports an unrecoverable group as a typed error instead, so
+        // there is no tally to report. The field stays in the report rather
+        // than being dropped, so an older diagnostics bundle still decodes.
+        let recentFailures: [DiagnosticsReport.FailureCount] = []
 
         return DiagnosticsReport(
             app: app,

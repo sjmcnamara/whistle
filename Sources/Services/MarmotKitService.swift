@@ -75,6 +75,10 @@ final class MarmotKitService: ObservableObject {
         case avatarTooLarge
         case reAddFailed(String)
         case unrecognisedMemberCode
+        /// The nsec being adopted does not belong to the identity the caller
+        /// said it did. Never expected in normal operation — it means the app
+        /// would otherwise have started as the wrong person.
+        case identityMismatch(expected: String, adopted: String)
         case underlying(String)
 
         var errorDescription: String? {
@@ -100,7 +104,9 @@ final class MarmotKitService: ObservableObject {
             case .reAddFailed:
                 return "Removed the member, but re-adding them failed. Tap Resync again to retry."
             case .unrecognisedMemberCode:
-                return "That code isn't a Whistle member code. Ask them to show their own code from Settings."
+                return "That code isn't a Whistle member code. Ask them to show theirs from Settings → My Member Code."
+            case .identityMismatch(let expected, let adopted):
+                return "Identity mismatch: expected \(expected.prefix(8))…, adopted \(adopted.prefix(8))…"
             case .underlying(let detail):
                 return detail
             }
@@ -115,6 +121,14 @@ final class MarmotKitService: ObservableObject {
     /// first-class cases now, so the matching is exhaustive instead of
     /// fragile.
     private static func mapError(_ error: Error) -> ServiceError {
+        // Pass our own errors straight through. Everything in this service
+        // runs inside `run`, which maps on the way out — so a `ServiceError`
+        // thrown *inside* (by `requireAccount`, or the identity-mismatch
+        // check) would otherwise be re-wrapped as `.underlying`, losing the
+        // case a caller is trying to `catch`.
+        if let serviceError = error as? ServiceError {
+            return serviceError
+        }
         guard let kitError = error as? MarmotKitError else {
             return .underlying(error.localizedDescription)
         }
@@ -194,6 +208,101 @@ final class MarmotKitService: ObservableObject {
 
     // MARK: - Relay policy
 
+    private static let generationKey = "marmotkit.rootGeneration"
+
+    /// The directory MarmotKit owns its account database under.
+    ///
+    /// Deliberately a sibling of v1's `whistle.db` rather than a replacement:
+    /// protocol v2 is not wire-compatible, v1 groups do not migrate, and
+    /// keeping the two stores apart means an install that falls back to v1
+    /// still finds its data intact.
+    ///
+    /// Suffixed with a generation number, which `advanceIdentityGeneration()`
+    /// bumps on identity replacement. A runtime owns its root until its handle
+    /// is *dropped*, not until `shutdown()` returns, and the handle can
+    /// outlive the swap — a presented view still holding the old service is
+    /// enough. Restarting on the same root then fails with `RuntimeBusy`,
+    /// which during an import or burn means the user is told their new
+    /// identity failed when the key itself was fine. Giving each generation
+    /// its own directory removes the contention rather than depending on
+    /// release timing.
+    ///
+    /// Superseded generations are deleted here, at launch, when exactly one
+    /// service exists and nothing can still be holding them.
+    static func defaultRootPath() -> String {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let container = base.appendingPathComponent("marmotkit", isDirectory: true)
+        try? FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+
+        let generation = UserDefaults.standard.integer(forKey: generationKey)
+        let name = "gen-\(generation)"
+        purgeSupersededGenerations(in: container, keeping: name)
+
+        let root = container.appendingPathComponent(name, isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root.path
+    }
+
+    /// Move to a fresh root for the next identity. Call before rebuilding the
+    /// service on identity replacement.
+    static func advanceIdentityGeneration() {
+        let next = UserDefaults.standard.integer(forKey: generationKey) + 1
+        UserDefaults.standard.set(next, forKey: generationKey)
+        WhistleLogger.marmot.info("Advanced MarmotKit root generation to \(next)")
+    }
+
+    private static func purgeSupersededGenerations(in container: URL, keeping current: String) {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: container, includingPropertiesForKeys: nil
+        )) ?? []
+        for url in contents where url.lastPathComponent.hasPrefix("gen-") && url.lastPathComponent != current {
+            do {
+                try FileManager.default.removeItem(at: url)
+                WhistleLogger.marmot.info("Removed superseded MarmotKit root \(url.lastPathComponent)")
+            } catch {
+                WhistleLogger.marmot.warning("Could not remove \(url.lastPathComponent): \(error)")
+            }
+        }
+    }
+
+    /// The subset of `endpoints` MarmotKit is willing to dial, answered
+    /// *before* a service exists.
+    ///
+    /// Startup needs this ordering: MarmotKit refuses a retired host outright
+    /// — a relay-list declaration naming one fails the whole directory fetch
+    /// with "relay endpoint host is retired", which on device presented as a
+    /// total startup failure rather than one bad URL. So the list has to be
+    /// filtered before it is handed to the runtime, not after.
+    ///
+    /// Classification is an instance method on `Marmot`, so this stands up a
+    /// throwaway runtime to ask. It gets a temporary root of its own rather
+    /// than the real one: a root is owned exclusively for as long as its
+    /// handle lives, and sharing it here would risk the `RuntimeBusy` that
+    /// two instances on one root produce. Nothing is dialled — networking
+    /// begins at `start()`, which this probe never calls.
+    nonisolated static func allowedRelayEndpoints(from endpoints: [String]) -> [String] {
+        guard !endpoints.isEmpty else { return [] }
+        let probeRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("marmotkit-relay-policy-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: probeRoot) }
+
+        guard let probe = try? Marmot.newWithConfiguration(
+            rootPath: probeRoot.path,
+            relayUrls: [],
+            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil)
+        ) else {
+            // Policy unavailable. Returning the input unfiltered is the right
+            // failure: it preserves today's behaviour and lets `start()`
+            // report the real problem, rather than silently dropping every
+            // relay and presenting that as "no relays configured".
+            WhistleLogger.marmot.warning("Relay policy probe unavailable — using relays unfiltered")
+            return endpoints
+        }
+        return probe.classifyRelayEndpoints(endpoints: endpoints)
+            .filter { $0.policy == .allowed }
+            .map { $0.normalizedEndpoint ?? $0.endpoint }
+    }
+
     /// Hostnames MarmotKit "will never dial or adopt".
     ///
     /// The app's own default relay list is not automatically acceptable:
@@ -219,6 +328,9 @@ final class MarmotKitService: ObservableObject {
             .filter { $0.policy == .allowed }
             .map { $0.normalizedEndpoint ?? $0.endpoint }
     }
+
+    /// Relays this service will actually dial, after policy filtering.
+    nonisolated var usableRelayEndpoints: [String] { allowedRelays(from: relayUrls) }
 
     // MARK: - Lifecycle
 
@@ -262,16 +374,44 @@ final class MarmotKitService: ObservableObject {
     /// MarmotKit's database and this signs back into it instead of
     /// re-onboarding.
     @discardableResult
-    func start(adoptingNsec nsec: String, discoveryRelays: [String] = []) async throws -> String {
+    func start(
+        adoptingNsec nsec: String,
+        expecting expectedReference: String?,
+        discoveryRelays: [String] = []
+    ) async throws -> String {
         try await Self.run {
             try await marmot.start()
 
-            // Already adopted on a previous launch — sign in rather than
-            // onboard again.
-            if let existing = try marmot.listAccounts().first {
-                let summary = try await marmot.signInAccount(accountRef: existing.accountIdHex)
+            let expectedId = expectedReference.flatMap { marmot.accountIdHex(reference: $0) }
+            let existing = try marmot.listAccounts()
+
+            // Match on the account this nsec actually belongs to, never simply
+            // the first one present. Taking `.first` looked equivalent and is
+            // not: after an identity import or burn, the previous account is
+            // still in the database, so the app would sign back into the *old*
+            // identity and carry on with its npub and its groups while
+            // reporting the import a success.
+            if let expectedId, let match = existing.first(where: { $0.accountIdHex == expectedId }) {
+                let summary = try await marmot.signInAccount(accountRef: match.accountIdHex)
                 accountRef = summary.accountIdHex
                 return summary.accountIdHex
+            }
+
+            // Accounts present, none of them this one. That is the identity
+            // replacement path, and the stale accounts are dropped rather than
+            // left behind: a burned identity's keys must not survive it, and
+            // leaving them would also make the matching above depend on a
+            // database that only ever grows.
+            for stale in existing where stale.accountIdHex != expectedId {
+                do {
+                    try await marmot.removeAccount(accountRef: stale.accountIdHex)
+                    WhistleLogger.marmot.info("Removed stale account \(stale.accountIdHex.prefix(8))")
+                } catch {
+                    // Not fatal: the new account is still adopted below, and
+                    // matching is by id so a surviving stale row cannot be
+                    // mistaken for it.
+                    WhistleLogger.marmot.warning("Could not remove stale account: \(error)")
+                }
             }
 
             let usableRelays = allowedRelays(from: relayUrls)
@@ -286,8 +426,36 @@ final class MarmotKitService: ObservableObject {
             // has not been attempted yet. Readiness is observed through
             // `setupReadiness()`, which is what `MemberCodeView` gates on.
             accountRef = snapshot.accountIdHex
+
+            // A mismatch here means the nsec and the reference describe
+            // different identities — the caller passed an inconsistent pair.
+            // Worth failing loudly: silently continuing would run the app as
+            // whoever the nsec belongs to, not who the caller believed.
+            if let expectedId, snapshot.accountIdHex != expectedId {
+                throw ServiceError.identityMismatch(
+                    expected: expectedId,
+                    adopted: snapshot.accountIdHex
+                )
+            }
             return snapshot.accountIdHex
         }
+    }
+
+    /// Remove this device's account, destroying its local signing key.
+    ///
+    /// Called before the service is torn down on identity replacement. Doing
+    /// it through MarmotKit rather than deleting the database directory is
+    /// deliberate: the runtime owns that root for as long as its handle lives,
+    /// so removing files underneath it is not safe while the service exists.
+    func forgetCurrentAccount() async {
+        guard let account = accountRef else { return }
+        do {
+            try await marmot.removeAccount(accountRef: account)
+            WhistleLogger.marmot.info("Removed account \(account.prefix(8)) on identity replacement")
+        } catch {
+            WhistleLogger.marmot.error("Failed to remove account on identity replacement: \(error)")
+        }
+        accountRef = nil
     }
 
     /// The account's nsec, for key backup and export.

@@ -128,74 +128,21 @@ final class DiagnosticsCollectorTests: XCTestCase {
 
     // MARK: - Per-group last-event (v2: moved out of Volatile into GroupSnapshot)
 
-    func testGroupSnapshotSecondsSinceLastEventMatchesThatGroupsLastMessageAt() async throws {
-        let mockRelay = MockRelayService()
-        let marmotMLS = MLSService()
-        try await marmotMLS.initialiseInMemory()
-        let keys = Keys.generate()
-        let marmot = MarmotService(
-            relay: mockRelay,
-            mls: marmotMLS,
-            publicKeyHex: keys.publicKey().toHex(),
-            keys: keys
-        )
+    // `secondsSinceLastEvent` against a real group's `lastMessageAt` moved to
+    // `MarmotKitTwoDeviceTests` — asserting it needs a group, and building one
+    // now means a running MarmotKit account rather than an in-memory MLS
+    // service, which that harness already stands up.
 
-        let groupId = try await marmot.createGroup(name: "Test", relays: [])
-        await marmot.refreshGroups()
-
-        let r = await DiagnosticsCollector.collect(
-            marmot: marmot, identity: identity, settings: settings, relay: relay
-        )
-        let snapshot = try XCTUnwrap(r.groups.first { $0.id == DiagnosticsReport.shortHex(groupId) })
-
-        // Ground truth read straight from MDK, not re-derived, so this catches
-        // the collector reading the wrong (or a device-wide) timestamp.
-        let mdkGroup = try await marmotMLS.getGroup(mlsGroupId: groupId)
-        if let lastMessageAt = mdkGroup?.lastMessageAt {
-            let expected = max(0, Int(Date().timeIntervalSince1970) - Int(lastMessageAt))
-            let actual = try XCTUnwrap(snapshot.secondsSinceLastEvent)
-            XCTAssertLessThanOrEqual(abs(actual - expected), 2)
-        } else {
-            // nil must stay nil ("never recorded"), not 0 ("just now").
-            XCTAssertNil(snapshot.secondsSinceLastEvent)
-        }
-    }
-
-    // MARK: - Recent failures (GroupHealthTracker failure-type classification)
+    // MARK: - Recent failures
 
     func testRecentFailuresIsEmptyWhenNoneRecorded() async {
         let r = await collect()
         XCTAssertTrue(r.recentFailures.isEmpty)
     }
 
-    func testRecentFailuresReflectsHealthTrackerFailureTypes() async throws {
-        let mockRelay = MockRelayService()
-        let marmotMLS = MLSService()
-        try await marmotMLS.initialiseInMemory()
-        let keys = Keys.generate()
-        let marmot = MarmotService(
-            relay: mockRelay,
-            mls: marmotMLS,
-            publicKeyHex: keys.publicKey().toHex(),
-            keys: keys
-        )
-
-        // previouslyFailed carries no group id at the MDK boundary, so this is
-        // the only place a permanently-stuck group's failure is ever recorded.
-        marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
-        marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.previouslyFailed)
-        marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.unprocessable)
-
-        let r = await DiagnosticsCollector.collect(
-            marmot: marmot, identity: identity, settings: settings, relay: relay
-        )
-
-        XCTAssertEqual(r.recentFailures.count, 2)
-        XCTAssertEqual(
-            r.recentFailures.first { $0.type == GroupHealthTracker.FailureType.previouslyFailed }?.count, 2
-        )
-        XCTAssertEqual(
-            r.recentFailures.first { $0.type == GroupHealthTracker.FailureType.unprocessable }?.count, 1
-        )
-    }
+    // Failure-type tallying was v1's only way to recognise a permanently stuck
+    // group — `previouslyFailed` carries no group id at the MDK boundary, so
+    // counting was all there was. v2 removes both the tracker and the need for
+    // it, so `recentFailures` is now always empty and the test asserting it
+    // reflected the tracker has nothing left to assert.
 }

@@ -15,7 +15,7 @@ final class AppViewModel: ObservableObject {
     let settings: AppSettings
 
     /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
-    @Published private(set) var marmot: MarmotService?
+    @Published private(set) var marmot: MarmotKitService?
 
     // MARK: - Location (v0.4)
 
@@ -51,25 +51,8 @@ final class AppViewModel: ObservableObject {
     /// Incoming join-requests from invitees, for the admin to batch-add.
     let joinRequestStore: JoinRequestStore
 
-    // MARK: - Pending Approval (v0.7)
-
-    /// A member approval request received via `whistle://addmember/` deep link.
-    struct PendingApprovalRequest {
-        let pubkeyHex: String
-        let groupId: String
-    }
-
-    /// Non-nil when the inviter's app has received an add-member deep link.
-    @Published var pendingApproval: PendingApprovalRequest?
-
-    /// Non-nil when an approval attempt failed — surfaced as an error alert.
-    @Published var approvalError: String?
-
-    /// Set briefly after a successful member approval — triggers a success alert.
-    @Published var approvalSuccess = false
-
     /// GroupListViewModel — owned here so it survives SwiftUI view identity
-    /// changes. Created once after MarmotService is ready.
+    /// changes. Created once after MarmotKitService is ready.
     @Published private(set) var groupListViewModel: GroupListViewModel?
 
     /// Current user's public key hex — convenience for ViewModels.
@@ -117,7 +100,6 @@ final class AppViewModel: ObservableObject {
     /// Tracks whether onAppear has completed — prevents duplicate startup.
     private var didStart = false
     private var cancellables = Set<AnyCancellable>()
-    private var keyRotationTask: Task<Void, Never>?
 
     init() {
         self.identity        = IdentityService()
@@ -280,54 +262,14 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Deep Link Handling (v0.7)
-
-    /// Route incoming `whistle://` URLs to the appropriate flow.
-    func handleIncomingURL(_ url: URL) {
-        guard url.scheme == "whistle" else { return }
-        switch url.host {
-        case "invite":
-            guard let code = try? InviteCode.from(url: url).encode() else {
-                WhistleLogger.marmot.warning("handleIncomingURL: failed to decode invite from \(url)")
-                return
-            }
-            groupListViewModel?.pendingJoinCode = code
-            groupListViewModel?.showJoinGroup = true
-
-        case "addmember":
-            let parts = url.pathComponents.dropFirst()
-            guard parts.count >= 2 else {
-                WhistleLogger.marmot.warning("handleIncomingURL: malformed addmember URL \(url)")
-                return
-            }
-            let pubkeyHex = String(parts[parts.startIndex])
-            let groupId   = String(parts[parts.index(parts.startIndex, offsetBy: 1)])
-                                .removingPercentEncoding ?? String(parts[parts.index(parts.startIndex, offsetBy: 1)])
-            pendingApproval = PendingApprovalRequest(pubkeyHex: pubkeyHex, groupId: groupId)
-
-        default:
-            WhistleLogger.marmot.warning("handleIncomingURL: unknown host in \(url)")
-        }
-    }
-
-    /// Add the member from a pending approval request to their group.
-    func approvePendingMember() async {
-        guard let approval = pendingApproval else { return }
-        guard let marmot else {
-            approvalError = "App not fully initialised — please wait and try again."
-            pendingApproval = nil
-            return
-        }
-        pendingApproval = nil
-        do {
-            try await marmot.addMember(publicKeyHex: approval.pubkeyHex, toGroup: approval.groupId)
-            WhistleLogger.marmot.info("Approved member \(approval.pubkeyHex.prefix(8)) into group \(approval.groupId)")
-            approvalSuccess = true
-        } catch {
-            WhistleLogger.marmot.error("Failed to approve member: \(error)")
-            approvalError = errorMessage(for: error)
-        }
-    }
+    // MARK: - Deep Link Handling
+    //
+    // Both v1 deep links are gone, and neither has a v2 replacement.
+    // `whistle://invite` carried an invite code a non-member acted on, and
+    // protocol v2 has no out-of-group messaging for them to act *with*;
+    // `whistle://addmember` carried a group id the prospect could only have
+    // learned from such an invite. Adding a member is now always admin-side
+    // and in-group (`ScanMemberCodeView`), so there is nothing to route.
 
     private func errorMessage(for error: Error) -> String {
         let desc = error.localizedDescription
@@ -390,9 +332,13 @@ final class AppViewModel: ObservableObject {
     }
 
     private func performFullStartup() async {
-        // Load or generate the Nostr identity. Runs Rust FFI (Keys.generate/parse)
-        // and Secure Enclave crypto on a background thread — these are slow on first
-        // launch and would freeze the splash if called on the main thread.
+        // Load the Nostr identity. Runs Rust FFI (Keys.generate/parse) and
+        // Secure Enclave crypto on a background thread — slow on first launch
+        // and would freeze the splash if called on the main thread.
+        //
+        // `IdentityService` still owns the key on disk under v2. MarmotKit has
+        // its own keyring, but the identity has to come from somewhere on an
+        // upgrade, and this is where existing users' keys already are.
         await identity.initialise()
 
         // Record the time so we can enforce a minimum splash display duration.
@@ -409,107 +355,92 @@ final class AppViewModel: ObservableObject {
             return
         }
 
-        guard let keys = identity.keys else {
-            WhistleLogger.relay.error("No identity available — cannot connect to relays")
+        guard let nsec = identity.exportNsec() else {
+            WhistleLogger.relay.error("No identity available — cannot start MarmotKit")
             didStart = false
             startupPhase = .ready   // dismiss splash so onboarding/empty state is visible
             return
         }
 
-        // Relay connect runs in background — it does not block loading from local DB.
-        // We await the stored task later (after the splash) before starting subscriptions,
-        // which avoids concurrent connect calls and ensures relay is up before subscribing.
-        let enabled = settings.relays.filter(\.isEnabled)
-        let relayTask = Task { await relay.connect(keys: keys, relays: enabled) }
+        // Relays are MarmotKit's to connect, not ours — there is no separate
+        // RelayService step under v2. Retired endpoints are filtered out
+        // first: a relay-list declaration naming one fails the whole directory
+        // fetch with "relay endpoint host is retired", which on device looked
+        // like a total startup failure rather than one bad URL.
+        let configured = settings.relays.filter(\.isEnabled).map(\.url)
+        let usable = MarmotKitService.allowedRelayEndpoints(from: configured)
+        if usable.count != configured.count {
+            let dropped = Set(configured).subtracting(usable).sorted().joined(separator: ", ")
+            WhistleLogger.marmot.warning("Skipping retired relay(s): \(dropped)")
+        }
 
-        // MLS init is local (SQLite) but the first call into the MDK Rust library
-        // triggers runtime initialisation which can block for several seconds.
-        // Run on a background thread so the main thread stays free to render.
         startupPhase = .initialisingEncryption
+
+        let service: MarmotKitService
         do {
-            let mlsRef = self.mls
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    do {
-                        try mlsRef.initialise()
-                        continuation.resume()
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
+            service = try MarmotKitService(
+                rootPath: MarmotKitService.defaultRootPath(),
+                relayUrls: usable.isEmpty
+                    ? MarmotKitService.allowedRelayEndpoints(from: AppDefaults.defaultRelays)
+                    : usable
+            )
         } catch {
             let msg = error.localizedDescription
-            WhistleLogger.mls.error("MLSService init failed: \(msg)")
+            WhistleLogger.marmot.error("MarmotKit init failed: \(msg)")
             mlsError = msg
+            startupPhase = .ready
+            return
+        }
+        service.locationCache = locationCache
+        service.nicknameStore = nicknameStore
+        service.memberAvatarStore = memberAvatarStore
+        service.sharedGroupAvatarStore = sharedGroupAvatarStore
+        service.batteryAlertService = BatteryAlertService(
+            myPubkeyHex: identity.identity?.publicKeyHex ?? "",
+            nicknameStore: nicknameStore
+        )
+        BatteryAlertService.requestPermission()
+
+        do {
+            // Adopts the key the app already holds, so the npub carries over.
+            // Idempotent — signs back into the existing account on every
+            // launch after the first.
+            _ = try await service.start(
+                adoptingNsec: nsec,
+                expecting: identity.identity?.publicKeyHex
+            )
+        } catch {
+            let msg = error.localizedDescription
+            WhistleLogger.marmot.error("MarmotKit start failed: \(msg)")
+            mlsError = msg
+            startupPhase = .ready
+            return
         }
 
         // Let the main run loop drain so the UI stays responsive.
         await Task.yield()
 
-        // Wire up MarmotService once MLS and relay are ready
-        let pubHex = keys.publicKey().toHex()
-        let marmotService = MarmotService(
-            relay: relay,
-            mls: mls,
-            publicKeyHex: pubHex,
-            keys: keys
-        )
-        marmotService.locationCache = locationCache
-        marmotService.nicknameStore = nicknameStore
-        marmotService.memberAvatarStore = memberAvatarStore
-        marmotService.sharedGroupAvatarStore = sharedGroupAvatarStore
-        marmotService.pendingInviteStore = pendingInviteStore
-        marmotService.pendingWelcomeStore = pendingWelcomeStore
-        marmotService.joinRequestStore = joinRequestStore
-        marmotService.settings = settings
-        marmotService.batteryAlertService = BatteryAlertService(
-            myPubkeyHex: pubHex,
-            nicknameStore: nicknameStore
-        )
-        BatteryAlertService.requestPermission()
-
-        // Load persisted groups from MDK database BEFORE publishing
-        // marmotService to the UI — this avoids a flash of empty state
-        // and ensures GroupListViewModel sees groups immediately.
+        // Load persisted groups from MarmotKit's database BEFORE publishing
+        // the service to the UI — this avoids a flash of empty state and
+        // ensures GroupListViewModel sees groups immediately.
         startupPhase = .loadingGroups
-        await marmotService.refreshGroups()
-        WhistleLogger.marmot.info("Loaded \(marmotService.groups.count) group(s) from MDK database")
-
-        await Task.yield()
-
-        // Clean up any pending invites that were resolved while the app was closed.
-        let activeIds = Set(marmotService.groups.map(\.mlsGroupId))
-        pendingInviteStore.removeResolved(activeGroupIds: activeIds)
-
-        // Clear any dangling pending commits from a previous crash.
-        // If the app was killed mid-commit, the MLS state may have a
-        // pending commit that can never be merged — clear it so the
-        // group can process new events.
-        for group in marmotService.groups {
-            do {
-                try await mls.clearPendingCommit(groupId: group.mlsGroupId)
-            } catch {
-                // Expected to throw if there's no pending commit — that's fine.
-            }
-        }
+        await service.refreshGroups()
+        WhistleLogger.marmot.info("Loaded \(service.groups.count) group(s) from MarmotKit")
 
         await Task.yield()
 
         // Create GroupListViewModel (owned by AppViewModel so it survives
         // SwiftUI view identity changes in RootView's conditional branches).
         self.groupListViewModel = GroupListViewModel(
-            marmot: marmotService,
-            pendingInviteStore: pendingInviteStore,
-            pendingWelcomeStore: pendingWelcomeStore,
+            marmot: service,
             displayName: { [weak self] in self?.settings.displayName ?? "" }
         )
 
-        // Now publish to UI — GroupListView will receive a fully loaded marmot.
-        self.marmot = marmotService
+        // Now publish to UI — GroupListView will receive a fully loaded service.
+        self.marmot = service
 
         // Enforce a minimum splash display time so the animation has time to
-        // play even when startup is very fast (warm relay, small group list).
+        // play even when startup is very fast.
         let minimumSplash: Duration = .seconds(1.0)
         let elapsed = ContinuousClock.now - splashStart
         if elapsed < minimumSplash {
@@ -529,7 +460,7 @@ final class AppViewModel: ObservableObject {
         // re-announce has no such guard — every existing member's device
         // independently resends only its own profile, so there's no
         // duplicate-sender problem to avoid.
-        marmotService.$lastGroupMembershipChangeId
+        service.$lastGroupMembershipChangeId
             .compactMap { $0?.0 }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] groupId in
@@ -540,105 +471,61 @@ final class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Auto-broadcast display name when we join a group via welcome
-        marmotService.$lastJoinedGroupId
+        // Auto-broadcast display name when we are added to a group.
+        service.$lastJoinedGroupId
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
-            .sink { [weak self, weak marmotService] groupId in
-                guard let self, let marmotService else { return }
+            .sink { [weak self, weak service] groupId in
+                guard let self, let service else { return }
                 let name = self.settings.displayName
                 guard !name.isEmpty else { return }
                 Task {
-                    try? await marmotService.sendNicknameUpdate(name: name, toGroup: groupId)
+                    try? await service.sendNicknameUpdate(name: name, toGroup: groupId)
                     WhistleLogger.chat.info("Auto-broadcast nickname to newly joined group \(groupId)")
                     // Avatar goes to the new group only — unlike the nickname it is
                     // never re-announced on launch, so joining is the one chance the
                     // new group has to learn our face without waiting for a change.
                     if let pubkey = self.myPubkeyHex,
                        let payload = self.memberAvatarStore.ownPayload(pubkeyHex: pubkey) {
-                        try? await marmotService.sendAvatarUpdate(payload, toGroup: groupId)
+                        try? await service.sendAvatarUpdate(payload, toGroup: groupId)
                         WhistleLogger.chat.info("Auto-broadcast avatar to newly joined group \(groupId)")
                     }
                 }
             }
             .store(in: &cancellables)
 
-        // Wire location pipeline: LocationService → MarmotService (all groups)
-        wireLocationPipeline(marmot: marmotService)
+        // Wire location pipeline: LocationService → MarmotKitService (all groups)
+        wireLocationPipeline(marmot: service)
 
         // Start or stop location based on current pause setting
         applyLocationPauseSetting()
 
-        // Ensure relay is connected before starting subscriptions.
-        // relayTask has been running in background since before the splash —
-        // by the time we reach here it is almost certainly already done.
-        await relayTask.value
-
-        // Start subscriptions — launches the notification loop as a background
-        // Task and returns immediately (no longer blocks).
-        if await mls.isInitialised {
-            WhistleLogger.marmot.info("Starting subscriptions, \(marmotService.groups.count) group(s) loaded")
-            marmotService.startSubscriptions()
-        } else {
-            WhistleLogger.marmot.warning("MarmotService created but subscriptions skipped — MLS not initialised")
-        }
+        // Start the receive loop. Returns immediately — the subscription runs
+        // inside MarmotKit's runtime.
+        service.startSubscriptions()
 
         // Deferred work — runs after UI is interactive so startup feels snappy.
         await broadcastNicknameToAllGroups()
-        await refreshKeyPackageIfNeeded(marmot: marmotService)
 
-        // Rotate any groups whose encryption keys have exceeded the configured
-        // interval, then schedule periodic re-checks while the app is active.
-        await marmotService.rotateStaleGroups()
-        startKeyRotationTimer(marmot: marmotService)
-    }
-
-    // MARK: - Key Rotation Timer
-
-    /// Check every 6 hours for groups needing key rotation while the app is active.
-    /// The check itself is cheap (single MDK query); rotation only happens when
-    /// a group's last self-update exceeds the configured interval.
-    private func startKeyRotationTimer(marmot: MarmotService) {
-        keyRotationTask?.cancel()
-        keyRotationTask = Task { [weak marmot] in
-            let interval: Duration = .seconds(6 * 3600) // 6 hours
-            while !Task.isCancelled {
-                try? await Task.sleep(for: interval)
-                guard !Task.isCancelled, let marmot else { break }
-                await marmot.rotateStaleGroups()
-            }
-        }
-    }
-
-    // MARK: - Key Package Refresh
-
-    /// Publish a fresh MLS key package on every startup so this device is
-    /// always "joinable" by npub (admin can scan our QR and add us directly).
-    /// Also ensures pending invites remain resolvable after key package expiry.
-    private func refreshKeyPackageIfNeeded(marmot: MarmotService) async {
-        // Publish to all currently-enabled relays — that's where the admin's
-        // fetchKeyPackage call will look.
-        let relays = settings.relays.filter(\.isEnabled).map(\.url)
-        guard !relays.isEmpty else { return }
-
+        // Publish a fresh KeyPackage so an admin can add us by scanning our
+        // code. Without this the code in `MemberCodeView` is unusable: the
+        // admin's invite fails with no indication that the cause was a missing
+        // KeyPackage rather than a bad scan.
         do {
-            try await marmot.publishKeyPackage(relays: relays)
-            WhistleLogger.marmot.info("Published key package on startup to \(relays.count) relay(s)")
-            if !pendingInviteStore.pendingInvites.isEmpty {
-                Task { @MainActor in
-                    await marmot.fetchMissedGiftWraps()
-                }
-            }
+            let published = try await service.publishKeyPackage()
+            WhistleLogger.marmot.info("Published key package (revision \(published))")
         } catch {
-            // Non-fatal — admin will get an error and can ask the invitee to re-open
-            WhistleLogger.marmot.warning("Key package refresh failed: \(error)")
+            // Non-fatal — retried on next launch, and the readiness gate in
+            // MemberCodeView stops a half-published account being shown as
+            // scannable.
+            WhistleLogger.marmot.warning("Key package publish failed: \(error)")
         }
     }
 
     // MARK: - Location Pipeline
 
-    /// Wire `LocationService.onLocationUpdate` to broadcast location via MarmotService.
-    private func wireLocationPipeline(marmot: MarmotService) {
+    /// Wire `LocationService.onLocationUpdate` to broadcast location via MarmotKitService.
+    private func wireLocationPipeline(marmot: MarmotKitService) {
         locationService.intervalSeconds = settings.locationIntervalSeconds
 
         locationService.onLocationUpdate = { [weak self, weak marmot] location in
@@ -685,7 +572,7 @@ final class AppViewModel: ObservableObject {
     ///
     /// Also inserts the user's own location into `LocationCache` so it appears
     /// on the map immediately — relays may not echo back our own events.
-    private func broadcastLocation(_ location: CLLocation, via marmot: MarmotService) async {
+    private func broadcastLocation(_ location: CLLocation, via marmot: MarmotKitService) async {
         let activeGroups = marmot.groups.filter(\.isActive)
         guard !activeGroups.isEmpty else {
             WhistleLogger.location.warning("broadcastLocation: no active groups — \(marmot.groups.count) total group(s)")
@@ -739,7 +626,7 @@ final class AppViewModel: ObservableObject {
 
         for group in activeGroups where !settings.pausedGroupIds.contains(group.mlsGroupId) {
             do {
-                try await marmot.sendLocationUpdate(payload, toGroup: group.mlsGroupId)
+                try await marmot.sendLocation(payload, toGroup: group.mlsGroupId)
                 WhistleLogger.location.info("Location sent to group \(group.mlsGroupId)")
             } catch {
                 WhistleLogger.location.error("Failed to send location to group \(group.mlsGroupId): \(error)")
@@ -800,14 +687,31 @@ final class AppViewModel: ObservableObject {
         // 2. Disconnect relays
         await relay.disconnect()
 
-        // 3. Tear down Marmot and GroupList
+        // 3. Tear down Marmot and GroupList.
+        //
+        // The account is removed through MarmotKit *before* the handle is
+        // dropped. v1 wiped its own database here and that was the whole job;
+        // MarmotKit keeps a separate store with its own signing key, so
+        // skipping this left the old identity on the device — and because
+        // startup matches an account by id, the next launch would have signed
+        // straight back into it and carried on as the previous user.
+        await marmot?.forgetCurrentAccount()
+        await marmot?.shutdown()
         marmot = nil
         groupListViewModel = nil
 
+        // The next service gets a fresh root. `shutdown()` does not release
+        // the runtime's claim on the old one — the handle does, when it is
+        // dropped — and a still-presented view holding this service is enough
+        // to keep it alive past this point. Reusing the root would then fail
+        // with `RuntimeBusy`, telling the user their import failed when the
+        // key was fine. The superseded directory is deleted on next launch.
+        MarmotKitService.advanceIdentityGeneration()
+
         // 4. Remove all Combine pipelines and timers (will be re-wired below)
+        // No key-rotation timer to tear down — MarmotKit rotates its own
+        // keys, so the app no longer schedules it.
         cancellables.removeAll()
-        keyRotationTask?.cancel()
-        keyRotationTask = nil
 
         // 5. Clear all identity-bound stores
         nicknameStore.clearAll()
@@ -874,10 +778,9 @@ final class AppViewModel: ObservableObject {
         var ending: [BurnPlan.EndingGroup] = []
         for group in marmot.groups where group.isActive {
             let groupId = group.mlsGroupId
-            // Admin lists can drift from live MLS truth (see
-            // GroupDetailViewModel.load) — re-sync before deciding whether
-            // this group can just be left.
-            try? await marmot.syncGroupMetadata(groupId: groupId)
+            // Read live group state rather than the cached row: whether this
+            // group can simply be left turns on the admin list, and deciding
+            // it from stale data would strand a group with no admin.
             let freshGroup = try? await marmot.group(id: groupId)
             let adminPubkeys = freshGroup?.adminPubkeys ?? group.adminPubkeys
             let amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.count == 1
@@ -920,7 +823,7 @@ final class AppViewModel: ObservableObject {
                 continue
             }
             do {
-                try await marmot?.promoteToAdmin(pubkeyHex: promoteePubkey, inGroup: group.groupId)
+                try await marmot?.promoteToAdmin(promoteePubkey, inGroup: group.groupId)
                 WhistleLogger.chat.info("Burn plan: promoted \(promoteePubkey) in \(group.groupName) (\(group.groupId))")
                 toLeave.append(group.groupId)
             } catch {
@@ -930,7 +833,7 @@ final class AppViewModel: ObservableObject {
         for groupId in toLeave {
             let name = groupNames[groupId] ?? groupId
             do {
-                try await marmot?.leaveGroup(groupId: groupId)
+                try await marmot?.leaveGroup(groupId)
                 WhistleLogger.chat.info("Burn plan: left \(name) (\(groupId)) successfully")
             } catch {
                 WhistleLogger.chat.error("Burn plan: leave FAILED for \(name) (\(groupId)): \(error)")

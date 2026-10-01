@@ -20,51 +20,6 @@ struct RootView: View {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
         }
-        .alert("Approve Member?", isPresented: approvalBinding) {
-            Button("Approve") { Task { await appViewModel.approvePendingMember() } }
-            Button("Dismiss", role: .cancel) { appViewModel.pendingApproval = nil }
-        } message: {
-            if let approval = appViewModel.pendingApproval {
-                let groupName = appViewModel.groupListViewModel?.groups
-                    .first(where: { $0.id == approval.groupId })?.name ?? "a group"
-                // Abbreviated npub, not raw hex — lets the admin match it against
-                // what the joiner can read off their own Identity card.
-                Text("\(appViewModel.nicknameStore.displayName(for: approval.pubkeyHex)) wants to join \(groupName).")
-            }
-        }
-        .alert("Approval Failed", isPresented: errorBinding) {
-            Button("OK") { appViewModel.approvalError = nil }
-        } message: {
-            if let msg = appViewModel.approvalError {
-                Text(msg)
-            }
-        }
-        .alert("Member Approved", isPresented: successBinding) {
-            Button("OK") { appViewModel.approvalSuccess = false }
-        } message: {
-            Text("They should appear in the group shortly.")
-        }
-    }
-
-    private var approvalBinding: Binding<Bool> {
-        Binding(
-            get: { appViewModel.pendingApproval != nil },
-            set: { if !$0 { appViewModel.pendingApproval = nil } }
-        )
-    }
-
-    private var errorBinding: Binding<Bool> {
-        Binding(
-            get: { appViewModel.approvalError != nil },
-            set: { if !$0 { appViewModel.approvalError = nil } }
-        )
-    }
-
-    private var successBinding: Binding<Bool> {
-        Binding(
-            get: { appViewModel.approvalSuccess },
-            set: { if !$0 { appViewModel.approvalSuccess = false } }
-        )
     }
 
     @ViewBuilder

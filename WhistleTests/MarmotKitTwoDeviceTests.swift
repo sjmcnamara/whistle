@@ -709,7 +709,7 @@ extension MarmotKitTwoDeviceTests {
 
         // A fresh v2 install — separate database and keyring — adopting it.
         let upgraded = try makeService()
-        let adoptedRef = try await upgraded.start(adoptingNsec: nsec)
+        let adoptedRef = try await upgraded.start(adoptingNsec: nsec, expecting: originalRef)
 
         XCTAssertEqual(
             adoptedRef, originalRef,
@@ -718,24 +718,189 @@ extension MarmotKitTwoDeviceTests {
         XCTAssertEqual(upgraded.myMemberCode(), original.myMemberCode())
     }
 
-    /// Relaunching must sign back in, not onboard a second account — doing the
-    /// latter would accumulate accounts and make `listAccounts().first`
-    /// ambiguous.
+    /// Relaunching must resume the adopted account, not onboard a second one.
+    ///
+    /// The inner scopes are load-bearing, not style: a root is owned until its
+    /// `Marmot` handle is *dropped*, and `shutdown()` does not drop it. Holding
+    /// the first service in scope while constructing the second on the same
+    /// root fails with `RuntimeBusy` — which is the same hazard production
+    /// avoids by giving each identity generation its own root.
     @MainActor
-    func testRelaunchSignsBackInRatherThanOnboardingAgain() async throws {
+    func testRelaunchResumesTheAdoptedAccount() async throws {
         let storage = makeStorage()
+        let nsec: String
+        let seedRef: String
+        do {
+            let seed = try makeService()
+            seedRef = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
 
         let firstRef: String
         do {
-            let service = try makeService(on: storage)
-            let seed = try makeService()
-            _ = try await seed.startWithNewIdentity()
-            firstRef = try await service.start(adoptingNsec: try seed.revealNsec())
-            await service.shutdown()
+            let first = try makeService(on: storage)
+            firstRef = try await first.start(adoptingNsec: nsec, expecting: seedRef)
+            await first.shutdown()
         }
 
         let relaunched = try makeService(on: storage)
-        let secondRef = try await relaunched.start(adoptingNsec: "nsec-should-be-ignored-on-relaunch")
+        let secondRef = try await relaunched.start(adoptingNsec: nsec, expecting: seedRef)
         XCTAssertEqual(secondRef, firstRef, "relaunch did not resume the adopted account")
+    }
+
+    /// Importing a different key must switch identity, not quietly keep the
+    /// old one.
+    ///
+    /// This is the bug the `expecting:` argument exists for. Signing into
+    /// `listAccounts().first` looked equivalent and was not: the previous
+    /// account is still in MarmotKit's database after an import or a burn, so
+    /// the app signed back into the *old* identity — keeping its npub and its
+    /// groups — while reporting the import a success. Silent, and it would
+    /// have survived any test that only ever used one key.
+    @MainActor
+    func testImportingADifferentKeyReplacesTheIdentityRatherThanResumingTheOld() async throws {
+        let storage = makeStorage()
+
+        let refA: String, nsecA: String, refB: String, nsecB: String
+        do {
+            let seedA = try makeService()
+            refA = try await seedA.startWithNewIdentity()
+            nsecA = try seedA.revealNsec()
+            await seedA.shutdown()
+        }
+        do {
+            let seedB = try makeService()
+            refB = try await seedB.startWithNewIdentity()
+            nsecB = try seedB.revealNsec()
+            await seedB.shutdown()
+        }
+        XCTAssertNotEqual(refA, refB)
+
+        do {
+            let app = try makeService(on: storage)
+            _ = try await app.start(adoptingNsec: nsecA, expecting: refA)
+            await app.shutdown()
+        }
+
+        // The import: same device storage, a different key, and account A
+        // deliberately left in the database — that is the condition under
+        // which `listAccounts().first` silently resumed the wrong identity.
+        let afterImport = try makeService(on: storage)
+        let adopted = try await afterImport.start(adoptingNsec: nsecB, expecting: refB)
+
+        XCTAssertEqual(adopted, refB, "import resumed the previous identity instead of adopting the new key")
+        XCTAssertNotEqual(adopted, refA)
+    }
+
+    /// An nsec and a reference that disagree must fail loudly. Continuing
+    /// would run the app as whoever the nsec belongs to, which is not who the
+    /// caller believed it was.
+    @MainActor
+    func testAdoptingWithAMismatchedReferenceThrows() async throws {
+        let nsecA: String, refB: String
+        do {
+            let seedA = try makeService()
+            _ = try await seedA.startWithNewIdentity()
+            nsecA = try seedA.revealNsec()
+            await seedA.shutdown()
+        }
+        do {
+            let seedB = try makeService()
+            refB = try await seedB.startWithNewIdentity()
+            await seedB.shutdown()
+        }
+
+        let service = try makeService()
+        do {
+            _ = try await service.start(adoptingNsec: nsecA, expecting: refB)
+            XCTFail("expected a mismatch to throw")
+        } catch MarmotKitService.ServiceError.identityMismatch {
+            // Expected.
+        }
+    }
+}
+
+// MARK: - Diagnostics against a real group
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Moved here from `DiagnosticsCollectorTests`: asserting
+    /// `secondsSinceLastEvent` needs an actual group, and under v2 that means
+    /// a running MarmotKit account rather than an in-memory MLS service.
+    ///
+    /// Ground truth is read back from the group itself rather than re-derived,
+    /// so this catches the collector reading the wrong timestamp — or a
+    /// device-wide one — instead of that group's own.
+    @MainActor
+    func testDiagnosticsSecondsSinceLastEventMatchesThatGroupsLastMessageAt() async throws {
+        let service = try makeService()
+        _ = try await service.startWithNewIdentity()
+        let groupId = try await service.createGroup(name: "Diagnostics")
+        await service.refreshGroups()
+
+        let report = await DiagnosticsCollector.collect(
+            marmot: service,
+            identity: IdentityService(),
+            settings: .shared,
+            relay: RelayService()
+        )
+        let snapshot = try XCTUnwrap(
+            report.groups.first { $0.id == DiagnosticsReport.shortHex(groupId) },
+            "collector reported no snapshot for the group that was just created"
+        )
+
+        let loaded = try await service.group(id: groupId)
+        let group = try XCTUnwrap(loaded)
+        if let lastMessageAt = group.lastMessageAt {
+            let expected = max(0, Int(Date().timeIntervalSince1970) - Int(lastMessageAt))
+            let actual = try XCTUnwrap(snapshot.secondsSinceLastEvent)
+            XCTAssertLessThanOrEqual(abs(actual - expected), 2)
+        } else {
+            // nil must stay nil ("never recorded"), not 0 ("just now").
+            XCTAssertNil(snapshot.secondsSinceLastEvent)
+        }
+    }
+}
+
+// MARK: - Relay policy
+
+/// No service instance needed — relay policy is answered before one exists,
+/// because startup has to filter the list *before* handing it to the runtime.
+final class MarmotKitRelayPolicyTests: XCTestCase {
+
+    /// The regression that broke startup on device. MarmotKit refuses a
+    /// retired host at the dial boundary, and a relay-list declaration naming
+    /// one fails the whole relay directory fetch rather than just that
+    /// endpoint — so a single retired default took the entire launch down with
+    /// "relay endpoint host is retired". `wss://relay.damus.io` was the first
+    /// entry in the shipped default list.
+    func testShippedDefaultRelaysAreAllDialable() {
+        let allowed = MarmotKitService.allowedRelayEndpoints(from: AppDefaults.defaultRelays)
+        XCTAssertEqual(
+            allowed.count, AppDefaults.defaultRelays.count,
+            """
+            A default relay is not dialable by MarmotKit. Startup filters the \
+            list, so the app still launches — but shipping an unusable default \
+            means every new install silently loses a relay. \
+            defaults=\(AppDefaults.defaultRelays) allowed=\(allowed)
+            """
+        )
+    }
+
+    func testRetiredHostIsFilteredOut() {
+        let mixed = ["wss://relay.damus.io"] + AppDefaults.defaultRelays
+        let allowed = MarmotKitService.allowedRelayEndpoints(from: mixed)
+        XCTAssertFalse(
+            allowed.contains { $0.contains("relay.damus.io") },
+            "retired host survived filtering — this is what fails the relay directory fetch"
+        )
+        // The usable ones must come through untouched: dropping a retired host
+        // must not cost the account every other relay it had.
+        XCTAssertEqual(allowed.count, AppDefaults.defaultRelays.count)
+    }
+
+    func testEmptyInputYieldsEmptyOutput() {
+        XCTAssertEqual(MarmotKitService.allowedRelayEndpoints(from: []), [])
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Groups tab root — shows the list of groups with Create / Join actions.
+/// Groups tab root — shows the list of groups with Create / My Code actions.
 struct GroupListView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @ObservedObject var viewModel: GroupListViewModel
@@ -10,7 +10,7 @@ struct GroupListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.groups.isEmpty && viewModel.pendingInviteStore.pendingInvites.isEmpty && appViewModel.pendingWelcomeStore.pendingWelcomes.isEmpty {
+                if viewModel.groups.isEmpty {
                     emptyState
                 } else {
                     groupList
@@ -26,9 +26,9 @@ struct GroupListView: View {
                             Label("Create Group", systemImage: "plus.circle")
                         }
                         Button {
-                            viewModel.showJoinGroup = true
+                            viewModel.showMyCode = true
                         } label: {
-                            Label("Join Group", systemImage: "person.badge.plus")
+                            Label("Show My Code", systemImage: "qrcode")
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -38,13 +38,10 @@ struct GroupListView: View {
             .sheet(isPresented: $viewModel.showCreateGroup) {
                 CreateGroupView(viewModel: viewModel)
             }
-            .sheet(isPresented: $viewModel.showJoinGroup, onDismiss: {
-                viewModel.pendingJoinCode = nil
-            }) {
-                JoinGroupView(
-                    viewModel: viewModel,
-                    initialCode: viewModel.pendingJoinCode
-                )
+            .sheet(isPresented: $viewModel.showMyCode) {
+                if let marmot = appViewModel.marmot {
+                    MemberCodeView(marmot: marmot)
+                }
             }
             .refreshable {
                 await viewModel.refresh()
@@ -56,17 +53,12 @@ struct GroupListView: View {
 
     private var groupList: some View {
         List {
-            pendingWelcomesSection
-            pendingInvitesSection
             ForEach(viewModel.groups) { group in
                 NavigationLink {
                     chatDestination(for: group)
                         .onAppear { viewModel.markAsRead(groupId: group.id) }
                 } label: {
-                    GroupRowView(
-                        group: group,
-                        isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
-                    )
+                    GroupRowView(group: group)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
@@ -95,93 +87,6 @@ struct GroupListView: View {
         }
     }
 
-    // MARK: - Pending welcomes (consent required)
-
-    @ViewBuilder
-    private var pendingWelcomesSection: some View {
-        let pending = appViewModel.pendingWelcomeStore.pendingWelcomes
-        if !pending.isEmpty {
-            Section("Group Invitations") {
-                ForEach(pending) { pw in
-                    HStack(spacing: 12) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                            .frame(width: 36)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Group Invitation")
-                                .font(.body)
-                            Text("From \(appViewModel.nicknameStore.displayName(for: pw.senderPubkeyHex))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        Button {
-                            Task {
-                                try? await appViewModel.marmot?.declinePendingWelcome(mlsGroupId: pw.mlsGroupId)
-                            }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, .red.opacity(0.8))
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            Task {
-                                try? await appViewModel.marmot?.approvePendingWelcome(mlsGroupId: pw.mlsGroupId)
-                            }
-                        } label: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title2)
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, .green)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-        }
-    }
-
-    // MARK: - Pending invites
-
-    @ViewBuilder
-    private var pendingInvitesSection: some View {
-        let pending = viewModel.pendingInviteStore.pendingInvites
-        if !pending.isEmpty {
-            Section {
-                ForEach(pending) { invite in
-                    HStack(spacing: 12) {
-                        Image(systemName: "hourglass")
-                            .foregroundStyle(.orange)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Pending Invite")
-                                .font(.body)
-                            Text("Waiting for admin to add you")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-                    .opacity(0.7)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            viewModel.pendingInviteStore.remove(groupHint: invite.groupHint)
-                        } label: {
-                            Label("Cancel", systemImage: "xmark.circle")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     /// Build the chat view for a selected group.
     @ViewBuilder
     private func chatDestination(for group: GroupListViewModel.GroupListItem) -> some View {
@@ -192,8 +97,7 @@ struct GroupListView: View {
                 marmot: marmot,
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
-                messageCache: appViewModel.chatMessageCache,
-                isUnhealthy: viewModel.healthTracker.isUnhealthy(groupId: group.id)
+                messageCache: appViewModel.chatMessageCache
             )
         } else {
             Text("Marmot service not ready")
@@ -214,7 +118,7 @@ struct GroupListView: View {
             Text("No groups yet")
                 .font(.title3.weight(.semibold))
 
-            Text("Create a group to start sharing locations\nand chatting with your circle.")
+            Text("Create a group, or show your code to an admin\nso they can add you to theirs.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -232,9 +136,9 @@ struct GroupListView: View {
                 .controlSize(.large)
 
                 Button {
-                    viewModel.showJoinGroup = true
+                    viewModel.showMyCode = true
                 } label: {
-                    Label("Join Group", systemImage: "person.badge.plus")
+                    Label("Show My Code", systemImage: "qrcode")
                         .font(.body.weight(.medium))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
@@ -257,7 +161,7 @@ struct GroupListView: View {
 /// Wrapper that holds the ChatViewModel and manages navigation to GroupDetailView.
 private struct GroupChatContainer: View {
     let group: GroupListViewModel.GroupListItem
-    let marmot: MarmotService
+    let marmot: MarmotKitService
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
     let messageCache: ChatMessageCache
