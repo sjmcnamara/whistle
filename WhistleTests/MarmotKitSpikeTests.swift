@@ -16,7 +16,11 @@ import MarmotKit
 /// this layer), so it is gated behind `MARMOTKIT_SPIKE_LIVE_RELAY` and skipped by default —
 /// it must not make `./scripts/build.sh test` flaky or depend on network in ordinary CI runs.
 /// Run locally with that env var set (any value) to actually exercise it against
-/// wss://relay.damus.io, the same relay already in `AppDefaults.defaultRelays`.
+/// wss://nos.lol. Deliberately NOT relay.damus.io, which is in
+/// `AppDefaults.defaultRelays` but which MarmotKit classifies as a retired
+/// host and refuses to dial — this test would fail for a reason unrelated
+/// to the code under test. Superseded in practice by
+/// `MarmotKitTwoDeviceTests`, which drives a relay we control.
 final class MarmotKitSpikeTests: XCTestCase {
 
     /// Nostr kind for the spike's own custom event. Arbitrary and outside MDK's reserved
@@ -31,7 +35,7 @@ final class MarmotKitSpikeTests: XCTestCase {
         )
 
         let rootPath = NSTemporaryDirectory().appending("marmotkit-spike-\(UUID().uuidString)")
-        let relayUrls = ["wss://relay.damus.io"]
+        let relayUrls = ["wss://nos.lol"]
 
         let marmot = try Marmot(rootPath: rootPath, relayUrls: relayUrls)
         try await marmot.start()
