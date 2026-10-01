@@ -578,6 +578,36 @@ final class MarmotKitService: ObservableObject {
     /// KeyPackage to be fetchable first — which is also why onboarding has to
     /// gate "show my invite QR" on publication rather than on identity
     /// creation (ROADMAP.md step 4).
+    /// Connection counters straight from the runtime, so "no relay
+    /// connectivity" is a measurement rather than a symptom.
+    func relayDiagnostics() async -> String {
+        let health = await marmot.relayHealth()
+        var parts: [String] = []
+        parts.append("total=\(health.totalRelays)")
+        parts.append("connected=\(health.connected)")
+        parts.append("connecting=\(health.connecting)")
+        parts.append("pending=\(health.pending)")
+        parts.append("disconnected=\(health.disconnected)")
+        parts.append("terminated=\(health.terminated)")
+        parts.append("banned=\(health.banned)")
+        parts.append("sleeping=\(health.sleeping)")
+        parts.append("attempts=\(health.connectionAttempts)")
+        parts.append("successes=\(health.connectionSuccesses)")
+        parts.append("sdkBacked=\(health.sdkBacked)")
+        parts.append("forwarder=\(health.notificationForwarderRunning)")
+        return "relays " + parts.joined(separator: " ")
+    }
+
+    /// What the account actually believes its relays are, which is not
+    /// necessarily what was passed in at construction.
+    func relayListDiagnostics() -> String {
+        guard let account = accountRef else { return "no account" }
+        guard let lists = try? marmot.accountRelayLists(accountRef: account) else {
+            return "relay lists unavailable (setup may be incomplete)"
+        }
+        return "relay lists: \(String(describing: lists))"
+    }
+
     /// Human-readable dump of the onboarding state machine, for diagnosing a
     /// setup that will not complete. Steps can sit at `needsInput` awaiting a
     /// caller action, and the action list says which.
@@ -586,16 +616,28 @@ final class MarmotKitService: ObservableObject {
         guard let snapshot = try marmot.onboardingSnapshot(accountRef: account) else {
             return ["no onboarding session (account was not created via beginOnboarding)"]
         }
-        var lines = [
-            "ready=\(snapshot.ready) revision=\(snapshot.revision) "
-                + "cancellationPending=\(snapshot.cancellationPending) "
-                + "proposal=\(snapshot.proposal != nil) singleDevice=\(snapshot.singleDeviceNotice != nil)"
-        ]
+        var header: [String] = []
+        header.append("ready=\(snapshot.ready)")
+        header.append("revision=\(snapshot.revision)")
+        header.append("cancellationPending=\(snapshot.cancellationPending)")
+        header.append("proposal=\(snapshot.proposal != nil)")
+        header.append("singleDevice=\(snapshot.singleDeviceNotice != nil)")
+        var lines = [header.joined(separator: " ")]
         for state in snapshot.steps {
-            lines.append(
-                "step=\(state.step) status=\(state.status) "
-                    + "actions=\(state.actions) findings=\(state.findings.count)"
-            )
+            let step = String(describing: state.step)
+            let status = String(describing: state.status)
+            let actions = String(describing: state.actions)
+            lines.append("step=\(step) status=\(status) actions=\(actions)")
+            // The findings are the part that says *why* a step will not pass —
+            // `issue` names the fault (`unreachable`, `timedOut`,
+            // `retiredRelay`, `authenticationRequired`, `noUsableRoute`, …)
+            // and `endpoint` names the relay it happened on. A count alone is
+            // useless, which is how the first version of this was written.
+            for finding in state.findings {
+                let issue = String(describing: finding.issue)
+                let endpoint = finding.endpoint ?? "-"
+                lines.append("  finding issue=\(issue) endpoint=\(endpoint)")
+            }
         }
         return lines
     }
@@ -636,96 +678,156 @@ final class MarmotKitService: ObservableObject {
                 return try marmot.accountSetupReadiness(accountRef: account)
             }
 
-            var lastRevision: UInt64 = 0
+            // Every (step, action) pair already tried. Without this the loop
+            // re-applies the *same* action on every pass — observed on device,
+            // where `inboxRelays` kept being handed our configured relay list
+            // and kept coming back `needsInput`, while `useRecommendedRelays`
+            // sat unused in the same action list.
+            var attempted: Set<String> = []
+
             for _ in 0..<24 {
                 var snapshot = try await marmot.runOnboarding(accountRef: account)
                 if snapshot.ready { break }
 
-                if let blocked = snapshot.steps.first(where: {
-                    $0.status == .needsInput || $0.status == .retryableFailure
-                }) {
-                    snapshot = try await resolveOnboardingStep(blocked, account: account, snapshot: snapshot)
+                let blockedStep: OnboardingStepStateFfi? = snapshot.steps.first { state in
+                    let status = state.status
+                    return status == .needsInput || status == .retryableFailure
+                }
+                guard let blocked = blockedStep else { break }
+
+                for finding in blocked.findings {
+                    // Composed as a plain String first. Concatenating inside an
+                    // os_log interpolation made the type-checker give up on
+                    // this expression entirely.
+                    let step = String(describing: blocked.step)
+                    let issue = String(describing: finding.issue)
+                    let endpoint = finding.endpoint ?? "-"
+                    let message = "Onboarding \(step) finding: \(issue) endpoint=\(endpoint)"
+                    WhistleLogger.marmot.warning("\(message)")
                 }
 
-                // No forward movement and nothing we could resolve — stop
-                // rather than spin. Readiness below reports how far it got.
-                if snapshot.revision == lastRevision { break }
-                lastRevision = snapshot.revision
+                guard let resolved = try await resolveOnboardingStep(
+                    blocked, account: account, snapshot: snapshot, attempted: &attempted
+                ) else {
+                    // Nothing left to try on this step.
+                    break
+                }
+                snapshot = resolved
                 if snapshot.ready { break }
             }
-            return try marmot.accountSetupReadiness(accountRef: account)
+
+            let readiness = try marmot.accountSetupReadiness(accountRef: account)
+            if readiness != .networkReady {
+                // Dump the whole picture rather than just the end state: the
+                // step findings name the failing relay and the reason, which
+                // is the only thing that distinguishes "relay unreachable"
+                // from "step needs an action we did not handle".
+                WhistleLogger.marmot.error("Account setup stalled at \(String(describing: readiness))")
+                for line in (try? onboardingDiagnostics()) ?? [] {
+                    WhistleLogger.marmot.error("  \(line)")
+                }
+                let relayState = await self.relayDiagnostics()
+                WhistleLogger.marmot.error("  \(relayState)")
+                let listState = self.relayListDiagnostics()
+                WhistleLogger.marmot.error("  \(listState)")
+            }
+            return readiness
         }
     }
 
-    /// Clear one blocking onboarding step, choosing from the actions the step
-    /// itself offers rather than assuming which are valid.
+    /// Clear one blocking onboarding step.
+    ///
+    /// Chooses from the actions the step itself offers, in a preference order
+    /// per step, and **never repeats an action already tried** — a step that
+    /// stays `needsInput` after an action means that action did not work, so
+    /// repeating it just burns the loop budget. Returns `nil` when every
+    /// offered action has been exhausted.
+    ///
+    /// `cancelOnboarding` is deliberately absent from every preference list:
+    /// it discards the account.
     private func resolveOnboardingStep(
         _ state: OnboardingStepStateFfi,
         account: String,
-        snapshot: OnboardingSnapshotFfi
-    ) async throws -> OnboardingSnapshotFfi {
-        WhistleLogger.marmot.info(
-            "Onboarding step \(String(describing: state.step)) needs input; actions \(String(describing: state.actions))"
-        )
+        snapshot: OnboardingSnapshotFfi,
+        attempted: inout Set<String>
+    ) async throws -> OnboardingSnapshotFfi? {
+        let preference: [OnboardingActionFfi]
         switch state.step {
         case .profile, .follows:
             // Whistle publishes no public Nostr profile and has no social
-            // graph: display names and avatars travel *inside* the group as
-            // MLS payloads, so a kind-0 profile and a follow list are not
-            // merely optional here, they are out of scope. Skipping is the
-            // designed escape — `continueWithout` is in the offered actions.
-            if state.actions.contains(.continueWithout) {
-                return try await marmot.continueOnboardingWithout(accountRef: account, step: state.step)
-            }
+            // graph: display names and avatars travel inside the group as MLS
+            // payloads, so these are out of scope rather than merely optional.
+            preference = [.continueWithout, .retry]
 
         case .relays, .inboxRelays:
-            // Propose our own list rather than accepting recommendations:
-            // these are the policy-filtered relays the user configured, and
-            // adopting unknown ones could reintroduce a retired host.
-            if state.actions.contains(.editRelays) {
-                let relays = allowedRelays(from: relayUrls)
-                if !relays.isEmpty {
-                    return try await marmot.proposeOnboardingRelays(
-                        accountRef: account,
-                        step: state.step,
-                        readRelays: relays,
-                        writeRelays: relays
-                    )
-                }
-            }
-            if state.actions.contains(.useRecommendedRelays) {
-                return try await marmot.proposeOnboardingRecommendedRelays(accountRef: account, step: state.step)
-            }
+            // Our own configured list first — it is policy-filtered, so it
+            // cannot reintroduce a retired host. Recommended relays second,
+            // because a relay list that will not publish is worse than one we
+            // did not choose: without it the account is undiscoverable and
+            // nobody can invite us.
+            preference = [.editRelays, .useRecommendedRelays, .editDiscoveryRelays, .retry, .continueWithout]
 
         case .singleDevice:
-            // One device is the normal case for this app, not a warning to
-            // escalate.
-            return try await marmot.acknowledgeOnboardingSingleDevice(
-                accountRef: account,
-                revision: snapshot.revision
-            )
+            // One device is the normal case for this app, not a warning.
+            preference = [.continueWithout, .retry]
 
         case .keyPackage:
-            if state.actions.contains(.retry) {
-                return try await marmot.retryOnboardingStep(accountRef: account, step: state.step)
+            // No `continueWithout`: without a published KeyPackage nobody can
+            // add us to a group, which is the whole point of the member code.
+            preference = [.retry, .editRelays, .useRecommendedRelays]
+        }
+
+        for action in preference {
+            guard state.actions.contains(action) else { continue }
+            let key = "\(state.step)|\(action)"
+            guard attempted.insert(key).inserted else { continue }
+            WhistleLogger.marmot.info("Onboarding \(String(describing: state.step)): trying \(String(describing: action))")
+            if let next = try await apply(action, step: state.step, account: account, snapshot: snapshot) {
+                return next
             }
         }
 
-        // Fallbacks, in order of preference: try again, then skip. Never
-        // `cancelOnboarding` — that would discard the account.
-        if state.actions.contains(.retry) {
-            return try await marmot.retryOnboardingStep(accountRef: account, step: state.step)
+        if state.step == .singleDevice, snapshot.singleDeviceNotice != nil,
+           attempted.insert("singleDevice|acknowledge").inserted {
+            return try await marmot.acknowledgeOnboardingSingleDevice(
+                accountRef: account, revision: snapshot.revision
+            )
         }
-        if state.actions.contains(.continueWithout) {
-            return try await marmot.continueOnboardingWithout(accountRef: account, step: state.step)
-        }
-        if state.actions.contains(.approveRepair), snapshot.proposal != nil {
-            return try await marmot.approveOnboardingRepair(accountRef: account, revision: snapshot.revision)
-        }
-        WhistleLogger.marmot.warning(
-            "No usable action for onboarding step \(String(describing: state.step))"
+
+        WhistleLogger.marmot.error(
+            "Onboarding \(String(describing: state.step)) exhausted every action: \(String(describing: state.actions))"
         )
-        return snapshot
+        return nil
+    }
+
+    private func apply(
+        _ action: OnboardingActionFfi,
+        step: OnboardingStepFfi,
+        account: String,
+        snapshot: OnboardingSnapshotFfi
+    ) async throws -> OnboardingSnapshotFfi? {
+        let relays = allowedRelays(from: relayUrls)
+        switch action {
+        case .continueWithout:
+            return try await marmot.continueOnboardingWithout(accountRef: account, step: step)
+        case .retry:
+            return try await marmot.retryOnboardingStep(accountRef: account, step: step)
+        case .editRelays:
+            guard !relays.isEmpty else { return nil }
+            return try await marmot.proposeOnboardingRelays(
+                accountRef: account, step: step, readRelays: relays, writeRelays: relays
+            )
+        case .useRecommendedRelays:
+            return try await marmot.proposeOnboardingRecommendedRelays(accountRef: account, step: step)
+        case .editDiscoveryRelays:
+            guard !relays.isEmpty else { return nil }
+            return try await marmot.setOnboardingDiscoveryRelays(accountRef: account, discoveryRelays: relays)
+        case .approveRepair:
+            guard snapshot.proposal != nil else { return nil }
+            return try await marmot.approveOnboardingRepair(accountRef: account, revision: snapshot.revision)
+        default:
+            return nil
+        }
     }
 
     /// Mint and publish a **fresh** KeyPackage, superseding the current slot.

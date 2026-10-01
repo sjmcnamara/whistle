@@ -518,8 +518,11 @@ final class AppViewModel: ObservableObject {
         // screen early degrades to "Publishing your key…" instead of handing
         // out a code no admin can invite.
         do {
+            WhistleLogger.marmot.info("Relays handed to MarmotKit: \(usable.joined(separator: ", "))")
             let readiness = try await service.completeAccountSetup()
             WhistleLogger.marmot.info("Account setup readiness: \(String(describing: readiness))")
+            let relayState = await service.relayDiagnostics()
+            WhistleLogger.marmot.info("\(relayState)")
         } catch {
             // Non-fatal — retried on next launch, and the readiness gate
             // stops a half-published account being shown as scannable.
