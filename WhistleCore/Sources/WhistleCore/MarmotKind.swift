@@ -35,4 +35,27 @@ public enum MarmotKind {
     public static let location: UInt16 = 1
     /// Leave request inner kind.
     public static let leaveRequest: UInt16 = 2
+
+    // MARK: - Marmot protocol v2 (MarmotKit) inner kinds
+
+    /// Inner kinds for the protocol-v2 stack, sent via MarmotKit's
+    /// `send_custom_event` rather than a hand-built kind-445 event.
+    ///
+    /// Separate from the v1 constants above because **`chat` cannot stay 9**:
+    /// MDK reserves kind 9 for its own CHAT type and `send_custom_event`
+    /// rejects any reserved kind outright (`RESERVED_APP_EVENT_KINDS` /
+    /// `validate_custom_event_kind` in `crates/marmot-app` — a pure
+    /// kind-value check with no call-path exception). The full reserved set is
+    /// 5, 7, 9, 447, 448, 449, 1009, 1018, 1068, 1200, 1201, 1202, 1210, 1984,
+    /// 1985 and 4891; see CLAUDE.md's MDK 2.0 section for the named table.
+    ///
+    /// `location` and `leaveRequest` keep their v1 values, which are clear of
+    /// every reserved kind. The two kind sets are never on the wire together:
+    /// v1 and v2 are not wire-compatible, and v2 groups are created fresh.
+    public enum V2 {
+        /// 9 is reserved by MDK, so chat moves to an unreserved low value.
+        public static let chat: UInt16 = 3
+        public static let location: UInt16 = MarmotKind.location
+        public static let leaveRequest: UInt16 = MarmotKind.leaveRequest
+    }
 }
