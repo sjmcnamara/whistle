@@ -84,7 +84,17 @@ Branch `feature/v2.0-marmotkit-spike` — see ROADMAP.md's "Deferred" section fo
 
   Whistle's own `chat = 9` (`WhistleCore/Sources/WhistleCore/MarmotKind.swift`) collides directly with MDK's own `CHAT = 9` — `send_custom_event(kind: 9, ...)` will be rejected outright once we're actually calling it. `location = 1` and `leaveRequest = 2` are clear of every value above. **Target v2.0 numbering: `chat` renumbered to `3`.** Not written into `MarmotKind.swift` yet — see ROADMAP.md's step 2 entry for why (that constant is live in the shipping 0.8 protocol; bumping it now, before the real cutover, would desync chat rendering between pre/post-update clients on existing groups for no reason connected to this migration). Apply the rename as part of step 3, alongside every other breaking change.
 
-- **Not yet done**: `MarmotService` rewrite (step 3), invite/join UI (step 4), Android port (step 5).
+- **Steps 3a–3c are done** (see ROADMAP.md for the full verdict table). Hard-won facts worth not rediscovering:
+
+  - **MarmotKit exposes no injectable transport.** Its entire FFI surface has exactly two callback interfaces — `SecretStore` and `ExternalAccountSignerFfi` — and neither is a transport. Controlling what an instance receives means *being* the relay it dials; `RelayPolicyFfi.allowLoopback` is upstream's explicit opt-in for that. `WhistleTests/Support/LoopbackRelay.swift` is that relay, with replay-order control and hold/release live delivery.
+  - **MarmotKit cannot reach the platform keychain from an XCTest bundle** — `KeystoreUnavailable: "A required entitlement isn't present."`, thrown *before any networking*. The symptom is a relay that accepts nothing and a test that burns its timeout, which is indistinguishable from a transport fault and cost two misdiagnoses. Tests inject `InMemorySecretStore` via `MarmotOptions.secretStore`. **In the app it works** — confirmed on device, identity created and cleanly removed.
+  - **MarmotKit refuses "retired" relay hosts at the dial boundary**, failing identity creation outright rather than skipping them — and at least one of `AppDefaults.defaultRelays` is rejected. Use `classifyRelayEndpoints` / `retiredRelayHosts` to filter before handing any relay list over, including a user's saved Advanced Settings list.
+  - **Root ownership outlives `shutdown`.** It is held until the `Marmot` handle is *dropped*, so two services on one root fail with `RuntimeBusy`. Anything that rebuilds the service must release the previous handle first.
+  - **`acceptLocalOnly` restricts to the local *link*, not loopback.** An `NWListener` with it set binds, reports `.ready`, and silently never accepts; the client sees only `-1005 "network connection was lost"`, identical to a failed handshake.
+  - **`XCTAssert*`/`XCTUnwrap` take autoclosures, which cannot contain `await`.** Hoist the await into a `let` first. Hit three times.
+  - **`./scripts/build.sh xcode` before building in Xcode**, then `restore` afterwards. Every other command restores the vendored-MarmotKit patch before returning, but Xcode re-resolves `MarmotKitBindings/Package.swift` itself on every build, so a restored tree sends it back to the upstream XCFramework and the `module.modulemap` collision returns. The vendoring is a requirement of *every* build entry point — `build.sh`, `ci.yml`, `codeql.yml`, `release-ios.yml` and Xcode — and was missed three times by being treated as a one-off each time.
+
+- **Not yet done**: the 3d cutover, invite/join UI (step 4), Android port (step 5).
 
 ## NostrSDK dependency
 
