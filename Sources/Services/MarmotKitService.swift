@@ -79,6 +79,7 @@ final class MarmotKitService: ObservableObject {
         case sendQueueFull
         case avatarTooLarge
         case reAddFailed(String)
+        case unrecognisedMemberCode
         case underlying(String)
 
         var errorDescription: String? {
@@ -103,6 +104,8 @@ final class MarmotKitService: ObservableObject {
                 return "That picture is too large to share. Try a different one."
             case .reAddFailed:
                 return "Removed the member, but re-adding them failed. Tap Resync again to retry."
+            case .unrecognisedMemberCode:
+                return "That code isn't a Whistle member code. Ask them to show their own code from Settings."
             case .underlying(let detail):
                 return detail
             }
@@ -374,6 +377,59 @@ final class MarmotKitService: ObservableObject {
                 description: description
             )
         }
+    }
+
+    // MARK: - Scan to invite
+    //
+    // Protocol v2 has no out-of-group messaging, so the v1 flow — prospect
+    // scans an admin's group QR, publishes a KeyPackage, gift-wraps a
+    // join-request — has no equivalent and no replacement. The admin's QR is
+    // not reversed but obsolete: a non-member scanning it has no action
+    // available. What remains runs one way only: the prospective member shows
+    // their own code, an admin scans it and invites them (ROADMAP.md step 4).
+
+    /// Resolve a scanned code to the account id the rest of the API expects.
+    ///
+    /// Delegates to MarmotKit rather than decoding bech32 here: it accepts
+    /// npub *and* nprofile, discards nprofile relay hints, and enforces its
+    /// own length limits. Re-implementing that against NostrSDK would be a
+    /// second, subtly different parser for the same input.
+    nonisolated func normalisedAccountReference(_ scanned: String) -> String? {
+        marmot.accountIdHex(reference: scanned.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Invite whoever a scanned code refers to.
+    ///
+    /// Throws `.unrecognisedMemberCode` for anything that isn't a public
+    /// identity reference, so a mis-scan is distinguishable from a relay or
+    /// permission failure — those look identical to a user otherwise.
+    func invite(scannedCode: String, toGroup groupIdHex: String) async throws {
+        guard let memberRef = normalisedAccountReference(scannedCode) else {
+            throw ServiceError.unrecognisedMemberCode
+        }
+        try await invite(memberRefs: [memberRef], toGroup: groupIdHex)
+    }
+
+    /// How far account setup has progressed.
+    ///
+    /// `.networkReady` is the gate for showing a member code: anything
+    /// earlier means the KeyPackage has not reached a relay yet, so an admin
+    /// who scans the code cannot invite them. The two-device tests only
+    /// worked once `publishKeyPackage()` had been called, and a code shown
+    /// too early fails in a way that reads as a broken scanner rather than a
+    /// timing problem.
+    func setupReadiness() throws -> AccountSetupReadinessFfi {
+        let account = try requireAccount()
+        do {
+            return try marmot.accountSetupReadiness(accountRef: account)
+        } catch {
+            throw Self.mapError(error)
+        }
+    }
+
+    /// Whether this account can currently be invited by someone else.
+    func isReadyToBeInvited() -> Bool {
+        (try? setupReadiness()) == .networkReady
     }
 
     // MARK: - Membership & admin

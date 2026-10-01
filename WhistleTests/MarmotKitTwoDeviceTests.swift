@@ -617,3 +617,76 @@ extension MarmotKitTwoDeviceTests {
         }
     }
 }
+
+// MARK: - Step 11: scan to invite
+
+extension MarmotKitTwoDeviceTests {
+
+    /// The whole of the v2 join flow: an admin scans a member's code and
+    /// invites them. There is no counterpart direction — protocol v2 has no
+    /// out-of-group messaging, so a non-member cannot act on anything.
+    @MainActor
+    func testAdminInvitesByScannedCode() async throws {
+        let alice = try makeService()
+        let bob = try makeService()
+        try await alice.startWithNewIdentity()
+        let bobRef = try await bob.startWithNewIdentity()
+        try await bob.publishKeyPackage()
+
+        let groupId = try await alice.createGroup(name: "Dublin")
+
+        // A scanned code resolves to the same account id the API uses, so
+        // inviting by code and by ref are the same operation.
+        try await alice.invite(scannedCode: bobRef, toGroup: groupId)
+
+        try await eventually("Bob to converge after being invited by code") {
+            try await bob.group(id: groupId) != nil
+        }
+        let members = try await alice.members(ofGroup: groupId)
+        XCTAssertTrue(members.contains(bobRef))
+    }
+
+    /// A mis-scan must be distinguishable from a relay or permission failure —
+    /// those are indistinguishable to a user otherwise, and the fix differs.
+    @MainActor
+    func testScanningSomethingThatIsNotAMemberCodeFailsClearly() async throws {
+        let alice = try makeService()
+        try await alice.startWithNewIdentity()
+        let groupId = try await alice.createGroup(name: "Dublin")
+
+        for nonsense in ["", "   ", "hello", "https://example.com", "npub1notvalid"] {
+            do {
+                try await alice.invite(scannedCode: nonsense, toGroup: groupId)
+                XCTFail("accepted \(nonsense.isEmpty ? "<empty>" : nonsense) as a member code")
+            } catch let error as MarmotKitService.ServiceError {
+                guard case .unrecognisedMemberCode = error else {
+                    return XCTFail("expected .unrecognisedMemberCode for \(nonsense), got \(error)")
+                }
+            }
+        }
+    }
+
+    /// Whitespace around a scanned value must not change the outcome — QR
+    /// payloads and pasted text routinely carry a trailing newline.
+    @MainActor
+    func testScannedCodeToleratesSurroundingWhitespace() async throws {
+        let service = try makeService()
+        let ref = try await service.startWithNewIdentity()
+        XCTAssertEqual(service.normalisedAccountReference("  \(ref)\n"), ref)
+    }
+
+    /// A member code is only useful once the KeyPackage has reached a relay.
+    /// Showing it earlier yields a code an admin cannot invite, which looks
+    /// like a broken scanner rather than a timing problem — so the UI gates
+    /// on this in step 3d-iii.
+    @MainActor
+    func testReadinessReachesNetworkReadyOncePublished() async throws {
+        let service = try makeService()
+        try await service.startWithNewIdentity()
+        try await service.publishKeyPackage()
+
+        try await eventually("account setup to reach networkReady") {
+            service.isReadyToBeInvited()
+        }
+    }
+}
