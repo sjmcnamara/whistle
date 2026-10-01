@@ -63,3 +63,6 @@ website/site/
 *.key
 *.mobileprovision
 *.certSigningRequest
+
+# build.sh concurrency lock (see scripts/build.sh)
+.build-lock/

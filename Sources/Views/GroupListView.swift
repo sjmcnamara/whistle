@@ -190,7 +190,6 @@ struct GroupListView: View {
             GroupChatContainer(
                 group: group,
                 marmot: marmot,
-                mls: appViewModel.mls,
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
                 messageCache: appViewModel.chatMessageCache,
@@ -259,7 +258,6 @@ struct GroupListView: View {
 private struct GroupChatContainer: View {
     let group: GroupListViewModel.GroupListItem
     let marmot: MarmotService
-    let mls: MLSService
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
     let messageCache: ChatMessageCache
@@ -271,7 +269,6 @@ private struct GroupChatContainer: View {
         GroupChatView(
             groupId: group.id,
             marmot: marmot,
-            mls: mls,
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex,
             messageCache: messageCache,
@@ -285,7 +282,6 @@ private struct GroupChatContainer: View {
             GroupDetailView(
                 groupId: group.id,
                 marmot: marmot,
-                mls: mls,
                 nicknameStore: nicknameStore,
                 myPubkeyHex: myPubkeyHex
             )

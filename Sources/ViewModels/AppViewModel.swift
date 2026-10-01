@@ -500,7 +500,6 @@ final class AppViewModel: ObservableObject {
         // SwiftUI view identity changes in RootView's conditional branches).
         self.groupListViewModel = GroupListViewModel(
             marmot: marmotService,
-            mls: mls,
             pendingInviteStore: pendingInviteStore,
             pendingWelcomeStore: pendingWelcomeStore,
             displayName: { [weak self] in self?.settings.displayName ?? "" }
@@ -878,17 +877,16 @@ final class AppViewModel: ObservableObject {
             // Admin lists can drift from live MLS truth (see
             // GroupDetailViewModel.load) — re-sync before deciding whether
             // this group can just be left.
-            try? await mls.syncGroupMetadataFromMls(groupId: groupId)
-            let freshGroup = try? await mls.getGroup(mlsGroupId: groupId)
+            try? await marmot.syncGroupMetadata(groupId: groupId)
+            let freshGroup = try? await marmot.group(id: groupId)
             let adminPubkeys = freshGroup?.adminPubkeys ?? group.adminPubkeys
             let amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.count == 1
-            let rawName = freshGroup?.name ?? group.name
-            let name = rawName.isEmpty ? "Unnamed Group" : rawName
+            let name = freshGroup?.displayName ?? group.displayName
             guard amSoleAdmin else {
                 leaving.append(BurnPlan.LeavingGroup(groupId: groupId, groupName: name))
                 continue
             }
-            let members = (try? await mls.getMembers(groupId: groupId)) ?? []
+            let members = (try? await marmot.members(ofGroup: groupId)) ?? []
             let candidates = members
                 .filter { $0 != myPubkey }
                 .map { BurnPlan.Candidate(pubkeyHex: $0, displayName: nicknameStore.displayName(for: $0)) }

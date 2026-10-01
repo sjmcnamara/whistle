@@ -1,7 +1,6 @@
 import Foundation
 import WhistleCore
 import Combine
-import MDKBindings
 import NostrSDK
 
 /// Drives the group detail / management view — member list, invite, remove.
@@ -44,7 +43,6 @@ final class GroupDetailViewModel: ObservableObject {
 
     let groupId: String
     private let marmot: MarmotService
-    private let mls: MLSService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
     private var cancellables = Set<AnyCancellable>()
@@ -54,13 +52,11 @@ final class GroupDetailViewModel: ObservableObject {
     init(
         groupId: String,
         marmot: MarmotService,
-        mls: MLSService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String
     ) {
         self.groupId = groupId
         self.marmot = marmot
-        self.mls = mls
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
 
@@ -95,16 +91,15 @@ final class GroupDetailViewModel: ObservableObject {
             // Refresh cached metadata (name/admins/etc.) from live MLS state
             // first — our cache can drift from what MLS actually enforces,
             // which otherwise shows a stale admin list here.
-            try await mls.syncGroupMetadataFromMls(groupId: groupId)
+            try await marmot.syncGroupMetadata(groupId: groupId)
 
-            // Load group metadata
-            if let group = try await mls.getGroup(mlsGroupId: groupId) {
-                groupName = group.name.isEmpty ? "Unnamed Group" : group.name
+            // Load group metadata, members and admin list. One group read
+            // serves both the name and the admin list.
+            let group = try await marmot.group(id: groupId)
+            if let group {
+                groupName = group.displayName
             }
-
-            // Load member pubkeys and admin list
-            let memberPubkeys = try await mls.getMembers(groupId: groupId)
-            let group = try await mls.getGroup(mlsGroupId: groupId)
+            let memberPubkeys = try await marmot.members(ofGroup: groupId)
             let adminPubkeys = Set(group?.adminPubkeys ?? [])
 
             members = memberPubkeys.map { pubkey in

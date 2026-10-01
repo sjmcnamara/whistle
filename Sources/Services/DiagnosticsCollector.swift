@@ -20,7 +20,6 @@ enum DiagnosticsCollector {
 
     static func collect(
         marmot: MarmotService?,
-        mls: MLSService,
         identity: IdentityService,
         settings: AppSettings,
         relay: RelayService
@@ -43,21 +42,22 @@ enum DiagnosticsCollector {
         var groups: [DiagnosticsReport.GroupSnapshot] = []
         if let marmot {
             for group in marmot.groups where group.isActive {
-                let detail = try? await mls.getGroup(mlsGroupId: group.mlsGroupId)
+                // Re-read live rather than trusting the published cache: a
+                // report is only useful if its epoch and admin list reflect
+                // the MLS state right now.
+                let detail = try? await marmot.group(id: group.mlsGroupId)
                 let admins = detail?.adminPubkeys ?? []
                 groups.append(
                     DiagnosticsReport.GroupSnapshot(
                         id: DiagnosticsReport.shortHex(group.mlsGroupId),
                         epoch: detail?.epoch ?? 0,
-                        memberCount: (try? await mls.getMembers(groupId: group.mlsGroupId))?.count ?? 0,
+                        memberCount: (try? await marmot.members(ofGroup: group.mlsGroupId))?.count ?? 0,
                         adminCount: admins.count,
                         isAdmin: admins.contains(myPubkey),
                         healthy: !marmot.healthTracker.isUnhealthy(groupId: group.mlsGroupId),
                         consecutiveFailures: marmot.healthTracker.failureCount(for: group.mlsGroupId),
-                        // group.lastMessageAt advances on any MLS event (location,
-                        // chat, nickname, commit) — nil means never recorded.
                         secondsSinceLastEvent: group.lastMessageAt.map { max(0, now - Int($0)) },
-                        ownLeafIndex: try? await mls.ownLeafIndex(groupId: group.mlsGroupId)
+                        ownLeafIndex: try? await marmot.ownLeafIndex(inGroup: group.mlsGroupId)
                     )
                 )
             }

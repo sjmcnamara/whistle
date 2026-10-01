@@ -67,6 +67,44 @@ extension Group {
     var isActive: Bool { state == "active" }
 }
 
+// MARK: - Mapping to app-owned types
+
+// The boundary between MDK's types and the app's own. ViewModels and Views
+// consume `WhistleGroup`/`WhistleMessage` (declared in WhistleCore, which
+// cannot import MDKBindings) so that replacing the MLS backend — see the
+// MDK 2.0 / MarmotKit migration in ROADMAP.md — does not reach past the
+// service layer. These two functions are the only place MDK's shapes are
+// translated, and they go away with the rest of this file at the cutover.
+
+extension Group {
+    var snapshot: WhistleGroup {
+        WhistleGroup(
+            mlsGroupId: mlsGroupId,
+            name: name,
+            isActive: isActive,
+            epoch: epoch,
+            adminPubkeys: adminPubkeys,
+            lastMessageAt: lastMessageAt
+        )
+    }
+}
+
+extension Message {
+    /// `nil` when the inner plaintext cannot be read, which is the same
+    /// condition every existing caller already treats as "skip this message".
+    var snapshot: WhistleMessage? {
+        guard let content = plaintextContent else { return nil }
+        return WhistleMessage(
+            id: id,
+            mlsGroupId: mlsGroupId,
+            senderPubkey: senderPubkey,
+            kind: kind,
+            content: content,
+            createdAt: createdAt
+        )
+    }
+}
+
 // MARK: - Message sort order
 
 /// Valid sort order strings for `MLSService.getMessages`.

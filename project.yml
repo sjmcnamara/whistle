@@ -36,6 +36,15 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+        # MarmotKitService imports MarmotKit, whose XCFramework requires iOS
+        # 18.0+. Declaring that dependency on the app target would force the
+        # app's own minimum to 18.0 and drop iOS 17 from the shipping 1.x
+        # line — the thing we are deliberately deferring to the v2.0 cutover.
+        # So the file is compiled into WhistleTests only (see that target's
+        # sources) until step 3d moves the whole stack over. Remove this
+        # exclusion and raise the app's deployment target together.
+        excludes:
+          - "Services/MarmotKitService.swift"
       - path: Resources/Assets.xcassets
     dependencies:
       - package: WhistleCore
@@ -82,6 +91,10 @@ targets:
     platform: iOS
     sources:
       - path: WhistleTests
+      # Compiled here rather than into the app target — see the Whistle
+      # target's `excludes` for why. It depends only on WhistleCore and
+      # MarmotKit, so it builds standalone in this module.
+      - path: Sources/Services/MarmotKitService.swift
     dependencies:
       - target: Whistle
       - package: MarmotKitBindings

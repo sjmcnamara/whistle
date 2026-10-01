@@ -66,7 +66,6 @@ struct DiagnosticsView: View {
     private func generate() async {
         let report = await DiagnosticsCollector.collect(
             marmot: appViewModel.marmot,
-            mls: appViewModel.mls,
             identity: appViewModel.identity,
             settings: appViewModel.settings,
             relay: appViewModel.relay

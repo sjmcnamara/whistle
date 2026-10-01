@@ -25,14 +25,12 @@ struct GroupDetailView: View {
     init(
         groupId: String,
         marmot: MarmotService,
-        mls: MLSService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String
     ) {
         _viewModel = StateObject(wrappedValue: GroupDetailViewModel(
             groupId: groupId,
             marmot: marmot,
-            mls: mls,
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex
         ))

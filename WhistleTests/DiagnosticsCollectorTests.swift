@@ -53,7 +53,7 @@ final class DiagnosticsCollectorTests: XCTestCase {
 
     private func collect() async -> DiagnosticsReport {
         await DiagnosticsCollector.collect(
-            marmot: nil, mls: mls, identity: identity, settings: settings, relay: relay
+            marmot: nil, identity: identity, settings: settings, relay: relay
         )
     }
 
@@ -144,7 +144,7 @@ final class DiagnosticsCollectorTests: XCTestCase {
         await marmot.refreshGroups()
 
         let r = await DiagnosticsCollector.collect(
-            marmot: marmot, mls: marmotMLS, identity: identity, settings: settings, relay: relay
+            marmot: marmot, identity: identity, settings: settings, relay: relay
         )
         let snapshot = try XCTUnwrap(r.groups.first { $0.id == DiagnosticsReport.shortHex(groupId) })
 
@@ -187,7 +187,7 @@ final class DiagnosticsCollectorTests: XCTestCase {
         marmot.healthTracker.recordFailureType(GroupHealthTracker.FailureType.unprocessable)
 
         let r = await DiagnosticsCollector.collect(
-            marmot: marmot, mls: mls, identity: identity, settings: settings, relay: relay
+            marmot: marmot, identity: identity, settings: settings, relay: relay
         )
 
         XCTAssertEqual(r.recentFailures.count, 2)
