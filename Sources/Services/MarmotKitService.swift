@@ -249,18 +249,42 @@ final class MarmotKitService: ObservableObject {
         let container = base.appendingPathComponent("marmotkit", isDirectory: true)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
 
-        // Resolved *after* creation — `resolvingSymlinksInPath()` only
-        // resolves components that exist, so doing it earlier would leave the
-        // `/var` prefix in place on a first launch.
-        let resolved = container.resolvingSymlinksInPath()
-
         let generation = UserDefaults.standard.integer(forKey: generationKey)
         let name = "gen-\(generation)"
-        purgeSupersededGenerations(in: resolved, keeping: name)
+        purgeSupersededGenerations(in: container, keeping: name)
 
-        let root = resolved.appendingPathComponent(name, isDirectory: true)
+        let root = container.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        return root.resolvingSymlinksInPath().path
+
+        let resolved = fullyResolved(root.path)
+        WhistleLogger.marmot.info("MarmotKit root: \(resolved)")
+        return resolved
+    }
+
+    /// Fully resolve a path, via `realpath(3)` rather than Foundation.
+    ///
+    /// `URL.resolvingSymlinksInPath()` is not enough, and the way it fails is
+    /// a trap: it *does* resolve `/var` to `/private/var`, and then reading
+    /// `.path` back off the result standardizes the `/private` prefix away
+    /// again, returning the original unresolved string. The round trip looks
+    /// like a no-op, so the first attempt at this fix changed nothing and the
+    /// device error came back byte-identical.
+    ///
+    /// `realpath` resolves every component and never re-standardizes, which
+    /// is what MarmotKit requires — it opens its root as a "complete
+    /// authorized directory path" and rejects any symlink with `ELOOP`
+    /// ("Too many levels of symbolic links", os error 62). The path must
+    /// exist, so call this only after creating it.
+    nonisolated static func fullyResolved(_ path: String) -> String {
+        guard let buffer = realpath(path, nil) else {
+            // Nothing better to do than pass the original through; MarmotKit
+            // will report what it could not open, and the log line above
+            // records exactly what it was given.
+            WhistleLogger.marmot.warning("realpath failed for \(path) — passing it through unresolved")
+            return path
+        }
+        defer { free(buffer) }
+        return String(cString: buffer)
     }
 
     /// Move to a fresh root for the next identity. Call before rebuilding the
@@ -310,11 +334,11 @@ final class MarmotKitService: ObservableObject {
         let probeRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("marmotkit-relay-policy-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: probeRoot, withIntermediateDirectories: true)
-        let resolvedProbeRoot = probeRoot.resolvingSymlinksInPath()
-        defer { try? FileManager.default.removeItem(at: resolvedProbeRoot) }
+        let resolvedProbeRoot = fullyResolved(probeRoot.path)
+        defer { try? FileManager.default.removeItem(atPath: resolvedProbeRoot) }
 
         guard let probe = try? Marmot.newWithConfiguration(
-            rootPath: resolvedProbeRoot.path,
+            rootPath: resolvedProbeRoot,
             relayUrls: [],
             options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil)
         ) else {

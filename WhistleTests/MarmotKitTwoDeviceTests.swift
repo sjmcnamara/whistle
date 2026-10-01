@@ -923,8 +923,33 @@ final class MarmotKitRootPathTests: XCTestCase {
     func testRootPathIsFullySymlinkResolved() throws {
         let path = try MarmotKitService.defaultRootPath()
         XCTAssertEqual(
-            URL(fileURLWithPath: path).resolvingSymlinksInPath().path, path,
+            MarmotKitService.fullyResolved(path), path,
             "root path contains an unresolved symlink — MarmotKit rejects these with ELOOP"
+        )
+    }
+
+    /// The trap that made the first attempt at the device fix a no-op:
+    /// `resolvingSymlinksInPath()` resolves `/var` to `/private/var`, and then
+    /// reading `.path` back off the result standardizes `/private` away again.
+    /// Asserted on a real symlink so it holds wherever the test runs, rather
+    /// than depending on the host having a `/var` symlink.
+    func testFoundationRoundTripDoesNotResolveWhereRealpathDoes() throws {
+        let base = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("resolve-\(UUID().uuidString)", isDirectory: true)
+        let target = base.appendingPathComponent("real", isDirectory: true)
+        let link = base.appendingPathComponent("link", isDirectory: true)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        let viaRealpath = MarmotKitService.fullyResolved(link.path)
+        XCTAssertEqual(
+            viaRealpath, MarmotKitService.fullyResolved(target.path),
+            "realpath must resolve the link to its target"
+        )
+        XCTAssertFalse(
+            viaRealpath.hasSuffix("/link"),
+            "resolved path still points at the symlink — MarmotKit would reject it with ELOOP"
         )
     }
 
