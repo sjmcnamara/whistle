@@ -189,6 +189,22 @@ final class MarmotKitService {
         return accountRef
     }
 
+    /// Publish a fresh KeyPackage and return its published-at timestamp.
+    ///
+    /// `createIdentityWithProfile` returns at local-ready, before publication
+    /// completes, so an account can exist while nothing discoverable about it
+    /// has reached a relay yet. Anyone inviting this account needs its
+    /// KeyPackage to be fetchable first — which is also why onboarding has to
+    /// gate "show my invite QR" on publication rather than on identity
+    /// creation (ROADMAP.md step 4).
+    @discardableResult
+    func publishKeyPackage() async throws -> UInt64 {
+        let account = try requireAccount()
+        return try await Self.run {
+            try await marmot.publishNewKeyPackage(accountRef: account)
+        }
+    }
+
     // MARK: - Groups
 
     /// All groups, newest activity first.
