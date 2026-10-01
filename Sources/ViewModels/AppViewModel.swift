@@ -521,12 +521,21 @@ final class AppViewModel: ObservableObject {
             WhistleLogger.marmot.info("Relays handed to MarmotKit: \(usable.joined(separator: ", "))")
             let readiness = try await service.completeAccountSetup()
             WhistleLogger.marmot.info("Account setup readiness: \(String(describing: readiness))")
-            let relayState = await service.relayDiagnostics()
-            WhistleLogger.marmot.info("\(relayState)")
         } catch {
             // Non-fatal — retried on next launch, and the readiness gate
             // stops a half-published account being shown as scannable.
             WhistleLogger.marmot.warning("Account setup did not complete: \(error)")
+        }
+
+        // Always dumped, success or failure. The first version logged this
+        // only on the success path, so the run that actually needed it — the
+        // one where setup threw — printed nothing and the counters that
+        // distinguish "relays never connected" from "relays connected but the
+        // list would not publish" were missing.
+        let relayState = await service.relayDiagnostics()
+        WhistleLogger.marmot.info("\(relayState)")
+        for line in (try? service.onboardingDiagnostics()) ?? [] {
+            WhistleLogger.marmot.info("onboarding \(line)")
         }
     }
 
