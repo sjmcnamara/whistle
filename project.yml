@@ -20,9 +20,6 @@ packages:
   NostrSDK:
     url: https://github.com/rust-nostr/nostr-sdk-swift
     exactVersion: "0.44.8"
-  MDKBindings:
-    url: https://github.com/marmot-protocol/mdk-swift
-    revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be
   QRCode:
     url: https://github.com/dagronf/QRCode
     exactVersion: "9.2.1"
@@ -44,7 +41,6 @@ targets:
     dependencies:
       - package: WhistleCore
       - package: NostrSDK
-      - package: MDKBindings
       - package: QRCode
       # Step 3d: MarmotKitService now ships in the app. This is what forces
       # the iOS 18 floor above — MarmotKitFFI's XCFramework requires it.

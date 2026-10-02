@@ -10,9 +10,7 @@ import WhistleCore
 @MainActor
 final class DiagnosticsCollectorTests: XCTestCase {
 
-    private var mls: MLSService!
     private var identity: IdentityService!
-    private var relay: RelayService!
     private let settings = AppSettings.shared
 
     // Snapshot of the singleton settings we mutate, restored in tearDown.
@@ -26,10 +24,7 @@ final class DiagnosticsCollectorTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        mls = MLSService()
-        try await mls.initialiseInMemory()
         identity = IdentityService()
-        relay = RelayService()
 
         savedRelays = settings.relays
         savedInterval = settings.locationIntervalSeconds
@@ -48,12 +43,12 @@ final class DiagnosticsCollectorTests: XCTestCase {
         settings.keyRotationIntervalDays = savedRotation
         settings.isLocationPaused = savedPaused
         settings.lastEventTimestamp = savedLastEvent
-        mls = nil; identity = nil; relay = nil
+        identity = nil
     }
 
     private func collect() async -> DiagnosticsReport {
         await DiagnosticsCollector.collect(
-            marmot: nil, identity: identity, settings: settings, relay: relay
+            marmot: nil, identity: identity, settings: settings
         )
     }
 

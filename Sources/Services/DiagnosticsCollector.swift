@@ -26,8 +26,7 @@ enum DiagnosticsCollector {
     static func collect(
         marmot: MarmotKitService?,
         identity: IdentityService,
-        settings: AppSettings,
-        relay: RelayService
+        settings: AppSettings
     ) async -> DiagnosticsReport {
         let bundle = Bundle.main
         let app = DiagnosticsReport.App(

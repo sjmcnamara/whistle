@@ -43,26 +43,13 @@ The **website version is automatic** — do not hand-edit it. `website/overrides
 
 Releasing is a separate step from bumping: merging does not publish. See the `android-release` skill for tagging Android, and the `ios-release` skill for tagging iOS (archive + export + TestFlight upload is automated via `release-ios.yml`; submitting the TestFlight build for App Store review stays a manual step).
 
-## MDK (Marmot Dev Kit) dependency
+## MDK 0.8 / mdk-swift — removed (step 3d-iii-c2, 2026-10-02)
 
-`MDKBindings` is the UniFFI-generated Swift wrapper around the Rust MDK library.
+`MDKBindings` and the whole mdk-swift vendoring are **gone**. Deleted with the v1 stack: `MDKBindings` from `project.yml`, `scripts/ci_use_local_mdk.py`, `build.sh`'s `ensure_local_mdk`/`restore_local_changes` and its `project.yml` backup-restore, and the LFS clone + revision-resolution + cache steps from `ci.yml`, `codeql.yml` and `release-ios.yml`.
 
-**Normal state**: `project.yml` references the remote mdk-swift repo at a pinned commit:
-```yaml
-MDKBindings:
-  url: https://github.com/marmot-protocol/mdk-swift
-  revision: <commit>
-```
+If you are looking for the old pin mechanics (revision `8a7a0a5`, the LFS smudge problem, the `branch: main` incident), they are in git history — do not reintroduce them. The only remaining MDK dependency is **MarmotKit**, covered in the next section, and the only vendoring is `scripts/vendor_marmotkit.py`.
 
-Currently pinned to `revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be` (MDK 0.8.0). We previously tracked `branch: main` but upstream silently added a required `disappearingMessageSecs` parameter to `createGroup` and friends; the CI mdk-swift cache hid it until CodeQL (which fresh-clones) exposed the break. Bump the pin deliberately when adopting a newer MDK; switch to a tag once mdk-swift publishes one.
-
-**mdk-swift is archived (2026-08-05) — the pin still resolves, but there will never be another commit to that repo.** The archive banner points at `marmot-protocol/mdk`'s own generated bindings ("MarmotKit") instead, but as of v0.9.11 those only expose the account/chat layer (`account`, `chat_list`, `directory`, `draft`, `group`, `media`, `message`, `notification`, `push`, `relay`, `subscription`, `timeline`) — the low-level MLS primitives we call (`processMessage`, `selfUpdate`, `addMembers`) aren't exposed anywhere in `marmot-uniffi`. Per Erskine Gardner (mdk#938, 2026-08-12): **0.8 / protocol v1 is now deprecated** — 0.9.0+ runs Marmot protocol v2, which is not wire-compatible with v1. Low-level bindings for non-chat payloads (our exact use case) aren't designed yet; he's weighing whether they land as additions to `marmot-uniffi` or a separate low-level package, and hasn't committed to a shape or timeline.
-
-**Superseded 2026-09-23 — see the MDK 2.0 / MarmotKit migration section below.** The "wait for a concrete direction" premise above is stale: MarmotKit `marmotkit-v0.10.4` (tagged 2026-09-20) ships a full domain-level API (`invite_members`, `send_custom_event`, `subscribe_messages`, admin/relay/recovery calls) covering our non-chat use case, confirmed directly with upstream on mdk#938. We are actively spiking the migration on `feature/v2.0-marmotkit-spike`, not waiting. This section (0.8.0 pin mechanics) stays accurate for as long as `MDKBindings`/mdk-swift itself stays wired into the shipping app — that doesn't change until the `MarmotService` rewrite (migration step 3) actually lands.
-
-**Local development** — Xcode's embedded git does not smudge LFS objects during SPM package resolution, so the remote URL leaves `libmdk_uniffi.a` as an LFS pointer text file and the build fails with "unknown file type". `./scripts/build.sh` handles this automatically: it clones `vendor/mdk-swift` with the system git (LFS-aware) on first run, patches `project.yml`, runs xcodegen, then restores `project.yml` so the working tree stays clean.
-
-`vendor/` is gitignored. CI does the same thing. Re-run `./scripts/build.sh` after deleting `vendor/mdk-swift` or switching to a branch with a different MDK reference.
+One constraint carried over: `build.sh` still refuses to run the suite on an Intel Mac, but the reason is now MarmotKitFFI shipping arm64-only slices rather than mdk-swift.
 
 ## MDK 2.0 / MarmotKit migration (spike in progress)
 

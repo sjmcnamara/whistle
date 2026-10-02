@@ -842,8 +842,7 @@ extension MarmotKitTwoDeviceTests {
         let report = await DiagnosticsCollector.collect(
             marmot: service,
             identity: IdentityService(),
-            settings: .shared,
-            relay: RelayService()
+            settings: .shared
         )
         let snapshot = try XCTUnwrap(
             report.groups.first { $0.id == DiagnosticsReport.shortHex(groupId) },

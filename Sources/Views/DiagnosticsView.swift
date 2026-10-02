@@ -67,8 +67,7 @@ struct DiagnosticsView: View {
         let report = await DiagnosticsCollector.collect(
             marmot: appViewModel.marmot,
             identity: appViewModel.identity,
-            settings: appViewModel.settings,
-            relay: appViewModel.relay
+            settings: appViewModel.settings
         )
         guard let text = try? report.jsonString() else { return }
         json = text

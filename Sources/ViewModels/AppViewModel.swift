@@ -10,8 +10,6 @@ import Combine
 final class AppViewModel: ObservableObject {
 
     let identity: IdentityService
-    let relay: RelayService
-    let mls: MLSService
     let settings: AppSettings
 
     /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
@@ -42,14 +40,8 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Pending Invites (v0.6)
 
-    /// Tracks invites where key package was published but Welcome not yet received.
-    let pendingInviteStore: PendingInviteStore
 
-    /// Unsolicited Welcomes awaiting user consent before joining.
-    let pendingWelcomeStore: PendingWelcomeStore
 
-    /// Incoming join-requests from invitees, for the admin to batch-add.
-    let joinRequestStore: JoinRequestStore
 
     /// GroupListViewModel — owned here so it survives SwiftUI view identity
     /// changes. Created once after MarmotKitService is ready.
@@ -103,8 +95,6 @@ final class AppViewModel: ObservableObject {
 
     init() {
         self.identity        = IdentityService()
-        self.relay           = RelayService()
-        self.mls             = MLSService()
         self.settings        = AppSettings.shared
         self.locationService = LocationService()
         self.motionService   = MotionService()
@@ -114,9 +104,6 @@ final class AppViewModel: ObservableObject {
         self.memberAvatarStore   = MemberAvatarStore()
         self.sharedGroupAvatarStore = SharedGroupAvatarStore()
         self.chatMessageCache    = ChatMessageCache()
-        self.pendingInviteStore  = PendingInviteStore()
-        self.pendingWelcomeStore = PendingWelcomeStore()
-        self.joinRequestStore    = JoinRequestStore()
 
         let cache = self.locationCache
         let settingsRef = self.settings
@@ -158,10 +145,13 @@ final class AppViewModel: ObservableObject {
     /// child properties change. Merged and debounced to avoid cascading
     /// render cycles when multiple children publish in quick succession.
     private func forwardChildChanges() {
-        Publishers.Merge3(
+        // `marmot` is deliberately absent: forwarding every
+        // `MarmotKitService` change here would re-render every observing view
+        // on each relay event. Views that need its state observe a published
+        // property on a view model, or hold it in `@State` fed by a `.task`.
+        Publishers.Merge(
             settings.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-            locationService.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-            relay.objectWillChange.map { _ in () }.eraseToAnyPublisher()
+            locationService.objectWillChange.map { _ in () }.eraseToAnyPublisher()
         )
         .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
         .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -701,9 +691,6 @@ final class AppViewModel: ObservableObject {
         // 1. Stop location updates
         locationService.stopUpdating()
 
-        // 2. Disconnect relays
-        await relay.disconnect()
-
         // 3. Tear down Marmot and GroupList.
         //
         // The account is removed through MarmotKit *before* the handle is
@@ -732,9 +719,6 @@ final class AppViewModel: ObservableObject {
 
         // 5. Clear all identity-bound stores
         nicknameStore.clearAll()
-        pendingInviteStore.removeAll()
-        pendingWelcomeStore.removeAll()
-        joinRequestStore.removeAll()
         LocalGroupAvatarStore.shared.removeAll()
         // Member avatars are photographs of real people — they must not survive
         // an identity burn any more than the groups they came from do.
@@ -755,9 +739,11 @@ final class AppViewModel: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "fmf.keychain.fallback.org.findmyfam.nsec")
         UserDefaults.standard.removeObject(forKey: "fmf.pendingWelcomes")
 
-        // 8. Wipe MLS database — overwrites files with zeros before deletion
-        //    to prevent recovery of MLS key material from disk.
-        await mls.resetDatabase()
+        // v1's MLS database is not wiped here any more: it is no longer
+        // written to, and MarmotKit's own store is dealt with above by
+        // `forgetCurrentAccount()` plus the generation bump. A pre-v2 install
+        // upgrading still has `whistle.db` on disk; removing it is a separate
+        // cleanup, not part of identity replacement.
 
         // 9. Destroy old key from Keychain before importing new one.
         //    This ensures the old nsec is explicitly deleted, not just overwritten.
