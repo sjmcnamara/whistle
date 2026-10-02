@@ -208,7 +208,11 @@ final class MarmotKitService: ObservableObject {
 
     // MARK: - Relay policy
 
-    private static let generationKey = "marmotkit.rootGeneration"
+    // `nonisolated` because `defaultRootPath()` and
+    // `advanceIdentityGeneration()` are: the enclosing class is `@MainActor`,
+    // so an ordinary static would be actor-isolated and reading it from them
+    // is a hard error under the Swift 6 language mode (a warning today).
+    nonisolated private static let generationKey = "marmotkit.rootGeneration"
 
     /// The directory MarmotKit owns its account database under.
     ///
@@ -382,6 +386,16 @@ final class MarmotKitService: ObservableObject {
 
     /// Relays this service will actually dial, after policy filtering.
     nonisolated var usableRelayEndpoints: [String] { allowedRelays(from: relayUrls) }
+
+    /// The pool this runtime is dialling, fixed at construction.
+    ///
+    /// `relayUrls` is an init-only parameter and no binding mutates it, so a
+    /// relay added in settings cannot be dialled by this instance — proven by
+    /// `MarmotKitRuntimeRelaySetTests`, which shows publishing a new relay
+    /// list leaves the pool unchanged. Callers compare against this to tell
+    /// the user a restart is needed, rather than showing a connection count
+    /// that silently excludes their new relay.
+    nonisolated var dialledRelayEndpoints: [String] { relayUrls }
 
     // MARK: - Lifecycle
 
@@ -1104,6 +1118,24 @@ final class MarmotKitService: ObservableObject {
     }
 
     /// Whether this account can currently be invited by someone else.
+    /// Advertise a new relay list for this account.
+    ///
+    /// Updates what others discover about us. It does **not** necessarily
+    /// change which relays this runtime dials — `relayUrls` is init-only —
+    /// which is exactly what `MarmotKitRuntimeRelaySetTests` pins down.
+    func publishRelayLists(defaultRelays: [String], bootstrapRelays: [String] = []) async throws {
+        let account = try requireAccount()
+        let allowed = allowedRelays(from: defaultRelays)
+        let bootstrap = bootstrapRelays.isEmpty ? allowed : allowedRelays(from: bootstrapRelays)
+        _ = try await Self.run {
+            try await marmot.publishRelayLists(
+                accountRef: account,
+                defaultRelays: allowed,
+                bootstrapRelays: bootstrap
+            )
+        }
+    }
+
     /// Published so the UI can observe it instead of polling.
     ///
     /// Polling was the first attempt and it was wrong in a way that only

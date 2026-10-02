@@ -26,6 +26,19 @@ struct AdvancedSettingsView: View {
     /// amplification the avatar picker already had to be insulated from.
     @State private var relayStatus: MarmotKitService.RelayStatus?
 
+    /// Enabled relays that this runtime is not dialling, because they were
+    /// added after it started.
+    private var pendingRelayChanges: [String] {
+        guard let dialled = appViewModel.marmot?.dialledRelayEndpoints else { return [] }
+        let enabled = appViewModel.settings.relays.filter(\.isEnabled).map(\.url)
+        return enabled.filter { candidate in
+            // Compared on host rather than exact string: MarmotKit normalises
+            // endpoints, so a trailing slash alone would otherwise read as a
+            // pending change forever.
+            !dialled.contains { $0.hasPrefix(candidate) || candidate.hasPrefix($0) }
+        }
+    }
+
     var body: some View {
         List {
             identitySection
@@ -191,7 +204,20 @@ struct AdvancedSettingsView: View {
         } header: {
             Text("Relays")
         } footer: {
-            Text("Toggle relays on/off. Swipe to remove custom relays. Default relays cannot be removed.")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Toggle relays on/off. Swipe to remove custom relays. Default relays cannot be removed.")
+                // A newly added relay is advertised immediately but cannot be
+                // dialled until the app restarts: MarmotKit fixes its relay
+                // pool at construction. Saying so beats leaving the
+                // connection count silently excluding it.
+                if !pendingRelayChanges.isEmpty {
+                    Label(
+                        "Restart Whistle to connect to \(pendingRelayChanges.joined(separator: ", "))",
+                        systemImage: "arrow.clockwise"
+                    )
+                    .foregroundStyle(.orange)
+                }
+            }
         }
         .alert("Add Relay", isPresented: $showAddRelay) {
             TextField("wss://relay.example.com", text: $newRelayURL)

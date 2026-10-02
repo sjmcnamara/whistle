@@ -1203,3 +1203,75 @@ extension MarmotKitTwoDeviceTests {
         }
     }
 }
+
+// MARK: - Can the dialled relay set change at runtime?
+
+/// Device report: adding a relay in Advanced Settings left the status at
+/// "connected (2 of 2)" until the app was restarted, while diagnostics listed
+/// three — because diagnostics maps `settings.relays` whereas the status comes
+/// from `relayHealth()`, which reflects the pool the runtime was *constructed*
+/// with.
+///
+/// `relayUrls` is init-only; no binding changes it afterwards. The open
+/// question is whether `publishRelayLists` — which updates what the account
+/// advertises — also causes the runtime to adopt those relays for dialling.
+/// Asked here rather than assumed, because the answer decides whether a relay
+/// change can take effect live or genuinely needs a relaunch.
+final class MarmotKitRuntimeRelaySetTests: XCTestCase {
+
+    private var first: LoopbackRelay!
+    private var second: LoopbackRelay!
+    private var rootPath: String?
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        first = try LoopbackRelay()
+        try first.start()
+        second = try LoopbackRelay()
+        try second.start()
+    }
+
+    override func tearDown() {
+        first?.stop(); first = nil
+        second?.stop(); second = nil
+        if let rootPath { try? FileManager.default.removeItem(atPath: rootPath) }
+        rootPath = nil
+        super.tearDown()
+    }
+
+    @MainActor
+    func testPublishingANewRelayListDoesNotChangeTheDialledPool() async throws {
+        let root = NSTemporaryDirectory().appending("marmotkit-relayset-\(UUID().uuidString)")
+        rootPath = root
+        let firstURL = try XCTUnwrap(first.url)
+        let secondURL = try XCTUnwrap(second.url)
+
+        let service = try MarmotKitService(
+            rootPath: root,
+            relayUrls: [firstURL],
+            allowLoopback: true,
+            secretStore: InMemorySecretStore()
+        )
+        _ = try await service.startWithNewIdentity()
+
+        await service.refreshRelayStatus(configured: [firstURL])
+        let before = service.relayStatus.total
+        XCTAssertEqual(before, 1, "expected the pool to be the single relay passed at construction")
+
+        // Advertise both. If the runtime adopts its published default relays
+        // for dialling, the pool grows; if not, a relay change needs a new
+        // runtime and the UI has to say so.
+        try await service.publishRelayLists(defaultRelays: [firstURL, secondURL])
+
+        await service.refreshRelayStatus(configured: [firstURL, secondURL])
+        let after = service.relayStatus.total
+        XCTAssertEqual(
+            after, before,
+            """
+            The dialled pool DID change after publishing a new relay list \
+            (\(before) → \(after)). If this fails, a relay added in settings can \
+            be applied live and the restart requirement should be removed.
+            """
+        )
+    }
+}

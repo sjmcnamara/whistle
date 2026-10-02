@@ -884,14 +884,26 @@ final class AppViewModel: ObservableObject {
 
     /// Disconnect and reconnect to relays using the current settings.
     /// Called when the user toggles, adds, or removes relays.
+    /// Apply a relay-list change as far as v2 allows.
+    ///
+    /// This used to disconnect and reconnect v1's `RelayService`, which the v2
+    /// path never connects — so editing relays did nothing at all. What *can*
+    /// be done live is republish the account's declared list, so others
+    /// discover us on the new relay. What cannot: change which relays this
+    /// runtime dials. `relayUrls` is init-only, and publishing a new list
+    /// provably leaves the dialled pool unchanged
+    /// (`MarmotKitRuntimeRelaySetTests`), so that part needs a relaunch and
+    /// the UI says so rather than showing a count that omits the new relay.
     func reconnectRelays() async {
-        guard let keys = identity.keys else {
-            WhistleLogger.relay.warning("Cannot reconnect — no identity keys")
-            return
+        guard let marmot else { return }
+        let enabled = settings.relays.filter(\.isEnabled).map(\.url)
+        do {
+            try await marmot.publishRelayLists(defaultRelays: enabled)
+            WhistleLogger.marmot.info("Published relay list: \(enabled.joined(separator: ", "))")
+        } catch {
+            WhistleLogger.marmot.warning("Could not publish relay list: \(error)")
         }
-        await relay.disconnect()
-        let enabled = settings.relays.filter(\.isEnabled)
-        await relay.connect(keys: keys, relays: enabled)
+        await marmot.refreshRelayStatus(configured: enabled)
     }
 
     // MARK: - Nickname Broadcasting
