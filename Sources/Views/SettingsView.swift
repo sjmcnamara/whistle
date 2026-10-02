@@ -31,19 +31,26 @@ struct SettingsView: View {
 
     private var identitySection: some View {
         Section("Identity") {
+            // One row, not two. "Your Nostr Key" and "My Member Code" were
+            // separate entries showing the *same* npub as the *same* QR code —
+            // `IdentityCardView` already renders it — so they read as two
+            // different identifiers when there is only one.
             if let identity = appViewModel.identity.identity {
                 NavigationLink {
-                    IdentityCardView(identity: identity)
+                    IdentityCardView(
+                        identity: identity,
+                        isReadyToBeInvited: appViewModel.marmot?.accountIsReady ?? false
+                    )
                 } label: {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Your Nostr Key")
+                            Text("Your ID")
                             Text(identity.shortNpub)
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
                         }
                     } icon: {
-                        Image(systemName: "person.crop.circle.fill")
+                        Image(systemName: "qrcode")
                             .foregroundStyle(.blue)
                     }
                 }
@@ -51,12 +58,6 @@ struct SettingsView: View {
                 Label("Generating identity…", systemImage: "key.fill")
                     .foregroundStyle(.secondary)
             }
-
-            // The member code lives here as well as in the Groups tab's menu.
-            // The Groups empty state covers someone with no groups yet, but
-            // once they are in one, "where do I show my code?" is an identity
-            // question, and this is where they look for it.
-            memberCodeRow
 
             // Display name for group chat. Extracted so typing doesn't
             // re-render this whole view — see DisplayNameRow.
@@ -66,18 +67,6 @@ struct SettingsView: View {
             )
 
             avatarRow
-        }
-    }
-
-    /// Shows this device's member code, for an admin to scan.
-    @ViewBuilder
-    private var memberCodeRow: some View {
-        if let marmot = appViewModel.marmot {
-            NavigationLink {
-                MemberCodeView(marmot: marmot)
-            } label: {
-                Label("My Member Code", systemImage: "qrcode")
-            }
         }
     }
 
