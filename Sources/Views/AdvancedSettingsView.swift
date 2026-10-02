@@ -26,19 +26,6 @@ struct AdvancedSettingsView: View {
     /// amplification the avatar picker already had to be insulated from.
     @State private var relayStatus: MarmotKitService.RelayStatus?
 
-    /// Enabled relays that this runtime is not dialling, because they were
-    /// added after it started.
-    private var pendingRelayChanges: [String] {
-        guard let dialled = appViewModel.marmot?.dialledRelayEndpoints else { return [] }
-        let enabled = appViewModel.settings.relays.filter(\.isEnabled).map(\.url)
-        return enabled.filter { candidate in
-            // Compared on host rather than exact string: MarmotKit normalises
-            // endpoints, so a trailing slash alone would otherwise read as a
-            // pending change forever.
-            !dialled.contains { $0.hasPrefix(candidate) || candidate.hasPrefix($0) }
-        }
-    }
-
     var body: some View {
         List {
             identitySection
@@ -58,8 +45,11 @@ struct AdvancedSettingsView: View {
             while !Task.isCancelled {
                 // Re-read the configured list each pass so adding or toggling
                 // a relay is reflected without leaving the screen.
-                let configured = appViewModel.settings.relays.map(\.url)
-                await appViewModel.marmot?.refreshRelayStatus(configured: configured)
+                let configured = appViewModel.settings.relays
+                await appViewModel.marmot?.refreshRelayStatus(
+                    all: configured.map(\.url),
+                    enabled: configured.filter(\.isEnabled).map(\.url)
+                )
                 relayStatus = appViewModel.marmot?.relayStatus
                 try? await Task.sleep(for: .seconds(5))
             }
@@ -210,10 +200,20 @@ struct AdvancedSettingsView: View {
                 // dialled until the app restarts: MarmotKit fixes its relay
                 // pool at construction. Saying so beats leaving the
                 // connection count silently excluding it.
-                if !pendingRelayChanges.isEmpty {
+                // Both directions matter, and the second one more: the
+                // dialled pool is fixed at launch, so a relay switched off
+                // here is still being talked to until the app restarts.
+                if let additions = relayStatus?.pendingAdditions, !additions.isEmpty {
                     Label(
-                        "Restart Whistle to connect to \(pendingRelayChanges.joined(separator: ", "))",
+                        "Restart to connect to \(additions.joined(separator: ", "))",
                         systemImage: "arrow.clockwise"
+                    )
+                    .foregroundStyle(.orange)
+                }
+                if let removals = relayStatus?.pendingRemovals, !removals.isEmpty {
+                    Label(
+                        "Still connected to \(removals.joined(separator: ", ")) until you restart",
+                        systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
                 }
@@ -336,7 +336,11 @@ struct AdvancedSettingsView: View {
         let status = relayStatus
         switch status?.connection {
         case .connected:
-            Label("Connected (\(status?.connected ?? 0) of \(status?.total ?? 0))", systemImage: "wifi")
+            // Explicitly "in use": this counts the pool the runtime is
+            // dialling, which is not the settings list once it has been
+            // edited. Labelling it avoided the reading that a toggle had
+            // failed to register.
+            Label("\(status?.connected ?? 0) of \(status?.total ?? 0) in use", systemImage: "wifi")
                 .foregroundStyle(.green)
         case .connecting:
             Label("Connecting…", systemImage: "wifi").foregroundStyle(.orange)

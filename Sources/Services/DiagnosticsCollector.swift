@@ -84,7 +84,10 @@ enum DiagnosticsCollector {
         // the only other thing that fills it is the Advanced Settings screen's
         // poll. A bundle generated without visiting that screen would
         // otherwise report the default — disconnected, 0 of 0.
-        await marmot?.refreshRelayStatus(configured: settings.relays.map(\.url))
+        await marmot?.refreshRelayStatus(
+            all: settings.relays.map(\.url),
+            enabled: settings.relays.filter(\.isEnabled).map(\.url)
+        )
         let status = marmot?.relayStatus
         let relays = settings.relays.map {
             DiagnosticsReport.RelaySnapshot(

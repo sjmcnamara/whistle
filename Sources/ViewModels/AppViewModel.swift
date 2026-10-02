@@ -903,7 +903,10 @@ final class AppViewModel: ObservableObject {
         } catch {
             WhistleLogger.marmot.warning("Could not publish relay list: \(error)")
         }
-        await marmot.refreshRelayStatus(configured: enabled)
+        await marmot.refreshRelayStatus(
+            all: settings.relays.map(\.url),
+            enabled: enabled
+        )
     }
 
     // MARK: - Nickname Broadcasting

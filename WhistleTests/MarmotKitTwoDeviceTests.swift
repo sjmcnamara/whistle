@@ -1254,7 +1254,7 @@ final class MarmotKitRuntimeRelaySetTests: XCTestCase {
         )
         _ = try await service.startWithNewIdentity()
 
-        await service.refreshRelayStatus(configured: [firstURL])
+        await service.refreshRelayStatus(all: [firstURL], enabled: [firstURL])
         let before = service.relayStatus.total
         XCTAssertEqual(before, 1, "expected the pool to be the single relay passed at construction")
 
@@ -1263,7 +1263,7 @@ final class MarmotKitRuntimeRelaySetTests: XCTestCase {
         // runtime and the UI has to say so.
         try await service.publishRelayLists(defaultRelays: [firstURL, secondURL])
 
-        await service.refreshRelayStatus(configured: [firstURL, secondURL])
+        await service.refreshRelayStatus(all: [firstURL, secondURL], enabled: [firstURL, secondURL])
         let after = service.relayStatus.total
         XCTAssertEqual(
             after, before,
@@ -1273,5 +1273,96 @@ final class MarmotKitRuntimeRelaySetTests: XCTestCase {
             be applied live and the restart requirement should be removed.
             """
         )
+    }
+}
+
+// MARK: - Relay settings diff
+
+/// Device report: toggling a relay changed nothing in the status, and exactly
+/// one relay showed a permanent "restart to connect". Cause was a comparison
+/// between two different spellings — `relayUrls` holds MarmotKit's
+/// *normalised* endpoints, settings holds what the user typed — so whichever
+/// relay normalised differently never matched.
+final class MarmotKitRelayDiffTests: XCTestCase {
+
+    private var relay: LoopbackRelay!
+    private var rootPath: String?
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        relay = try LoopbackRelay()
+        try relay.start()
+    }
+
+    override func tearDown() {
+        relay?.stop(); relay = nil
+        if let rootPath { try? FileManager.default.removeItem(atPath: rootPath) }
+        rootPath = nil
+        super.tearDown()
+    }
+
+    @MainActor
+    private func makeService() throws -> (MarmotKitService, String) {
+        let root = NSTemporaryDirectory().appending("marmotkit-diff-\(UUID().uuidString)")
+        rootPath = root
+        let url = try XCTUnwrap(relay.url)
+        let service = try MarmotKitService(
+            rootPath: root,
+            relayUrls: [url],
+            allowLoopback: true,
+            secretStore: InMemorySecretStore()
+        )
+        return (service, url)
+    }
+
+    @MainActor
+    func testNoPendingChangesWhenSettingsMatchTheDialledPool() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url], enabled: [url])
+        XCTAssertEqual(service.relayStatus.pendingAdditions, [])
+        XCTAssertEqual(service.relayStatus.pendingRemovals, [])
+    }
+
+    /// The reported bug: the same relay written differently must not register
+    /// as a pending change. A trailing slash and different casing are both
+    /// spellings MarmotKit normalises away.
+    @MainActor
+    func testDifferentSpellingsOfTheSameRelayAreNotPendingChanges() async throws {
+        let (service, url) = try makeService()
+        for spelling in [url + "/", url.uppercased()] {
+            await service.refreshRelayStatus(all: [spelling], enabled: [spelling])
+            XCTAssertEqual(
+                service.relayStatus.pendingAdditions, [],
+                "\(spelling) was treated as a different relay from \(url)"
+            )
+            XCTAssertEqual(service.relayStatus.pendingRemovals, [])
+        }
+    }
+
+    @MainActor
+    func testAddedRelayIsAPendingAddition() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url, "wss://added.example"], enabled: [url, "wss://added.example"])
+        XCTAssertEqual(service.relayStatus.pendingAdditions.count, 1)
+        XCTAssertEqual(service.relayStatus.pendingRemovals, [])
+    }
+
+    /// Disabling a relay does not stop it being dialled until restart, so it
+    /// must be reported — the user otherwise believes the toggle took effect.
+    @MainActor
+    func testDisabledRelayIsAPendingRemoval() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url], enabled: [])
+        XCTAssertEqual(service.relayStatus.pendingRemovals.count, 1)
+        XCTAssertEqual(service.relayStatus.pendingAdditions, [])
+    }
+
+    /// A disabled relay keeps its policy label, so "retired" stays visible
+    /// rather than disappearing when the relay is switched off.
+    @MainActor
+    func testDisabledRelayStillHasAPolicy() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url], enabled: [])
+        XCTAssertNotNil(service.relayStatus.policies[url])
     }
 }

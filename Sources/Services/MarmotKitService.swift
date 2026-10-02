@@ -613,12 +613,30 @@ final class MarmotKitService: ObservableObject {
         /// endpoint is a permanent configuration error, which is more
         /// actionable than a connectivity dot ever was.
         var policies: [String: String] = [:]
+        /// Enabled in settings but not in the dialled pool — a relay added
+        /// since launch. Discoverable by others already (the declared list is
+        /// republished immediately); dialled only after a restart.
+        var pendingAdditions: [String] = []
+        /// In the dialled pool but no longer enabled in settings.
+        ///
+        /// The pool is fixed at construction, so **disabling a relay does not
+        /// stop this device talking to it** until the app restarts. That is
+        /// worth stating plainly rather than leaving the user to assume the
+        /// toggle took effect.
+        var pendingRemovals: [String] = []
     }
 
     @Published private(set) var relayStatus = RelayStatus()
 
     /// Re-read relay state from the runtime. Cheap; safe to call on appear.
-    func refreshRelayStatus(configured: [String] = []) async {
+    /// - Parameters:
+    ///   - all: Every relay in settings, enabled or not. Used for policy
+    ///     classification, so a disabled relay still shows *why* it is
+    ///     unusable if it is retired.
+    ///   - enabled: Only the enabled relays. Used for the diff against the
+    ///     dialled pool, so switching one off registers as a pending removal
+    ///     rather than as still configured.
+    func refreshRelayStatus(all: [String] = [], enabled: [String]? = nil) async {
         let health = await marmot.relayHealth()
         let connection: RelayStatus.Connection
         if health.connected > 0 {
@@ -628,17 +646,50 @@ final class MarmotKitService: ObservableObject {
         } else {
             connection = .disconnected
         }
-        let endpoints = configured.isEmpty ? relayUrls : configured
+
+        let everything = all.isEmpty ? relayUrls : all
         var policies: [String: String] = [:]
-        for row in marmot.classifyRelayEndpoints(endpoints: endpoints) {
+        for row in marmot.classifyRelayEndpoints(endpoints: everything) {
             policies[row.endpoint] = String(describing: row.policy)
         }
+
+        // Compare canonical forms on both sides.
+        //
+        // `relayUrls` holds what `allowedRelayEndpoints` produced, which is
+        // MarmotKit's *normalised* endpoint, while settings holds whatever the
+        // user typed. Comparing those two directly — which an earlier version
+        // did, with a prefix test — reported a permanent "restart to connect"
+        // for whichever relay normalised to something other than a trailing
+        // slash difference.
+        let canonicalConfigured = canonical(enabled ?? everything)
+        let canonicalDialled = canonical(relayUrls)
+        let additions = canonicalConfigured.subtracting(canonicalDialled)
+        let removals = canonicalDialled.subtracting(canonicalConfigured)
+
         relayStatus = RelayStatus(
             connection: connection,
             total: Int(health.totalRelays),
             connected: Int(health.connected),
-            policies: policies
+            policies: policies,
+            pendingAdditions: additions.sorted(),
+            pendingRemovals: removals.sorted()
         )
+    }
+
+    /// Endpoints reduced to one form, so two spellings of the same relay
+    /// compare equal.
+    ///
+    /// MarmotKit's own normalisation is applied first but is **not** enough on
+    /// its own: measured, `classifyRelayEndpoints` leaves a trailing slash
+    /// alone, so `wss://host` and `wss://host/` came back as distinct and one
+    /// of them reported a permanent pending change. Case and trailing slashes
+    /// are therefore folded here as well.
+    private func canonical(_ endpoints: [String]) -> Set<String> {
+        Set(marmot.classifyRelayEndpoints(endpoints: endpoints).map { row in
+            var value = (row.normalizedEndpoint ?? row.endpoint).lowercased()
+            while value.hasSuffix("/") { value.removeLast() }
+            return value
+        })
     }
 
     /// Connection counters straight from the runtime, so "no relay
