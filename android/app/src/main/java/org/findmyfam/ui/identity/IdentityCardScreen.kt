@@ -135,7 +135,7 @@ fun IdentityCardScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Your npub is your Nostr public key. Share it with family members so they can add you to a group.",
+                            text = "Your npub is your Nostr public key. Share it with an admin so they can add you to a group.",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

@@ -14,7 +14,9 @@ final class GroupDetailViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var isAddingMember = false
     @Published private(set) var didAddMember = false
-    @Published private(set) var error: String?
+    /// Posted to `NoticeCenter` rather than held here — the old inline red
+    /// caption sat at the foot of a `List` section and was easy to miss.
+    private let notices: NoticeCenter
     @Published var addMemberNpub: String = ""
 
     // Leave / rename state
@@ -49,9 +51,11 @@ final class GroupDetailViewModel: ObservableObject {
         groupId: String,
         marmot: MarmotKitService,
         nicknameStore: NicknameStore,
-        myPubkeyHex: String
+        myPubkeyHex: String,
+        notices: NoticeCenter
     ) {
         self.groupId = groupId
+        self.notices = notices
         self.marmot = marmot
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
@@ -102,10 +106,11 @@ final class GroupDetailViewModel: ObservableObject {
                 return lhs.displayName < rhs.displayName
             }
 
-            error = nil
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to load group detail for \(self.groupId): \(error)")
+            notices.postToast("Couldn't load group details.") { [weak self] in
+                await self?.load()
+            }
         }
     }
 
@@ -142,7 +147,6 @@ final class GroupDetailViewModel: ObservableObject {
 
             try await marmot.invite(memberRefs: [pubkeyHex], toGroup: groupId)
             addMemberNpub = ""
-            error = nil
 
             // Reload member list
             await load()
@@ -151,8 +155,11 @@ final class GroupDetailViewModel: ObservableObject {
             // Signal the view to dismiss back to the chat
             didAddMember = true
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to add member: \(error)")
+            // No retry: the npub field is cleared only on success, so the
+            // user can simply tap Add again — a retry here would duplicate
+            // that affordance and could re-send a commit that half-applied.
+            notices.report(error, fallback: "Couldn't add that member.")
         }
     }
 
@@ -167,8 +174,10 @@ final class GroupDetailViewModel: ObservableObject {
             await load()
             WhistleLogger.chat.info("Removed member \(pubkeyHex.prefix(8)) from group \(self.groupId)")
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to remove member: \(error)")
+            notices.report(error, fallback: "Couldn't remove that member.") { [weak self] in
+                await self?.removeMember(pubkeyHex: pubkeyHex)
+            }
         }
     }
 
@@ -178,8 +187,10 @@ final class GroupDetailViewModel: ObservableObject {
             await load()
             WhistleLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to promote member: \(error)")
+            notices.report(error, fallback: "Couldn't make them an admin.") { [weak self] in
+                await self?.promoteToAdmin(pubkeyHex: pubkeyHex)
+            }
         }
     }
 
@@ -196,8 +207,12 @@ final class GroupDetailViewModel: ObservableObject {
             await load()
             WhistleLogger.chat.info("Hard-resynced \(pubkeyHex.prefix(8)) in group \(self.groupId)")
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to resync member: \(error)")
+            // Retry is the documented recovery for a resync that failed after
+            // the remove but before the re-add.
+            notices.report(error, fallback: "Resync didn't finish.") { [weak self] in
+                await self?.resyncMember(pubkeyHex: pubkeyHex)
+            }
         }
     }
 
@@ -239,10 +254,13 @@ final class GroupDetailViewModel: ObservableObject {
         do {
             try await marmot.leaveGroup(groupId)
             didLeave = true
-            error = nil
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to leave group: \(error)")
+            // `report` drops the Retry for advice like `lastAdminCannotLeave`,
+            // so the caller can offer one unconditionally.
+            notices.report(error, fallback: "Couldn't leave the group.") { [weak self] in
+                await self?.leaveGroup()
+            }
         }
     }
 
@@ -257,10 +275,11 @@ final class GroupDetailViewModel: ObservableObject {
         do {
             try await marmot.rename(group: groupId, to: trimmed)
             groupName = trimmed
-            error = nil
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to rename group: \(error)")
+            notices.report(error, fallback: "Couldn't rename the group.") { [weak self] in
+                await self?.renameGroup(to: newName)
+            }
         }
     }
 

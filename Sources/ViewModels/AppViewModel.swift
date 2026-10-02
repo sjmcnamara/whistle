@@ -12,6 +12,24 @@ final class AppViewModel: ObservableObject {
     let identity: IdentityService
     let settings: AppSettings
 
+    /// User-facing warnings and errors, rendered once at the root rather than
+    /// per screen — see `NoticeCenter`.
+    let notices = NoticeCenter()
+
+    /// Mirrors `MarmotKitService.accountIsReady`.
+    ///
+    /// Exists because `forwardChildChanges()` does not forward `marmot` — and
+    /// must not, since every relay event would then re-render every observing
+    /// view. That left `appViewModel.marmot?.accountIsReady` compiling, type
+    /// checking and passing every test while never updating on screen, which
+    /// is a mistake this migration made three times.
+    ///
+    /// Mirroring it here makes the obvious thing correct: a view reads
+    /// `appViewModel.accountIsReady` and gets updates, the same as
+    /// `settings`. The subscription that maintains it already existed for the
+    /// setup banner.
+    @Published private(set) var accountIsReady = false
+
     /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
     @Published private(set) var marmot: MarmotKitService?
 
@@ -400,6 +418,17 @@ final class AppViewModel: ObservableObject {
             let msg = error.localizedDescription
             WhistleLogger.marmot.error("MarmotKit start failed: \(msg)")
             mlsError = msg
+            // Previously only visible in Advanced Settings' MLS row, so a
+            // failed start looked like an app that simply had no groups.
+            notices.post(NoticeCenter.Banner(
+                cause: .startupFailed,
+                message: "Whistle couldn't start securely: \(msg)",
+                actionTitle: "Retry",
+                action: { [weak self] in
+                    self?.didStart = false
+                    await self?.onAppear()
+                }
+            ))
             startupPhase = .ready
             return
         }
@@ -420,6 +449,7 @@ final class AppViewModel: ObservableObject {
         // SwiftUI view identity changes in RootView's conditional branches).
         self.groupListViewModel = GroupListViewModel(
             marmot: service,
+            notices: notices,
             displayName: { [weak self] in self?.settings.displayName ?? "" }
         )
 
@@ -478,6 +508,67 @@ final class AppViewModel: ObservableObject {
                         WhistleLogger.chat.info("Auto-broadcast avatar to newly joined group \(groupId)")
                     }
                 }
+            }
+            .store(in: &cancellables)
+
+        // The receive loop's failures finally have somewhere to go.
+        // `lastError` was published and had no consumer at all, so anything it
+        // reported was dropped on the floor.
+        service.$lastError
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in
+                self?.notices.postToast(message)
+            }
+            .store(in: &cancellables)
+
+        // Account setup is a *state*, so it gets a banner rather than a toast:
+        // until it completes, groups cannot be created and nobody can invite
+        // this device, and a toast would vanish while that stayed true.
+        service.$accountIsReady
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak service] ready in
+                guard let self else { return }
+                self.accountIsReady = ready
+                self.notices.setBanner(
+                    .accountSetupIncomplete,
+                    active: !ready,
+                    message: NoticeCenter.Banner(
+                        cause: .accountSetupIncomplete,
+                        message: "Still publishing your account. You can't create or join groups until this finishes.",
+                        actionTitle: "Retry",
+                        action: { [weak service] in
+                            _ = try? await service?.completeAccountSetup()
+                        }
+                    )
+                )
+            }
+            .store(in: &cancellables)
+
+        // A relay the user has enabled but MarmotKit refuses to dial is a
+        // standing misconfiguration, not a transient failure — it needs
+        // correcting in Settings, so it gets a banner. The per-row policy
+        // label in Advanced Settings only helps someone already looking at
+        // that screen.
+        service.$relayStatus
+            .map { status -> [String] in
+                status.policies.filter { $0.value != "allowed" }.keys.sorted()
+            }
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] unusable in
+                guard let self else { return }
+                self.notices.setBanner(
+                    .relayUnusable,
+                    active: !unusable.isEmpty,
+                    message: NoticeCenter.Banner(
+                        cause: .relayUnusable,
+                        message: unusable.count == 1
+                            ? "\(unusable[0]) can't be used. Remove it in Settings → Advanced."
+                            : "\(unusable.count) relays can't be used. Check Settings → Advanced."
+                    )
+                )
             }
             .store(in: &cancellables)
 
@@ -696,6 +787,7 @@ final class AppViewModel: ObservableObject {
         // skipping this left the old identity on the device — and because
         // startup matches an account by id, the next launch would have signed
         // straight back into it and carried on as the previous user.
+        accountIsReady = false
         await marmot?.forgetCurrentAccount()
         await marmot?.shutdown()
         marmot = nil
