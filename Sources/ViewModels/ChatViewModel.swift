@@ -12,7 +12,10 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var messages: [ChatMessageItem] = []
     @Published var draftText: String = ""
     @Published private(set) var isSending = false
-    @Published private(set) var error: String?
+    /// Posted to `NoticeCenter` rather than held here. The old
+    /// `@Published error` was never rendered by `GroupChatView`, so a failed
+    /// send produced nothing on screen at all.
+    private let notices: NoticeCenter
     @Published private(set) var memberNames: String = ""
 
     /// Soft-resync (catch-up) state for the decryption banner.
@@ -66,9 +69,11 @@ final class ChatViewModel: ObservableObject {
         marmot: MarmotKitService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
-        messageCache: ChatMessageCache
+        messageCache: ChatMessageCache,
+        notices: NoticeCenter
     ) {
         self.groupId = groupId
+        self.notices = notices
         self.marmot = marmot
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
@@ -183,11 +188,12 @@ final class ChatViewModel: ObservableObject {
                 // re-walk pages the user has already seen.
                 if oldestLoaded == nil { oldestLoaded = page.messages.last }
             }
-            error = nil
             persist()
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
+            notices.report(error, fallback: "Couldn't load messages.") { [weak self] in
+                await self?.loadMessages()
+            }
         }
     }
 
@@ -292,8 +298,12 @@ final class ChatViewModel: ObservableObject {
             // Reload to pick up the sent message from MDK storage
             await loadMessages()
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to send message: \(error)")
+            // The draft is deliberately left in place so Retry has something
+            // to send, and so the text is not lost if the user ignores it.
+            notices.report(error, fallback: "Message not sent.") { [weak self] in
+                await self?.sendMessage()
+            }
         }
     }
 
