@@ -6,6 +6,61 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.0] — unreleased
+
+**Protocol-breaking.** Whistle moves from Marmot protocol v1 (MDK 0.8.0) to
+protocol v2 (MarmotKit 0.10.4). The two are not wire-compatible: **existing
+groups do not carry over and cannot be recovered.** Your identity does — you
+keep the same npub.
+
+**Android is still on 1.11.2 and still speaks protocol v1.** It is deliberately
+not bumped: an APK labelled 2.0.0 that could not talk to a 2.0.0 iOS client
+would be worse than the version numbers differing. Android moves to 2.0.0 when
+the port lands, and v2.0.0 does not ship until both platforms are ready.
+
+### Changed
+
+- **(iOS) Rebuilt on MarmotKit (MDK 0.10.4, protocol v2).** `MarmotService`,
+  `MLSService` and `RelayService` are gone; MarmotKit owns the MLS state,
+  relay transport and account lifecycle.
+- **(iOS) Your identity carries over.** The existing nsec is adopted on first
+  v2 launch, so your npub is unchanged and people who know it can still find
+  you.
+- **(iOS) Joining a group is now scan-to-invite.** The member shows a code and
+  an admin scans it. Protocol v2 has no out-of-group messaging, so invite
+  codes, join requests and `whistle://` invite links have no equivalent and
+  have been removed.
+- **(iOS) Chat history pages by cursor** rather than by offset, which fixes
+  messages being skipped or repeated when new ones arrive mid-session.
+- **(iOS) Minimum iOS version is now 18.0**, required by MarmotKit's
+  XCFramework.
+
+### Added
+
+- **(iOS) Errors and warnings are actually visible.** Action failures show a
+  toast with Retry; conditions the app is stuck in show a dismissable banner
+  on every tab. Several failures previously displayed nothing at all,
+  including a failed chat send.
+- **(iOS) Relay settings show why a relay is unusable** (`retired`, `unsafe`)
+  rather than failing silently, and say when a change needs a restart to take
+  effect.
+
+### Fixed
+
+- **(iOS) A group you are alone in can be left.** It previously reported
+  "promote another member to admin before leaving" with nobody to promote,
+  leaving identity burn as the only way out.
+- **(iOS) The group list refreshes after creating or leaving a group** instead
+  of waiting for a relaunch.
+
+### Removed
+
+- **(iOS) `wss://relay.damus.io` from the default relay list.** MarmotKit
+  classifies it as retired and refuses to dial it, and one retired entry
+  failed the whole relay directory fetch.
+
+---
+
 ## [1.11.2] — 2026-09-22
 
 ### Fixed

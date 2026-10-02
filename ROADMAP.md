@@ -628,6 +628,20 @@ _Released 2026-09-22_
 
 ---
 
+### v2.0.0 — Marmot protocol v2 (MarmotKit) — iOS bumped 2026-10-02, unreleased
+
+Protocol-breaking. Groups do not carry over; identity does. Shipped only when
+the Android port lands — see the MDK 2.0 / MarmotKit migration entry under
+Deferred for the full plan and the step-by-step findings.
+
+- **iOS: `MARKETING_VERSION` 2.0.0, build 76.** Bumped ahead of release so
+  device builds stop reporting 1.11.2 while v2 is being tested.
+- **Android: deliberately left at 1.11.2 / versionCode 70.** It still runs
+  protocol v1. An APK labelled 2.0.0 that cannot talk to a 2.0.0 iOS client
+  would be worse than the platforms showing different versions, so this is a
+  knowing exception to CLAUDE.md's "bump every item" rule — not a missed step.
+  Android moves to 2.0.0 with the port.
+
 ### Deferred
 
 - **v2.0 release sequencing** _(agreed 2026-10-02)_: **1** merge #263 → ~~**2** perf PR~~ (dropped, see below) → **4** error-UX PR (iOS) → **3** Android port → **5** version bumps once device-tested interop confirms. UX and perf deliberately land *before* Android: both are design work, and doing them first means porting once rather than porting Android and then retrofitting both platforms.

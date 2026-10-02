@@ -39,6 +39,8 @@ Edit **every** item in this list — it is the complete set, and a partial bump 
 4. `README.md` — the status line
 5. `ROADMAP.md` — release entry
 
+**Exception in force during the v2.0 migration (2026-10-02):** iOS is at `2.0.0` while Android stays at `1.11.2`, deliberately. Android still runs protocol v1, and an APK labelled 2.0.0 that cannot talk to a 2.0.0 iOS client is worse than the platforms showing different versions. Do **not** "fix" this by bumping Android — it moves to 2.0.0 when the port lands, and v2.0.0 does not ship until both are ready. The rule above assumes both platforms move together, which is normally true.
+
 The **website version is automatic** — do not hand-edit it. `website/overrides/home.html` renders `{{ config.extra.app_version }}`, which `.github/workflows/docs.yml` injects from `project.yml`'s `MARKETING_VERSION` at build time; `project.yml` is in that workflow's `paths` trigger so a bump redeploys the site on its own. The site's Android APK link points at `releases/latest/download/whistle.apk` and likewise needs no edit. (Both used to be hand-maintained and were repeatedly missed — that is why they are generated now.)
 
 Releasing is a separate step from bumping: merging does not publish. See the `android-release` skill for tagging Android, and the `ios-release` skill for tagging iOS (archive + export + TestFlight upload is automated via `release-ios.yml`; submitting the TestFlight build for App Store review stays a manual step).
