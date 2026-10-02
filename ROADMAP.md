@@ -630,6 +630,15 @@ _Released 2026-09-22_
 
 ### Deferred
 
+- **v2.0 release sequencing** _(agreed 2026-10-02)_: **1** merge #263 → **2** perf PR (iOS) → **4** error-UX PR (iOS) → **3** Android port → **5** version bumps once device-tested interop confirms. UX and perf deliberately land *before* Android: both are design work, and doing them first means porting once rather than porting Android and then retrofitting both platforms.
+
+- **v1 `whistle.db` cleanup** _(agreed 2026-10-02)_: the file is orphaned — `MDKBindings` is gone, so nothing can open it — but it still holds v1 MLS key material.
+    - **It does not hold the identity.** The nsec lives in the Keychain via `IdentityService`; `start(adoptingNsec:)` adopts it and the npub carries over (device-confirmed: `Identity restored: npub1yls…`). Any user-facing copy must say **groups** are lost and the npub is kept — saying they lose their identity would be false and would push people into needlessly re-sharing a new npub.
+    - **The notice belongs to the upgrade, not the wipe.** Installing v2 already loses the groups, so a consent dialog on the wipe offers a choice that does not exist. One-time first-launch notice: groups do not carry over, you keep your npub, this is one-way.
+    - ⚠️ **`IdentityService.hasExistingLocalGroupDataOnDisk()` reads `whistle.db`** to tell a genuine first launch from a used device whose Keychain is temporarily unreachable — that is what drives `identityAnomalyDetected` and stops the app silently minting a new identity. **Repoint it at MarmotKit's root before wiping**, or the wipe quietly disables a real safety net.
+    - Timing: **Settings → "reclaim space" in 2.0.0**, automatic from **2.0.1**. Keeping the file for one release preserves a downgrade path — reinstalling 1.x restores v1 groups if v2.0 turns out to have a bad bug.
+
+
 - **Error UX — one mechanism, two tiers** _(agreed 2026-10-02, independent of the v2.0 migration)_: Marmot errors currently surface through four inconsistent mechanisms, and two of them show nothing at all.
     - Inventory: `GroupDetailViewModel.error` renders as an 8pt red caption at the foot of a List section (easy to miss); `AdvancedSettingsView.relayError` is inline under the text field (**correct — field validation belongs next to the field**); `ExportKeyView.errorMessage` is an inline label; `mlsError` is only visible in Advanced Settings' MLS row, so a startup failure is invisible unless you go looking; **`MarmotKitService.lastError` has no consumer at all**, so receive-loop failures are published and silently dropped; **`ChatViewModel.error` is never rendered** — `GroupChatView` does not read it, so a failed chat send shows nothing.
     - **Toast** — auto-dismiss ~4s, tap to dismiss, **with Retry** — for *action failures* (send, invite, rename, resync). The user just acted, so they are looking at the screen.
