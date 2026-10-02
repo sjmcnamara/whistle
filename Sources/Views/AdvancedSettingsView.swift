@@ -11,6 +11,20 @@ struct AdvancedSettingsView: View {
     @State private var showAddRelay = false
     @State private var newRelayURL = ""
     @State private var relayError: String?
+    /// Held locally rather than read through `appViewModel` on each render.
+    ///
+    /// `AppViewModel.forwardChildChanges()` republishes `settings`,
+    /// `locationService` and the **v1** `relay` — not `marmot` — so a change
+    /// to `MarmotKitService.relayStatus` never invalidated this view. It
+    /// painted the initial `.disconnected` once and kept it, while the
+    /// diagnostics bundle (which reads the value directly when generating)
+    /// correctly said "connected (2 of 2)".
+    ///
+    /// Keeping it in `@State` fed by the polling task below fixes it without
+    /// forwarding every `MarmotKitService` change into `AppViewModel`, which
+    /// would re-render every view observing it on each relay event — the
+    /// amplification the avatar picker already had to be insulated from.
+    @State private var relayStatus: MarmotKitService.RelayStatus?
 
     var body: some View {
         List {
@@ -28,9 +42,12 @@ struct AdvancedSettingsView: View {
         // MarmotKit, which owns the connections — the v1 `RelayService` this
         // used to refresh is never connected under v2.
         .task {
-            let configured = appViewModel.settings.relays.map(\.url)
             while !Task.isCancelled {
+                // Re-read the configured list each pass so adding or toggling
+                // a relay is reflected without leaving the screen.
+                let configured = appViewModel.settings.relays.map(\.url)
                 await appViewModel.marmot?.refreshRelayStatus(configured: configured)
+                relayStatus = appViewModel.marmot?.relayStatus
                 try? await Task.sleep(for: .seconds(5))
             }
         }
@@ -290,7 +307,7 @@ struct AdvancedSettingsView: View {
     /// MarmotKit was connected to every relay.
     @ViewBuilder
     private var connectionLabel: some View {
-        let status = appViewModel.marmot?.relayStatus
+        let status = relayStatus
         switch status?.connection {
         case .connected:
             Label("Connected (\(status?.connected ?? 0) of \(status?.total ?? 0))", systemImage: "wifi")
@@ -332,7 +349,7 @@ struct AdvancedSettingsView: View {
     /// to correct, which a connectivity dot never distinguished from a relay
     /// that happened to be down.
     private func relayDotColor(for url: String) -> Color {
-        switch appViewModel.marmot?.relayStatus.policies[url] {
+        switch relayStatus?.policies[url] {
         case "allowed": return .green
         case .some(let policy) where policy.isEmpty == false: return .orange
         default: return .secondary
@@ -342,7 +359,7 @@ struct AdvancedSettingsView: View {
     /// Shown beside a relay that MarmotKit will not dial, so the reason is
     /// visible rather than presenting as an unexplained failure.
     private func relayPolicyNote(for url: String) -> String? {
-        guard let policy = appViewModel.marmot?.relayStatus.policies[url],
+        guard let policy = relayStatus?.policies[url],
               policy != "allowed" else { return nil }
         return policy
     }

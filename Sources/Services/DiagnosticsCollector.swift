@@ -79,6 +79,12 @@ enum DiagnosticsCollector {
         // connects the v1 service, so `relay.connectedRelayURLs` is always
         // empty — the bundle reported every relay as disconnected while
         // MarmotKit was connected to both.
+        //
+        // Refreshed here rather than read as-is: `relayStatus` is a cache, and
+        // the only other thing that fills it is the Advanced Settings screen's
+        // poll. A bundle generated without visiting that screen would
+        // otherwise report the default — disconnected, 0 of 0.
+        await marmot?.refreshRelayStatus(configured: settings.relays.map(\.url))
         let status = marmot?.relayStatus
         let relays = settings.relays.map {
             DiagnosticsReport.RelaySnapshot(

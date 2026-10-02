@@ -25,6 +25,11 @@ struct GroupListView: View {
                         } label: {
                             Label("Create Group", systemImage: "plus.circle")
                         }
+                        // Creating a group needs a published account.
+                        // Offering it earlier let the user tap it and get
+                        // `OnboardingRequired`, which reads as a broken
+                        // button rather than "not ready yet".
+                        .disabled(!viewModel.isAccountReady)
                         Button {
                             viewModel.showMyCode = true
                         } label: {
@@ -134,6 +139,16 @@ struct GroupListView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .disabled(!viewModel.isAccountReady)
+
+                // Says why the button is dim. Without this the empty state
+                // looks broken on first launch, while publication is still in
+                // flight.
+                if !viewModel.isAccountReady {
+                    Label("Publishing your account…", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Button {
                     viewModel.showMyCode = true

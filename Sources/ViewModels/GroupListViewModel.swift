@@ -10,6 +10,14 @@ final class GroupListViewModel: ObservableObject {
 
     @Published private(set) var groups: [GroupListItem] = []
     @Published var showCreateGroup = false
+    /// False until account setup finishes publishing.
+    ///
+    /// Creating a group needs a published account; before that MarmotKit
+    /// rejects it with `OnboardingRequired`. The action used to be offered
+    /// anyway and failed when tapped, which read as a broken button rather
+    /// than as "not ready yet".
+    @Published private(set) var isAccountReady = false
+
     /// Shows this device's own member code, so an admin can scan it.
     ///
     /// Replaces v1's `showJoinGroup`. There is no "join" action under
@@ -101,6 +109,21 @@ final class GroupListViewModel: ObservableObject {
 
         // Reflect per-group pause toggles immediately, without waiting for the
         // next marmot.$groups emission to rebuild the whole list.
+        // Readiness is monotonic — once published it stays published — so this
+        // polls until ready and then stops rather than running for the
+        // lifetime of the app. It is not observable any other way: readiness
+        // lives inside MarmotKit's runtime and is not published to the app.
+        Task { [weak self] in
+            for _ in 0..<120 {
+                guard let self else { return }
+                if marmot.isAccountReady() {
+                    self.isAccountReady = true
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+
         settings.$pausedGroupIds
             .dropFirst()
             .receive(on: DispatchQueue.main)

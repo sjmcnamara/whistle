@@ -1102,7 +1102,16 @@ final class MarmotKitService: ObservableObject {
     }
 
     /// Whether this account can currently be invited by someone else.
-    func isReadyToBeInvited() -> Bool {
+    func isReadyToBeInvited() -> Bool { isAccountReady() }
+
+    /// Whether the account is published and usable for anything that touches
+    /// relays — creating a group, being invited to one.
+    ///
+    /// The same precondition in both cases: until setup reaches
+    /// `.networkReady` the account has no published relay list or KeyPackage,
+    /// and MarmotKit rejects the operation with `OnboardingRequired`. Callers
+    /// should gate their UI on this rather than letting the user act and fail.
+    func isAccountReady() -> Bool {
         (try? setupReadiness()) == .networkReady
     }
 
