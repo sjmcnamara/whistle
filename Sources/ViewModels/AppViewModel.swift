@@ -40,9 +40,6 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Pending Invites (v0.6)
 
-
-
-
     /// GroupListViewModel — owned here so it survives SwiftUI view identity
     /// changes. Created once after MarmotKitService is ready.
     @Published private(set) var groupListViewModel: GroupListViewModel?
