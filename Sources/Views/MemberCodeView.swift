@@ -119,15 +119,22 @@ struct MemberCodeView: View {
 
     /// Polls rather than observing, because readiness advances inside
     /// MarmotKit's runtime and is not published to the app.
+    /// Polls without a deadline, for as long as the screen is open.
+    ///
+    /// The earlier version gave up after 30 seconds, which on device was
+    /// shorter than real setup takes — leaving "Publishing your key…" on
+    /// screen permanently even once the account had published. A `.task` is
+    /// cancelled when the view goes away, so the loop needs no bound of its
+    /// own.
     private func waitUntilReady() async {
         code = marmot.myMemberCode()
-        for _ in 0..<60 {
+        while !Task.isCancelled {
             if marmot.isReadyToBeInvited() {
                 isReady = true
                 code = marmot.myMemberCode()
                 return
             }
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            try? await Task.sleep(for: .milliseconds(500))
         }
     }
 }

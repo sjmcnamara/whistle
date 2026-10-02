@@ -718,6 +718,7 @@ final class MarmotKitService: ObservableObject {
         let account = try requireAccount()
         return try await Self.run {
             if try marmot.accountSetupReadiness(accountRef: account) == .networkReady {
+                accountIsReady = true
                 return .networkReady
             }
             // No session means the account came from `createIdentityWithProfile`,
@@ -766,6 +767,7 @@ final class MarmotKitService: ObservableObject {
             }
 
             let readiness = try marmot.accountSetupReadiness(accountRef: account)
+            accountIsReady = readiness == .networkReady
             if readiness != .networkReady {
                 // Dump the whole picture rather than just the end state: the
                 // step findings name the failing relay and the reason, which
@@ -1102,6 +1104,16 @@ final class MarmotKitService: ObservableObject {
     }
 
     /// Whether this account can currently be invited by someone else.
+    /// Published so the UI can observe it instead of polling.
+    ///
+    /// Polling was the first attempt and it was wrong in a way that only
+    /// showed on device: a bounded loop (60s) gave up **permanently**, and
+    /// real setup took longer than that — many relay round trips — so the
+    /// Create Group button stayed disabled for the rest of the session even
+    /// though the account had published. Readiness is monotonic, so observing
+    /// it is both simpler and correct.
+    @Published private(set) var accountIsReady = false
+
     func isReadyToBeInvited() -> Bool { isAccountReady() }
 
     /// Whether the account is published and usable for anything that touches
@@ -1111,8 +1123,11 @@ final class MarmotKitService: ObservableObject {
     /// `.networkReady` the account has no published relay list or KeyPackage,
     /// and MarmotKit rejects the operation with `OnboardingRequired`. Callers
     /// should gate their UI on this rather than letting the user act and fail.
+    @discardableResult
     func isAccountReady() -> Bool {
-        (try? setupReadiness()) == .networkReady
+        let ready = (try? setupReadiness()) == .networkReady
+        if ready != accountIsReady { accountIsReady = ready }
+        return ready
     }
 
     // MARK: - Membership & admin
