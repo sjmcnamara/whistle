@@ -34,7 +34,9 @@ struct SettingsView: View {
             // One row, not two. "Your Nostr Key" and "My Member Code" were
             // separate entries showing the *same* npub as the *same* QR code —
             // `IdentityCardView` already renders it — so they read as two
-            // different identifiers when there is only one.
+            // different identifiers when there is only one. The label matches
+            // that screen's title rather than inventing a third word for it:
+            // "identity", "ID" and "npub" were all in use for one thing.
             if let identity = appViewModel.identity.identity {
                 NavigationLink {
                     IdentityCardView(
@@ -44,7 +46,7 @@ struct SettingsView: View {
                 } label: {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Your ID")
+                            Text("Your Identity")
                             Text(identity.shortNpub)
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)

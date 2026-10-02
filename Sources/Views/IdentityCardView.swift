@@ -1,7 +1,7 @@
 import SwiftUI
 import WhistleCore
 
-/// Shows the user's npub as a QR code + copyable text.
+/// The user's identity: npub as a QR code, plus copyable text.
 struct IdentityCardView: View {
     let identity: NostrIdentity
 
@@ -28,7 +28,10 @@ struct IdentityCardView: View {
                 }
             }
 
-            Section("Public Key (npub)") {
+            // Unheadered on purpose. "Public Key (npub)" labelled the QR with
+            // the same jargon the About section below exists to explain, so
+            // the screen introduced the term twice and defined it once.
+            Section {
                 QRCodeView(content: identity.npub)
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
