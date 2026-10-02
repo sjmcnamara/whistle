@@ -2,7 +2,7 @@ import Foundation
 import WhistleCore
 import Combine
 
-/// Drives the Groups tab group list — observes `MarmotService.groups`.
+/// Drives the Groups tab group list — observes `MarmotKitService.groups`.
 @MainActor
 final class GroupListViewModel: ObservableObject {
 
@@ -10,17 +10,25 @@ final class GroupListViewModel: ObservableObject {
 
     @Published private(set) var groups: [GroupListItem] = []
     @Published var showCreateGroup = false
-    @Published var showJoinGroup = false
-    /// Pre-populated invite code delivered via deep link or QR scan.
-    @Published var pendingJoinCode: String?
+    /// False until account setup finishes publishing.
+    ///
+    /// Creating a group needs a published account; before that MarmotKit
+    /// rejects it with `OnboardingRequired`. The action used to be offered
+    /// anyway and failed when tapped, which read as a broken button rather
+    /// than as "not ready yet". Mirrors `MarmotKitService.accountIsReady`.
+    @Published private(set) var isAccountReady = false
+
+    /// Shows this device's own member code, so an admin can scan it.
+    ///
+    /// Replaces v1's `showJoinGroup`. There is no "join" action under
+    /// protocol v2 — a non-member has no out-of-group message to send, so the
+    /// only thing they can do is display who they are and be added.
+    @Published var showMyCode = false
 
     // MARK: - Dependencies
 
-    private let marmot: MarmotService
+    private let marmot: MarmotKitService
     private let displayName: () -> String
-    let pendingInviteStore: PendingInviteStore
-    let pendingWelcomeStore: PendingWelcomeStore
-    let healthTracker: GroupHealthTracker
     private let settings: AppSettings
     private var cancellables = Set<AnyCancellable>()
 
@@ -68,17 +76,12 @@ final class GroupListViewModel: ObservableObject {
     // MARK: - Init
 
     init(
-        marmot: MarmotService,
-        pendingInviteStore: PendingInviteStore,
-        pendingWelcomeStore: PendingWelcomeStore,
+        marmot: MarmotKitService,
         settings: AppSettings = .shared,
         displayName: @escaping () -> String = { "" }
     ) {
         self.marmot = marmot
-        self.pendingInviteStore = pendingInviteStore
-        self.pendingWelcomeStore = pendingWelcomeStore
         self.settings = settings
-        self.healthTracker = marmot.healthTracker
         self.displayName = displayName
 
         marmot.$groups
@@ -106,6 +109,15 @@ final class GroupListViewModel: ObservableObject {
 
         // Reflect per-group pause toggles immediately, without waiting for the
         // next marmot.$groups emission to rebuild the whole list.
+        // Observed, not polled. The first version polled for 60 seconds and
+        // then gave up for good; real setup on device took longer than that,
+        // so Create Group stayed disabled for the whole session after the
+        // account had in fact published.
+        marmot.$accountIsReady
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] ready in self?.isAccountReady = ready }
+            .store(in: &cancellables)
+
         settings.$pausedGroupIds
             .dropFirst()
             .receive(on: DispatchQueue.main)
@@ -116,34 +128,16 @@ final class GroupListViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-
-        // Merge child objectWillChange and debounce to avoid cascading renders.
-        Publishers.Merge(
-            pendingInviteStore.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-            healthTracker.objectWillChange.map { _ in () }.eraseToAnyPublisher()
-        )
-        .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
-        .sink { [weak self] _ in self?.objectWillChange.send() }
-        .store(in: &cancellables)
-
-        // A change here only signals SwiftUI to redraw — it doesn't recompute
-        // `groups`, whose pendingWelcomeIds filter only runs inside refreshItems.
-        // Without this, a group added to pendingWelcomeStore (e.g. by a resync
-        // re-add) keeps showing its stale prior entry — inactive row AND a new
-        // "Accept" row for the same group — until an unrelated marmot.$groups
-        // emission happens to rerun the filter.
-        pendingWelcomeStore.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                Task { await self.refreshItems(from: self.marmot.groups) }
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Refresh
 
     func refresh() async {
+        // Catch up first, then re-read: a group we were added to while the app
+        // was closed only appears once its Welcome has been processed, so
+        // refreshing without this shows a stale list on the pull the user
+        // expects to fix exactly that.
+        try? await marmot.catchUpAccounts()
         await marmot.refreshGroups()
     }
 
@@ -175,15 +169,15 @@ final class GroupListViewModel: ObservableObject {
                 isSharingPaused: settings.pausedGroupIds.contains(group.mlsGroupId)
             ))
         }
-        let pendingWelcomeIds = Set(pendingWelcomeStore.pendingWelcomes.map(\.mlsGroupId))
-        self.groups = items.filter { !pendingWelcomeIds.contains($0.id) }
+        self.groups = items
     }
 
     // MARK: - Actions
 
     func createGroup(name: String) async throws -> String {
-        let relays = marmot.activeRelayURLs
-        let groupId = try await marmot.createGroup(name: name, relays: relays)
+        // No relay argument — MarmotKit publishes to the account's own relay
+        // list, which it maintains itself.
+        let groupId = try await marmot.createGroup(name: name)
 
         // Broadcast our display name so other members see it immediately
         let dn = displayName()
@@ -194,37 +188,12 @@ final class GroupListViewModel: ObservableObject {
         return groupId
     }
 
-    /// Poll relays for gift-wrap events that may have been missed by the
-    /// real-time subscription. Called by JoinGroupView while waiting for Welcome.
-    func fetchMissedWelcomes() async {
-        await marmot.fetchMissedGiftWraps()
-    }
-
     /// Leave a group directly — takes effect immediately, no admin action needed.
     func leaveGroup(id: String) async {
         do {
-            try await marmot.leaveGroup(groupId: id)
+            try await marmot.leaveGroup(id)
         } catch {
             WhistleLogger.chat.error("Failed to leave group \(id): \(error)")
         }
-    }
-
-    func joinGroup(inviteCode: String) async throws {
-        // Decode first so we can extract the group hint for pending state.
-        // fromUri (not decode) so a full whistle://invite/ link pasted into
-        // the manual entry field works too, matching Android's joinGroup.
-        let invite = try InviteCode.fromUri(inviteCode)
-
-        // Re-encode rather than forwarding the original string: acceptInvite
-        // expects the raw base64 code and would throw on a still-prefixed
-        // whistle://invite/ link. Matches Android's joinGroup, which does
-        // the same re-encode before calling acceptInvite.
-        try await marmot.acceptInvite(invite.encode())
-
-        // Record as pending — will be auto-removed when Welcome arrives.
-        pendingInviteStore.add(PendingInvite(
-            groupHint: invite.groupId,
-            inviterNpub: invite.inviterNpub
-        ))
     }
 }

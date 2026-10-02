@@ -52,6 +52,12 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // The member code lives here as well as in the Groups tab's menu.
+            // The Groups empty state covers someone with no groups yet, but
+            // once they are in one, "where do I show my code?" is an identity
+            // question, and this is where they look for it.
+            memberCodeRow
+
             // Display name for group chat. Extracted so typing doesn't
             // re-render this whole view — see DisplayNameRow.
             DisplayNameRow(
@@ -60,6 +66,18 @@ struct SettingsView: View {
             )
 
             avatarRow
+        }
+    }
+
+    /// Shows this device's member code, for an admin to scan.
+    @ViewBuilder
+    private var memberCodeRow: some View {
+        if let marmot = appViewModel.marmot {
+            NavigationLink {
+                MemberCodeView(marmot: marmot)
+            } label: {
+                Label("My Member Code", systemImage: "qrcode")
+            }
         }
     }
 

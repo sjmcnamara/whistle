@@ -690,3 +690,678 @@ extension MarmotKitTwoDeviceTests {
         }
     }
 }
+
+// MARK: - Step 12: the identity survives the cutover
+
+extension MarmotKitTwoDeviceTests {
+
+    /// The upgrade path. MarmotKit mints its own keys, so starting a v2
+    /// install with `createIdentityWithProfile` would give every existing user
+    /// a new npub and orphan them from everyone who knows them. Adopting the
+    /// nsec the app already holds is what prevents that.
+    @MainActor
+    func testAdoptingAnExistingNsecPreservesTheAccountIdentity() async throws {
+        // Stand in for a v1 install: an identity that already exists.
+        let original = try makeService()
+        let originalRef = try await original.startWithNewIdentity()
+        let nsec = try original.revealNsec()
+        XCTAssertTrue(nsec.hasPrefix("nsec"), "expected a bech32 nsec, got \(nsec.prefix(8))…")
+
+        // A fresh v2 install — separate database and keyring — adopting it.
+        let upgraded = try makeService()
+        let adoptedRef = try await upgraded.start(adoptingNsec: nsec, expecting: originalRef)
+
+        XCTAssertEqual(
+            adoptedRef, originalRef,
+            "adopting the nsec produced a different account — users would lose their npub on upgrade"
+        )
+        XCTAssertEqual(upgraded.myMemberCode(), original.myMemberCode())
+    }
+
+    /// Relaunching must resume the adopted account, not onboard a second one.
+    ///
+    /// The inner scopes are load-bearing, not style: a root is owned until its
+    /// `Marmot` handle is *dropped*, and `shutdown()` does not drop it. Holding
+    /// the first service in scope while constructing the second on the same
+    /// root fails with `RuntimeBusy` — which is the same hazard production
+    /// avoids by giving each identity generation its own root.
+    @MainActor
+    func testRelaunchResumesTheAdoptedAccount() async throws {
+        let storage = makeStorage()
+        let nsec: String
+        let seedRef: String
+        do {
+            let seed = try makeService()
+            seedRef = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let firstRef: String
+        do {
+            let first = try makeService(on: storage)
+            firstRef = try await first.start(adoptingNsec: nsec, expecting: seedRef)
+            await first.shutdown()
+        }
+
+        let relaunched = try makeService(on: storage)
+        let secondRef = try await relaunched.start(adoptingNsec: nsec, expecting: seedRef)
+        XCTAssertEqual(secondRef, firstRef, "relaunch did not resume the adopted account")
+    }
+
+    /// Importing a different key must switch identity, not quietly keep the
+    /// old one.
+    ///
+    /// This is the bug the `expecting:` argument exists for. Signing into
+    /// `listAccounts().first` looked equivalent and was not: the previous
+    /// account is still in MarmotKit's database after an import or a burn, so
+    /// the app signed back into the *old* identity — keeping its npub and its
+    /// groups — while reporting the import a success. Silent, and it would
+    /// have survived any test that only ever used one key.
+    @MainActor
+    func testImportingADifferentKeyReplacesTheIdentityRatherThanResumingTheOld() async throws {
+        let storage = makeStorage()
+
+        let refA: String, nsecA: String, refB: String, nsecB: String
+        do {
+            let seedA = try makeService()
+            refA = try await seedA.startWithNewIdentity()
+            nsecA = try seedA.revealNsec()
+            await seedA.shutdown()
+        }
+        do {
+            let seedB = try makeService()
+            refB = try await seedB.startWithNewIdentity()
+            nsecB = try seedB.revealNsec()
+            await seedB.shutdown()
+        }
+        XCTAssertNotEqual(refA, refB)
+
+        do {
+            let app = try makeService(on: storage)
+            _ = try await app.start(adoptingNsec: nsecA, expecting: refA)
+            await app.shutdown()
+        }
+
+        // The import: same device storage, a different key, and account A
+        // deliberately left in the database — that is the condition under
+        // which `listAccounts().first` silently resumed the wrong identity.
+        let afterImport = try makeService(on: storage)
+        let adopted = try await afterImport.start(adoptingNsec: nsecB, expecting: refB)
+
+        XCTAssertEqual(adopted, refB, "import resumed the previous identity instead of adopting the new key")
+        XCTAssertNotEqual(adopted, refA)
+    }
+
+    /// An nsec and a reference that disagree must fail loudly. Continuing
+    /// would run the app as whoever the nsec belongs to, which is not who the
+    /// caller believed it was.
+    @MainActor
+    func testAdoptingWithAMismatchedReferenceThrows() async throws {
+        let nsecA: String, refB: String
+        do {
+            let seedA = try makeService()
+            _ = try await seedA.startWithNewIdentity()
+            nsecA = try seedA.revealNsec()
+            await seedA.shutdown()
+        }
+        do {
+            let seedB = try makeService()
+            refB = try await seedB.startWithNewIdentity()
+            await seedB.shutdown()
+        }
+
+        let service = try makeService()
+        do {
+            _ = try await service.start(adoptingNsec: nsecA, expecting: refB)
+            XCTFail("expected a mismatch to throw")
+        } catch MarmotKitService.ServiceError.identityMismatch {
+            // Expected.
+        }
+    }
+}
+
+// MARK: - Diagnostics against a real group
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Moved here from `DiagnosticsCollectorTests`: asserting
+    /// `secondsSinceLastEvent` needs an actual group, and under v2 that means
+    /// a running MarmotKit account rather than an in-memory MLS service.
+    ///
+    /// Ground truth is read back from the group itself rather than re-derived,
+    /// so this catches the collector reading the wrong timestamp — or a
+    /// device-wide one — instead of that group's own.
+    @MainActor
+    func testDiagnosticsSecondsSinceLastEventMatchesThatGroupsLastMessageAt() async throws {
+        let service = try makeService()
+        _ = try await service.startWithNewIdentity()
+        let groupId = try await service.createGroup(name: "Diagnostics")
+        await service.refreshGroups()
+
+        let report = await DiagnosticsCollector.collect(
+            marmot: service,
+            identity: IdentityService(),
+            settings: .shared
+        )
+        let snapshot = try XCTUnwrap(
+            report.groups.first { $0.id == DiagnosticsReport.shortHex(groupId) },
+            "collector reported no snapshot for the group that was just created"
+        )
+
+        let loaded = try await service.group(id: groupId)
+        let group = try XCTUnwrap(loaded)
+        if let lastMessageAt = group.lastMessageAt {
+            let expected = max(0, Int(Date().timeIntervalSince1970) - Int(lastMessageAt))
+            let actual = try XCTUnwrap(snapshot.secondsSinceLastEvent)
+            XCTAssertLessThanOrEqual(abs(actual - expected), 2)
+        } else {
+            // nil must stay nil ("never recorded"), not 0 ("just now").
+            XCTAssertNil(snapshot.secondsSinceLastEvent)
+        }
+    }
+}
+
+// MARK: - Relay policy
+
+/// No service instance needed — relay policy is answered before one exists,
+/// because startup has to filter the list *before* handing it to the runtime.
+final class MarmotKitRelayPolicyTests: XCTestCase {
+
+    /// The regression that broke startup on device. MarmotKit refuses a
+    /// retired host at the dial boundary, and a relay-list declaration naming
+    /// one fails the whole relay directory fetch rather than just that
+    /// endpoint — so a single retired default took the entire launch down with
+    /// "relay endpoint host is retired". `wss://relay.damus.io` was the first
+    /// entry in the shipped default list.
+    func testShippedDefaultRelaysAreAllDialable() {
+        let allowed = MarmotKitService.allowedRelayEndpoints(from: AppDefaults.defaultRelays)
+        XCTAssertEqual(
+            allowed.count, AppDefaults.defaultRelays.count,
+            """
+            A default relay is not dialable by MarmotKit. Startup filters the \
+            list, so the app still launches — but shipping an unusable default \
+            means every new install silently loses a relay. \
+            defaults=\(AppDefaults.defaultRelays) allowed=\(allowed)
+            """
+        )
+    }
+
+    func testRetiredHostIsFilteredOut() {
+        let mixed = ["wss://relay.damus.io"] + AppDefaults.defaultRelays
+        let allowed = MarmotKitService.allowedRelayEndpoints(from: mixed)
+        XCTAssertFalse(
+            allowed.contains { $0.contains("relay.damus.io") },
+            "retired host survived filtering — this is what fails the relay directory fetch"
+        )
+        // The usable ones must come through untouched: dropping a retired host
+        // must not cost the account every other relay it had.
+        XCTAssertEqual(allowed.count, AppDefaults.defaultRelays.count)
+    }
+
+    func testEmptyInputYieldsEmptyOutput() {
+        XCTAssertEqual(MarmotKitService.allowedRelayEndpoints(from: []), [])
+    }
+}
+
+// MARK: - Root path
+
+final class MarmotKitRootPathTests: XCTestCase {
+
+    /// The device failure this exists for: MarmotKit opens its root as a
+    /// "complete authorized directory path" and rejects any symlink in it with
+    /// `ELOOP` (os error 62). On iOS `/var` is a symlink to `/private/var`,
+    /// and `FileManager.urls(for:in:)` returns the unresolved form — so
+    /// startup failed with an I/O error naming the leaf directory, which reads
+    /// like the leaf is broken rather than the prefix.
+    ///
+    /// The simulator's container is not under a symlinked prefix, so this
+    /// cannot reproduce the device path. What it *can* pin is the invariant
+    /// that was violated: the path handed to MarmotKit must already equal its
+    /// own fully-resolved form.
+    func testRootPathIsFullySymlinkResolved() throws {
+        let path = try MarmotKitService.defaultRootPath()
+        XCTAssertEqual(
+            MarmotKitService.fullyResolved(path), path,
+            "root path contains an unresolved symlink — MarmotKit rejects these with ELOOP"
+        )
+    }
+
+    /// The trap that made the first attempt at the device fix a no-op:
+    /// `resolvingSymlinksInPath()` resolves `/var` to `/private/var`, and then
+    /// reading `.path` back off the result standardizes `/private` away again.
+    /// Asserted on a real symlink so it holds wherever the test runs, rather
+    /// than depending on the host having a `/var` symlink.
+    func testFoundationRoundTripDoesNotResolveWhereRealpathDoes() throws {
+        let base = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("resolve-\(UUID().uuidString)", isDirectory: true)
+        let target = base.appendingPathComponent("real", isDirectory: true)
+        let link = base.appendingPathComponent("link", isDirectory: true)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        let viaRealpath = MarmotKitService.fullyResolved(link.path)
+        XCTAssertEqual(
+            viaRealpath, MarmotKitService.fullyResolved(target.path),
+            "realpath must resolve the link to its target"
+        )
+        XCTAssertFalse(
+            viaRealpath.hasSuffix("/link"),
+            "resolved path still points at the symlink — MarmotKit would reject it with ELOOP"
+        )
+    }
+
+    func testRootPathExistsAsADirectory() throws {
+        let path = try MarmotKitService.defaultRootPath()
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
+    }
+
+    /// Advancing is what makes identity replacement safe from `RuntimeBusy`,
+    /// so a new generation must genuinely be a different directory.
+    func testAdvancingGenerationYieldsADifferentRoot() throws {
+        let before = try MarmotKitService.defaultRootPath()
+        MarmotKitService.advanceIdentityGeneration()
+        let after = try MarmotKitService.defaultRootPath()
+        XCTAssertNotEqual(before, after)
+        XCTAssertEqual(
+            URL(fileURLWithPath: after).resolvingSymlinksInPath().path, after,
+            "a new generation must be as symlink-free as the first"
+        )
+    }
+
+    /// The previous generation is deleted at launch, when nothing can still
+    /// hold it — otherwise every import or burn leaves a database behind.
+    func testSupersededGenerationIsPurgedOnNextResolve() throws {
+        let stale = try MarmotKitService.defaultRootPath()
+        FileManager.default.createFile(atPath: stale + "/marker", contents: nil)
+        MarmotKitService.advanceIdentityGeneration()
+
+        // Resolving the new generation is what sweeps the old one.
+        _ = try MarmotKitService.defaultRootPath()
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: stale),
+            "superseded generation survived — identity replacement would accumulate databases"
+        )
+    }
+}
+
+// MARK: - Does MarmotKit actually reject a symlinked root?
+
+/// The experiment that should have been run before any fix was pushed.
+///
+/// The device failure was `Io("open complete authorized directory path at
+/// /var/mobile/…: Too many levels of symbolic links (os error 62)")`, and the
+/// diagnosis — that MarmotKit refuses a symlink anywhere in its root path —
+/// was inferred from the message rather than tested. It is testable locally:
+/// point a runtime at a root reached through a symlink and see what happens.
+/// `/var` on iOS is just one instance of that.
+final class MarmotKitSymlinkedRootTests: XCTestCase {
+
+    private var base: URL!
+
+    override func setUpWithError() throws {
+        base = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("symlink-root-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: base)
+        base = nil
+    }
+
+    @MainActor
+    func testRootReachedThroughASymlinkIsRejected() throws {
+        let real = base.appendingPathComponent("real", isDirectory: true)
+        let link = base.appendingPathComponent("link", isDirectory: true)
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+
+        // The unresolved path — the shape the device was given.
+        do {
+            _ = try MarmotKitService(
+                rootPath: link.path,
+                relayUrls: [],
+                secretStore: InMemorySecretStore()
+            )
+            XCTFail(
+                """
+                MarmotKit accepted a symlinked root. The device ELOOP therefore has \
+                some other cause, and `fullyResolved` is not the fix.
+                """
+            )
+        } catch {
+            // Confirms the diagnosis. Recorded in the message so a future
+            // reader sees the evidence rather than the inference.
+            XCTAssertTrue(
+                "\(error)".contains("symbolic link") || "\(error)".contains("os error 62"),
+                "rejected, but not for the reason assumed — got: \(error)"
+            )
+        }
+    }
+
+    /// The other half: the same root, resolved, must be accepted. Without this
+    /// the test above only proves symlinks are rejected, not that resolving
+    /// them is sufficient.
+    @MainActor
+    func testSameRootResolvedIsAccepted() throws {
+        let real = base.appendingPathComponent("real", isDirectory: true)
+        let link = base.appendingPathComponent("link", isDirectory: true)
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+
+        let resolved = MarmotKitService.fullyResolved(link.path)
+        XCTAssertFalse(resolved.hasSuffix("/link"), "realpath did not see through the symlink")
+
+        _ = try MarmotKitService(
+            rootPath: resolved,
+            relayUrls: [],
+            secretStore: InMemorySecretStore()
+        )
+    }
+}
+
+// MARK: - Account setup completion
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Why "my member code" failed on device with `OnboardingRequired` while
+    /// every test passed: the tests reached an account through
+    /// `startWithNewIdentity`, the app reaches it through
+    /// `start(adoptingNsec:)`, and nothing asserted the adopt path got past
+    /// identity creation.
+    ///
+    /// Asserts `.networkReady` outright rather than comparing against the
+    /// create path. Measured: the two genuinely end in different states —
+    /// `startWithNewIdentity` settles at `localReady` with no onboarding
+    /// session at all, while the adopt path runs the onboarding machine
+    /// through to `networkReady`. Comparing them was the wrong test, and it
+    /// failed for the opposite of the reason it was written for.
+    @MainActor
+    func testAdoptedAccountReachesNetworkReady() async throws {
+        let nsec: String, ref: String
+        do {
+            let seed = try makeService()
+            ref = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let adopted = try makeService()
+        _ = try await adopted.start(adoptingNsec: nsec, expecting: ref)
+        XCTAssertEqual(
+            try adopted.setupReadiness(), .initializing,
+            "adopt is expected to stop short of publication — that is what makes launch fast"
+        )
+
+        let readiness = try await adopted.completeAccountSetup()
+        XCTAssertEqual(
+            readiness, .networkReady,
+            """
+            account setup did not complete. Onboarding is a sequential machine that             blocks on caller input — a single `runOnboarding` stalls on `profile` and             every later step stays pending behind it.
+            """
+        )
+    }
+
+    /// Diagnostic, not an assertion of desired behaviour: dumps the onboarding
+    /// state machine so the steps that actually stall are visible instead of
+    /// guessed at. Onboarding steps can sit at `needsInput` awaiting a caller
+    /// action, and `runOnboarding` advances past only what it can decide
+    /// itself.
+    @MainActor
+    func testDumpsOnboardingStateForAnAdoptedAccount() async throws {
+        let nsec: String, ref: String
+        do {
+            let seed = try makeService()
+            ref = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let service = try makeService()
+        _ = try await service.start(adoptingNsec: nsec, expecting: ref)
+        print("ONBOARD-DIAG readiness after adopt: \(try service.setupReadiness())")
+        for line in try service.onboardingDiagnostics() { print("ONBOARD-DIAG \(line)") }
+
+        _ = try? await service.completeAccountSetup()
+        print("ONBOARD-DIAG readiness after runOnboarding: \(try service.setupReadiness())")
+        for line in try service.onboardingDiagnostics() { print("ONBOARD-DIAG \(line)") }
+    }
+
+    /// The specific operation that failed on device. It needs a published
+    /// account, so it is the sharpest check that setup actually completed.
+    @MainActor
+    func testKeyPackageRotationWorksOnAnAdoptedAccount() async throws {
+        let nsec: String, ref: String
+        do {
+            let seed = try makeService()
+            ref = try await seed.startWithNewIdentity()
+            nsec = try seed.revealNsec()
+            await seed.shutdown()
+        }
+
+        let service = try makeService()
+        _ = try await service.start(adoptingNsec: nsec, expecting: ref)
+        try await service.completeAccountSetup()
+
+        // Before the fix this threw `OnboardingRequired`.
+        _ = try await service.publishKeyPackage()
+    }
+
+    /// Completing twice must be harmless — it runs on every launch.
+    @MainActor
+    func testCompletingSetupTwiceIsIdempotent() async throws {
+        let service = try makeService()
+        _ = try await service.startWithNewIdentity()
+        let first = try await service.completeAccountSetup()
+        let second = try await service.completeAccountSetup()
+        XCTAssertEqual(first, second)
+    }
+}
+
+// MARK: - Leaving a group of one
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Reported from device: a group you are alone in could not be left. MLS
+    /// cannot remove the last member, so `selfDemoteAdmin` reports
+    /// `WouldRemoveLastAdmin` and the app relayed it as "promote another
+    /// member to admin before leaving" — impossible advice with nobody to
+    /// promote, leaving identity burn as the only escape.
+    @MainActor
+    func testAGroupYouAreAloneInCanBeLeft() async throws {
+        let service = try makeService()
+        _ = try await service.startWithNewIdentity()
+        let groupId = try await service.createGroup(name: "Solo")
+        await service.refreshGroups()
+        XCTAssertTrue(service.groups.contains { $0.mlsGroupId == groupId })
+
+        try await service.leaveGroup(groupId)
+
+        XCTAssertFalse(
+            service.groups.contains { $0.mlsGroupId == groupId },
+            "group of one survived being left — the list should no longer show it"
+        )
+    }
+
+    /// The error must survive where it is still correct: with another member
+    /// present, a sole admin genuinely has to hand admin over first.
+    @MainActor
+    func testSoleAdminOfAPopulatedGroupStillCannotLeave() async throws {
+        // `makePair` already creates the group and converges Bob into it.
+        let (alice, _, _, groupId) = try await makePair(groupName: "Populated")
+
+        do {
+            try await alice.leaveGroup(groupId)
+            XCTFail("sole admin of a populated group should not be able to leave")
+        } catch MarmotKitService.ServiceError.lastAdminCannotLeave {
+            // Correct: there is someone to promote here.
+        }
+    }
+}
+
+// MARK: - Can the dialled relay set change at runtime?
+
+/// Device report: adding a relay in Advanced Settings left the status at
+/// "connected (2 of 2)" until the app was restarted, while diagnostics listed
+/// three — because diagnostics maps `settings.relays` whereas the status comes
+/// from `relayHealth()`, which reflects the pool the runtime was *constructed*
+/// with.
+///
+/// `relayUrls` is init-only; no binding changes it afterwards. The open
+/// question is whether `publishRelayLists` — which updates what the account
+/// advertises — also causes the runtime to adopt those relays for dialling.
+/// Asked here rather than assumed, because the answer decides whether a relay
+/// change can take effect live or genuinely needs a relaunch.
+final class MarmotKitRuntimeRelaySetTests: XCTestCase {
+
+    private var first: LoopbackRelay!
+    private var second: LoopbackRelay!
+    private var rootPath: String?
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        first = try LoopbackRelay()
+        try first.start()
+        second = try LoopbackRelay()
+        try second.start()
+    }
+
+    override func tearDown() {
+        first?.stop(); first = nil
+        second?.stop(); second = nil
+        if let rootPath { try? FileManager.default.removeItem(atPath: rootPath) }
+        rootPath = nil
+        super.tearDown()
+    }
+
+    @MainActor
+    func testPublishingANewRelayListDoesNotChangeTheDialledPool() async throws {
+        let root = NSTemporaryDirectory().appending("marmotkit-relayset-\(UUID().uuidString)")
+        rootPath = root
+        let firstURL = try XCTUnwrap(first.url)
+        let secondURL = try XCTUnwrap(second.url)
+
+        let service = try MarmotKitService(
+            rootPath: root,
+            relayUrls: [firstURL],
+            allowLoopback: true,
+            secretStore: InMemorySecretStore()
+        )
+        _ = try await service.startWithNewIdentity()
+
+        await service.refreshRelayStatus(all: [firstURL], enabled: [firstURL])
+        let before = service.relayStatus.total
+        XCTAssertEqual(before, 1, "expected the pool to be the single relay passed at construction")
+
+        // Advertise both. If the runtime adopts its published default relays
+        // for dialling, the pool grows; if not, a relay change needs a new
+        // runtime and the UI has to say so.
+        try await service.publishRelayLists(defaultRelays: [firstURL, secondURL])
+
+        await service.refreshRelayStatus(all: [firstURL, secondURL], enabled: [firstURL, secondURL])
+        let after = service.relayStatus.total
+        XCTAssertEqual(
+            after, before,
+            """
+            The dialled pool DID change after publishing a new relay list \
+            (\(before) → \(after)). If this fails, a relay added in settings can \
+            be applied live and the restart requirement should be removed.
+            """
+        )
+    }
+}
+
+// MARK: - Relay settings diff
+
+/// Device report: toggling a relay changed nothing in the status, and exactly
+/// one relay showed a permanent "restart to connect". Cause was a comparison
+/// between two different spellings — `relayUrls` holds MarmotKit's
+/// *normalised* endpoints, settings holds what the user typed — so whichever
+/// relay normalised differently never matched.
+final class MarmotKitRelayDiffTests: XCTestCase {
+
+    private var relay: LoopbackRelay!
+    private var rootPath: String?
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        relay = try LoopbackRelay()
+        try relay.start()
+    }
+
+    override func tearDown() {
+        relay?.stop(); relay = nil
+        if let rootPath { try? FileManager.default.removeItem(atPath: rootPath) }
+        rootPath = nil
+        super.tearDown()
+    }
+
+    @MainActor
+    private func makeService() throws -> (MarmotKitService, String) {
+        let root = NSTemporaryDirectory().appending("marmotkit-diff-\(UUID().uuidString)")
+        rootPath = root
+        let url = try XCTUnwrap(relay.url)
+        let service = try MarmotKitService(
+            rootPath: root,
+            relayUrls: [url],
+            allowLoopback: true,
+            secretStore: InMemorySecretStore()
+        )
+        return (service, url)
+    }
+
+    @MainActor
+    func testNoPendingChangesWhenSettingsMatchTheDialledPool() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url], enabled: [url])
+        XCTAssertEqual(service.relayStatus.pendingAdditions, [])
+        XCTAssertEqual(service.relayStatus.pendingRemovals, [])
+    }
+
+    /// The reported bug: the same relay written differently must not register
+    /// as a pending change. A trailing slash and different casing are both
+    /// spellings MarmotKit normalises away.
+    @MainActor
+    func testDifferentSpellingsOfTheSameRelayAreNotPendingChanges() async throws {
+        let (service, url) = try makeService()
+        for spelling in [url + "/", url.uppercased()] {
+            await service.refreshRelayStatus(all: [spelling], enabled: [spelling])
+            XCTAssertEqual(
+                service.relayStatus.pendingAdditions, [],
+                "\(spelling) was treated as a different relay from \(url)"
+            )
+            XCTAssertEqual(service.relayStatus.pendingRemovals, [])
+        }
+    }
+
+    @MainActor
+    func testAddedRelayIsAPendingAddition() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url, "wss://added.example"], enabled: [url, "wss://added.example"])
+        XCTAssertEqual(service.relayStatus.pendingAdditions.count, 1)
+        XCTAssertEqual(service.relayStatus.pendingRemovals, [])
+    }
+
+    /// Disabling a relay does not stop it being dialled until restart, so it
+    /// must be reported — the user otherwise believes the toggle took effect.
+    @MainActor
+    func testDisabledRelayIsAPendingRemoval() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url], enabled: [])
+        XCTAssertEqual(service.relayStatus.pendingRemovals.count, 1)
+        XCTAssertEqual(service.relayStatus.pendingAdditions, [])
+    }
+
+    /// A disabled relay keeps its policy label, so "retired" stays visible
+    /// rather than disappearing when the relay is switched off.
+    @MainActor
+    func testDisabledRelayStillHasAPolicy() async throws {
+        let (service, url) = try makeService()
+        await service.refreshRelayStatus(all: [url], enabled: [])
+        XCTAssertNotNil(service.relayStatus.policies[url])
+    }
+}

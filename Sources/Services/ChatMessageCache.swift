@@ -19,7 +19,6 @@ final class ChatMessageCache {
     struct Thread {
         var messages: [ChatViewModel.ChatMessageItem]
         /// Offset into MDK's raw message store (see `ChatViewModel.currentOffset`).
-        var offset: UInt32
         /// Whether older messages remain to be paged in.
         var hasMore: Bool
     }
@@ -32,8 +31,8 @@ final class ChatMessageCache {
     }
 
     /// Store (or replace) the cached thread for a group.
-    func store(groupId: String, messages: [ChatViewModel.ChatMessageItem], offset: UInt32, hasMore: Bool) {
-        threads[groupId] = Thread(messages: messages, offset: offset, hasMore: hasMore)
+    func store(groupId: String, messages: [ChatViewModel.ChatMessageItem], hasMore: Bool) {
+        threads[groupId] = Thread(messages: messages, hasMore: hasMore)
     }
 
     /// Drop a single group's cached thread.

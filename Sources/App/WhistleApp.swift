@@ -86,9 +86,6 @@ struct WhistleApp: App {
                     break
                 }
             }
-            .onOpenURL { url in
-                appViewModel.handleIncomingURL(url)
-            }
         }
     }
 }

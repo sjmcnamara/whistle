@@ -3,7 +3,11 @@ name: Whistle
 options:
   bundleIdPrefix: org.getwhistle
   deploymentTarget:
-    iOS: "17.0"
+    # Raised for the v2.0 cutover: MarmotKitFFI's XCFramework requires iOS
+    # 18.0+ and MarmotKitService now ships in the app target. This drops iOS
+    # 17 device support, which is why it was deliberately held back until the
+    # one breaking release rather than leaking into the 1.x line.
+    iOS: "18.0"
   xcodeVersion: "16.1"
   createIntermediateGroups: true
   groupSortPosition: top
@@ -16,9 +20,6 @@ packages:
   NostrSDK:
     url: https://github.com/rust-nostr/nostr-sdk-swift
     exactVersion: "0.44.8"
-  MDKBindings:
-    url: https://github.com/marmot-protocol/mdk-swift
-    revision: 8a7a0a59208e28f721a3abd16c9bd2c0d12af0be
   QRCode:
     url: https://github.com/dagronf/QRCode
     exactVersion: "9.2.1"
@@ -36,21 +37,15 @@ targets:
     platform: iOS
     sources:
       - path: Sources
-        # MarmotKitService imports MarmotKit, whose XCFramework requires iOS
-        # 18.0+. Declaring that dependency on the app target would force the
-        # app's own minimum to 18.0 and drop iOS 17 from the shipping 1.x
-        # line — the thing we are deliberately deferring to the v2.0 cutover.
-        # So the file is compiled into WhistleTests only (see that target's
-        # sources) until step 3d moves the whole stack over. Remove this
-        # exclusion and raise the app's deployment target together.
-        excludes:
-          - "Services/MarmotKitService.swift"
       - path: Resources/Assets.xcassets
     dependencies:
       - package: WhistleCore
       - package: NostrSDK
-      - package: MDKBindings
       - package: QRCode
+      # Step 3d: MarmotKitService now ships in the app. This is what forces
+      # the iOS 18 floor above — MarmotKitFFI's XCFramework requires it.
+      - package: MarmotKitBindings
+        product: MarmotKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.getwhistle.whistle
@@ -91,10 +86,6 @@ targets:
     platform: iOS
     sources:
       - path: WhistleTests
-      # Compiled here rather than into the app target — see the Whistle
-      # target's `excludes` for why. It depends only on WhistleCore and
-      # MarmotKit, so it builds standalone in this module.
-      - path: Sources/Services/MarmotKitService.swift
     dependencies:
       - target: Whistle
       - package: MarmotKitBindings
@@ -103,12 +94,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.getwhistle.whistle.tests
         GENERATE_INFOPLIST_FILE: YES
-        # MarmotKitFFI's XCFramework requires iOS 18.0+ (DISTRIBUTION.md), and
-        # MarmotKitBindings is wired into this test target only. Scoped here
-        # rather than raised app-wide so the shipping 1.x line keeps supporting
-        # iOS 17 — the app-wide bump belongs with the v2.0 cutover, when the
-        # package actually moves into the Whistle target.
-        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
 
 schemes:
   Whistle:

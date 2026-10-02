@@ -11,7 +11,6 @@ final class GroupDetailViewModel: ObservableObject {
 
     @Published var groupName: String = ""
     @Published private(set) var members: [MemberItem] = []
-    @Published private(set) var inviteCode: String?
     @Published private(set) var isLoading = false
     @Published private(set) var isAddingMember = false
     @Published private(set) var didAddMember = false
@@ -26,9 +25,6 @@ final class GroupDetailViewModel: ObservableObject {
     /// Pubkey currently being hard-resynced (remove + re-add), for per-row spinner.
     @Published private(set) var resyncingMemberPubkey: String?
 
-    /// Invitees who gift-wrapped a join-request for this group, awaiting the admin's add.
-    @Published private(set) var pendingJoiners: [JoinRequest] = []
-
     // MARK: - Item model
 
     struct MemberItem: Identifiable, Equatable {
@@ -42,7 +38,7 @@ final class GroupDetailViewModel: ObservableObject {
     // MARK: - Dependencies
 
     let groupId: String
-    private let marmot: MarmotService
+    private let marmot: MarmotKitService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
     private var cancellables = Set<AnyCancellable>()
@@ -51,7 +47,7 @@ final class GroupDetailViewModel: ObservableObject {
 
     init(
         groupId: String,
-        marmot: MarmotService,
+        marmot: MarmotKitService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String
     ) {
@@ -69,15 +65,6 @@ final class GroupDetailViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Surface incoming join-requests for this group (fires immediately with
-        // the current contents, then on every update).
-        marmot.joinRequestStore?.$requests
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] all in
-                guard let self else { return }
-                self.pendingJoiners = all.filter { $0.groupId == self.groupId }
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Load
@@ -88,13 +75,11 @@ final class GroupDetailViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            // Refresh cached metadata (name/admins/etc.) from live MLS state
-            // first — our cache can drift from what MLS actually enforces,
-            // which otherwise shows a stale admin list here.
-            try await marmot.syncGroupMetadata(groupId: groupId)
-
             // Load group metadata, members and admin list. One group read
-            // serves both the name and the admin list.
+            // serves both the name and the admin list. No separate metadata
+            // sync step: v1 cached group state itself and could drift from
+            // what MLS enforced, so it had to reconcile first — MarmotKit
+            // reads this straight from live group state.
             let group = try await marmot.group(id: groupId)
             if let group {
                 groupName = group.displayName
@@ -125,22 +110,12 @@ final class GroupDetailViewModel: ObservableObject {
     }
 
     // MARK: - Invite
-
-    /// Generate a shareable invite code for this group.
-    func generateInvite() {
-        do {
-            let relays = marmot.activeRelayURLs
-            guard let relay = relays.first else {
-                error = "No connected relays"
-                return
-            }
-            inviteCode = try marmot.generateInviteCode(for: groupId, relay: relay)
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
-            WhistleLogger.chat.error("Failed to generate invite: \(error)")
-        }
-    }
+    //
+    // There is no invite *code* under protocol v2. A code only works if the
+    // person holding it can act on it, and a non-member has no out-of-group
+    // message to send. Adding someone is admin-side and in-group now: they
+    // show their member code (`MemberCodeView`) and an admin scans it
+    // (`ScanMemberCodeView`).
 
     // MARK: - Add member
 
@@ -165,7 +140,7 @@ final class GroupDetailViewModel: ObservableObject {
                 pubkeyHex = input
             }
 
-            try await marmot.addMember(publicKeyHex: pubkeyHex, toGroup: groupId)
+            try await marmot.invite(memberRefs: [pubkeyHex], toGroup: groupId)
             addMemberNpub = ""
             error = nil
 
@@ -181,57 +156,12 @@ final class GroupDetailViewModel: ObservableObject {
         }
     }
 
-    /// Add a joiner from their gift-wrapped join-request.
-    ///
-    /// Interim: uses the existing single-add (fetches their published key package
-    /// from the relay). A later batch path (PR2b) will use the key package carried
-    /// inline in the request and add everyone in one MLS commit via "Add all".
-    func addPendingJoiner(_ request: JoinRequest) async {
-        isAddingMember = true
-        defer { isAddingMember = false }
-        do {
-            try await marmot.addMember(publicKeyHex: request.pubkey, toGroup: groupId)
-            marmot.joinRequestStore?.remove(groupId: groupId, pubkey: request.pubkey)
-            error = nil
-            await load()
-            WhistleLogger.chat.info("Added pending joiner \(request.pubkey.prefix(8)) to group \(self.groupId)")
-        } catch {
-            self.error = error.localizedDescription
-            WhistleLogger.chat.error("Failed to add pending joiner: \(error)")
-        }
-    }
-
-    /// Discard a join-request without adding (e.g. unrecognised requester).
-    func dismissPendingJoiner(_ request: JoinRequest) {
-        marmot.joinRequestStore?.remove(groupId: groupId, pubkey: request.pubkey)
-    }
-
-    /// Admit every pending joiner in a single MLS commit (one epoch bump for all).
-    func addAllPendingJoiners() async {
-        let toAdd = pendingJoiners
-        guard !toAdd.isEmpty else { return }
-        isAddingMember = true
-        defer { isAddingMember = false }
-        do {
-            let result = try await marmot.addMembers(toAdd, toGroup: groupId)
-            for pubkey in result.added {
-                marmot.joinRequestStore?.remove(groupId: groupId, pubkey: pubkey)
-            }
-            error = nil
-            await load()
-            WhistleLogger.chat.info("Batch-added \(result.added.count) joiner(s) to group \(self.groupId)")
-        } catch {
-            self.error = error.localizedDescription
-            WhistleLogger.chat.error("Failed to batch-add joiners: \(error)")
-        }
-    }
-
     // MARK: - Remove member
 
     /// Remove a member from the group. Only admins can do this.
     func removeMember(pubkeyHex: String) async {
         do {
-            try await marmot.removeMember(publicKeyHex: pubkeyHex, inGroup: groupId)
+            try await marmot.removeMembers([pubkeyHex], fromGroup: groupId)
 
             // Reload member list
             await load()
@@ -244,7 +174,7 @@ final class GroupDetailViewModel: ObservableObject {
 
     func promoteToAdmin(pubkeyHex: String) async {
         do {
-            try await marmot.promoteToAdmin(pubkeyHex: pubkeyHex, inGroup: groupId)
+            try await marmot.promoteToAdmin(pubkeyHex, inGroup: groupId)
             await load()
             WhistleLogger.chat.info("Promoted \(pubkeyHex.prefix(8)) to admin in group \(self.groupId)")
         } catch {
@@ -262,7 +192,7 @@ final class GroupDetailViewModel: ObservableObject {
         resyncingMemberPubkey = pubkeyHex
         defer { resyncingMemberPubkey = nil }
         do {
-            try await marmot.resyncMember(publicKeyHex: pubkeyHex, inGroup: groupId)
+            try await marmot.resyncMember(pubkeyHex, inGroup: groupId)
             await load()
             WhistleLogger.chat.info("Hard-resynced \(pubkeyHex.prefix(8)) in group \(self.groupId)")
         } catch {
@@ -307,7 +237,7 @@ final class GroupDetailViewModel: ObservableObject {
         isLeaving = true
         defer { isLeaving = false }
         do {
-            try await marmot.leaveGroup(groupId: groupId)
+            try await marmot.leaveGroup(groupId)
             didLeave = true
             error = nil
         } catch {
@@ -325,7 +255,7 @@ final class GroupDetailViewModel: ObservableObject {
         isRenaming = true
         defer { isRenaming = false }
         do {
-            try await marmot.renameGroup(groupId, to: trimmed)
+            try await marmot.rename(group: groupId, to: trimmed)
             groupName = trimmed
             error = nil
         } catch {

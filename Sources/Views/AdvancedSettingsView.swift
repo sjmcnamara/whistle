@@ -11,6 +11,20 @@ struct AdvancedSettingsView: View {
     @State private var showAddRelay = false
     @State private var newRelayURL = ""
     @State private var relayError: String?
+    /// Held locally rather than read through `appViewModel` on each render.
+    ///
+    /// `AppViewModel.forwardChildChanges()` republishes `settings`,
+    /// `locationService` and the **v1** `relay` — not `marmot` — so a change
+    /// to `MarmotKitService.relayStatus` never invalidated this view. It
+    /// painted the initial `.disconnected` once and kept it, while the
+    /// diagnostics bundle (which reads the value directly when generating)
+    /// correctly said "connected (2 of 2)".
+    ///
+    /// Keeping it in `@State` fed by the polling task below fixes it without
+    /// forwarding every `MarmotKitService` change into `AppViewModel`, which
+    /// would re-render every view observing it on each relay event — the
+    /// amplification the avatar picker already had to be insulated from.
+    @State private var relayStatus: MarmotKitService.RelayStatus?
 
     var body: some View {
         List {
@@ -23,11 +37,20 @@ struct AdvancedSettingsView: View {
             dangerSection
         }
         .navigationTitle("Advanced")
-        // Relay sockets drop and reconnect in the background, so the status dots
-        // go stale unless we re-read live status while this screen is open.
+        // Relay sockets drop and reconnect in the background, so the status
+        // goes stale unless it is re-read while this screen is open. Polls
+        // MarmotKit, which owns the connections — the v1 `RelayService` this
+        // used to refresh is never connected under v2.
         .task {
             while !Task.isCancelled {
-                await appViewModel.relay.refreshConnectedRelays()
+                // Re-read the configured list each pass so adding or toggling
+                // a relay is reflected without leaving the screen.
+                let configured = appViewModel.settings.relays
+                await appViewModel.marmot?.refreshRelayStatus(
+                    all: configured.map(\.url),
+                    enabled: configured.filter(\.isEnabled).map(\.url)
+                )
+                relayStatus = appViewModel.marmot?.relayStatus
                 try? await Task.sleep(for: .seconds(5))
             }
         }
@@ -125,8 +148,18 @@ struct AdvancedSettingsView: View {
                     Circle()
                         .fill(relayDotColor(for: relay.url))
                         .frame(width: 8, height: 8)
-                    Text(relay.url.replacingOccurrences(of: "wss://", with: ""))
-                        .font(.body)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(relay.url.replacingOccurrences(of: "wss://", with: ""))
+                            .font(.body)
+                        // Names the policy when MarmotKit will not dial this
+                        // relay, so "retired" reads as a setting to change
+                        // rather than an outage to wait out.
+                        if let note = relayPolicyNote(for: relay.url) {
+                            Text(note)
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                    }
                     Spacer()
                     Toggle("", isOn: Binding(
                         get: { relay.isEnabled },
@@ -161,7 +194,30 @@ struct AdvancedSettingsView: View {
         } header: {
             Text("Relays")
         } footer: {
-            Text("Toggle relays on/off. Swipe to remove custom relays. Default relays cannot be removed.")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Toggle relays on/off. Swipe to remove custom relays. Default relays cannot be removed.")
+                // A newly added relay is advertised immediately but cannot be
+                // dialled until the app restarts: MarmotKit fixes its relay
+                // pool at construction. Saying so beats leaving the
+                // connection count silently excluding it.
+                // Both directions matter, and the second one more: the
+                // dialled pool is fixed at launch, so a relay switched off
+                // here is still being talked to until the app restarts.
+                if let additions = relayStatus?.pendingAdditions, !additions.isEmpty {
+                    Label(
+                        "Restart to connect to \(additions.joined(separator: ", "))",
+                        systemImage: "arrow.clockwise"
+                    )
+                    .foregroundStyle(.orange)
+                }
+                if let removals = relayStatus?.pendingRemovals, !removals.isEmpty {
+                    Label(
+                        "Still connected to \(removals.joined(separator: ", ")) until you restart",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .foregroundStyle(.orange)
+                }
+            }
         }
         .alert("Add Relay", isPresented: $showAddRelay) {
             TextField("wss://relay.example.com", text: $newRelayURL)
@@ -270,19 +326,28 @@ struct AdvancedSettingsView: View {
 
     // MARK: - Helpers
 
+    /// Reads MarmotKit, not `RelayService`.
+    ///
+    /// The v2 startup path never connects the v1 service, so this used to read
+    /// a permanently-disconnected object and report "Disconnected" while
+    /// MarmotKit was connected to every relay.
     @ViewBuilder
     private var connectionLabel: some View {
-        switch appViewModel.relay.connectionState {
-        case .disconnected:
-            Label("Disconnected", systemImage: "wifi.slash").foregroundStyle(.secondary)
+        let status = relayStatus
+        switch status?.connection {
+        case .connected:
+            // Explicitly "in use": this counts the pool the runtime is
+            // dialling, which is not the settings list once it has been
+            // edited. Labelling it avoided the reading that a toggle had
+            // failed to register.
+            Label("\(status?.connected ?? 0) of \(status?.total ?? 0) in use", systemImage: "wifi")
+                .foregroundStyle(.green)
         case .connecting:
             Label("Connecting…", systemImage: "wifi").foregroundStyle(.orange)
-        case .connected:
-            Label("Connected", systemImage: "wifi").foregroundStyle(.green)
-        case .failed(let msg):
-            Label(msg, systemImage: "exclamationmark.wifi")
-                .foregroundStyle(.red)
-                .lineLimit(1)
+        case .disconnected:
+            Label("Disconnected", systemImage: "wifi.slash").foregroundStyle(.secondary)
+        case nil:
+            Label("Starting…", systemImage: "hourglass").foregroundStyle(.orange)
         }
     }
 
@@ -306,7 +371,26 @@ struct AdvancedSettingsView: View {
         }
     }
 
+    /// Per-relay **policy**, not connectivity.
+    ///
+    /// MarmotKit exposes no per-endpoint connection status — only aggregate
+    /// counts — so a per-row connectivity dot cannot be honest. Policy is more
+    /// useful anyway: `retired` is a permanent configuration error the user has
+    /// to correct, which a connectivity dot never distinguished from a relay
+    /// that happened to be down.
     private func relayDotColor(for url: String) -> Color {
-        appViewModel.relay.connectedRelayURLs.contains(url) ? .green : .secondary
+        switch relayStatus?.policies[url] {
+        case "allowed": return .green
+        case .some(let policy) where policy.isEmpty == false: return .orange
+        default: return .secondary
+        }
+    }
+
+    /// Shown beside a relay that MarmotKit will not dial, so the reason is
+    /// visible rather than presenting as an unexplained failure.
+    private func relayPolicyNote(for url: String) -> String? {
+        guard let policy = relayStatus?.policies[url],
+              policy != "allowed" else { return nil }
+        return policy
     }
 }

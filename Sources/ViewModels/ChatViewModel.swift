@@ -35,7 +35,7 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Dependencies
 
     let groupId: String
-    private let marmot: MarmotService
+    private let marmot: MarmotKitService
     private let nicknameStore: NicknameStore
     private let myPubkeyHex: String
     private let messageCache: ChatMessageCache
@@ -44,11 +44,15 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Pagination
 
     private let pageSize: UInt32 = 50
-    /// Offset into the RAW message store (all inner kinds — chat, location,
-    /// nickname), NOT the count of displayed chat bubbles. Location updates
-    /// dominate the store, so tracking this in displayed-chat units would make
-    /// paging overlap itself and stall.
-    private var currentOffset: UInt32 = 0
+    /// The oldest RAW message loaded so far, used as the paging cursor.
+    ///
+    /// v1 paged by integer offset, which silently skips or repeats rows when
+    /// messages arrive mid-session — the offsets shift underneath you.
+    /// Protocol v2 pages by cursor instead, so this holds a message rather
+    /// than a count. It is deliberately a *raw* message, not a displayed
+    /// bubble: location updates dominate the store, and a cursor taken from
+    /// the chat bubbles alone would skip every raw row between them.
+    private var oldestLoaded: WhistleMessage?
     /// Safety cap on raw pages scanned in a single `loadMore` when a chat-sparse
     /// history is mostly location updates (1000 raw messages / tap).
     private let maxPagesPerLoadMore = 20
@@ -59,7 +63,7 @@ final class ChatViewModel: ObservableObject {
 
     init(
         groupId: String,
-        marmot: MarmotService,
+        marmot: MarmotKitService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
         messageCache: ChatMessageCache
@@ -75,8 +79,11 @@ final class ChatViewModel: ObservableObject {
         // reloads. `loadMessages()` (from `.task`) then merges in anything new.
         if let cached = messageCache.thread(for: groupId) {
             self.messages = cached.messages
-            self.currentOffset = cached.offset
             self.hasMore = cached.hasMore
+            // No cursor is restored: it is a message, not an integer, and
+            // `loadMessages()` from `.task` sets one from the page it fetches
+            // before `loadMore()` can be reached (it returns early without a
+            // cursor). Caching a stale cursor would be worse than having none.
         }
 
         // Refresh when a new chat message arrives for this group
@@ -133,10 +140,16 @@ final class ChatViewModel: ObservableObject {
         guard !isResyncing else { return }
         isResyncing = true
         resyncDidNotResolve = false
-        let recovered = await marmot.catchUpGroup(groupId: groupId)
-        if recovered {
+        // v1 re-fetched this one group's commits (`catchUpGroup`). v2 has no
+        // per-group equivalent and does not need one — `catchUpAccounts`
+        // drains everything outstanding, and MarmotKit reports an
+        // unrecoverable group as a typed error rather than leaving the caller
+        // to infer it from repeated failures.
+        do {
+            try await marmot.catchUpAccounts()
             await loadMessages()
-        } else {
+        } catch {
+            WhistleLogger.chat.error("Resync failed for group \(self.groupId): \(error)")
             resyncDidNotResolve = true
         }
         isResyncing = false
@@ -147,23 +160,16 @@ final class ChatViewModel: ObservableObject {
     /// Load (or reload) the most recent page of messages.
     func loadMessages() async {
         do {
-            let page = try await marmot.messages(
-                inGroup: groupId,
-                limit: pageSize,
-                offset: nil
-            )
+            let page = try await marmot.messages(inGroup: groupId, limit: pageSize)
             // The store returns newest-first; reverse so oldest is at the top
             // and newest at the bottom (natural chat order).
             let recent = Array(page.messages.compactMap { mapMessage($0) }.reversed())
-            let recentRawCount = UInt32(page.rawCount)
 
             if messages.isEmpty {
                 // Cold load: the recent page is the whole thread we know about.
                 messages = recent
-                // Advance by the RAW page size consumed, not the mapped chat
-                // count — the offset indexes the raw store (see `currentOffset`).
-                currentOffset = recentRawCount
-                hasMore = page.rawCount == Int(pageSize)
+                oldestLoaded = page.messages.last
+                hasMore = page.hasMoreBefore
             } else {
                 // A thread is already showing (seeded from cache, or the user
                 // paged back). Merge the recent page in — picking up new/edited
@@ -171,7 +177,11 @@ final class ChatViewModel: ObservableObject {
                 // leave `hasMore` (the "load earlier" affordance) untouched since
                 // a newest-end refresh says nothing about the start of history.
                 messages = merge(existing: messages, incoming: recent)
-                currentOffset = max(currentOffset, recentRawCount)
+                // Only move the cursor backwards. A newest-end refresh returns
+                // a page that stops short of history already paged in, so
+                // adopting its tail unconditionally would rewind the cursor and
+                // re-walk pages the user has already seen.
+                if oldestLoaded == nil { oldestLoaded = page.messages.last }
             }
             error = nil
             persist()
@@ -198,35 +208,44 @@ final class ChatViewModel: ObservableObject {
         messageCache.store(
             groupId: groupId,
             messages: messages,
-            offset: currentOffset,
             hasMore: hasMore
         )
     }
 
     /// Load older messages and prepend them. Because location updates dominate
     /// the raw store, a single raw page can contain zero chat messages — so this
-    /// keeps paging (advancing the raw offset) until it gathers at least one chat
-    /// bubble or reaches the start of history, up to a bounded scan.
+    /// keeps paging (walking the cursor back) until it gathers at least one new
+    /// chat bubble or reaches the start of history, up to a bounded scan.
     func loadMore() async {
-        guard hasMore, !isLoadingMore else { return }
+        guard hasMore, !isLoadingMore, let cursor = oldestLoaded else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
 
+        // Dupes are filtered inside the loop, not after it. Filtering after
+        // would let a page of entirely already-shown messages satisfy the loop
+        // and end the tap having added nothing — the user presses "load
+        // earlier" and sees no change.
+        var existing = Set(messages.map(\.id))
         var collected: [ChatMessageItem] = []
+        var walkingCursor: WhistleMessage? = cursor
         var pages = 0
-        while hasMore, collected.isEmpty, pages < maxPagesPerLoadMore {
+        while hasMore, collected.isEmpty, pages < maxPagesPerLoadMore, let before = walkingCursor {
             pages += 1
             do {
                 let page = try await marmot.messages(
                     inGroup: groupId,
-                    limit: pageSize,
-                    offset: currentOffset
+                    before: before,
+                    limit: pageSize
                 )
-                // Advance by the RAW count so successive pages don't overlap.
-                currentOffset += UInt32(page.rawCount)
-                hasMore = page.rawCount == Int(pageSize)
+                hasMore = page.hasMoreBefore
+                // An empty page with nothing older left means history is
+                // exhausted — stop rather than spinning out the page budget.
+                guard let tail = page.messages.last else { break }
+                walkingCursor = tail
+                oldestLoaded = tail
                 // Older page → its bubbles belong above anything gathered so far.
                 let mapped = Array(page.messages.compactMap { mapMessage($0) }.reversed())
+                    .filter { existing.insert($0.id).inserted }
                 collected.insert(contentsOf: mapped, at: 0)
             } catch {
                 WhistleLogger.chat.error("Failed to load more messages: \(error)")
@@ -234,11 +253,8 @@ final class ChatViewModel: ObservableObject {
             }
         }
 
-        // Dedupe against what's already shown (guards any overlap) and prepend.
-        let existing = Set(messages.map(\.id))
-        let fresh = collected.filter { !existing.contains($0.id) }
-        if !fresh.isEmpty {
-            messages.insert(contentsOf: fresh, at: 0)
+        if !collected.isEmpty {
+            messages.insert(contentsOf: collected, at: 0)
         }
         persist()
     }
@@ -270,8 +286,7 @@ final class ChatViewModel: ObservableObject {
 
         do {
             let payload = ChatPayload(text: text)
-            let json = try payload.jsonString()
-            try await marmot.sendMessage(content: json, toGroup: groupId, kind: MarmotKind.chat)
+            try await marmot.sendChat(payload, toGroup: groupId)
             draftText = ""
 
             // Reload to pick up the sent message from MDK storage

@@ -65,14 +65,9 @@ final class JSONNestingGuardTests: XCTestCase {
         XCTAssertThrowsError(try ChatPayload.from(jsonString: nestedBrackets(100_000)))
     }
 
-    func testJoinRequestThrowsOnDeeplyNestedInput() {
-        XCTAssertThrowsError(try JoinRequest.from(jsonString: nestedBrackets(513)))
-        XCTAssertThrowsError(try JoinRequest.from(jsonString: nestedBrackets(100_000)))
-    }
-
-    func testInviteCodeThrowsOnDeeplyNestedInput() {
-        // InviteCode decodes base64 first, so feed base64-encoded nested JSON.
-        let encoded = Data(nestedBrackets(513).utf8).base64EncodedString()
-        XCTAssertThrowsError(try InviteCode.decode(from: encoded))
-    }
+    // `JoinRequest` and `InviteCode` had cases here too; both types are gone
+    // with the v1 join flow. `LocationPayload` and `ChatPayload` above are the
+    // decoders that still see attacker-influenceable bytes under protocol v2 —
+    // they are the only ones calling `JSONNestingGuard.validate` — so the
+    // fuzz regression stays covered where it matters.
 }

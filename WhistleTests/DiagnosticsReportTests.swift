@@ -37,8 +37,8 @@ final class DiagnosticsReportTests: XCTestCase {
 
     func testRelaysAreSortedByURL() {
         let r = report(relays: [
-            .init(url: "wss://zebra.example", enabled: true, connected: true),
-            .init(url: "wss://alpha.example", enabled: true, connected: false)
+            .init(url: "wss://zebra.example", enabled: true),
+            .init(url: "wss://alpha.example", enabled: true)
         ])
         XCTAssertEqual(r.relays.map(\.url), ["wss://alpha.example", "wss://zebra.example"])
     }
@@ -96,7 +96,7 @@ final class DiagnosticsReportTests: XCTestCase {
     func testRoundTrip() throws {
         let original = report(
             groups: [group("aaaaaaaa", epoch: 7)],
-            relays: [.init(url: "wss://relay.example", enabled: true, connected: true)],
+            relays: [.init(url: "wss://relay.example", enabled: true)],
             failures: [.init(type: "cannotDecrypt", count: 2)]
         )
         XCTAssertEqual(try DiagnosticsReport.from(jsonString: original.jsonString()), original)
@@ -142,7 +142,7 @@ final class DiagnosticsReportTests: XCTestCase {
         // field later and puts a full pubkey or group id in it, this fails.
         let json = try report(
             groups: [group("aaaaaaaa")],
-            relays: [.init(url: "wss://relay.example", enabled: true, connected: true)]
+            relays: [.init(url: "wss://relay.example", enabled: true)]
         ).jsonString()
         let longHex = try NSRegularExpression(pattern: "[0-9a-f]{32,}")
         let matches = longHex.numberOfMatches(

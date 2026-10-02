@@ -13,10 +13,13 @@ That decode boundary is the real attack surface, and it lives in the shared
 
 | Fuzz target             | Entry point                        | Threat |
 |-------------------------|------------------------------------|--------|
-| `Fuzz_InviteCode`       | `InviteCode.decode(from:)` / `.from(url:)` | Invite string via deep link / QR / paste |
-| `Fuzz_LocationPayload`  | `LocationPayload.from(jsonString:)` | Inner kind-445 payload from any member |
-| `Fuzz_ChatPayload`      | `ChatPayload.from(jsonString:)`     | Inner kind-445 payload from any member |
-| `Fuzz_JoinRequest`      | `JoinRequest.from(jsonString:)`     | Gift-wrapped join-request rumor to an admin |
+| `Fuzz_LocationPayload`  | `LocationPayload.from(jsonString:)` | Inner payload from any member |
+| `Fuzz_ChatPayload`      | `ChatPayload.from(jsonString:)`     | Inner payload from any member |
+
+`Fuzz_InviteCode` and `Fuzz_JoinRequest` were removed in step 3d-iii-c2:
+protocol v2 has no out-of-group messaging, so `InviteCode` and `JoinRequest`
+no longer exist. The two above are now the complete set of decoders that take
+attacker-influenceable bytes, and both still call `JSONNestingGuard`.
 
 Each harness only asserts *no crash* — a `throw` on garbage is correct. A crash
 (Swift trap, force-unwrap, overflow, ASan finding) is a bug.

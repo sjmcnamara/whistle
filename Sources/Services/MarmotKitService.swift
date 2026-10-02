@@ -44,23 +44,18 @@ final class MarmotKitService: ObservableObject {
     @Published private(set) var lastJoinedGroupId: String?
     @Published private(set) var lastGroupMembershipChangeId: (String, Date)?
 
-    // MARK: - Injected stores — deliberately absent until the cutover
+    // MARK: - Injected stores
     //
-    // The v1 service takes LocationCache, NicknameStore, MemberAvatarStore,
-    // SharedGroupAvatarStore and BatteryAlertService by injection, and this
-    // service will need the same set. They cannot be declared yet: those
-    // types live in the Whistle app module, and this file is compiled into
-    // WhistleTests until step 3d moves it into the app target (see
-    // project.yml). Referencing them here would not compile.
-    //
-    // No loss in practice — they are only consumed by the receive loop that
-    // routes decrypted payloads into app state, which is itself part of
-    // wiring the app. They arrive together at 3d.
-    //
-    // Two of v1's injection points will NOT come across: pendingInviteStore
-    // and joinRequestStore. Protocol v2 has no out-of-group messaging, so
-    // there is no join-request to collect and no pending-invite state to
-    // track (ROADMAP.md step 4).
+    // Same set as the v1 service, minus two that protocol v2 makes
+    // meaningless: `pendingInviteStore` and `joinRequestStore`. With no
+    // out-of-group messaging there is no join-request to collect and no
+    // pending-invite state to track (ROADMAP.md step 4).
+
+    var locationCache: LocationCache?
+    var nicknameStore: NicknameStore?
+    var memberAvatarStore: MemberAvatarStore?
+    var sharedGroupAvatarStore: SharedGroupAvatarStore?
+    var batteryAlertService: BatteryAlertService?
 
     // MARK: - Errors
 
@@ -80,6 +75,10 @@ final class MarmotKitService: ObservableObject {
         case avatarTooLarge
         case reAddFailed(String)
         case unrecognisedMemberCode
+        /// The nsec being adopted does not belong to the identity the caller
+        /// said it did. Never expected in normal operation — it means the app
+        /// would otherwise have started as the wrong person.
+        case identityMismatch(expected: String, adopted: String)
         case underlying(String)
 
         var errorDescription: String? {
@@ -105,7 +104,9 @@ final class MarmotKitService: ObservableObject {
             case .reAddFailed:
                 return "Removed the member, but re-adding them failed. Tap Resync again to retry."
             case .unrecognisedMemberCode:
-                return "That code isn't a Whistle member code. Ask them to show their own code from Settings."
+                return "That code isn't a Whistle member code. Ask them to show theirs from Settings → My Member Code."
+            case .identityMismatch(let expected, let adopted):
+                return "Identity mismatch: expected \(expected.prefix(8))…, adopted \(adopted.prefix(8))…"
             case .underlying(let detail):
                 return detail
             }
@@ -120,6 +121,14 @@ final class MarmotKitService: ObservableObject {
     /// first-class cases now, so the matching is exhaustive instead of
     /// fragile.
     private static func mapError(_ error: Error) -> ServiceError {
+        // Pass our own errors straight through. Everything in this service
+        // runs inside `run`, which maps on the way out — so a `ServiceError`
+        // thrown *inside* (by `requireAccount`, or the identity-mismatch
+        // check) would otherwise be re-wrapped as `.underlying`, losing the
+        // case a caller is trying to `catch`.
+        if let serviceError = error as? ServiceError {
+            return serviceError
+        }
         guard let kitError = error as? MarmotKitError else {
             return .underlying(error.localizedDescription)
         }
@@ -199,6 +208,156 @@ final class MarmotKitService: ObservableObject {
 
     // MARK: - Relay policy
 
+    // `nonisolated` because `defaultRootPath()` and
+    // `advanceIdentityGeneration()` are: the enclosing class is `@MainActor`,
+    // so an ordinary static would be actor-isolated and reading it from them
+    // is a hard error under the Swift 6 language mode (a warning today).
+    nonisolated private static let generationKey = "marmotkit.rootGeneration"
+
+    /// The directory MarmotKit owns its account database under.
+    ///
+    /// Deliberately a sibling of v1's `whistle.db` rather than a replacement:
+    /// protocol v2 is not wire-compatible, v1 groups do not migrate, and
+    /// keeping the two stores apart means an install that falls back to v1
+    /// still finds its data intact.
+    ///
+    /// **The path must be fully symlink-resolved.** MarmotKit opens this as a
+    /// "complete authorized directory path" and refuses any symlink along the
+    /// way with `ELOOP` ("Too many levels of symbolic links", os error 62) —
+    /// and on iOS `/var` *is* a symlink to `/private/var`, which is exactly
+    /// what `FileManager.urls(for:in:)` hands back. On device that failed
+    /// startup outright with an error naming the leaf directory, which reads
+    /// like the directory is broken rather than the prefix. The spike harness
+    /// that worked on device used `NSTemporaryDirectory()`, which is already
+    /// `/private/var/…`, so nothing caught this until the real root was used.
+    ///
+    /// Suffixed with a generation number, which `advanceIdentityGeneration()`
+    /// bumps on identity replacement. A runtime owns its root until its handle
+    /// is *dropped*, not until `shutdown()` returns, and the handle can
+    /// outlive the swap — a presented view still holding the old service is
+    /// enough. Restarting on the same root then fails with `RuntimeBusy`,
+    /// which during an import or burn means the user is told their new
+    /// identity failed when the key itself was fine. Giving each generation
+    /// its own directory removes the contention rather than depending on
+    /// release timing.
+    ///
+    /// Superseded generations are deleted here, at launch, when exactly one
+    /// service exists and nothing can still be holding them.
+    ///
+    /// Throws rather than returning a best-effort path: a directory that
+    /// could not be created surfaces downstream as an opaque MarmotKit I/O
+    /// error about a path the reader has no reason to suspect, which is how
+    /// the symlink bug above presented.
+    nonisolated static func defaultRootPath() throws -> String {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let container = base.appendingPathComponent("marmotkit", isDirectory: true)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+
+        let generation = UserDefaults.standard.integer(forKey: generationKey)
+        let name = "gen-\(generation)"
+        purgeSupersededGenerations(in: container, keeping: name)
+
+        let root = container.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        let resolved = fullyResolved(root.path)
+        WhistleLogger.marmot.info("MarmotKit root: \(resolved)")
+        return resolved
+    }
+
+    /// Fully resolve a path, via `realpath(3)` rather than Foundation.
+    ///
+    /// `URL.resolvingSymlinksInPath()` is not enough, and the way it fails is
+    /// a trap: it *does* resolve `/var` to `/private/var`, and then reading
+    /// `.path` back off the result standardizes the `/private` prefix away
+    /// again, returning the original unresolved string. The round trip looks
+    /// like a no-op, so the first attempt at this fix changed nothing and the
+    /// device error came back byte-identical.
+    ///
+    /// `realpath` resolves every component and never re-standardizes, which
+    /// is what MarmotKit requires — it opens its root as a "complete
+    /// authorized directory path" and rejects any symlink with `ELOOP`
+    /// ("Too many levels of symbolic links", os error 62). The path must
+    /// exist, so call this only after creating it.
+    nonisolated static func fullyResolved(_ path: String) -> String {
+        guard let buffer = realpath(path, nil) else {
+            // Nothing better to do than pass the original through; MarmotKit
+            // will report what it could not open, and the log line above
+            // records exactly what it was given.
+            WhistleLogger.marmot.warning("realpath failed for \(path) — passing it through unresolved")
+            return path
+        }
+        defer { free(buffer) }
+        return String(cString: buffer)
+    }
+
+    /// Move to a fresh root for the next identity. Call before rebuilding the
+    /// service on identity replacement.
+    nonisolated static func advanceIdentityGeneration() {
+        let next = UserDefaults.standard.integer(forKey: generationKey) + 1
+        UserDefaults.standard.set(next, forKey: generationKey)
+        WhistleLogger.marmot.info("Advanced MarmotKit root generation to \(next)")
+    }
+
+    nonisolated private static func purgeSupersededGenerations(in container: URL, keeping current: String) {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: container, includingPropertiesForKeys: nil
+        )) ?? []
+        for url in contents where url.lastPathComponent.hasPrefix("gen-") && url.lastPathComponent != current {
+            do {
+                try FileManager.default.removeItem(at: url)
+                WhistleLogger.marmot.info("Removed superseded MarmotKit root \(url.lastPathComponent)")
+            } catch {
+                WhistleLogger.marmot.warning("Could not remove \(url.lastPathComponent): \(error)")
+            }
+        }
+    }
+
+    /// The subset of `endpoints` MarmotKit is willing to dial, answered
+    /// *before* a service exists.
+    ///
+    /// Startup needs this ordering: MarmotKit refuses a retired host outright
+    /// — a relay-list declaration naming one fails the whole directory fetch
+    /// with "relay endpoint host is retired", which on device presented as a
+    /// total startup failure rather than one bad URL. So the list has to be
+    /// filtered before it is handed to the runtime, not after.
+    ///
+    /// Classification is an instance method on `Marmot`, so this stands up a
+    /// throwaway runtime to ask. It gets a temporary root of its own rather
+    /// than the real one: a root is owned exclusively for as long as its
+    /// handle lives, and sharing it here would risk the `RuntimeBusy` that
+    /// two instances on one root produce. Nothing is dialled — networking
+    /// begins at `start()`, which this probe never calls.
+    nonisolated static func allowedRelayEndpoints(from endpoints: [String]) -> [String] {
+        guard !endpoints.isEmpty else { return [] }
+        // Same symlink requirement as `defaultRootPath()` — created first so
+        // `resolvingSymlinksInPath()` has something to resolve. This one
+        // happened to work on device already, because the temporary directory
+        // is reported as `/private/var/…` rather than `/var/…`, but relying on
+        // that distinction silently is what hid the bug in the first place.
+        let probeRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("marmotkit-relay-policy-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: probeRoot, withIntermediateDirectories: true)
+        let resolvedProbeRoot = fullyResolved(probeRoot.path)
+        defer { try? FileManager.default.removeItem(atPath: resolvedProbeRoot) }
+
+        guard let probe = try? Marmot.newWithConfiguration(
+            rootPath: resolvedProbeRoot,
+            relayUrls: [],
+            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil)
+        ) else {
+            // Policy unavailable. Returning the input unfiltered is the right
+            // failure: it preserves today's behaviour and lets `start()`
+            // report the real problem, rather than silently dropping every
+            // relay and presenting that as "no relays configured".
+            WhistleLogger.marmot.warning("Relay policy probe unavailable — using relays unfiltered")
+            return endpoints
+        }
+        return probe.classifyRelayEndpoints(endpoints: endpoints)
+            .filter { $0.policy == .allowed }
+            .map { $0.normalizedEndpoint ?? $0.endpoint }
+    }
+
     /// Hostnames MarmotKit "will never dial or adopt".
     ///
     /// The app's own default relay list is not automatically acceptable:
@@ -225,6 +384,19 @@ final class MarmotKitService: ObservableObject {
             .map { $0.normalizedEndpoint ?? $0.endpoint }
     }
 
+    /// Relays this service will actually dial, after policy filtering.
+    nonisolated var usableRelayEndpoints: [String] { allowedRelays(from: relayUrls) }
+
+    /// The pool this runtime is dialling, fixed at construction.
+    ///
+    /// `relayUrls` is an init-only parameter and no binding mutates it, so a
+    /// relay added in settings cannot be dialled by this instance — proven by
+    /// `MarmotKitRuntimeRelaySetTests`, which shows publishing a new relay
+    /// list leaves the pool unchanged. Callers compare against this to tell
+    /// the user a restart is needed, rather than showing a connection count
+    /// that silently excludes their new relay.
+    nonisolated var dialledRelayEndpoints: [String] { relayUrls }
+
     // MARK: - Lifecycle
 
     /// Start the runtime and create a fresh identity, returning its account ref.
@@ -246,6 +418,124 @@ final class MarmotKitService: ObservableObject {
             let ref = identity.account.accountIdHex
             accountRef = ref
             return ref
+        }
+    }
+
+    /// Start, adopting an identity the app already has.
+    ///
+    /// This is the upgrade path, and it is what stops the cutover costing
+    /// users their identity. MarmotKit owns accounts itself —
+    /// `createIdentityWithProfile` mints a *new* key — so starting that way on
+    /// an existing install would hand every user a new npub and silently
+    /// orphan them from everyone who knows them. v2.0 breaking groups is
+    /// agreed; breaking identity is not.
+    ///
+    /// `beginOnboarding` persists the supplied nsec and "returns before any
+    /// network preflight or publication", so the account exists locally
+    /// straight away and publication progress is observed through
+    /// `setupReadiness` rather than blocking startup.
+    ///
+    /// Idempotent: on every launch after the first, the account is already in
+    /// MarmotKit's database and this signs back into it instead of
+    /// re-onboarding.
+    @discardableResult
+    func start(
+        adoptingNsec nsec: String,
+        expecting expectedReference: String?,
+        discoveryRelays: [String] = []
+    ) async throws -> String {
+        try await Self.run {
+            try await marmot.start()
+
+            let expectedId = expectedReference.flatMap { marmot.accountIdHex(reference: $0) }
+            let existing = try marmot.listAccounts()
+
+            // Match on the account this nsec actually belongs to, never simply
+            // the first one present. Taking `.first` looked equivalent and is
+            // not: after an identity import or burn, the previous account is
+            // still in the database, so the app would sign back into the *old*
+            // identity and carry on with its npub and its groups while
+            // reporting the import a success.
+            if let expectedId, let match = existing.first(where: { $0.accountIdHex == expectedId }) {
+                let summary = try await marmot.signInAccount(accountRef: match.accountIdHex)
+                accountRef = summary.accountIdHex
+                return summary.accountIdHex
+            }
+
+            // Accounts present, none of them this one. That is the identity
+            // replacement path, and the stale accounts are dropped rather than
+            // left behind: a burned identity's keys must not survive it, and
+            // leaving them would also make the matching above depend on a
+            // database that only ever grows.
+            for stale in existing where stale.accountIdHex != expectedId {
+                do {
+                    try await marmot.removeAccount(accountRef: stale.accountIdHex)
+                    WhistleLogger.marmot.info("Removed stale account \(stale.accountIdHex.prefix(8))")
+                } catch {
+                    // Not fatal: the new account is still adopted below, and
+                    // matching is by id so a surviving stale row cannot be
+                    // mistaken for it.
+                    WhistleLogger.marmot.warning("Could not remove stale account: \(error)")
+                }
+            }
+
+            let usableRelays = allowedRelays(from: relayUrls)
+            let snapshot = try await marmot.beginOnboarding(
+                nsec: nsec,
+                options: OnboardingOptionsFfi(
+                    defaultRelays: usableRelays,
+                    discoveryRelays: discoveryRelays.isEmpty ? usableRelays : discoveryRelays
+                )
+            )
+            // `snapshot.ready` is false at this point by design — publication
+            // has not been attempted yet. Readiness is observed through
+            // `setupReadiness()`, which is what `MemberCodeView` gates on.
+            accountRef = snapshot.accountIdHex
+
+            // A mismatch here means the nsec and the reference describe
+            // different identities — the caller passed an inconsistent pair.
+            // Worth failing loudly: silently continuing would run the app as
+            // whoever the nsec belongs to, not who the caller believed.
+            if let expectedId, snapshot.accountIdHex != expectedId {
+                throw ServiceError.identityMismatch(
+                    expected: expectedId,
+                    adopted: snapshot.accountIdHex
+                )
+            }
+            return snapshot.accountIdHex
+        }
+    }
+
+    /// Remove this device's account, destroying its local signing key.
+    ///
+    /// Called before the service is torn down on identity replacement. Doing
+    /// it through MarmotKit rather than deleting the database directory is
+    /// deliberate: the runtime owns that root for as long as its handle lives,
+    /// so removing files underneath it is not safe while the service exists.
+    func forgetCurrentAccount() async {
+        guard let account = accountRef else { return }
+        do {
+            try await marmot.removeAccount(accountRef: account)
+            WhistleLogger.marmot.info("Removed account \(account.prefix(8)) on identity replacement")
+        } catch {
+            WhistleLogger.marmot.error("Failed to remove account on identity replacement: \(error)")
+        }
+        accountRef = nil
+    }
+
+    /// The account's nsec, for key backup and export.
+    ///
+    /// v1 read this from its own Keychain entry; under v2 MarmotKit holds the
+    /// key, so export has to come from here. Throws `KeystoreUnavailable`
+    /// when the keychain is locked and `SecretNotFound` for a watch-only
+    /// account, both of which a backup screen should report distinctly rather
+    /// than as a generic failure.
+    func revealNsec() throws -> String {
+        let account = try requireAccount()
+        do {
+            return try marmot.revealNsec(accountRef: account)
+        } catch {
+            throw Self.mapError(error)
         }
     }
 
@@ -302,6 +592,434 @@ final class MarmotKitService: ObservableObject {
     /// KeyPackage to be fetchable first — which is also why onboarding has to
     /// gate "show my invite QR" on publication rather than on identity
     /// creation (ROADMAP.md step 4).
+    /// What the UI can honestly say about relays.
+    ///
+    /// MarmotKit exposes **no per-endpoint connection status** — `relayHealth()`
+    /// is aggregate only, and `classifyRelayEndpoints` returns policy rather
+    /// than connectivity. So connection state is aggregate and per-endpoint
+    /// information is policy. v1's per-relay green dot has no v2 equivalent,
+    /// and faking one from the aggregate would report relays as connected that
+    /// may not be.
+    struct RelayStatus: Equatable, Sendable {
+        enum Connection: Equatable, Sendable {
+            case disconnected
+            case connecting
+            case connected
+        }
+        var connection: Connection = .disconnected
+        var total: Int = 0
+        var connected: Int = 0
+        /// Endpoint → policy (`allowed`, `retired`, `unsafe`, …). A retired
+        /// endpoint is a permanent configuration error, which is more
+        /// actionable than a connectivity dot ever was.
+        var policies: [String: String] = [:]
+        /// Enabled in settings but not in the dialled pool — a relay added
+        /// since launch. Discoverable by others already (the declared list is
+        /// republished immediately); dialled only after a restart.
+        var pendingAdditions: [String] = []
+        /// In the dialled pool but no longer enabled in settings.
+        ///
+        /// The pool is fixed at construction, so **disabling a relay does not
+        /// stop this device talking to it** until the app restarts. That is
+        /// worth stating plainly rather than leaving the user to assume the
+        /// toggle took effect.
+        var pendingRemovals: [String] = []
+    }
+
+    @Published private(set) var relayStatus = RelayStatus()
+
+    /// Re-read relay state from the runtime. Cheap; safe to call on appear.
+    /// - Parameters:
+    ///   - all: Every relay in settings, enabled or not. Used for policy
+    ///     classification, so a disabled relay still shows *why* it is
+    ///     unusable if it is retired.
+    ///   - enabled: Only the enabled relays. Used for the diff against the
+    ///     dialled pool, so switching one off registers as a pending removal
+    ///     rather than as still configured.
+    func refreshRelayStatus(all: [String] = [], enabled: [String]? = nil) async {
+        let health = await marmot.relayHealth()
+        let connection: RelayStatus.Connection
+        if health.connected > 0 {
+            connection = .connected
+        } else if health.connecting > 0 || health.pending > 0 {
+            connection = .connecting
+        } else {
+            connection = .disconnected
+        }
+
+        let everything = all.isEmpty ? relayUrls : all
+        var policies: [String: String] = [:]
+        for row in marmot.classifyRelayEndpoints(endpoints: everything) {
+            policies[row.endpoint] = String(describing: row.policy)
+        }
+
+        // Compare canonical forms on both sides.
+        //
+        // `relayUrls` holds what `allowedRelayEndpoints` produced, which is
+        // MarmotKit's *normalised* endpoint, while settings holds whatever the
+        // user typed. Comparing those two directly — which an earlier version
+        // did, with a prefix test — reported a permanent "restart to connect"
+        // for whichever relay normalised to something other than a trailing
+        // slash difference.
+        let canonicalConfigured = canonical(enabled ?? everything)
+        let canonicalDialled = canonical(relayUrls)
+        let additions = canonicalConfigured.subtracting(canonicalDialled)
+        let removals = canonicalDialled.subtracting(canonicalConfigured)
+
+        relayStatus = RelayStatus(
+            connection: connection,
+            total: Int(health.totalRelays),
+            connected: Int(health.connected),
+            policies: policies,
+            pendingAdditions: additions.sorted(),
+            pendingRemovals: removals.sorted()
+        )
+    }
+
+    /// Endpoints reduced to one form, so two spellings of the same relay
+    /// compare equal.
+    ///
+    /// MarmotKit's own normalisation is applied first but is **not** enough on
+    /// its own: measured, `classifyRelayEndpoints` leaves a trailing slash
+    /// alone, so `wss://host` and `wss://host/` came back as distinct and one
+    /// of them reported a permanent pending change. Case and trailing slashes
+    /// are therefore folded here as well.
+    private func canonical(_ endpoints: [String]) -> Set<String> {
+        Set(marmot.classifyRelayEndpoints(endpoints: endpoints).map { row in
+            var value = (row.normalizedEndpoint ?? row.endpoint).lowercased()
+            while value.hasSuffix("/") { value.removeLast() }
+            return value
+        })
+    }
+
+    /// Connection counters straight from the runtime, so "no relay
+    /// connectivity" is a measurement rather than a symptom.
+    func relayDiagnostics() async -> String {
+        let health = await marmot.relayHealth()
+        var parts: [String] = []
+        parts.append("total=\(health.totalRelays)")
+        parts.append("connected=\(health.connected)")
+        parts.append("connecting=\(health.connecting)")
+        parts.append("pending=\(health.pending)")
+        parts.append("disconnected=\(health.disconnected)")
+        parts.append("terminated=\(health.terminated)")
+        parts.append("banned=\(health.banned)")
+        parts.append("sleeping=\(health.sleeping)")
+        parts.append("attempts=\(health.connectionAttempts)")
+        parts.append("successes=\(health.connectionSuccesses)")
+        parts.append("sdkBacked=\(health.sdkBacked)")
+        parts.append("forwarder=\(health.notificationForwarderRunning)")
+        return "relays " + parts.joined(separator: " ")
+    }
+
+    /// What the account actually believes its relays are, which is not
+    /// necessarily what was passed in at construction.
+    func relayListDiagnostics() -> String {
+        guard let account = accountRef else { return "no account" }
+        guard let lists = try? marmot.accountRelayLists(accountRef: account) else {
+            return "relay lists unavailable (setup may be incomplete)"
+        }
+        return "relay lists: \(String(describing: lists))"
+    }
+
+    /// Human-readable dump of the onboarding state machine, for diagnosing a
+    /// setup that will not complete. Steps can sit at `needsInput` awaiting a
+    /// caller action, and the action list says which.
+    func onboardingDiagnostics() throws -> [String] {
+        let account = try requireAccount()
+        guard let snapshot = try marmot.onboardingSnapshot(accountRef: account) else {
+            return ["no onboarding session (account was not created via beginOnboarding)"]
+        }
+        var header: [String] = []
+        header.append("ready=\(snapshot.ready)")
+        header.append("revision=\(snapshot.revision)")
+        header.append("cancellationPending=\(snapshot.cancellationPending)")
+        header.append("proposal=\(snapshot.proposal != nil)")
+        header.append("singleDevice=\(snapshot.singleDeviceNotice != nil)")
+        var lines = [header.joined(separator: " ")]
+        for state in snapshot.steps {
+            let step = String(describing: state.step)
+            let status = String(describing: state.status)
+            let actions = String(describing: state.actions)
+            lines.append("step=\(step) status=\(status) actions=\(actions)")
+            // The findings are the part that says *why* a step will not pass —
+            // `issue` names the fault (`unreachable`, `timedOut`,
+            // `retiredRelay`, `authenticationRequired`, `noUsableRoute`, …)
+            // and `endpoint` names the relay it happened on. A count alone is
+            // useless, which is how the first version of this was written.
+            for finding in state.findings {
+                let issue = String(describing: finding.issue)
+                let endpoint = finding.endpoint ?? "-"
+                lines.append("  finding issue=\(issue) endpoint=\(endpoint)")
+            }
+        }
+        return lines
+    }
+
+    /// Drive account setup from local-ready to network-ready.
+    ///
+    /// `beginOnboarding` stops at local-ready — it persists the identity and
+    /// returns "before any network preflight or publication" — so until this
+    /// completes, anything needing a published account is rejected with
+    /// `OnboardingRequired`. That is what "my member code" hit on device.
+    ///
+    /// Onboarding is a **sequential state machine that blocks on caller
+    /// input**, not a single call. Observed directly: after `beginOnboarding`
+    /// all six steps are `pending`; one `runOnboarding` moves `profile` to
+    /// `needsInput` and every later step stays `pending` behind it. So
+    /// `runOnboarding` on its own can never finish — it advances only what it
+    /// can decide itself, and the caller has to clear each blocking step. This
+    /// loop does that until the snapshot reports `ready`, bounded, and
+    /// stopping if a pass produces no revision change (nothing left that we
+    /// know how to resolve).
+    ///
+    /// Called off the launch path, since this is the half that waits on
+    /// relays. `MemberCodeView` gates the member code on `setupReadiness()`
+    /// reaching `.networkReady`, so showing it early degrades to
+    /// "Publishing your key…" rather than handing out a code no admin can
+    /// invite.
+    @discardableResult
+    func completeAccountSetup() async throws -> AccountSetupReadinessFfi {
+        let account = try requireAccount()
+        return try await Self.run {
+            if try marmot.accountSetupReadiness(accountRef: account) == .networkReady {
+                accountIsReady = true
+                return .networkReady
+            }
+            // No session means the account came from `createIdentityWithProfile`,
+            // which runs its own setup — `runOnboarding` would throw
+            // `OnboardingActionUnavailable`.
+            guard try marmot.onboardingSnapshot(accountRef: account) != nil else {
+                return try marmot.accountSetupReadiness(accountRef: account)
+            }
+
+            // Every (step, action) pair already tried. Without this the loop
+            // re-applies the *same* action on every pass — observed on device,
+            // where `inboxRelays` kept being handed our configured relay list
+            // and kept coming back `needsInput`, while `useRecommendedRelays`
+            // sat unused in the same action list.
+            var attempted: Set<String> = []
+
+            for _ in 0..<24 {
+                var snapshot = try await marmot.runOnboarding(accountRef: account)
+                if snapshot.ready { break }
+
+                let blockedStep: OnboardingStepStateFfi? = snapshot.steps.first { state in
+                    let status = state.status
+                    return status == .needsInput || status == .retryableFailure
+                }
+                guard let blocked = blockedStep else { break }
+
+                for finding in blocked.findings {
+                    // Composed as a plain String first. Concatenating inside an
+                    // os_log interpolation made the type-checker give up on
+                    // this expression entirely.
+                    let step = String(describing: blocked.step)
+                    let issue = String(describing: finding.issue)
+                    let endpoint = finding.endpoint ?? "-"
+                    let message = "Onboarding \(step) finding: \(issue) endpoint=\(endpoint)"
+                    WhistleLogger.marmot.warning("\(message)")
+                }
+
+                guard let resolved = try await resolveOnboardingStep(
+                    blocked, account: account, snapshot: snapshot, attempted: &attempted
+                ) else {
+                    // Nothing left to try on this step.
+                    break
+                }
+                snapshot = resolved
+                if snapshot.ready { break }
+            }
+
+            let readiness = try marmot.accountSetupReadiness(accountRef: account)
+            accountIsReady = readiness == .networkReady
+            if readiness != .networkReady {
+                // Dump the whole picture rather than just the end state: the
+                // step findings name the failing relay and the reason, which
+                // is the only thing that distinguishes "relay unreachable"
+                // from "step needs an action we did not handle".
+                WhistleLogger.marmot.error("Account setup stalled at \(String(describing: readiness))")
+                for line in (try? onboardingDiagnostics()) ?? [] {
+                    WhistleLogger.marmot.error("  \(line)")
+                }
+                let relayState = await self.relayDiagnostics()
+                WhistleLogger.marmot.error("  \(relayState)")
+                let listState = self.relayListDiagnostics()
+                WhistleLogger.marmot.error("  \(listState)")
+            }
+            return readiness
+        }
+    }
+
+    /// Clear one blocking onboarding step.
+    ///
+    /// Tries strategies in a per-step order, skips any already attempted, and
+    /// **treats a strategy that throws as simply not working** — moving on to
+    /// the next rather than failing the whole setup. Observed on device:
+    /// `inboxRelays` offers `editRelays`, but `proposeOnboardingRelays` throws
+    /// `OnboardingActionUnavailable` for that step, and because the throw
+    /// propagated it killed the entire run with four untried strategies left.
+    ///
+    /// The offered action list is a hint about what a UI may present, not a
+    /// guarantee that the matching call is valid for that step, so each
+    /// attempt has to be allowed to fail on its own.
+    ///
+    /// `cancelOnboarding` is in no list: it discards the account.
+    private func resolveOnboardingStep(
+        _ state: OnboardingStepStateFfi,
+        account: String,
+        snapshot: OnboardingSnapshotFfi,
+        attempted: inout Set<String>
+    ) async throws -> OnboardingSnapshotFfi? {
+        let stepName = String(describing: state.step)
+        for strategy in Self.strategies(for: state, snapshot: snapshot) {
+            let key = "\(state.step)|\(strategy.rawValue)"
+            if attempted.contains(key) { continue }
+            do {
+                guard let next = try await run(strategy, step: state.step, account: account, snapshot: snapshot) else {
+                    // Not applicable *yet* — deliberately not recorded as
+                    // attempted. `approveRepair` is inapplicable until a
+                    // proposal exists, and recording it on the first pass
+                    // would permanently skip the only action the machine
+                    // later offers.
+                    continue
+                }
+                attempted.insert(key)
+                WhistleLogger.marmot.info("Onboarding \(stepName): \(strategy.rawValue) accepted")
+                return next
+            } catch {
+                attempted.insert(key)
+                let reason = String(describing: error)
+                WhistleLogger.marmot.warning("Onboarding \(stepName): \(strategy.rawValue) failed — \(reason)")
+            }
+        }
+        let offered = String(describing: state.actions)
+        WhistleLogger.marmot.error("Onboarding \(stepName) exhausted every strategy; offered \(offered)")
+        return nil
+    }
+
+    private enum OnboardingStrategy: String {
+        case proposeConfiguredRelays
+        case setInboxRelays
+        case recommendedRelays
+        case discoveryRelays
+        case retry
+        case acknowledgeSingleDevice
+        case approveRepair
+        case continueWithout
+    }
+
+    /// Strategy order per step. Not gated on the offered action list — that
+    /// list proved unreliable as a precondition, so each strategy is simply
+    /// tried and allowed to fail.
+    ///
+    /// A pending repair proposal takes precedence over everything. Observed on
+    /// device: setting the inbox relay list published it correctly
+    /// (`complete: true`, kind 10050 present) but left the step at
+    /// `needsInput`, because the machine had raised a proposal and reduced the
+    /// step's actions to `[approveRepair, cancelRepair, cancelOnboarding]`.
+    /// Approving is the only way forward; the earlier strategy list omitted it
+    /// entirely, so the run exhausted itself while the machine was waiting on
+    /// consent it had explicitly asked for.
+    private static func strategies(
+        for state: OnboardingStepStateFfi,
+        snapshot: OnboardingSnapshotFfi
+    ) -> [OnboardingStrategy] {
+        let repairFirst: [OnboardingStrategy] = snapshot.proposal != nil ? [.approveRepair] : []
+        return repairFirst + stepStrategies(for: state)
+    }
+
+    private static func stepStrategies(for state: OnboardingStepStateFfi) -> [OnboardingStrategy] {
+        switch state.step {
+        case .profile, .follows:
+            // Whistle publishes no public Nostr profile and has no social
+            // graph: display names and avatars travel inside the group as MLS
+            // payloads, so these are out of scope, not merely optional.
+            return [.continueWithout, .retry]
+
+        case .relays:
+            // Our own list first: it is policy-filtered, so it cannot
+            // reintroduce a retired host.
+            return [.proposeConfiguredRelays, .recommendedRelays, .discoveryRelays, .retry, .continueWithout]
+
+        case .inboxRelays:
+            // `setInboxRelays` is the dedicated account-level call and is
+            // tried first here, because the onboarding-level propose is the
+            // one that threw `OnboardingActionUnavailable` for this step.
+            return [.setInboxRelays, .proposeConfiguredRelays, .recommendedRelays, .retry, .continueWithout]
+
+        case .singleDevice:
+            // One device is the normal case for this app, not a warning.
+            return [.acknowledgeSingleDevice, .continueWithout, .retry]
+
+        case .keyPackage:
+            // No `continueWithout`: without a published KeyPackage nobody can
+            // add us to a group, which is the entire point of the member code.
+            return [.retry, .proposeConfiguredRelays, .recommendedRelays]
+        }
+    }
+
+    private func run(
+        _ strategy: OnboardingStrategy,
+        step: OnboardingStepFfi,
+        account: String,
+        snapshot: OnboardingSnapshotFfi
+    ) async throws -> OnboardingSnapshotFfi? {
+        let relays = allowedRelays(from: relayUrls)
+        switch strategy {
+        case .continueWithout:
+            return try await marmot.continueOnboardingWithout(accountRef: account, step: step)
+
+        case .retry:
+            return try await marmot.retryOnboardingStep(accountRef: account, step: step)
+
+        case .proposeConfiguredRelays:
+            guard !relays.isEmpty else { return nil }
+            return try await marmot.proposeOnboardingRelays(
+                accountRef: account, step: step, readRelays: relays, writeRelays: relays
+            )
+
+        case .setInboxRelays:
+            guard !relays.isEmpty else { return nil }
+            // Sets the list directly rather than proposing it through the
+            // onboarding machine, then re-reads the snapshot since this call
+            // returns relay lists rather than onboarding state.
+            _ = try await marmot.setAccountInboxRelays(
+                accountRef: account, relays: relays, bootstrapRelays: relays
+            )
+            return try marmot.onboardingSnapshot(accountRef: account)
+
+        case .recommendedRelays:
+            return try await marmot.proposeOnboardingRecommendedRelays(accountRef: account, step: step)
+
+        case .discoveryRelays:
+            guard !relays.isEmpty else { return nil }
+            return try await marmot.setOnboardingDiscoveryRelays(accountRef: account, discoveryRelays: relays)
+
+        case .acknowledgeSingleDevice:
+            return try await marmot.acknowledgeOnboardingSingleDevice(
+                accountRef: account, revision: snapshot.revision
+            )
+
+        case .approveRepair:
+            // Re-read rather than trusting the snapshot we were handed: the
+            // revision moves as the machine works, and `approveOnboardingRepair`
+            // is revision-scoped.
+            guard let current = try marmot.onboardingSnapshot(accountRef: account),
+                  current.proposal != nil else { return nil }
+            return try await marmot.approveOnboardingRepair(
+                accountRef: account, revision: current.revision
+            )
+        }
+    }
+
+    /// Mint and publish a **fresh** KeyPackage, superseding the current slot.
+    ///
+    /// Not a startup call. Upstream documents this as the sanctioned repair
+    /// for an epoch-stalled group (`publish_new_key_package` is the legacy
+    /// name for `rotateKeyPackage`); the *first* KeyPackage is published by
+    /// onboarding, so calling this at launch both fails before setup
+    /// completes and needlessly rotates afterwards.
     @discardableResult
     func publishKeyPackage() async throws -> UInt64 {
         let account = try requireAccount()
@@ -369,7 +1087,7 @@ final class MarmotKitService: ObservableObject {
     @discardableResult
     func createGroup(name: String, description: String? = nil, memberRefs: [String] = []) async throws -> String {
         let account = try requireAccount()
-        return try await Self.run {
+        let groupIdHex = try await Self.run {
             try await marmot.createGroup(
                 accountRef: account,
                 name: name,
@@ -377,6 +1095,12 @@ final class MarmotKitService: ObservableObject {
                 description: description
             )
         }
+        // Mutations must republish `groups`: `GroupListViewModel` observes
+        // `$groups`, and MarmotKit does not emit on its own for a change this
+        // device just made. Without this a created group did not appear until
+        // the app was relaunched.
+        await refreshGroups()
+        return groupIdHex
     }
 
     // MARK: - Scan to invite
@@ -396,6 +1120,23 @@ final class MarmotKitService: ObservableObject {
     /// second, subtly different parser for the same input.
     nonisolated func normalisedAccountReference(_ scanned: String) -> String? {
         marmot.accountIdHex(reference: scanned.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// This account's npub — the code a member shows to be invited.
+    ///
+    /// Uses MarmotKit's own encoder rather than NostrSDK's `toBech32`, for the
+    /// same reason `normalisedAccountReference` uses its decoder: one parser
+    /// per direction, not two that can disagree.
+    ///
+    /// npub rather than the raw hex because it is the portable Nostr form —
+    /// a member can paste it into a message if scanning is impractical — and
+    /// `accountIdHex(reference:)` normalises either on the way back in.
+    /// Main-actor isolated, unlike its decoding counterpart: it reads
+    /// `accountRef`, which is mutable actor state. Callers are SwiftUI views,
+    /// which are already on the main actor.
+    func myMemberCode() -> String? {
+        guard let accountRef else { return nil }
+        return marmot.npub(accountIdHex: accountRef)
     }
 
     /// Invite whoever a scanned code refers to.
@@ -428,8 +1169,48 @@ final class MarmotKitService: ObservableObject {
     }
 
     /// Whether this account can currently be invited by someone else.
-    func isReadyToBeInvited() -> Bool {
-        (try? setupReadiness()) == .networkReady
+    /// Advertise a new relay list for this account.
+    ///
+    /// Updates what others discover about us. It does **not** necessarily
+    /// change which relays this runtime dials — `relayUrls` is init-only —
+    /// which is exactly what `MarmotKitRuntimeRelaySetTests` pins down.
+    func publishRelayLists(defaultRelays: [String], bootstrapRelays: [String] = []) async throws {
+        let account = try requireAccount()
+        let allowed = allowedRelays(from: defaultRelays)
+        let bootstrap = bootstrapRelays.isEmpty ? allowed : allowedRelays(from: bootstrapRelays)
+        _ = try await Self.run {
+            try await marmot.publishRelayLists(
+                accountRef: account,
+                defaultRelays: allowed,
+                bootstrapRelays: bootstrap
+            )
+        }
+    }
+
+    /// Published so the UI can observe it instead of polling.
+    ///
+    /// Polling was the first attempt and it was wrong in a way that only
+    /// showed on device: a bounded loop (60s) gave up **permanently**, and
+    /// real setup took longer than that — many relay round trips — so the
+    /// Create Group button stayed disabled for the rest of the session even
+    /// though the account had published. Readiness is monotonic, so observing
+    /// it is both simpler and correct.
+    @Published private(set) var accountIsReady = false
+
+    func isReadyToBeInvited() -> Bool { isAccountReady() }
+
+    /// Whether the account is published and usable for anything that touches
+    /// relays — creating a group, being invited to one.
+    ///
+    /// The same precondition in both cases: until setup reaches
+    /// `.networkReady` the account has no published relay list or KeyPackage,
+    /// and MarmotKit rejects the operation with `OnboardingRequired`. Callers
+    /// should gate their UI on this rather than letting the user act and fail.
+    @discardableResult
+    func isAccountReady() -> Bool {
+        let ready = (try? setupReadiness()) == .networkReady
+        if ready != accountIsReady { accountIsReady = ready }
+        return ready
     }
 
     // MARK: - Membership & admin
@@ -449,6 +1230,7 @@ final class MarmotKitService: ObservableObject {
                 memberRefs: memberRefs
             )
         }
+        await refreshGroups()
     }
 
     func removeMembers(_ memberRefs: [String], fromGroup groupIdHex: String) async throws {
@@ -460,6 +1242,7 @@ final class MarmotKitService: ObservableObject {
                 memberRefs: memberRefs
             )
         }
+        await refreshGroups()
     }
 
     func promoteToAdmin(_ memberRef: String, inGroup groupIdHex: String) async throws {
@@ -471,6 +1254,7 @@ final class MarmotKitService: ObservableObject {
                 memberRef: memberRef
             )
         }
+        await refreshGroups()
     }
 
     /// Leave a group.
@@ -482,11 +1266,31 @@ final class MarmotKitService: ObservableObject {
     /// someone first. v1 reached the same outcome by parsing error strings.
     func leaveGroup(_ groupIdHex: String) async throws {
         let account = try requireAccount()
+
+        // A group you are alone in is deleted, not left.
+        //
+        // MLS has no way to remove the last member, so `selfDemoteAdmin`
+        // reports `WouldRemoveLastAdmin` — which the app surfaced as "promote
+        // another member to admin before leaving". That is impossible advice
+        // when there is nobody to promote, and it left burning the identity as
+        // the only way out of a group of one. There is also nothing to
+        // coordinate: no other member to hand admin to, and none to notify.
+        let others = try await members(ofGroup: groupIdHex).filter { $0 != account }
+        if others.isEmpty {
+            _ = try await Self.run {
+                try await marmot.deleteGroupLocal(accountRef: account, groupIdHex: groupIdHex)
+            }
+            await refreshGroups()
+            return
+        }
+
         do {
             _ = try await marmot.selfDemoteAdmin(accountRef: account, groupIdHex: groupIdHex)
         } catch let error as MarmotKitError {
             switch error {
             case .WouldRemoveLastAdmin:
+                // Genuine now: other members exist, and one of them has to
+                // take admin before this device can go.
                 throw ServiceError.lastAdminCannotLeave
             case .NotGroupAdmin, .NotAdmin:
                 break  // not an admin — nothing to demote, fall through to leave
@@ -497,6 +1301,7 @@ final class MarmotKitService: ObservableObject {
         _ = try await Self.run {
             try await marmot.leaveGroup(accountRef: account, groupIdHex: groupIdHex)
         }
+        await refreshGroups()
     }
 
     func rename(group groupIdHex: String, to name: String) async throws {
@@ -509,6 +1314,7 @@ final class MarmotKitService: ObservableObject {
                 description: nil
             )
         }
+        await refreshGroups()
     }
 
     // MARK: - Send
@@ -598,10 +1404,8 @@ final class MarmotKitService: ObservableObject {
         do {
             groups = try await groups()
         } catch {
-            // No WhistleLogger here: it lives in the app module and this file
-            // is compiled into WhistleTests until the cutover. `lastError` is
-            // the observable signal either way; logging joins at 3d.
             lastError = error.localizedDescription
+            WhistleLogger.marmot.error("refreshGroups failed: \(error)")
         }
     }
 
@@ -727,6 +1531,114 @@ final class MarmotKitService: ObservableObject {
             throw ServiceError.reAddFailed(memberRef)
         }
         lastGroupMembershipChangeId = (groupIdHex, Date())
+    }
+
+    // MARK: - Receive loop
+
+    private var receiveTask: Task<Void, Never>?
+
+    /// Start consuming decrypted messages and routing them into app state.
+    ///
+    /// Far smaller than v1's equivalent, and deliberately so. v1 opened raw
+    /// kind-445 and kind-1059 relay subscriptions, tracked a `since`
+    /// high-water mark, buffered events until EOSE so it could re-sort them
+    /// by `created_at`, and polled for missed gift-wraps. MarmotKit owns the
+    /// subscription, the ordering and the catch-up — all of which step 3c
+    /// verified rather than assumed — so what is left is a loop that decodes
+    /// payloads.
+    ///
+    /// Subscribes account-wide (`toGroup: nil`) rather than per group, so a
+    /// group joined while running needs no re-subscribe.
+    func startSubscriptions() {
+        guard receiveTask == nil else { return }
+        receiveTask = Task { [weak self] in
+            guard let stream = await self?.openStream() else { return }
+            while !Task.isCancelled, let message = await stream.next() {
+                await self?.route(message)
+            }
+        }
+    }
+
+    func stopSubscriptions() {
+        receiveTask?.cancel()
+        receiveTask = nil
+        WhistleLogger.marmot.info("Subscriptions stopped")
+    }
+
+    private func openStream() async -> MessageStream? {
+        do {
+            return try await subscribe()
+        } catch {
+            lastError = error.localizedDescription
+            WhistleLogger.marmot.error("Failed to open message subscription: \(error)")
+            return nil
+        }
+    }
+
+    /// Route one decrypted payload. Mirrors v1's `routeApplicationMessage`,
+    /// including the parts that must not change.
+    private func route(_ message: WhistleMessage) async {
+        switch message.kind {
+        case MarmotKind.ProtocolV2.location:
+            do {
+                let payload = try LocationPayload.from(jsonString: message.content)
+                locationCache?.update(
+                    groupId: message.mlsGroupId,
+                    memberPubkeyHex: message.senderPubkey,
+                    payload: payload
+                )
+                batteryAlertService?.check(pubkeyHex: message.senderPubkey, battery: payload.batt)
+            } catch {
+                WhistleLogger.marmot.error("Failed to decode location payload: \(error)")
+            }
+
+        case MarmotKind.ProtocolV2.chat:
+            await routeChatPayload(message)
+
+        default:
+            WhistleLogger.marmot.debug("Ignoring unknown inner kind \(message.kind)")
+        }
+    }
+
+    /// Nickname, avatar and group-avatar share the chat kind and are told
+    /// apart by a `type` discriminator — unchanged from v1, since only the
+    /// transport moved.
+    private func routeChatPayload(_ message: WhistleMessage) async {
+        switch message.payloadType {
+        case "chat", nil:
+            // A nil type is plain text from an older client; v1 treated it as
+            // chat and dropping it would silently lose messages.
+            lastChatMessageGroupId = message.mlsGroupId
+
+        case "nickname":
+            if let payload = try? NicknamePayload.from(jsonString: message.content) {
+                nicknameStore?.set(name: payload.name, for: message.senderPubkey)
+            }
+
+        case "avatar":
+            if let payload = try? AvatarPayload.from(jsonString: message.content) {
+                memberAvatarStore?.apply(payload, from: message.senderPubkey)
+            }
+
+        case "group_avatar":
+            // Admin-only, and this check is the only thing enforcing it.
+            // Step 3c confirmed MarmotKit accepts a non-admin's custom event
+            // intact, so nothing below the app rejects a spoofed group photo
+            // — exactly as in v1. Verified by
+            // testNonAdminCustomEventIsAcceptedSoTheAppMustCheckAdminItself.
+            if await isAdmin(message.senderPubkey, ofGroup: message.mlsGroupId) {
+                if let payload = try? GroupAvatarPayload.from(jsonString: message.content) {
+                    sharedGroupAvatarStore?.apply(payload, for: message.mlsGroupId)
+                }
+            } else {
+                WhistleLogger.chat.warning(
+                    "Ignored group avatar from non-admin \(message.senderPubkey.prefix(8))"
+                )
+            }
+
+        case .some(let other):
+            WhistleLogger.chat.debug("Unknown chat sub-type '\(other)'")
+        }
     }
 
     // MARK: - Mapping
