@@ -91,13 +91,6 @@ private struct NoticeCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Solid leading bar rather than a border around the whole card:
-            // a hairline stroke read as a weak outline instead of a warning,
-            // and competed with the rounded rows of a grouped list behind it.
-            Capsule()
-                .fill(accent)
-                .frame(width: 4)
-
             Image(systemName: icon)
                 .font(.footnote)
                 .foregroundStyle(accent)
@@ -130,10 +123,26 @@ private struct NoticeCard: View {
                 .accessibilityLabel("Dismiss")
             }
         }
-        .padding(.leading, 10)
+        .padding(.leading, 18)
         .padding(.trailing, 12)
         .padding(.vertical, 12)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        // Accent bar drawn as an overlay on the card, not as a sibling in the
+        // HStack. As a sibling it was a `Capsule` with a width and no height,
+        // which makes it greedy: inside a full-size overlay it expanded to
+        // fill the screen and took the card with it, so a one-line toast
+        // covered the entire view. An overlay is sized by its parent, so the
+        // card's height stays driven by the text.
+        .overlay(alignment: .leading) {
+            Capsule()
+                .fill(accent)
+                .frame(width: 4)
+                .padding(.vertical, 10)
+                .padding(.leading, 6)
+        }
+        // Belt and braces: nothing in here should want vertical space beyond
+        // its content, and this makes that explicit rather than relying on it.
+        .fixedSize(horizontal: false, vertical: true)
         .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
         .padding(.horizontal, 12)
     }
