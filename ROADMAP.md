@@ -630,7 +630,12 @@ _Released 2026-09-22_
 
 ### Deferred
 
-- **v2.0 release sequencing** _(agreed 2026-10-02)_: **1** merge #263 → **2** perf PR (iOS) → **4** error-UX PR (iOS) → **3** Android port → **5** version bumps once device-tested interop confirms. UX and perf deliberately land *before* Android: both are design work, and doing them first means porting once rather than porting Android and then retrofitting both platforms.
+- **v2.0 release sequencing** _(agreed 2026-10-02)_: **1** merge #263 → ~~**2** perf PR~~ (dropped, see below) → **4** error-UX PR (iOS) → **3** Android port → **5** version bumps once device-tested interop confirms. UX and perf deliberately land *before* Android: both are design work, and doing them first means porting once rather than porting Android and then retrofitting both platforms.
+
+- **~~Perf work~~ — dropped 2026-10-02 after measuring.** Both items were flagged from reading the code, and neither survived a measurement:
+    - `MarmotKitService.allowedRelayEndpoints` standing up a throwaway runtime at launch: **0ms warmed**, with a fresh SQLCipher database created per sample. Caching it would have added cache invalidation (policy changes with MarmotKit versions) to buy nothing. The Rust runtime init it was accused of duplicating is paid once per process whichever call touches it first.
+    - `GroupListViewModel.refresh()` performing a network `catchUpAccounts()` per pull: on reflection **correct** — a pull-to-refresh should fetch. Not a defect.
+    - Lesson worth keeping: both claims were asserted twice as definite wins before anyone measured them.
 
 - **v1 `whistle.db` cleanup** _(agreed 2026-10-02)_: the file is orphaned — `MDKBindings` is gone, so nothing can open it — but it still holds v1 MLS key material.
     - **It does not hold the identity.** The nsec lives in the Keychain via `IdentityService`; `start(adoptingNsec:)` adopts it and the npub carries over (device-confirmed: `Identity restored: npub1yls…`). Any user-facing copy must say **groups** are lost and the npub is kept — saying they lose their identity would be false and would push people into needlessly re-sharing a new npub.
