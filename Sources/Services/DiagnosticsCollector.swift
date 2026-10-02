@@ -75,13 +75,26 @@ enum DiagnosticsCollector {
             }
         }
 
-        let connected = Set(relay.connectedRelayURLs)
+        // Read from MarmotKit, not `RelayService`. The v2 startup path never
+        // connects the v1 service, so `relay.connectedRelayURLs` is always
+        // empty — the bundle reported every relay as disconnected while
+        // MarmotKit was connected to both.
+        let status = marmot?.relayStatus
         let relays = settings.relays.map {
             DiagnosticsReport.RelaySnapshot(
                 url: $0.url,
                 enabled: $0.isEnabled,
-                connected: connected.contains($0.url)
+                policy: status?.policies[$0.url]
             )
+        }
+        let relayConnectivity = status.map { summary -> String in
+            let state: String
+            switch summary.connection {
+            case .connected: state = "connected"
+            case .connecting: state = "connecting"
+            case .disconnected: state = "disconnected"
+            }
+            return "\(state) (\(summary.connected) of \(summary.total))"
         }
 
         let settingsSnapshot = DiagnosticsReport.Settings(
@@ -111,7 +124,8 @@ enum DiagnosticsCollector {
             relays: relays,
             settings: settingsSnapshot,
             recentFailures: recentFailures,
-            volatile: volatile
+            volatile: volatile,
+            relayConnectivity: relayConnectivity
         )
     }
 }

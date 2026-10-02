@@ -578,6 +578,55 @@ final class MarmotKitService: ObservableObject {
     /// KeyPackage to be fetchable first — which is also why onboarding has to
     /// gate "show my invite QR" on publication rather than on identity
     /// creation (ROADMAP.md step 4).
+    /// What the UI can honestly say about relays.
+    ///
+    /// MarmotKit exposes **no per-endpoint connection status** — `relayHealth()`
+    /// is aggregate only, and `classifyRelayEndpoints` returns policy rather
+    /// than connectivity. So connection state is aggregate and per-endpoint
+    /// information is policy. v1's per-relay green dot has no v2 equivalent,
+    /// and faking one from the aggregate would report relays as connected that
+    /// may not be.
+    struct RelayStatus: Equatable, Sendable {
+        enum Connection: Equatable, Sendable {
+            case disconnected
+            case connecting
+            case connected
+        }
+        var connection: Connection = .disconnected
+        var total: Int = 0
+        var connected: Int = 0
+        /// Endpoint → policy (`allowed`, `retired`, `unsafe`, …). A retired
+        /// endpoint is a permanent configuration error, which is more
+        /// actionable than a connectivity dot ever was.
+        var policies: [String: String] = [:]
+    }
+
+    @Published private(set) var relayStatus = RelayStatus()
+
+    /// Re-read relay state from the runtime. Cheap; safe to call on appear.
+    func refreshRelayStatus(configured: [String] = []) async {
+        let health = await marmot.relayHealth()
+        let connection: RelayStatus.Connection
+        if health.connected > 0 {
+            connection = .connected
+        } else if health.connecting > 0 || health.pending > 0 {
+            connection = .connecting
+        } else {
+            connection = .disconnected
+        }
+        let endpoints = configured.isEmpty ? relayUrls : configured
+        var policies: [String: String] = [:]
+        for row in marmot.classifyRelayEndpoints(endpoints: endpoints) {
+            policies[row.endpoint] = String(describing: row.policy)
+        }
+        relayStatus = RelayStatus(
+            connection: connection,
+            total: Int(health.totalRelays),
+            connected: Int(health.connected),
+            policies: policies
+        )
+    }
+
     /// Connection counters straight from the runtime, so "no relay
     /// connectivity" is a measurement rather than a symptom.
     func relayDiagnostics() async -> String {
@@ -971,7 +1020,7 @@ final class MarmotKitService: ObservableObject {
     @discardableResult
     func createGroup(name: String, description: String? = nil, memberRefs: [String] = []) async throws -> String {
         let account = try requireAccount()
-        return try await Self.run {
+        let groupIdHex = try await Self.run {
             try await marmot.createGroup(
                 accountRef: account,
                 name: name,
@@ -979,6 +1028,12 @@ final class MarmotKitService: ObservableObject {
                 description: description
             )
         }
+        // Mutations must republish `groups`: `GroupListViewModel` observes
+        // `$groups`, and MarmotKit does not emit on its own for a change this
+        // device just made. Without this a created group did not appear until
+        // the app was relaunched.
+        await refreshGroups()
+        return groupIdHex
     }
 
     // MARK: - Scan to invite
@@ -1068,6 +1123,7 @@ final class MarmotKitService: ObservableObject {
                 memberRefs: memberRefs
             )
         }
+        await refreshGroups()
     }
 
     func removeMembers(_ memberRefs: [String], fromGroup groupIdHex: String) async throws {
@@ -1079,6 +1135,7 @@ final class MarmotKitService: ObservableObject {
                 memberRefs: memberRefs
             )
         }
+        await refreshGroups()
     }
 
     func promoteToAdmin(_ memberRef: String, inGroup groupIdHex: String) async throws {
@@ -1090,6 +1147,7 @@ final class MarmotKitService: ObservableObject {
                 memberRef: memberRef
             )
         }
+        await refreshGroups()
     }
 
     /// Leave a group.
@@ -1116,6 +1174,7 @@ final class MarmotKitService: ObservableObject {
         _ = try await Self.run {
             try await marmot.leaveGroup(accountRef: account, groupIdHex: groupIdHex)
         }
+        await refreshGroups()
     }
 
     func rename(group groupIdHex: String, to name: String) async throws {
@@ -1128,6 +1187,7 @@ final class MarmotKitService: ObservableObject {
                 description: nil
             )
         }
+        await refreshGroups()
     }
 
     // MARK: - Send

@@ -105,8 +105,13 @@ final class DiagnosticsCollectorTests: XCTestCase {
         ]
         let r = await collect()
         XCTAssertEqual(Set(r.relays.map(\.url)), ["wss://alpha.example", "wss://beta.example"])
-        // Nothing is connected (RelayService never told to connect).
-        XCTAssertTrue(r.relays.allSatisfy { !$0.connected })
+        // No per-relay connectivity is reported at all any more: v2 exposes
+        // pool-wide counts only, so the old `connected` flag could only have
+        // been invented. With no service attached there is also no policy to
+        // report, and `relayConnectivity` is absent rather than claiming
+        // "disconnected".
+        XCTAssertTrue(r.relays.allSatisfy { $0.policy == nil })
+        XCTAssertNil(r.relayConnectivity)
         XCTAssertEqual(r.relays.first(where: { $0.url == "wss://beta.example" })?.enabled, false)
     }
 

@@ -33,6 +33,11 @@ public struct DiagnosticsReport: Codable, Equatable {
     public let groups: [GroupSnapshot]
     /// Sorted by `url`.
     public let relays: [RelaySnapshot]
+    /// Aggregate relay connectivity, e.g. "connected (2 of 2)".
+    ///
+    /// Carries what per-relay `connected` cannot: protocol v2 reports
+    /// connection counts for the pool, not per endpoint.
+    public let relayConnectivity: String?
     public let settings: Settings
     /// Sorted by `type`.
     public let recentFailures: [FailureCount]
@@ -108,12 +113,23 @@ public struct DiagnosticsReport: Codable, Equatable {
     public struct RelaySnapshot: Codable, Equatable {
         public let url: String
         public let enabled: Bool
-        public let connected: Bool
+        /// Relay policy (`allowed`, `retired`, `unsafe`, …).
+        ///
+        /// There is deliberately no per-relay `connected` flag. Protocol v2
+        /// reports connection counts for the pool, not per endpoint, so the
+        /// field could only ever have been invented — and a diagnostics
+        /// bundle asserting something it cannot know is worse than one that
+        /// omits it. Pool-wide state is on `relayConnectivity`.
+        ///
+        /// More actionable than connectivity: a retired endpoint is a
+        /// permanent configuration error the user has to correct, not a
+        /// transient failure to retry.
+        public let policy: String?
 
-        public init(url: String, enabled: Bool, connected: Bool) {
+        public init(url: String, enabled: Bool, policy: String? = nil) {
             self.url = url
             self.enabled = enabled
-            self.connected = connected
+            self.policy = policy
         }
     }
 
@@ -156,7 +172,9 @@ public struct DiagnosticsReport: Codable, Equatable {
     }
 
     public init(app: App, identity: Identity, groups: [GroupSnapshot], relays: [RelaySnapshot],
-                settings: Settings, recentFailures: [FailureCount], volatile: Volatile) {
+                settings: Settings, recentFailures: [FailureCount], volatile: Volatile,
+                relayConnectivity: String? = nil) {
+        self.relayConnectivity = relayConnectivity
         self.schema = Self.schemaVersion
         self.app = app
         self.identity = identity
