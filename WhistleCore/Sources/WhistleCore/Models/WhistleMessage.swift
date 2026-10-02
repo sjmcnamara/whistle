@@ -19,13 +19,27 @@ public struct WhistleMessage: Equatable, Identifiable, Sendable {
     /// Inner event `created_at`, in seconds since the epoch.
     public let createdAt: UInt64
 
+    /// True for a membership or rename event rather than an app payload.
+    ///
+    /// These share the timeline with chat, and `payloadType` is nil for them,
+    /// so the chat filter used to let them through and render raw JSON in a
+    /// bubble.
+    public let isSystemEvent: Bool
+
+    /// MarmotKit's own display string for a system event ("Member added"),
+    /// with actor and subject already resolved. Carried so these can be shown
+    /// as system rows later instead of being discarded — see ROADMAP.
+    public let systemText: String?
+
     public init(
         id: String,
         mlsGroupId: String,
         senderPubkey: String,
         kind: UInt16,
         content: String,
-        createdAt: UInt64
+        createdAt: UInt64,
+        isSystemEvent: Bool = false,
+        systemText: String? = nil
     ) {
         self.id = id
         self.mlsGroupId = mlsGroupId
@@ -33,6 +47,8 @@ public struct WhistleMessage: Equatable, Identifiable, Sendable {
         self.kind = kind
         self.content = content
         self.createdAt = createdAt
+        self.isSystemEvent = isSystemEvent
+        self.systemText = systemText
     }
 
     public var date: Date {

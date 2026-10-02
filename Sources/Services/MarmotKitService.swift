@@ -661,7 +661,14 @@ final class MarmotKitService: ObservableObject {
         // did, with a prefix test — reported a permanent "restart to connect"
         // for whichever relay normalised to something other than a trailing
         // slash difference.
-        let canonicalConfigured = canonical(enabled ?? everything)
+        // Only relays that *could* be dialled count as pending additions. A
+        // retired or unsafe endpoint will never connect, so "Restart to
+        // connect to X" sat directly beneath a banner saying X cannot be used
+        // — two contradictory claims about the same relay.
+        let dialable = (enabled ?? everything).filter { endpoint in
+            policies[endpoint].map { $0 == "allowed" } ?? true
+        }
+        let canonicalConfigured = canonical(dialable)
         let canonicalDialled = canonical(relayUrls)
         let additions = canonicalConfigured.subtracting(canonicalDialled)
         let removals = canonicalDialled.subtracting(canonicalConfigured)
@@ -1324,9 +1331,25 @@ final class MarmotKitService: ObservableObject {
     /// `kind` must be outside MDK's reserved set — use `MarmotKind.ProtocolV2`, which
     /// exists precisely because v1's `chat = 9` collides with MDK's own CHAT
     /// and would be rejected here.
-    func send(content: String, kind: UInt16, toGroup groupIdHex: String) async throws {
+    /// What happened to a send, beyond "it did not throw".
+    ///
+    /// MarmotKit accepts a send into durable local storage and publishes
+    /// asynchronously, so a successful return means *stored*, not *sent*. In
+    /// airplane mode the call succeeds, the message appears in the timeline,
+    /// and nothing has left the device — which is exactly how a message
+    /// looked sent on device when it could not have been.
+    enum SendOutcome: Equatable {
+        /// Reached at least one relay.
+        case published(relays: Int)
+        /// Stored locally and queued. It will go out when a relay is
+        /// reachable; until then nobody else has it.
+        case queued
+    }
+
+    @discardableResult
+    func send(content: String, kind: UInt16, toGroup groupIdHex: String) async throws -> SendOutcome {
         let account = try requireAccount()
-        _ = try await Self.run {
+        let summary = try await Self.run {
             try await marmot.sendCustomEvent(
                 accountRef: account,
                 groupIdHex: groupIdHex,
@@ -1335,6 +1358,14 @@ final class MarmotKitService: ObservableObject {
                 content: content
             )
         }
+        // `published` counts relays. `acceptDisposition` says whether the
+        // runtime considers publication done; treat anything short of
+        // `.published` with no relays as queued, since that is what the user
+        // needs to know.
+        if summary.published > 0, summary.acceptDisposition == .published {
+            return .published(relays: Int(summary.published))
+        }
+        return .queued
     }
 
     func sendLocation(_ payload: LocationPayload, toGroup groupIdHex: String) async throws {
@@ -1345,7 +1376,8 @@ final class MarmotKitService: ObservableObject {
         )
     }
 
-    func sendChat(_ payload: ChatPayload, toGroup groupIdHex: String) async throws {
+    @discardableResult
+    func sendChat(_ payload: ChatPayload, toGroup groupIdHex: String) async throws -> SendOutcome {
         try await send(
             content: try payload.jsonString(),
             kind: MarmotKind.ProtocolV2.chat,
@@ -1666,7 +1698,14 @@ final class MarmotKitService: ObservableObject {
             senderPubkey: record.sender,
             kind: UInt16(truncatingIfNeeded: record.kind),
             content: record.plaintext,
-            createdAt: record.timelineAt
+            createdAt: record.timelineAt,
+            // Membership and rename events arrive on the same timeline as
+            // chat. Flagged explicitly rather than inferred from `kind`,
+            // because `payloadType` — what the chat filter used to key on — is
+            // nil for them, so they fell through and rendered as a chat bubble
+            // containing raw JSON.
+            isSystemEvent: record.groupSystem != nil,
+            systemText: record.groupSystem?.text
         )
     }
 

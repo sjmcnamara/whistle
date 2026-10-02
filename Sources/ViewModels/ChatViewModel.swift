@@ -33,6 +33,13 @@ final class ChatViewModel: ObservableObject {
         let text: String
         let timestamp: Date
         let isMe: Bool
+        /// A membership or rename event rather than something someone typed.
+        ///
+        /// Rendered as a centred line rather than a bubble: it has no sender
+        /// in the conversational sense, and attributing "Member added" to the
+        /// admin who did it made it look like a message they had written —
+        /// which is exactly how it appeared before, raw JSON and all.
+        var isSystemEvent: Bool = false
     }
 
     // MARK: - Dependencies
@@ -292,11 +299,20 @@ final class ChatViewModel: ObservableObject {
 
         do {
             let payload = ChatPayload(text: text)
-            try await marmot.sendChat(payload, toGroup: groupId)
+            let outcome = try await marmot.sendChat(payload, toGroup: groupId)
             draftText = ""
 
             // Reload to pick up the sent message from MDK storage
             await loadMessages()
+
+            // A send that reached no relay still succeeds and still appears in
+            // the timeline, so without this the message looks delivered when
+            // nobody else has it — which is what happened in airplane mode.
+            if outcome == .queued {
+                notices.postToast("Saved, but not sent yet — no relay reachable.") { [weak self] in
+                    await self?.resendQueued(text: text)
+                }
+            }
         } catch {
             WhistleLogger.chat.error("Failed to send message: \(error)")
             // The draft is deliberately left in place so Retry has something
@@ -307,11 +323,53 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    /// Retry for a message that was stored but never published.
+    ///
+    /// Re-sends the same text rather than re-running `sendMessage`, whose
+    /// draft has already been cleared. A duplicate is possible if the original
+    /// drains from the queue at the same moment — preferred to the message
+    /// silently never arriving, which is the failure this is here to fix.
+    private func resendQueued(text: String) async {
+        do {
+            let outcome = try await marmot.sendChat(ChatPayload(text: text), toGroup: groupId)
+            await loadMessages()
+            if outcome == .queued {
+                notices.postToast("Still no relay reachable.")
+            }
+        } catch {
+            notices.report(error, fallback: "Message not sent.")
+        }
+    }
+
     // MARK: - Mapping
 
     /// Convert a decrypted message into a display-ready `ChatMessageItem`.
     private func mapMessage(_ message: WhistleMessage) -> ChatMessageItem? {
         let content = message.content
+
+        // Membership and rename events share this timeline, and are worth
+        // showing — people should see who joined or left. They are rendered as
+        // a system line using MarmotKit's own resolved display text
+        // ("Member added"), never as a bubble: the raw plaintext is JSON, and
+        // attributing it to whoever performed the action made it read as a
+        // message they had typed.
+        if message.isSystemEvent {
+            guard let text = message.systemText, !text.isEmpty else { return nil }
+            return ChatMessageItem(
+                id: message.id,
+                senderPubkeyHex: message.senderPubkey,
+                senderDisplayName: nicknameStore.displayName(for: message.senderPubkey),
+                text: text,
+                timestamp: message.date,
+                isMe: false,
+                isSystemEvent: true
+            )
+        }
+
+        // Kind is the authority on what a row is. `payloadType` reads a field
+        // out of the plaintext, which is absent on anything we did not write
+        // ourselves, so it cannot be relied on to exclude foreign kinds.
+        if message.kind != MarmotKind.ProtocolV2.chat { return nil }
 
         // Only map "chat" type messages (skip nickname broadcasts, etc.).
         // A nil type is plain text from an older client — treat as chat.
