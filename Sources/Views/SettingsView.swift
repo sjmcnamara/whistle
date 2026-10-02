@@ -39,7 +39,7 @@ struct SettingsView: View {
                 NavigationLink {
                     IdentityCardView(
                         identity: identity,
-                        isReadyToBeInvited: appViewModel.marmot?.accountIsReady ?? false
+                        isReadyToBeInvited: appViewModel.accountIsReady
                     )
                 } label: {
                     Label {

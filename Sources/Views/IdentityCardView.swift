@@ -7,11 +7,10 @@ struct IdentityCardView: View {
 
     /// Whether an admin scanning this code could actually add you.
     ///
-    /// The npub is always correct, so the code is always worth showing and
-    /// copying — but an invite only succeeds once the KeyPackage has reached a
-    /// relay. `MemberCodeView` handles that by hiding the code entirely;
-    /// here the caveat is stated instead, because hiding a valid npub is
-    /// worse than explaining the one thing it cannot do yet.
+    /// Read from `AppViewModel.accountIsReady`, which mirrors the service.
+    /// The first version read `appViewModel.marmot?.accountIsReady` directly
+    /// and never updated — `forwardChildChanges()` does not forward `marmot`,
+    /// so the caveat latched on at launch and stayed forever.
     var isReadyToBeInvited: Bool = true
 
     @State private var copied = false
@@ -58,7 +57,7 @@ struct IdentityCardView: View {
 
             Section("About Your Identity") {
                 Label {
-                    Text("Your npub is your Nostr public key. Share it with family members so they can add you to a group.")
+                    Text("Your npub is your Nostr public key. Share it with an admin so they can add you to a group.")
                         .font(.footnote)
                 } icon: {
                     Image(systemName: "person.crop.circle")

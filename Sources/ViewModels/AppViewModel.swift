@@ -16,6 +16,20 @@ final class AppViewModel: ObservableObject {
     /// per screen — see `NoticeCenter`.
     let notices = NoticeCenter()
 
+    /// Mirrors `MarmotKitService.accountIsReady`.
+    ///
+    /// Exists because `forwardChildChanges()` does not forward `marmot` — and
+    /// must not, since every relay event would then re-render every observing
+    /// view. That left `appViewModel.marmot?.accountIsReady` compiling, type
+    /// checking and passing every test while never updating on screen, which
+    /// is a mistake this migration made three times.
+    ///
+    /// Mirroring it here makes the obvious thing correct: a view reads
+    /// `appViewModel.accountIsReady` and gets updates, the same as
+    /// `settings`. The subscription that maintains it already existed for the
+    /// setup banner.
+    @Published private(set) var accountIsReady = false
+
     /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
     @Published private(set) var marmot: MarmotKitService?
 
@@ -515,6 +529,7 @@ final class AppViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak service] ready in
                 guard let self else { return }
+                self.accountIsReady = ready
                 self.notices.setBanner(
                     .accountSetupIncomplete,
                     active: !ready,
@@ -771,6 +786,7 @@ final class AppViewModel: ObservableObject {
         // skipping this left the old identity on the device — and because
         // startup matches an account by id, the next launch would have signed
         // straight back into it and carried on as the previous user.
+        accountIsReady = false
         await marmot?.forgetCurrentAccount()
         await marmot?.shutdown()
         marmot = nil

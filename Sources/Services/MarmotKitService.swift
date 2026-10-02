@@ -1194,7 +1194,16 @@ final class MarmotKitService: ObservableObject {
         }
     }
 
-    /// Published so the UI can observe it instead of polling.
+    /// Published so `AppViewModel` can observe it.
+    ///
+    /// **Views must not read this through `appViewModel.marmot?`** — read
+    /// `AppViewModel.accountIsReady`, which mirrors it. Reading it here looks
+    /// identical, compiles, lints and passes the suite, and then never updates
+    /// on screen, because `forwardChildChanges()` does not forward this
+    /// service (deliberately — every relay event would re-render every
+    /// observing view). That mistake was made three times during this
+    /// migration before the mirror existed.
+    ///
     ///
     /// Polling was the first attempt and it was wrong in a way that only
     /// showed on device: a bounded loop (60s) gave up **permanently**, and
