@@ -1159,11 +1159,31 @@ final class MarmotKitService: ObservableObject {
     /// someone first. v1 reached the same outcome by parsing error strings.
     func leaveGroup(_ groupIdHex: String) async throws {
         let account = try requireAccount()
+
+        // A group you are alone in is deleted, not left.
+        //
+        // MLS has no way to remove the last member, so `selfDemoteAdmin`
+        // reports `WouldRemoveLastAdmin` — which the app surfaced as "promote
+        // another member to admin before leaving". That is impossible advice
+        // when there is nobody to promote, and it left burning the identity as
+        // the only way out of a group of one. There is also nothing to
+        // coordinate: no other member to hand admin to, and none to notify.
+        let others = try await members(ofGroup: groupIdHex).filter { $0 != account }
+        if others.isEmpty {
+            _ = try await Self.run {
+                try await marmot.deleteGroupLocal(accountRef: account, groupIdHex: groupIdHex)
+            }
+            await refreshGroups()
+            return
+        }
+
         do {
             _ = try await marmot.selfDemoteAdmin(accountRef: account, groupIdHex: groupIdHex)
         } catch let error as MarmotKitError {
             switch error {
             case .WouldRemoveLastAdmin:
+                // Genuine now: other members exist, and one of them has to
+                // take admin before this device can go.
                 throw ServiceError.lastAdminCannotLeave
             case .NotGroupAdmin, .NotAdmin:
                 break  // not an admin — nothing to demote, fall through to leave

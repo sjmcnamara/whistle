@@ -1162,3 +1162,44 @@ extension MarmotKitTwoDeviceTests {
         XCTAssertEqual(first, second)
     }
 }
+
+// MARK: - Leaving a group of one
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Reported from device: a group you are alone in could not be left. MLS
+    /// cannot remove the last member, so `selfDemoteAdmin` reports
+    /// `WouldRemoveLastAdmin` and the app relayed it as "promote another
+    /// member to admin before leaving" — impossible advice with nobody to
+    /// promote, leaving identity burn as the only escape.
+    @MainActor
+    func testAGroupYouAreAloneInCanBeLeft() async throws {
+        let service = try makeService()
+        _ = try await service.startWithNewIdentity()
+        let groupId = try await service.createGroup(name: "Solo")
+        await service.refreshGroups()
+        XCTAssertTrue(service.groups.contains { $0.mlsGroupId == groupId })
+
+        try await service.leaveGroup(groupId)
+
+        XCTAssertFalse(
+            service.groups.contains { $0.mlsGroupId == groupId },
+            "group of one survived being left — the list should no longer show it"
+        )
+    }
+
+    /// The error must survive where it is still correct: with another member
+    /// present, a sole admin genuinely has to hand admin over first.
+    @MainActor
+    func testSoleAdminOfAPopulatedGroupStillCannotLeave() async throws {
+        // `makePair` already creates the group and converges Bob into it.
+        let (alice, _, _, groupId) = try await makePair(groupName: "Populated")
+
+        do {
+            try await alice.leaveGroup(groupId)
+            XCTFail("sole admin of a populated group should not be able to leave")
+        } catch MarmotKitService.ServiceError.lastAdminCannotLeave {
+            // Correct: there is someone to promote here.
+        }
+    }
+}

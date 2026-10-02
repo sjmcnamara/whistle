@@ -23,6 +23,8 @@ Requires XcodeGen (`brew install xcodegen`). The script auto-detects the newest 
 cd WhistleCore && swift test   # 78 tests, not covered by build.sh
 ```
 
+**`./scripts/build.sh test` can print `TEST SUCCEEDED` with a test file that does not compile.** If the test target is not rebuilt, `xcodebuild` reuses the previously-built bundle: a file with three compile errors in it reported `525 tests, 0 failures`, and `touch`ing the file was what finally surfaced them. **Check the test count moved** when tests have been added — the count is the only thing that reveals this, since both the pass line and the exit code look identical. `touch` the file (or `build.sh clean`) if it has not.
+
 **Always run `./scripts/build.sh compile-tests` before pushing.** Plain `build.sh` only builds the app target, so `WhistleTests` can stop compiling while the build still passes — and that surfaces as a red CI run rather than a local error. `compile-tests` builds the test target for a generic arm64 device, which works on Intel Macs even though running it does not. It catches signature changes that break test call sites (a service turning `async`, a model gaining a field).
 
 For Android: `cd android && ./gradlew assembleDebug` / `./gradlew test`.
