@@ -26,6 +26,15 @@ public struct WhistleMessage: Equatable, Identifiable, Sendable {
     /// bubble.
     public let isSystemEvent: Bool
 
+    /// The MLS epoch the message was sent in, when known.
+    ///
+    /// A causally correct tiebreaker. `createdAt` has only **one-second**
+    /// resolution, so several commits from one action — promote, self-demote,
+    /// leave — share a timestamp and sort arbitrarily; ordering by message id
+    /// put them on screen in exactly the reverse of what happened. The epoch
+    /// increments per commit, so it orders group-state events correctly.
+    public let sourceEpoch: UInt64?
+
     /// MarmotKit's own display string for a system event ("Member added"),
     /// with actor and subject already resolved. Carried so these can be shown
     /// as system rows later instead of being discarded — see ROADMAP.
@@ -39,7 +48,8 @@ public struct WhistleMessage: Equatable, Identifiable, Sendable {
         content: String,
         createdAt: UInt64,
         isSystemEvent: Bool = false,
-        systemText: String? = nil
+        systemText: String? = nil,
+        sourceEpoch: UInt64? = nil
     ) {
         self.id = id
         self.mlsGroupId = mlsGroupId
@@ -49,6 +59,7 @@ public struct WhistleMessage: Equatable, Identifiable, Sendable {
         self.createdAt = createdAt
         self.isSystemEvent = isSystemEvent
         self.systemText = systemText
+        self.sourceEpoch = sourceEpoch
     }
 
     public var date: Date {

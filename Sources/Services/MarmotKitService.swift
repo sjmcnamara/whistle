@@ -1404,7 +1404,16 @@ final class MarmotKitService: ObservableObject {
     /// messages. `kinds` filters server-side rather than after decryption.
     func subscribe(
         toGroup groupIdHex: String? = nil,
-        kinds: [UInt16] = [MarmotKind.ProtocolV2.location, MarmotKind.ProtocolV2.chat, MarmotKind.ProtocolV2.leaveRequest]
+        // `groupSystemKind` included deliberately: without it membership and
+        // rename events never arrive live at all, so a system line only
+        // appeared after the chat was left and re-entered and the group list
+        // never learned that membership had changed.
+        kinds: [UInt16] = [
+            MarmotKind.ProtocolV2.location,
+            MarmotKind.ProtocolV2.chat,
+            MarmotKind.ProtocolV2.leaveRequest,
+            UInt16(MarmotKitService.groupSystemKind)
+        ]
     ) async throws -> MessageStream {
         let account = try requireAccount()
         let subscription = try await Self.run {
@@ -1578,6 +1587,16 @@ final class MarmotKitService: ObservableObject {
 
     private var receiveTask: Task<Void, Never>?
 
+    /// Watches the account's chat list, which is the only signal for "a group
+    /// you were not in has appeared".
+    ///
+    /// The message subscription cannot cover it: it was opened before the
+    /// group existed, and a Welcome is not an app message. Without this, an
+    /// invited device sat on an empty group list — with the big "Create a
+    /// group" call to action — until the app was restarted, even though the
+    /// group was already in its database.
+    private var chatListTask: Task<Void, Never>?
+
     /// Start consuming decrypted messages and routing them into app state.
     ///
     /// Far smaller than v1's equivalent, and deliberately so. v1 opened raw
@@ -1598,11 +1617,30 @@ final class MarmotKitService: ObservableObject {
                 await self?.route(message)
             }
         }
+
+        chatListTask = Task { [weak self] in
+            guard let account = await self?.currentAccountRef,
+                  let subscription = try? await self?.openChatListStream(account: account)
+            else { return }
+            // Every row change republishes the list. Cheap, and it is the only
+            // way a newly-joined group reaches the UI without a relaunch.
+            while !Task.isCancelled, await subscription.next() != nil {
+                await self?.refreshGroups()
+            }
+        }
+    }
+
+    private func openChatListStream(account: String) async throws -> ChatListSubscription {
+        try await Self.run {
+            try await marmot.subscribeChatList(accountRef: account, includeArchived: false)
+        }
     }
 
     func stopSubscriptions() {
         receiveTask?.cancel()
         receiveTask = nil
+        chatListTask?.cancel()
+        chatListTask = nil
         WhistleLogger.marmot.info("Subscriptions stopped")
     }
 
@@ -1635,6 +1673,14 @@ final class MarmotKitService: ObservableObject {
 
         case MarmotKind.ProtocolV2.chat:
             await routeChatPayload(message)
+
+        case UInt16(Self.groupSystemKind):
+            // Membership or rename. Both change the group list — member counts,
+            // names, a group arriving or going away — and both belong in the
+            // open chat as a system line.
+            await refreshGroups()
+            lastGroupMembershipChangeId = (message.mlsGroupId, Date())
+            lastChatMessageGroupId = message.mlsGroupId
 
         default:
             WhistleLogger.marmot.debug("Ignoring unknown inner kind \(message.kind)")
@@ -1684,6 +1730,34 @@ final class MarmotKitService: ObservableObject {
 
     // MARK: - Mapping
 
+    /// MDK's own `GROUP_SYSTEM` kind, from the reserved set in
+    /// `crates/marmot-app` (see CLAUDE.md's table).
+    static let groupSystemKind: UInt64 = 1210
+
+    /// Whether a row is a membership/rename event rather than an app payload.
+    ///
+    /// Checks the kind first, then falls back to the payload's own shape:
+    /// these carry a `system_type` field, which nothing Whistle sends does.
+    /// Deliberately belt-and-braces — relying on one signal produced a
+    /// membership event rendered as a chat bubble attributed to whoever
+    /// performed the action.
+    nonisolated private static func looksLikeSystemEvent(kind: UInt64, plaintext: String) -> Bool {
+        if kind == groupSystemKind { return true }
+        return plaintext.contains("\"system_type\"")
+    }
+
+    /// Best-effort display text pulled from a system payload, for when
+    /// MarmotKit's resolved `groupSystem.text` is not populated yet.
+    nonisolated private static func systemText(fromPlaintext plaintext: String) -> String? {
+        guard plaintext.contains("\"system_type\""),
+              let data = plaintext.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let text = object["text"] as? String,
+              !text.isEmpty
+        else { return nil }
+        return text
+    }
+
     nonisolated private static func map(row: ChatListRowFfi, details: GroupDetailsFfi?) -> WhistleGroup {
         WhistleGroup(
             mlsGroupId: row.groupIdHex,
@@ -1713,8 +1787,18 @@ final class MarmotKitService: ObservableObject {
             // because `payloadType` — what the chat filter used to key on — is
             // nil for them, so they fell through and rendered as a chat bubble
             // containing raw JSON.
-            isSystemEvent: record.groupSystem != nil,
+            // Three signals, any of which is enough.
+            //
+            // `groupSystem` alone was not: on device a membership event
+            // rendered as an ordinary bubble on arrival and correctly as a
+            // system row after leaving and re-entering the chat, which means
+            // the field is populated some time after the row first appears.
+            // Kind and payload shape are available immediately.
+            isSystemEvent: record.groupSystem != nil
+                || Self.looksLikeSystemEvent(kind: record.kind, plaintext: record.plaintext),
             systemText: record.groupSystem?.text
+                ?? Self.systemText(fromPlaintext: record.plaintext),
+            sourceEpoch: record.sourceEpoch
         )
     }
 
@@ -1725,7 +1809,14 @@ final class MarmotKitService: ObservableObject {
             senderPubkey: received.sender,
             kind: UInt16(truncatingIfNeeded: received.kind),
             content: received.plaintext,
-            createdAt: received.sourceEpoch
+            // `recordedAt`, not `sourceEpoch`. The latter is the MLS epoch — a
+            // small counter — so every live-arriving message was being given a
+            // timestamp somewhere in 1970 and sorted to the start of the
+            // thread.
+            createdAt: received.recordedAt,
+            isSystemEvent: Self.looksLikeSystemEvent(kind: received.kind, plaintext: received.plaintext),
+            systemText: Self.systemText(fromPlaintext: received.plaintext),
+            sourceEpoch: received.sourceEpoch
         )
     }
 }

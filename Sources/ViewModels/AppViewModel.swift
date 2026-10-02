@@ -449,6 +449,7 @@ final class AppViewModel: ObservableObject {
         // SwiftUI view identity changes in RootView's conditional branches).
         self.groupListViewModel = GroupListViewModel(
             marmot: service,
+            notices: notices,
             displayName: { [weak self] in self?.settings.displayName ?? "" }
         )
 

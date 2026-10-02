@@ -33,6 +33,8 @@ final class ChatViewModel: ObservableObject {
         let text: String
         let timestamp: Date
         let isMe: Bool
+        /// MLS epoch, for ordering — see `inChatOrder`.
+        var sourceEpoch: UInt64?
         /// A membership or rename event rather than something someone typed.
         ///
         /// Rendered as a centred line rather than a bubble: it has no sender
@@ -210,9 +212,28 @@ final class ChatViewModel: ObservableObject {
         var byId: [String: ChatMessageItem] = [:]
         for m in existing { byId[m.id] = m }
         for m in incoming { byId[m.id] = m }
-        return byId.values.sorted { lhs, rhs in
-            lhs.timestamp == rhs.timestamp ? lhs.id < rhs.id : lhs.timestamp < rhs.timestamp
+        return byId.values.sorted(by: Self.inChatOrder)
+    }
+
+    /// Chat order: time, then epoch, then id.
+    ///
+    /// Epoch is the load-bearing part. `timestamp` has one-second resolution,
+    /// so the three commits behind a single "promote someone and leave" action
+    /// share it, and breaking the tie on `id` — a hash — ordered them
+    /// arbitrarily. On device that produced "Member left / Admin removed /
+    /// Admin added", the exact reverse of what happened. The MLS epoch
+    /// increments per commit, so it restores the real sequence.
+    ///
+    /// Id remains the final tiebreaker so the sort stays total and stable:
+    /// chat messages inside one epoch and one second are genuinely
+    /// indistinguishable, and an unstable comparator would reshuffle them on
+    /// every merge.
+    static func inChatOrder(_ lhs: ChatMessageItem, _ rhs: ChatMessageItem) -> Bool {
+        if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
+        if let left = lhs.sourceEpoch, let right = rhs.sourceEpoch, left != right {
+            return left < right
         }
+        return lhs.id < rhs.id
     }
 
     /// Write the current thread state back to the shared cache so the next
@@ -262,6 +283,11 @@ final class ChatViewModel: ObservableObject {
                 collected.insert(contentsOf: mapped, at: 0)
             } catch {
                 WhistleLogger.chat.error("Failed to load more messages: \(error)")
+                // The user tapped "load earlier" — silence looks like there is
+                // nothing older rather than like a failure.
+                notices.report(error, fallback: "Couldn't load earlier messages.") { [weak self] in
+                    await self?.loadMore()
+                }
                 return
             }
         }
@@ -362,6 +388,7 @@ final class ChatViewModel: ObservableObject {
                 text: text,
                 timestamp: message.date,
                 isMe: false,
+                sourceEpoch: message.sourceEpoch,
                 isSystemEvent: true
             )
         }
@@ -394,7 +421,8 @@ final class ChatViewModel: ObservableObject {
             senderDisplayName: nicknameStore.displayName(for: message.senderPubkey),
             text: text,
             timestamp: timestamp,
-            isMe: message.senderPubkey == myPubkeyHex
+            isMe: message.senderPubkey == myPubkeyHex,
+            sourceEpoch: message.sourceEpoch
         )
     }
 }
