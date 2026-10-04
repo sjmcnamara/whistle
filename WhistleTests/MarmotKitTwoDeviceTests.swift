@@ -1365,3 +1365,27 @@ final class MarmotKitRelayDiffTests: XCTestCase {
         XCTAssertNotNil(service.relayStatus.policies[url])
     }
 }
+
+// MARK: - Leaving removes the group
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Device report: leaving from the group detail screen removed the user
+    /// from the group but left the chat and detail views on screen, and the
+    /// group still in the list — faded, labelled "Inactive". That label is
+    /// right for a group that ended around you and wrong for one you chose to
+    /// leave.
+    @MainActor
+    func testLeavingAPopulatedGroupRemovesItFromTheList() async throws {
+        let (alice, bob, _, groupId) = try await makePair(groupName: "Leaving")
+
+        // Bob takes admin so Alice is free to go.
+        try await alice.promoteToAdmin(try XCTUnwrap(bob.currentAccountRef), inGroup: groupId)
+        try await alice.leaveGroup(groupId)
+
+        XCTAssertFalse(
+            alice.groups.contains { $0.mlsGroupId == groupId },
+            "the group survived being left — the list would show it as Inactive"
+        )
+    }
+}

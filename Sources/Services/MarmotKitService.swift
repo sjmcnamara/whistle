@@ -56,6 +56,9 @@ final class MarmotKitService: ObservableObject {
     var memberAvatarStore: MemberAvatarStore?
     var sharedGroupAvatarStore: SharedGroupAvatarStore?
     var batteryAlertService: BatteryAlertService?
+    /// Needed so leaving a group can discard its cached thread — otherwise
+    /// re-joining later resurrects the old history.
+    var chatMessageCache: ChatMessageCache?
 
     // MARK: - Errors
 
@@ -661,7 +664,14 @@ final class MarmotKitService: ObservableObject {
         // did, with a prefix test — reported a permanent "restart to connect"
         // for whichever relay normalised to something other than a trailing
         // slash difference.
-        let canonicalConfigured = canonical(enabled ?? everything)
+        // Only relays that *could* be dialled count as pending additions. A
+        // retired or unsafe endpoint will never connect, so "Restart to
+        // connect to X" sat directly beneath a banner saying X cannot be used
+        // — two contradictory claims about the same relay.
+        let dialable = (enabled ?? everything).filter { endpoint in
+            policies[endpoint].map { $0 == "allowed" } ?? true
+        }
+        let canonicalConfigured = canonical(dialable)
         let canonicalDialled = canonical(relayUrls)
         let additions = canonicalConfigured.subtracting(canonicalDialled)
         let removals = canonicalDialled.subtracting(canonicalConfigured)
@@ -1187,7 +1197,16 @@ final class MarmotKitService: ObservableObject {
         }
     }
 
-    /// Published so the UI can observe it instead of polling.
+    /// Published so `AppViewModel` can observe it.
+    ///
+    /// **Views must not read this through `appViewModel.marmot?`** — read
+    /// `AppViewModel.accountIsReady`, which mirrors it. Reading it here looks
+    /// identical, compiles, lints and passes the suite, and then never updates
+    /// on screen, because `forwardChildChanges()` does not forward this
+    /// service (deliberately — every relay event would re-render every
+    /// observing view). That mistake was made three times during this
+    /// migration before the mirror existed.
+    ///
     ///
     /// Polling was the first attempt and it was wrong in a way that only
     /// showed on device: a bounded loop (60s) gave up **permanently**, and
@@ -1231,6 +1250,12 @@ final class MarmotKitService: ObservableObject {
             )
         }
         await refreshGroups()
+        // Published for the *local* actor too, not only on receipt. The device
+        // that performs an invite does not get its own system event back, so
+        // relying on the receive path meant the admin never re-announced the
+        // group photo or profiles — and a new joiner arrived to a group with
+        // no picture.
+        lastGroupMembershipChangeId = (groupIdHex, Date())
     }
 
     func removeMembers(_ memberRefs: [String], fromGroup groupIdHex: String) async throws {
@@ -1243,6 +1268,7 @@ final class MarmotKitService: ObservableObject {
             )
         }
         await refreshGroups()
+        lastGroupMembershipChangeId = (groupIdHex, Date())
     }
 
     func promoteToAdmin(_ memberRef: String, inGroup groupIdHex: String) async throws {
@@ -1280,6 +1306,7 @@ final class MarmotKitService: ObservableObject {
             _ = try await Self.run {
                 try await marmot.deleteGroupLocal(accountRef: account, groupIdHex: groupIdHex)
             }
+            purgeLocalData(forGroup: groupIdHex)
             await refreshGroups()
             return
         }
@@ -1301,6 +1328,17 @@ final class MarmotKitService: ObservableObject {
         _ = try await Self.run {
             try await marmot.leaveGroup(accountRef: account, groupIdHex: groupIdHex)
         }
+
+        // Drop the local row as well. Leaving otherwise left the group in the
+        // list, faded, labelled "Inactive" — which is the right display for a
+        // group that *ended* around you, and the wrong one for a group you
+        // chose to leave. Removing it also unwinds the pushed chat and detail
+        // views, which were left on screen for a group the user was no longer
+        // in; the same call already backs the solo-group path above.
+        _ = try? await Self.run {
+            try await marmot.deleteGroupLocal(accountRef: account, groupIdHex: groupIdHex)
+        }
+        purgeLocalData(forGroup: groupIdHex)
         await refreshGroups()
     }
 
@@ -1324,9 +1362,25 @@ final class MarmotKitService: ObservableObject {
     /// `kind` must be outside MDK's reserved set — use `MarmotKind.ProtocolV2`, which
     /// exists precisely because v1's `chat = 9` collides with MDK's own CHAT
     /// and would be rejected here.
-    func send(content: String, kind: UInt16, toGroup groupIdHex: String) async throws {
+    /// What happened to a send, beyond "it did not throw".
+    ///
+    /// MarmotKit accepts a send into durable local storage and publishes
+    /// asynchronously, so a successful return means *stored*, not *sent*. In
+    /// airplane mode the call succeeds, the message appears in the timeline,
+    /// and nothing has left the device — which is exactly how a message
+    /// looked sent on device when it could not have been.
+    enum SendOutcome: Equatable {
+        /// Reached at least one relay.
+        case published(relays: Int)
+        /// Stored locally and queued. It will go out when a relay is
+        /// reachable; until then nobody else has it.
+        case queued
+    }
+
+    @discardableResult
+    func send(content: String, kind: UInt16, toGroup groupIdHex: String) async throws -> SendOutcome {
         let account = try requireAccount()
-        _ = try await Self.run {
+        let summary = try await Self.run {
             try await marmot.sendCustomEvent(
                 accountRef: account,
                 groupIdHex: groupIdHex,
@@ -1335,6 +1389,14 @@ final class MarmotKitService: ObservableObject {
                 content: content
             )
         }
+        // `published` counts relays. `acceptDisposition` says whether the
+        // runtime considers publication done; treat anything short of
+        // `.published` with no relays as queued, since that is what the user
+        // needs to know.
+        if summary.published > 0, summary.acceptDisposition == .published {
+            return .published(relays: Int(summary.published))
+        }
+        return .queued
     }
 
     func sendLocation(_ payload: LocationPayload, toGroup groupIdHex: String) async throws {
@@ -1345,7 +1407,8 @@ final class MarmotKitService: ObservableObject {
         )
     }
 
-    func sendChat(_ payload: ChatPayload, toGroup groupIdHex: String) async throws {
+    @discardableResult
+    func sendChat(_ payload: ChatPayload, toGroup groupIdHex: String) async throws -> SendOutcome {
         try await send(
             content: try payload.jsonString(),
             kind: MarmotKind.ProtocolV2.chat,
@@ -1363,7 +1426,16 @@ final class MarmotKitService: ObservableObject {
     /// messages. `kinds` filters server-side rather than after decryption.
     func subscribe(
         toGroup groupIdHex: String? = nil,
-        kinds: [UInt16] = [MarmotKind.ProtocolV2.location, MarmotKind.ProtocolV2.chat, MarmotKind.ProtocolV2.leaveRequest]
+        // `groupSystemKind` included deliberately: without it membership and
+        // rename events never arrive live at all, so a system line only
+        // appeared after the chat was left and re-entered and the group list
+        // never learned that membership had changed.
+        kinds: [UInt16] = [
+            MarmotKind.ProtocolV2.location,
+            MarmotKind.ProtocolV2.chat,
+            MarmotKind.ProtocolV2.leaveRequest,
+            UInt16(MarmotKitService.groupSystemKind)
+        ]
     ) async throws -> MessageStream {
         let account = try requireAccount()
         let subscription = try await Self.run {
@@ -1537,6 +1609,16 @@ final class MarmotKitService: ObservableObject {
 
     private var receiveTask: Task<Void, Never>?
 
+    /// Watches the account's chat list, which is the only signal for "a group
+    /// you were not in has appeared".
+    ///
+    /// The message subscription cannot cover it: it was opened before the
+    /// group existed, and a Welcome is not an app message. Without this, an
+    /// invited device sat on an empty group list — with the big "Create a
+    /// group" call to action — until the app was restarted, even though the
+    /// group was already in its database.
+    private var chatListTask: Task<Void, Never>?
+
     /// Start consuming decrypted messages and routing them into app state.
     ///
     /// Far smaller than v1's equivalent, and deliberately so. v1 opened raw
@@ -1557,11 +1639,64 @@ final class MarmotKitService: ObservableObject {
                 await self?.route(message)
             }
         }
+
+        chatListTask = Task { [weak self] in
+            guard let account = await self?.currentAccountRef,
+                  let subscription = try? await self?.openChatListStream(account: account)
+            else { return }
+            // Every row change republishes the list. Cheap, and it is the only
+            // way a newly-joined group reaches the UI without a relaunch.
+            while !Task.isCancelled, await subscription.next() != nil {
+                await self?.refreshGroupsDetectingJoins()
+            }
+        }
+    }
+
+    /// Discard everything this device holds about a group it is no longer in.
+    ///
+    /// Leaving is leaving: the group row, the chat thread, the map pins and
+    /// the group photo all go. Without this, `deleteGroupLocal` removed the
+    /// group while the caches kept its history, so re-joining later
+    /// resurrected old messages and a stale picture.
+    ///
+    /// Scoped to group-owned data only. Nicknames and member avatars are
+    /// keyed by pubkey, not by group, and those people may well be in other
+    /// groups — discarding them here would blank names elsewhere.
+    private func purgeLocalData(forGroup groupIdHex: String) {
+        chatMessageCache?.clear(groupId: groupIdHex)
+        locationCache?.clearLocations(forGroup: groupIdHex)
+        sharedGroupAvatarStore?.remove(for: groupIdHex)
+        LocalGroupAvatarStore.shared.removeImage(for: groupIdHex)
+    }
+
+    /// Refresh, and announce any group that was not there before as a join.
+    ///
+    /// `lastJoinedGroupId` was declared and never assigned, so the
+    /// auto-broadcast of this device's display name and avatar on joining a
+    /// group had never fired — a new member appeared to everyone else as an
+    /// unnamed pubkey until they next edited their profile.
+    private func refreshGroupsDetectingJoins() async {
+        let before = Set(groups.map(\.mlsGroupId))
+        await refreshGroups()
+        let arrived = groups.map(\.mlsGroupId).filter { !before.contains($0) }
+        // Only on a genuine arrival, and only one — the broadcast is
+        // per-group, and a first launch loading an existing list is not a
+        // join. `before` is empty then, so that case is excluded explicitly.
+        guard !before.isEmpty, let joined = arrived.first else { return }
+        lastJoinedGroupId = joined
+    }
+
+    private func openChatListStream(account: String) async throws -> ChatListSubscription {
+        try await Self.run {
+            try await marmot.subscribeChatList(accountRef: account, includeArchived: false)
+        }
     }
 
     func stopSubscriptions() {
         receiveTask?.cancel()
         receiveTask = nil
+        chatListTask?.cancel()
+        chatListTask = nil
         WhistleLogger.marmot.info("Subscriptions stopped")
     }
 
@@ -1594,6 +1729,14 @@ final class MarmotKitService: ObservableObject {
 
         case MarmotKind.ProtocolV2.chat:
             await routeChatPayload(message)
+
+        case UInt16(Self.groupSystemKind):
+            // Membership or rename. Both change the group list — member counts,
+            // names, a group arriving or going away — and both belong in the
+            // open chat as a system line.
+            await refreshGroups()
+            lastGroupMembershipChangeId = (message.mlsGroupId, Date())
+            lastChatMessageGroupId = message.mlsGroupId
 
         default:
             WhistleLogger.marmot.debug("Ignoring unknown inner kind \(message.kind)")
@@ -1643,6 +1786,34 @@ final class MarmotKitService: ObservableObject {
 
     // MARK: - Mapping
 
+    /// MDK's own `GROUP_SYSTEM` kind, from the reserved set in
+    /// `crates/marmot-app` (see CLAUDE.md's table).
+    static let groupSystemKind: UInt64 = 1210
+
+    /// Whether a row is a membership/rename event rather than an app payload.
+    ///
+    /// Checks the kind first, then falls back to the payload's own shape:
+    /// these carry a `system_type` field, which nothing Whistle sends does.
+    /// Deliberately belt-and-braces — relying on one signal produced a
+    /// membership event rendered as a chat bubble attributed to whoever
+    /// performed the action.
+    nonisolated private static func looksLikeSystemEvent(kind: UInt64, plaintext: String) -> Bool {
+        if kind == groupSystemKind { return true }
+        return plaintext.contains("\"system_type\"")
+    }
+
+    /// Best-effort display text pulled from a system payload, for when
+    /// MarmotKit's resolved `groupSystem.text` is not populated yet.
+    nonisolated private static func systemText(fromPlaintext plaintext: String) -> String? {
+        guard plaintext.contains("\"system_type\""),
+              let data = plaintext.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let text = object["text"] as? String,
+              !text.isEmpty
+        else { return nil }
+        return text
+    }
+
     nonisolated private static func map(row: ChatListRowFfi, details: GroupDetailsFfi?) -> WhistleGroup {
         WhistleGroup(
             mlsGroupId: row.groupIdHex,
@@ -1666,7 +1837,24 @@ final class MarmotKitService: ObservableObject {
             senderPubkey: record.sender,
             kind: UInt16(truncatingIfNeeded: record.kind),
             content: record.plaintext,
-            createdAt: record.timelineAt
+            createdAt: record.timelineAt,
+            // Membership and rename events arrive on the same timeline as
+            // chat. Flagged explicitly rather than inferred from `kind`,
+            // because `payloadType` — what the chat filter used to key on — is
+            // nil for them, so they fell through and rendered as a chat bubble
+            // containing raw JSON.
+            // Three signals, any of which is enough.
+            //
+            // `groupSystem` alone was not: on device a membership event
+            // rendered as an ordinary bubble on arrival and correctly as a
+            // system row after leaving and re-entering the chat, which means
+            // the field is populated some time after the row first appears.
+            // Kind and payload shape are available immediately.
+            isSystemEvent: record.groupSystem != nil
+                || Self.looksLikeSystemEvent(kind: record.kind, plaintext: record.plaintext),
+            systemText: record.groupSystem?.text
+                ?? Self.systemText(fromPlaintext: record.plaintext),
+            sourceEpoch: record.sourceEpoch
         )
     }
 
@@ -1677,7 +1865,14 @@ final class MarmotKitService: ObservableObject {
             senderPubkey: received.sender,
             kind: UInt16(truncatingIfNeeded: received.kind),
             content: received.plaintext,
-            createdAt: received.sourceEpoch
+            // `recordedAt`, not `sourceEpoch`. The latter is the MLS epoch — a
+            // small counter — so every live-arriving message was being given a
+            // timestamp somewhere in 1970 and sorted to the start of the
+            // thread.
+            createdAt: received.recordedAt,
+            isSystemEvent: Self.looksLikeSystemEvent(kind: received.kind, plaintext: received.plaintext),
+            systemText: Self.systemText(fromPlaintext: received.plaintext),
+            sourceEpoch: received.sourceEpoch
         )
     }
 }

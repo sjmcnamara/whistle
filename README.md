@@ -109,7 +109,7 @@ whistle/
 
 ## Status
 
-v1.11.2 — Production ready. iOS and Android. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
+v2.0.0 (iOS, pre-release) / v1.11.2 (Android, production) — iOS is on Marmot protocol v2, which is not wire-compatible with v1; the Android port is in progress and v2.0.0 ships when both platforms are ready. See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Wiki
 

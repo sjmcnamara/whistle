@@ -1,14 +1,37 @@
 import SwiftUI
 import WhistleCore
 
-/// Shows the user's npub as a QR code + copyable text.
+/// The user's identity: npub as a QR code, plus copyable text.
 struct IdentityCardView: View {
     let identity: NostrIdentity
+
+    /// Whether an admin scanning this code could actually add you.
+    ///
+    /// Read from `AppViewModel.accountIsReady`, which mirrors the service.
+    /// The first version read `appViewModel.marmot?.accountIsReady` directly
+    /// and never updated — `forwardChildChanges()` does not forward `marmot`,
+    /// so the caveat latched on at launch and stayed forever.
+    var isReadyToBeInvited: Bool = true
+
     @State private var copied = false
 
     var body: some View {
         List {
-            Section("Public Key (npub)") {
+            if !isReadyToBeInvited {
+                Section {
+                    Label(
+                        "Still publishing your key — an admin can't add you to a group until that finishes.",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            // Unheadered on purpose. "Public Key (npub)" labelled the QR with
+            // the same jargon the About section below exists to explain, so
+            // the screen introduced the term twice and defined it once.
+            Section {
                 QRCodeView(content: identity.npub)
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
@@ -37,7 +60,7 @@ struct IdentityCardView: View {
 
             Section("About Your Identity") {
                 Label {
-                    Text("Your npub is your Nostr public key. Share it with family members so they can add you to a group.")
+                    Text("Your npub is your Nostr public key. Share it with an admin so they can add you to a group.")
                         .font(.footnote)
                 } icon: {
                     Image(systemName: "person.crop.circle")

@@ -20,6 +20,14 @@ struct RootView: View {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
         }
+        // Attached once, here, so notices appear on every tab. A stalled
+        // account stops location sharing as well as chat, so its banner has to
+        // be visible on Map too — not only on the screen whose view model
+        // happened to own the error.
+        .overlay(alignment: .top) {
+            NoticeOverlay(notices: appViewModel.notices)
+                .allowsHitTesting(true)
+        }
     }
 
     @ViewBuilder
