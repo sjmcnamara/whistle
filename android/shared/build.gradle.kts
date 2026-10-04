@@ -24,5 +24,5 @@ dependencies {
     // isn't wired for the Android unit-test source set, so name the backend directly.
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")
     // Pure-Java org.json so unit tests can run without Android framework stubs
-    testImplementation("org.json:json:20251224")
+    testImplementation("org.json:json:20260814")
 }
