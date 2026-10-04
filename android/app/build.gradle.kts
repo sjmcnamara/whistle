@@ -18,6 +18,19 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        ndk {
+            // arm64-v8a only, deliberately. MarmotKit's Android libraries
+            // total 218MB across the four published ABIs — already stripped,
+            // so there is nothing to slim — and shipping the three this app
+            // previously carried would take the APK from 89MB to roughly
+            // 200MB+ for a download hosted on the website and Zapstore.
+            //
+            // `minSdk` is 26 (Android 8.0, 2017), well past the 32-bit era,
+            // and CI runs no emulator so x86_64 earns nothing there. The
+            // trade-off accepted: pre-2015 32-bit ARM devices and x86
+            // emulators are no longer supported.
+            abiFilters += setOf("arm64-v8a")
+        }
     }
 
     signingConfigs {

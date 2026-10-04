@@ -54,6 +54,22 @@ class LocationCache @Inject constructor() {
     /**
      * Remove all cached locations for a specific group.
      */
+    /**
+     * Drop cached locations for anyone no longer in the group.
+     *
+     * Reconciliation rather than targeted removal: it corrects a departed
+     * member's pin whether they left, were removed, or burned their identity,
+     * and it is self-healing if one of those events is ever missed. Targeted
+     * removal would need the system event's subject, and would leave a stale
+     * pin on screen forever if that one event did not arrive — which is
+     * exactly what happened on iOS.
+     */
+    fun retainOnly(members: Set<String>, groupId: String) {
+        locationsForGroup(groupId)
+            .filterNot { it.memberPubkeyHex in members }
+            .forEach { removeLocation(groupId, it.memberPubkeyHex) }
+    }
+
     fun clearGroup(groupId: String) {
         _locations.value = _locations.value.filter { it.value.groupId != groupId }
     }

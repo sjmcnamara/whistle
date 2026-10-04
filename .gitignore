@@ -66,3 +66,10 @@ website/site/
 
 # build.sh concurrency lock (see scripts/build.sh)
 .build-lock/
+
+# MarmotKit's Android native library is vendored by
+# scripts/vendor_marmotkit_android.py, not committed: it is 51.8MB for arm64
+# alone (already stripped), against MDK's 15.6MB. Committing it would add that
+# to the repository on every version bump. The generated Kotlin bindings *are*
+# committed — they are reviewable source, same as MarmotKit.swift on iOS.
+android/app/src/main/jniLibs/arm64-v8a/libmarmot_uniffi.so
