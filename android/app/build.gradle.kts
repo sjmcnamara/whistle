@@ -39,7 +39,14 @@ val requireMarmotKitNativeLibrary by tasks.registering {
     }
 }
 
-tasks.named("preBuild") { dependsOn(requireMarmotKitNativeLibrary) }
+// Attached to the packaging tasks, **not** `preBuild`.
+//
+// `preBuild` is also a dependency of `testDebugUnitTest`, so hanging the check
+// there failed the one Android CI job that genuinely does not need the
+// library: unit tests run on the JVM and cannot load it anyway. The check
+// belongs where an APK is actually assembled.
+tasks.matching { it.name == "packageDebug" || it.name == "packageRelease" }
+    .configureEach { dependsOn(requireMarmotKitNativeLibrary) }
 
 android {
     namespace = "org.findmyfam"
