@@ -63,6 +63,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Vendor MarmotKit native library (Kotlin)
+        if: matrix.language == 'kotlin'
+        # Vendored rather than committed (51.8MB). Without it the build still
+        # succeeds and produces an APK with no native library, which crashes on
+        # first use — a green run shipping a broken artifact.
+        run: python3 scripts/vendor_marmotkit_android.py
+
       - name: Build (Kotlin)
         if: matrix.language == 'kotlin'
         working-directory: android

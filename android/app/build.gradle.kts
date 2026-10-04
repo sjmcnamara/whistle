@@ -5,6 +5,49 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+/**
+ * Fail the build if MarmotKit's native library is missing.
+ *
+ * The library is vendored by `scripts/vendor_marmotkit_android.py` and
+ * gitignored, because it is 51.8MB. Without this check a missing `.so` is
+ * **silent**: the Kotlin bindings are committed so everything compiles, Gradle
+ * does not mind an absent `jniLibs` file, and the build succeeds — producing
+ * an APK with no native library that crashes the moment it touches MarmotKit.
+ * Verified by deleting the file and watching `assembleDebug` exit 0 with zero
+ * copies of the library in the APK.
+ *
+ * A red build is the only acceptable outcome here, because the alternative is
+ * shipping that APK from a green CI run.
+ */
+val requireMarmotKitNativeLibrary by tasks.registering {
+    val expected = file("src/main/jniLibs/arm64-v8a/libmarmot_uniffi.so")
+    doLast {
+        if (!expected.exists()) {
+            throw GradleException(
+                """
+                MarmotKit's native library is missing:
+                  ${expected.relativeTo(rootProject.projectDir)}
+
+                It is vendored rather than committed (51.8MB). Run:
+                  python3 scripts/vendor_marmotkit_android.py
+
+                Without it the build would otherwise succeed and produce an APK
+                that crashes on first use of MarmotKit.
+                """.trimIndent()
+            )
+        }
+    }
+}
+
+// Attached to the packaging tasks, **not** `preBuild`.
+//
+// `preBuild` is also a dependency of `testDebugUnitTest`, so hanging the check
+// there failed the one Android CI job that genuinely does not need the
+// library: unit tests run on the JVM and cannot load it anyway. The check
+// belongs where an APK is actually assembled.
+tasks.matching { it.name == "packageDebug" || it.name == "packageRelease" }
+    .configureEach { dependsOn(requireMarmotKitNativeLibrary) }
+
 android {
     namespace = "org.findmyfam"
     compileSdk = 36

@@ -54,6 +54,23 @@ jobs:
           echo "$ANDROID_KEYSTORE_B64" | base64 -d > "${RUNNER_TEMP}/whistle-release.jks"
           echo "ANDROID_KEYSTORE_PATH=${RUNNER_TEMP}/whistle-release.jks" >> "$GITHUB_ENV"
 
+      - name: Resolve MarmotKit version
+        id: marmotkit-ver
+        run: echo "version=$(python3 scripts/vendor_marmotkit_android.py --print-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache MarmotKit Android zip
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: vendor/marmotkit-android-${{ steps.marmotkit-ver.outputs.version }}.zip
+          key: marmotkit-android-${{ steps.marmotkit-ver.outputs.version }}
+
+      # MarmotKit's native library is vendored rather than committed (51.8MB),
+      # so every job that *builds* the APK has to fetch it. Without this the
+      # build still succeeds and produces an APK with no native library, which
+      # crashes on first use — a green run that ships a broken artifact.
+      - name: Vendor MarmotKit native library
+        run: python3 scripts/vendor_marmotkit_android.py
+
       - name: Build signed release APK
         working-directory: android
         env:
