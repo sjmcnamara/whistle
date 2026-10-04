@@ -37,31 +37,9 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      # Key the mdk-swift cache on the pinned MDK revision alone, not the whole
-      # project.yml — see ci.yml for why (version bumps would otherwise bust it).
-      - name: Resolve MDK revision
-        id: mdk-rev
-        run: echo "revision=$(python3 scripts/ci_use_local_mdk.py --print-revision)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache mdk-swift
-        id: cache-mdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: vendor/mdk-swift
-          key: mdk-swift-${{ steps.mdk-rev.outputs.revision }}
-
-      - name: Clone mdk-swift with LFS at pinned revision
-        if: steps.cache-mdk.outputs.cache-hit != 'true'
-        run: |
-          REV=$(python3 scripts/ci_use_local_mdk.py --print-revision)
-          git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
-          cd vendor/mdk-swift && git checkout "$REV" && git lfs pull
-
       # Same MarmotKit vendoring as ci.yml — see scripts/vendor_marmotkit.py.
-      # Not strictly load-bearing while MarmotKitBindings is only wired into
-      # WhistleTests (archive builds the app target alone), but it is here
-      # before step 3 of the migration moves the package into the app target,
-      # so a release never becomes the first job to discover the gap.
+      # Load-bearing now: MarmotKitBindings is in the app target, so an
+      # archive without this hits the modulemap collision.
       - name: Resolve MarmotKit version
         id: marmotkit-ver
         run: echo "version=$(python3 scripts/vendor_marmotkit.py --print-version)" >> "$GITHUB_OUTPUT"
@@ -75,7 +53,6 @@ jobs:
       - name: Generate Xcode project
         run: |
           brew install xcodegen
-          python3 scripts/ci_use_local_mdk.py
           python3 scripts/vendor_marmotkit.py
           xcodegen generate
 

@@ -29,26 +29,11 @@ jobs:
 
       # ── Swift: install tooling BEFORE CodeQL init ─
       # brew install fails under Rosetta after CodeQL modifies the shell
-      # environment for Swift tracing, so xcodegen + mdk-swift must be
+      # environment for Swift tracing, so xcodegen + the MarmotKit vendoring must be
       # set up before CodeQL initialises.
       - name: Install xcodegen (Swift)
         if: matrix.language == 'swift'
         run: brew install xcodegen
-
-      - name: Clone mdk-swift with LFS at pinned revision (Swift)
-        if: matrix.language == 'swift'
-        run: |
-          git lfs install
-          REV=$(python3 scripts/ci_use_local_mdk.py --print-revision)
-          git clone https://github.com/marmot-protocol/mdk-swift.git vendor/mdk-swift
-          (cd vendor/mdk-swift && git checkout "$REV" && git lfs pull) || true
-          python3 scripts/ci_use_local_mdk.py
-          # Point MarmotKitBindings at the vendored, repackaged XCFramework
-          # instead of its remote URL (scripts/vendor_marmotkit.py explains
-          # why). Deliberately uncached, like the mdk-swift clone above: this
-          # job's whole value is being the fresh-clone build that catches
-          # dependency breaks a warm cache would hide.
-          python3 scripts/vendor_marmotkit.py
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81  # v4.37.3

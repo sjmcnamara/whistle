@@ -42,8 +42,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "MarmotKitFFI",
-            url: "https://github.com/marmot-protocol/mdk/releases/download/marmotkit-v0.10.4/MarmotKitFFI-0.10.4.xcframework.zip",
-            checksum: "9deeeed623ec8dc193cedb5501faa820b4abc7423c6b2b3ba58b631c8c25560f"
+            path: "../vendor/MarmotKitFFI.xcframework"
         ),
         .target(
             name: "marmot_uniffiFFI",

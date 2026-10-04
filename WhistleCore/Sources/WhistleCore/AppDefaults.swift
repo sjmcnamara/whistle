@@ -3,8 +3,15 @@
 public enum AppDefaults {
 
     /// Default Nostr relays used on first launch.
+    ///
+    /// `wss://relay.damus.io` was the first entry until v2.0. MarmotKit
+    /// classifies that host as **retired** and refuses to dial it, and a
+    /// relay-list declaration naming a retired host fails the entire relay
+    /// directory fetch — not just that one endpoint — so shipping it as a
+    /// default broke startup outright on device. It is filtered at runtime
+    /// too (`MarmotKitService.allowedRelayEndpoints`), which is what covers
+    /// existing installs that already have it saved; this covers new ones.
     public static let defaultRelays: [String] = [
-        "wss://relay.damus.io",
         "wss://nos.lol",
         "wss://relay.primal.net"
     ]

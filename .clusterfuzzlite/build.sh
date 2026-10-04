@@ -21,7 +21,11 @@ else
   SAN="-sanitize=fuzzer,${SANITIZER:-address}"
 fi
 
-for target in InviteCode LocationPayload ChatPayload JoinRequest; do
+# `InviteCode` and `JoinRequest` were dropped here with the v1 join flow in
+# step 3d-iii-c2 — protocol v2 has no out-of-group messaging, so neither type
+# exists any more. These two remain the decoders that see
+# attacker-influenceable bytes, and both still call `JSONNestingGuard`.
+for target in LocationPayload ChatPayload; do
   # shellcheck disable=SC2086
   swiftc \
     $SAN \
@@ -34,16 +38,14 @@ for target in InviteCode LocationPayload ChatPayload JoinRequest; do
 done
 
 # Seed corpus: the deeply-nested-JSON crash that motivated JSONNestingGuard, so
-# every run re-exercises the guard. 513 '[' bytes — the raw form for the three
-# jsonString decoders, base64-wrapped for InviteCode (which base64-decodes
-# first). Best-effort: skip if zip is unavailable rather than fail the build.
+# every run re-exercises the guard. 513 '[' bytes, raw — the base64-wrapped
+# variant went with `InviteCode`, which was the only decoder that
+# base64-decoded before parsing. Best-effort: skip if zip is unavailable
+# rather than fail the build.
 if command -v zip >/dev/null 2>&1; then
   SEED_DIR="$(mktemp -d)"
   printf '[%.0s' $(seq 1 513) > "$SEED_DIR/nested-raw"
-  base64 -w0 "$SEED_DIR/nested-raw" > "$SEED_DIR/nested-b64" 2>/dev/null \
-    || base64 "$SEED_DIR/nested-raw" | tr -d '\n' > "$SEED_DIR/nested-b64"
-  for target in LocationPayload ChatPayload JoinRequest; do
+  for target in LocationPayload ChatPayload; do
     zip -qj "$OUT/Fuzz_${target}_seed_corpus.zip" "$SEED_DIR/nested-raw"
   done
-  zip -qj "$OUT/Fuzz_InviteCode_seed_corpus.zip" "$SEED_DIR/nested-b64"
 fi
