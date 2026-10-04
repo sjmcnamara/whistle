@@ -46,6 +46,21 @@ final class LocationCache: ObservableObject {
         locations.removeValue(forKey: key)
     }
 
+    /// Drop cached locations for anyone no longer in the group.
+    ///
+    /// Reconciliation rather than targeted removal: it corrects a departed
+    /// member's pin whether they left, were removed, or burned their
+    /// identity, and it is self-healing if one of those events is ever
+    /// missed. Targeted removal would need the system event's subject, and
+    /// would leave a stale pin on screen forever if that one event did not
+    /// arrive.
+    func retainOnly(members: Set<String>, inGroup groupId: String) {
+        for location in locations(forGroup: groupId)
+        where !members.contains(location.memberPubkeyHex) {
+            removeLocation(groupId: groupId, memberPubkeyHex: location.memberPubkeyHex)
+        }
+    }
+
     /// Remove all cached locations for a specific group.
     func clearLocations(forGroup groupId: String) {
         locations = locations.filter { $0.value.groupId != groupId }
