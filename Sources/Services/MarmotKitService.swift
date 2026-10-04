@@ -56,6 +56,9 @@ final class MarmotKitService: ObservableObject {
     var memberAvatarStore: MemberAvatarStore?
     var sharedGroupAvatarStore: SharedGroupAvatarStore?
     var batteryAlertService: BatteryAlertService?
+    /// Needed so leaving a group can discard its cached thread — otherwise
+    /// re-joining later resurrects the old history.
+    var chatMessageCache: ChatMessageCache?
 
     // MARK: - Errors
 
@@ -1247,6 +1250,12 @@ final class MarmotKitService: ObservableObject {
             )
         }
         await refreshGroups()
+        // Published for the *local* actor too, not only on receipt. The device
+        // that performs an invite does not get its own system event back, so
+        // relying on the receive path meant the admin never re-announced the
+        // group photo or profiles — and a new joiner arrived to a group with
+        // no picture.
+        lastGroupMembershipChangeId = (groupIdHex, Date())
     }
 
     func removeMembers(_ memberRefs: [String], fromGroup groupIdHex: String) async throws {
@@ -1259,6 +1268,7 @@ final class MarmotKitService: ObservableObject {
             )
         }
         await refreshGroups()
+        lastGroupMembershipChangeId = (groupIdHex, Date())
     }
 
     func promoteToAdmin(_ memberRef: String, inGroup groupIdHex: String) async throws {
@@ -1296,6 +1306,7 @@ final class MarmotKitService: ObservableObject {
             _ = try await Self.run {
                 try await marmot.deleteGroupLocal(accountRef: account, groupIdHex: groupIdHex)
             }
+            purgeLocalData(forGroup: groupIdHex)
             await refreshGroups()
             return
         }
@@ -1317,6 +1328,17 @@ final class MarmotKitService: ObservableObject {
         _ = try await Self.run {
             try await marmot.leaveGroup(accountRef: account, groupIdHex: groupIdHex)
         }
+
+        // Drop the local row as well. Leaving otherwise left the group in the
+        // list, faded, labelled "Inactive" — which is the right display for a
+        // group that *ended* around you, and the wrong one for a group you
+        // chose to leave. Removing it also unwinds the pushed chat and detail
+        // views, which were left on screen for a group the user was no longer
+        // in; the same call already backs the solo-group path above.
+        _ = try? await Self.run {
+            try await marmot.deleteGroupLocal(accountRef: account, groupIdHex: groupIdHex)
+        }
+        purgeLocalData(forGroup: groupIdHex)
         await refreshGroups()
     }
 
@@ -1625,9 +1647,43 @@ final class MarmotKitService: ObservableObject {
             // Every row change republishes the list. Cheap, and it is the only
             // way a newly-joined group reaches the UI without a relaunch.
             while !Task.isCancelled, await subscription.next() != nil {
-                await self?.refreshGroups()
+                await self?.refreshGroupsDetectingJoins()
             }
         }
+    }
+
+    /// Discard everything this device holds about a group it is no longer in.
+    ///
+    /// Leaving is leaving: the group row, the chat thread, the map pins and
+    /// the group photo all go. Without this, `deleteGroupLocal` removed the
+    /// group while the caches kept its history, so re-joining later
+    /// resurrected old messages and a stale picture.
+    ///
+    /// Scoped to group-owned data only. Nicknames and member avatars are
+    /// keyed by pubkey, not by group, and those people may well be in other
+    /// groups — discarding them here would blank names elsewhere.
+    private func purgeLocalData(forGroup groupIdHex: String) {
+        chatMessageCache?.clear(groupId: groupIdHex)
+        locationCache?.clearLocations(forGroup: groupIdHex)
+        sharedGroupAvatarStore?.remove(for: groupIdHex)
+        LocalGroupAvatarStore.shared.removeImage(for: groupIdHex)
+    }
+
+    /// Refresh, and announce any group that was not there before as a join.
+    ///
+    /// `lastJoinedGroupId` was declared and never assigned, so the
+    /// auto-broadcast of this device's display name and avatar on joining a
+    /// group had never fired — a new member appeared to everyone else as an
+    /// unnamed pubkey until they next edited their profile.
+    private func refreshGroupsDetectingJoins() async {
+        let before = Set(groups.map(\.mlsGroupId))
+        await refreshGroups()
+        let arrived = groups.map(\.mlsGroupId).filter { !before.contains($0) }
+        // Only on a genuine arrival, and only one — the broadcast is
+        // per-group, and a first launch loading an existing list is not a
+        // join. `before` is empty then, so that case is excluded explicitly.
+        guard !before.isEmpty, let joined = arrived.first else { return }
+        lastJoinedGroupId = joined
     }
 
     private func openChatListStream(account: String) async throws -> ChatListSubscription {

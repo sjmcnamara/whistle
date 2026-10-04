@@ -400,6 +400,7 @@ final class AppViewModel: ObservableObject {
         service.nicknameStore = nicknameStore
         service.memberAvatarStore = memberAvatarStore
         service.sharedGroupAvatarStore = sharedGroupAvatarStore
+        service.chatMessageCache = chatMessageCache
         service.batteryAlertService = BatteryAlertService(
             myPubkeyHex: identity.identity?.publicKeyHex ?? "",
             nicknameStore: nicknameStore
