@@ -373,21 +373,6 @@ final class ChatViewModel: ObservableObject {
     private func mapMessage(_ message: WhistleMessage) -> ChatMessageItem? {
         let content = message.content
 
-        // TEMPORARY diagnostic — remove once the membership-row rendering is
-        // settled. Two attempts to fix "member added renders as a bubble on
-        // arrival and centres only after re-entering the chat" have been based
-        // on an assumed data shape; this prints the actual one.
-        if message.isSystemEvent || content.contains("system_type") || content.contains("member_") {
-            let kind = message.kind
-            let flagged = message.isSystemEvent
-            let sysText = message.systemText ?? "-"
-            let epoch = message.sourceEpoch.map(String.init) ?? "-"
-            let head = String(content.prefix(60))
-            WhistleLogger.chat.error(
-                "SYSROW kind=\(kind) isSystemEvent=\(flagged) systemText=\(sysText) epoch=\(epoch) content=\(head)"
-            )
-        }
-
         // Membership and rename events share this timeline, and are worth
         // showing — people should see who joined or left. They are rendered as
         // a system line using MarmotKit's own resolved display text

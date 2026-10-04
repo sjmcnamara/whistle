@@ -1673,6 +1673,34 @@ final class MarmotKitService: ObservableObject {
         LocalGroupAvatarStore.shared.removeImage(for: groupIdHex)
     }
 
+    /// Reconcile cached locations for every active group against its real
+    /// membership.
+    ///
+    /// Driven from the chat-list subscription rather than from a membership
+    /// event. A leave does **not** reach `route` — proven by
+    /// `testDepartedMemberIsRemovedFromTheLocationCache`, which timed out
+    /// waiting for the pin to clear while the member list had already updated
+    /// immediately. The "Member left" line still appears because the chat
+    /// reads the timeline, which is why the event looked like it was being
+    /// delivered when it was not.
+    ///
+    /// Errors are logged rather than swallowed: a reconcile that silently
+    /// fails leaves a departed member on the map, which is exactly the bug
+    /// being fixed here.
+    private func reconcileLocationsWithMembership() async {
+        guard let locationCache else { return }
+        for group in groups {
+            do {
+                let current = try await members(ofGroup: group.mlsGroupId)
+                locationCache.retainOnly(members: Set(current), inGroup: group.mlsGroupId)
+            } catch {
+                WhistleLogger.marmot.warning(
+                    "Could not reconcile map pins for \(group.mlsGroupId): \(error)"
+                )
+            }
+        }
+    }
+
     /// Group ids known when the chat-list subscription was opened.
     ///
     /// The baseline for deciding what counts as a join. Captured explicitly
@@ -1696,6 +1724,11 @@ final class MarmotKitService: ObservableObject {
         knownGroupIdsAtSubscribe.formUnion(current)
         // One per emission: the broadcast is per-group, and a batch arrival is
         // not something the invite flow can produce.
+        // Before the early return below, so it runs on every emission and not
+        // only when something new arrived — a departure is a chat-list change
+        // with no new group.
+        await reconcileLocationsWithMembership()
+
         guard let joined = arrived.first else { return }
         lastJoinedGroupId = joined
     }
@@ -1750,13 +1783,10 @@ final class MarmotKitService: ObservableObject {
             // open chat as a system line.
             await refreshGroups()
 
-            // Reconcile the map against who is actually in the group. A
-            // departed member's pin otherwise stays on screen indefinitely —
-            // reported after an admin burned their identity: the group tidied
-            // up correctly but the old user was still shown on the map.
-            if let current = try? await members(ofGroup: message.mlsGroupId) {
-                locationCache?.retainOnly(members: Set(current), inGroup: message.mlsGroupId)
-            }
+            // Also reconcile here, for the case where a membership event *is*
+            // delivered live. The chat-list subscription is what actually
+            // covers a leave.
+            await reconcileLocationsWithMembership()
 
             lastGroupMembershipChangeId = (message.mlsGroupId, Date())
             lastChatMessageGroupId = message.mlsGroupId

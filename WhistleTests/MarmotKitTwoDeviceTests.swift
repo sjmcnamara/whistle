@@ -1420,3 +1420,86 @@ extension MarmotKitTwoDeviceTests {
         }
     }
 }
+
+// MARK: - Does membership reflect a departure promptly?
+
+extension MarmotKitTwoDeviceTests {
+
+    /// The question behind a stale map pin: when a member leaves, does the
+    /// *other* device's `members(ofGroup:)` stop listing them — and how soon?
+    ///
+    /// Both the event-driven reconcile and any render-time filter read from
+    /// this call, so if it lags the departure neither approach can work and
+    /// the fix has to come from somewhere else.
+    @MainActor
+    func testRemainingMemberSeesDepartureInTheMemberList() async throws {
+        let (alice, bob, bobRef, groupId) = try await makePair(groupName: "Departure")
+
+        let before = try await alice.members(ofGroup: groupId)
+        XCTAssertTrue(before.contains(bobRef), "precondition: Bob should be a member")
+
+        // Bob is not an admin, so he can leave outright.
+        try await bob.leaveGroup(groupId)
+
+        // Poll rather than assert once: the point is to find out whether it
+        // converges at all, and how quickly.
+        var sawDeparture = false
+        for attempt in 0..<40 {
+            await alice.catchUpAccountsIgnoringErrors()
+            let members = try await alice.members(ofGroup: groupId)
+            if !members.contains(bobRef) {
+                print("DEPARTURE visible after \(attempt) catch-up passes, members=\(members.count)")
+                sawDeparture = true
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        XCTAssertTrue(
+            sawDeparture,
+            "Alice still lists Bob after he left — neither the reconcile nor a render-time filter can clear his pin"
+        )
+    }
+}
+
+private extension MarmotKitService {
+    /// Catch-up that tolerates failure, for polling in a test.
+    func catchUpAccountsIgnoringErrors() async {
+        try? await catchUpAccounts()
+    }
+}
+
+// MARK: - Does a departure actually clear the map?
+
+extension MarmotKitTwoDeviceTests {
+
+    /// End-to-end for the reported stale pin: Bob shares a location, leaves,
+    /// and Alice's cache must stop holding him.
+    ///
+    /// The member list is known to reflect the departure immediately (see
+    /// `testRemainingMemberSeesDepartureInTheMemberList`), so if this fails
+    /// the reconcile is not running at all — meaning the system event never
+    /// reaches `route`, and the "Member left" bubble comes from the timeline
+    /// on chat load rather than from the live stream.
+    @MainActor
+    func testDepartedMemberIsRemovedFromTheLocationCache() async throws {
+        let (alice, bob, bobRef, groupId) = try await makePair(groupName: "StalePin")
+
+        let cache = LocationCache()
+        alice.locationCache = cache
+        alice.startSubscriptions()
+
+        try await bob.sendLocation(
+            LocationPayload(latitude: 1, longitude: 2, altitude: 0, accuracy: 10, timestamp: Date()),
+            toGroup: groupId
+        )
+        try await eventually("Alice to cache Bob's location") {
+            cache.locations(forGroup: groupId).contains { $0.memberPubkeyHex == bobRef }
+        }
+
+        try await bob.leaveGroup(groupId)
+
+        try await eventually("Bob's pin to clear from Alice's map", timeout: 20) {
+            !cache.locations(forGroup: groupId).contains { $0.memberPubkeyHex == bobRef }
+        }
+    }
+}
