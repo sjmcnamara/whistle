@@ -175,3 +175,57 @@ final class LocationCacheTests: XCTestCase {
         LocationPayload(latitude: lat, longitude: lon, altitude: 0, accuracy: 10, timestamp: timestamp)
     }
 }
+
+// MARK: - Reconciling against membership
+
+/// Pruning the cache when someone is no longer in a group.
+@MainActor
+final class LocationCacheMembershipTests: XCTestCase {
+
+    private let group = "group-aaa"
+    private let stays = String(repeating: "a", count: 64)
+    private let leaves = String(repeating: "b", count: 64)
+
+    private func payload() -> LocationPayload {
+        LocationPayload(latitude: 1, longitude: 2, altitude: 0, accuracy: 10, timestamp: Date())
+    }
+
+    /// Device report: an admin burned their identity, the group tidied up
+    /// correctly, and the departed user was still drawn on the sim's map. The
+    /// map renders from this cache and nothing pruned it on a membership
+    /// change.
+    func testRetainOnlyDropsMembersWhoHaveLeft() {
+        let cache = LocationCache()
+        cache.update(groupId: group, memberPubkeyHex: stays, payload: payload())
+        cache.update(groupId: group, memberPubkeyHex: leaves, payload: payload())
+
+        cache.retainOnly(members: [stays], inGroup: group)
+
+        XCTAssertEqual(cache.locations(forGroup: group).map(\.memberPubkeyHex), [stays])
+    }
+
+    /// Per group: the same pubkey in another group is untouched, or leaving
+    /// one group would blank someone from every map.
+    func testRetainOnlyLeavesOtherGroupsAlone() {
+        let cache = LocationCache()
+        cache.update(groupId: "a", memberPubkeyHex: stays, payload: payload())
+        cache.update(groupId: "b", memberPubkeyHex: stays, payload: payload())
+
+        cache.retainOnly(members: [], inGroup: "a")
+
+        XCTAssertTrue(cache.locations(forGroup: "a").isEmpty)
+        XCTAssertEqual(cache.locations(forGroup: "b").map(\.memberPubkeyHex), [stays])
+    }
+
+    /// Reconciling with the full membership is a no-op, so this is safe to run
+    /// on every membership change.
+    func testRetainOnlyWithFullMembershipChangesNothing() {
+        let cache = LocationCache()
+        cache.update(groupId: group, memberPubkeyHex: stays, payload: payload())
+        cache.update(groupId: group, memberPubkeyHex: leaves, payload: payload())
+
+        cache.retainOnly(members: [stays, leaves], inGroup: group)
+
+        XCTAssertEqual(Set(cache.locations(forGroup: group).map(\.memberPubkeyHex)), [stays, leaves])
+    }
+}

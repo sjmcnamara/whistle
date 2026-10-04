@@ -1640,6 +1640,10 @@ final class MarmotKitService: ObservableObject {
             }
         }
 
+        // Startup already called `refreshGroups()`, so whatever is in the list
+        // now is pre-existing and must not be reported as a join.
+        knownGroupIdsAtSubscribe = Set(groups.map(\.mlsGroupId))
+
         chatListTask = Task { [weak self] in
             guard let account = await self?.currentAccountRef,
                   let subscription = try? await self?.openChatListStream(account: account)
@@ -1669,20 +1673,30 @@ final class MarmotKitService: ObservableObject {
         LocalGroupAvatarStore.shared.removeImage(for: groupIdHex)
     }
 
-    /// Refresh, and announce any group that was not there before as a join.
+    /// Group ids known when the chat-list subscription was opened.
     ///
-    /// `lastJoinedGroupId` was declared and never assigned, so the
-    /// auto-broadcast of this device's display name and avatar on joining a
-    /// group had never fired — a new member appeared to everyone else as an
-    /// unnamed pubkey until they next edited their profile.
+    /// The baseline for deciding what counts as a join. Captured explicitly
+    /// rather than inferred from the list being empty: an earlier version
+    /// guarded on `!before.isEmpty` to skip the subscription's initial
+    /// snapshot, which also skipped **joining your first group** — the device
+    /// had no groups, so the one case that matters most looked like a startup
+    /// load and the joiner never broadcast its name or avatar.
+    private var knownGroupIdsAtSubscribe: Set<String> = []
+
+    /// Refresh, and announce anything new since the baseline as a join.
+    ///
+    /// `lastJoinedGroupId` drives this device broadcasting its own display
+    /// name and avatar to a group it has just joined. Without it a new member
+    /// shows to everyone else as a bare npub until they next edit their
+    /// profile — which is what the admin saw.
     private func refreshGroupsDetectingJoins() async {
-        let before = Set(groups.map(\.mlsGroupId))
         await refreshGroups()
-        let arrived = groups.map(\.mlsGroupId).filter { !before.contains($0) }
-        // Only on a genuine arrival, and only one — the broadcast is
-        // per-group, and a first launch loading an existing list is not a
-        // join. `before` is empty then, so that case is excluded explicitly.
-        guard !before.isEmpty, let joined = arrived.first else { return }
+        let current = groups.map(\.mlsGroupId)
+        let arrived = current.filter { !knownGroupIdsAtSubscribe.contains($0) }
+        knownGroupIdsAtSubscribe.formUnion(current)
+        // One per emission: the broadcast is per-group, and a batch arrival is
+        // not something the invite flow can produce.
+        guard let joined = arrived.first else { return }
         lastJoinedGroupId = joined
     }
 
@@ -1735,6 +1749,15 @@ final class MarmotKitService: ObservableObject {
             // names, a group arriving or going away — and both belong in the
             // open chat as a system line.
             await refreshGroups()
+
+            // Reconcile the map against who is actually in the group. A
+            // departed member's pin otherwise stays on screen indefinitely —
+            // reported after an admin burned their identity: the group tidied
+            // up correctly but the old user was still shown on the map.
+            if let current = try? await members(ofGroup: message.mlsGroupId) {
+                locationCache?.retainOnly(members: Set(current), inGroup: message.mlsGroupId)
+            }
+
             lastGroupMembershipChangeId = (message.mlsGroupId, Date())
             lastChatMessageGroupId = message.mlsGroupId
 
@@ -1788,7 +1811,12 @@ final class MarmotKitService: ObservableObject {
 
     /// MDK's own `GROUP_SYSTEM` kind, from the reserved set in
     /// `crates/marmot-app` (see CLAUDE.md's table).
-    static let groupSystemKind: UInt64 = 1210
+    ///
+    /// `nonisolated` because the mappers that read it are: the enclosing class
+    /// is `@MainActor`, so a plain static would be actor-isolated and
+    /// referencing it from them is a hard error under the Swift 6 language
+    /// mode. Same trap as `generationKey`.
+    nonisolated static let groupSystemKind: UInt64 = 1210
 
     /// Whether a row is a membership/rename event rather than an app payload.
     ///

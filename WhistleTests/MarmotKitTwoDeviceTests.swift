@@ -1389,3 +1389,34 @@ extension MarmotKitTwoDeviceTests {
         )
     }
 }
+
+// MARK: - Joining is detected, including the first group
+
+extension MarmotKitTwoDeviceTests {
+
+    /// Device report: the admin saw the new member as a bare npub with no
+    /// avatar. `lastJoinedGroupId` drives the joiner broadcasting its own
+    /// profile, and the detection guarded on the group list having been
+    /// non-empty beforehand — so joining your *first* group, the case that
+    /// matters most, was treated as a startup load and never announced.
+    @MainActor
+    func testJoiningAFirstGroupIsReportedAsAJoin() async throws {
+        let alice = try makeService()
+        _ = try await alice.startWithNewIdentity()
+        let bob = try makeService()
+        let bobRef = try await bob.startWithNewIdentity()
+
+        // Bob has no groups at all — the condition the old guard mishandled.
+        XCTAssertTrue(bob.groups.isEmpty)
+        bob.startSubscriptions()
+
+        let groupId = try await alice.createGroup(name: "First")
+        try await alice.invite(memberRefs: [bobRef], toGroup: groupId)
+
+        // Fails the test if it never happens — the joiner would silently
+        // never broadcast its profile, which is the reported symptom.
+        try await eventually("Bob to report joining his first group") {
+            bob.lastJoinedGroupId == groupId
+        }
+    }
+}
