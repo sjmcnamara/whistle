@@ -102,7 +102,8 @@ struct GroupListView: View {
                 marmot: marmot,
                 nicknameStore: appViewModel.nicknameStore,
                 myPubkeyHex: myPubkey,
-                messageCache: appViewModel.chatMessageCache
+                messageCache: appViewModel.chatMessageCache,
+                notices: appViewModel.notices
             )
         } else {
             Text("Marmot service not ready")
@@ -123,7 +124,11 @@ struct GroupListView: View {
             Text("No groups yet")
                 .font(.title3.weight(.semibold))
 
-            Text("Create a group, or show your code to an admin\nso they can add you to theirs.")
+            // No "show my code" button here any more: it vanished the moment
+            // the first group arrived, so the action appeared to move. It
+            // lives in the toolbar menu, which is present either way, and in
+            // Settings → Your ID.
+            Text("Create a group, or show your code from the menu above\nso an admin can add you to theirs.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -150,16 +155,6 @@ struct GroupListView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Button {
-                    viewModel.showMyCode = true
-                } label: {
-                    Label("Show My Code", systemImage: "qrcode")
-                        .font(.body.weight(.medium))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
             }
             .padding(.horizontal, 48)
             .padding(.top, 4)
@@ -180,6 +175,7 @@ private struct GroupChatContainer: View {
     let nicknameStore: NicknameStore
     let myPubkeyHex: String
     let messageCache: ChatMessageCache
+    let notices: NoticeCenter
     var isUnhealthy: Bool = false
 
     @State private var showDetail = false
@@ -191,6 +187,7 @@ private struct GroupChatContainer: View {
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex,
             messageCache: messageCache,
+            notices: notices,
             groupName: group.name,
             onInfoTap: { showDetail = true },
             isUnhealthy: isUnhealthy
@@ -202,7 +199,8 @@ private struct GroupChatContainer: View {
                 groupId: group.id,
                 marmot: marmot,
                 nicknameStore: nicknameStore,
-                myPubkeyHex: myPubkeyHex
+                myPubkeyHex: myPubkeyHex,
+                notices: notices
             )
         }
     }

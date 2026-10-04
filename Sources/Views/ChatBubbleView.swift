@@ -5,6 +5,37 @@ struct ChatBubbleView: View {
     let message: ChatViewModel.ChatMessageItem
 
     var body: some View {
+        if message.isSystemEvent {
+            systemRow
+        } else {
+            bubble
+        }
+    }
+
+    /// Centred, quiet, no sender and no tail — the conventional shape for
+    /// "something happened to the group" rather than "someone said this".
+    private var systemRow: some View {
+        // Explicit spacers rather than `.frame(maxWidth: .infinity)`: that
+        // relies on the ambient alignment of whatever stack contains the row,
+        // and on device a membership line sat where the user's own messages
+        // go, reading as something they had said. Spacers centre it whatever
+        // the parent does.
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            Text(message.text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color(.systemGray6), in: Capsule())
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 4)
+    }
+
+    private var bubble: some View {
         HStack {
             if message.isMe { Spacer(minLength: 60) }
 

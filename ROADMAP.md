@@ -628,6 +628,20 @@ _Released 2026-09-22_
 
 ---
 
+### v2.0.0 — Marmot protocol v2 (MarmotKit) — iOS bumped 2026-10-02, unreleased
+
+Protocol-breaking. Groups do not carry over; identity does. Shipped only when
+the Android port lands — see the MDK 2.0 / MarmotKit migration entry under
+Deferred for the full plan and the step-by-step findings.
+
+- **iOS: `MARKETING_VERSION` 2.0.0, build 76.** Bumped ahead of release so
+  device builds stop reporting 1.11.2 while v2 is being tested.
+- **Android: deliberately left at 1.11.2 / versionCode 70.** It still runs
+  protocol v1. An APK labelled 2.0.0 that cannot talk to a 2.0.0 iOS client
+  would be worse than the platforms showing different versions, so this is a
+  knowing exception to CLAUDE.md's "bump every item" rule — not a missed step.
+  Android moves to 2.0.0 with the port.
+
 ### Deferred
 
 - **v2.0 release sequencing** _(agreed 2026-10-02)_: **1** merge #263 → ~~**2** perf PR~~ (dropped, see below) → **4** error-UX PR (iOS) → **3** Android port → **5** version bumps once device-tested interop confirms. UX and perf deliberately land *before* Android: both are design work, and doing them first means porting once rather than porting Android and then retrofitting both platforms.
@@ -644,12 +658,14 @@ _Released 2026-09-22_
     - Timing: **Settings → "reclaim space" in 2.0.0**, automatic from **2.0.1**. Keeping the file for one release preserves a downgrade path — reinstalling 1.x restores v1 groups if v2.0 turns out to have a bad bug.
 
 
-- **Error UX — one mechanism, two tiers** _(agreed 2026-10-02, independent of the v2.0 migration)_: Marmot errors currently surface through four inconsistent mechanisms, and two of them show nothing at all.
+- **Error UX — one mechanism, two tiers** ✅ _(built 2026-10-02 on `feature/v2.0-error-ux`)_: Marmot errors currently surface through four inconsistent mechanisms, and two of them show nothing at all.
     - Inventory: `GroupDetailViewModel.error` renders as an 8pt red caption at the foot of a List section (easy to miss); `AdvancedSettingsView.relayError` is inline under the text field (**correct — field validation belongs next to the field**); `ExportKeyView.errorMessage` is an inline label; `mlsError` is only visible in Advanced Settings' MLS row, so a startup failure is invisible unless you go looking; **`MarmotKitService.lastError` has no consumer at all**, so receive-loop failures are published and silently dropped; **`ChatViewModel.error` is never rendered** — `GroupChatView` does not read it, so a failed chat send shows nothing.
     - **Toast** — auto-dismiss ~4s, tap to dismiss, **with Retry** — for *action failures* (send, invite, rename, resync). The user just acted, so they are looking at the screen.
     - **Persistent banner** — dismissable, re-appears while the condition holds, **shown on every tab including Map** (a stalled account stops location sharing, not just chat) — for *degraded state*: account setup incomplete, group needs repair, relay unusable, decryption stuck. A toast is wrong here because it vanishes while the problem does not.
     - **Inline stays** for field validation only.
-    - Shape: one `NoticeCenter: ObservableObject` owned by `AppViewModel`, with `post(.toast(…))` / `post(.banner(…))`; `RootView` renders both as an overlay so every tab is covered. View models stop owning `error: String?`, and `MarmotKitService.ServiceError` maps to a notice with severity — which is where the typed error cases finally earn their keep. Removes four ad-hoc surfaces. ~150 lines plus migration.
+    - **As built**: `NoticeCenter` + `NoticeCenter+ServiceError` + `NoticeOverlay`, attached once in `RootView`. Tier routing lives in `report(_:fallback:retry:)` so two call sites cannot disagree about whether a failure is transient, and it **drops the Retry for advice** (`lastAdminCannotLeave`, `notGroupAdmin`, `alreadyMember`, …) even when the caller offers one, since repeating those fails identically. 16 tests, aimed at the banner dismissal rules and the tier decisions rather than the styling.
+    - Two gaps found while building: `groupNeedsRepair` was first routed to a *toast* — wrong, it is a state that holds until an admin re-admits, which is exactly what the two tiers exist to distinguish — and `relayUnusable` was a declared cause nothing posted. Both now wired, the latter off the relay-policy data already collected.
+    - Original shape: one `NoticeCenter: ObservableObject` owned by `AppViewModel`, with `post(.toast(…))` / `post(.banner(…))`; `RootView` renders both as an overlay so every tab is covered. View models stop owning `error: String?`, and `MarmotKitService.ServiceError` maps to a notice with severity — which is where the typed error cases finally earn their keep. Removes four ad-hoc surfaces. ~150 lines plus migration.
 
 
 

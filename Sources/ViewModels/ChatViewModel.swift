@@ -12,7 +12,10 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var messages: [ChatMessageItem] = []
     @Published var draftText: String = ""
     @Published private(set) var isSending = false
-    @Published private(set) var error: String?
+    /// Posted to `NoticeCenter` rather than held here. The old
+    /// `@Published error` was never rendered by `GroupChatView`, so a failed
+    /// send produced nothing on screen at all.
+    private let notices: NoticeCenter
     @Published private(set) var memberNames: String = ""
 
     /// Soft-resync (catch-up) state for the decryption banner.
@@ -30,6 +33,15 @@ final class ChatViewModel: ObservableObject {
         let text: String
         let timestamp: Date
         let isMe: Bool
+        /// MLS epoch, for ordering — see `inChatOrder`.
+        var sourceEpoch: UInt64?
+        /// A membership or rename event rather than something someone typed.
+        ///
+        /// Rendered as a centred line rather than a bubble: it has no sender
+        /// in the conversational sense, and attributing "Member added" to the
+        /// admin who did it made it look like a message they had written —
+        /// which is exactly how it appeared before, raw JSON and all.
+        var isSystemEvent: Bool = false
     }
 
     // MARK: - Dependencies
@@ -66,9 +78,11 @@ final class ChatViewModel: ObservableObject {
         marmot: MarmotKitService,
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
-        messageCache: ChatMessageCache
+        messageCache: ChatMessageCache,
+        notices: NoticeCenter
     ) {
         self.groupId = groupId
+        self.notices = notices
         self.marmot = marmot
         self.nicknameStore = nicknameStore
         self.myPubkeyHex = myPubkeyHex
@@ -183,11 +197,12 @@ final class ChatViewModel: ObservableObject {
                 // re-walk pages the user has already seen.
                 if oldestLoaded == nil { oldestLoaded = page.messages.last }
             }
-            error = nil
             persist()
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to load messages for group \(self.groupId): \(error)")
+            notices.report(error, fallback: "Couldn't load messages.") { [weak self] in
+                await self?.loadMessages()
+            }
         }
     }
 
@@ -197,9 +212,28 @@ final class ChatViewModel: ObservableObject {
         var byId: [String: ChatMessageItem] = [:]
         for m in existing { byId[m.id] = m }
         for m in incoming { byId[m.id] = m }
-        return byId.values.sorted { lhs, rhs in
-            lhs.timestamp == rhs.timestamp ? lhs.id < rhs.id : lhs.timestamp < rhs.timestamp
+        return byId.values.sorted(by: Self.inChatOrder)
+    }
+
+    /// Chat order: time, then epoch, then id.
+    ///
+    /// Epoch is the load-bearing part. `timestamp` has one-second resolution,
+    /// so the three commits behind a single "promote someone and leave" action
+    /// share it, and breaking the tie on `id` — a hash — ordered them
+    /// arbitrarily. On device that produced "Member left / Admin removed /
+    /// Admin added", the exact reverse of what happened. The MLS epoch
+    /// increments per commit, so it restores the real sequence.
+    ///
+    /// Id remains the final tiebreaker so the sort stays total and stable:
+    /// chat messages inside one epoch and one second are genuinely
+    /// indistinguishable, and an unstable comparator would reshuffle them on
+    /// every merge.
+    static func inChatOrder(_ lhs: ChatMessageItem, _ rhs: ChatMessageItem) -> Bool {
+        if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
+        if let left = lhs.sourceEpoch, let right = rhs.sourceEpoch, left != right {
+            return left < right
         }
+        return lhs.id < rhs.id
     }
 
     /// Write the current thread state back to the shared cache so the next
@@ -249,6 +283,11 @@ final class ChatViewModel: ObservableObject {
                 collected.insert(contentsOf: mapped, at: 0)
             } catch {
                 WhistleLogger.chat.error("Failed to load more messages: \(error)")
+                // The user tapped "load earlier" — silence looks like there is
+                // nothing older rather than like a failure.
+                notices.report(error, fallback: "Couldn't load earlier messages.") { [weak self] in
+                    await self?.loadMore()
+                }
                 return
             }
         }
@@ -286,14 +325,45 @@ final class ChatViewModel: ObservableObject {
 
         do {
             let payload = ChatPayload(text: text)
-            try await marmot.sendChat(payload, toGroup: groupId)
+            let outcome = try await marmot.sendChat(payload, toGroup: groupId)
             draftText = ""
 
             // Reload to pick up the sent message from MDK storage
             await loadMessages()
+
+            // A send that reached no relay still succeeds and still appears in
+            // the timeline, so without this the message looks delivered when
+            // nobody else has it — which is what happened in airplane mode.
+            if outcome == .queued {
+                notices.postToast("Saved, but not sent yet — no relay reachable.") { [weak self] in
+                    await self?.resendQueued(text: text)
+                }
+            }
         } catch {
-            self.error = error.localizedDescription
             WhistleLogger.chat.error("Failed to send message: \(error)")
+            // The draft is deliberately left in place so Retry has something
+            // to send, and so the text is not lost if the user ignores it.
+            notices.report(error, fallback: "Message not sent.") { [weak self] in
+                await self?.sendMessage()
+            }
+        }
+    }
+
+    /// Retry for a message that was stored but never published.
+    ///
+    /// Re-sends the same text rather than re-running `sendMessage`, whose
+    /// draft has already been cleared. A duplicate is possible if the original
+    /// drains from the queue at the same moment — preferred to the message
+    /// silently never arriving, which is the failure this is here to fix.
+    private func resendQueued(text: String) async {
+        do {
+            let outcome = try await marmot.sendChat(ChatPayload(text: text), toGroup: groupId)
+            await loadMessages()
+            if outcome == .queued {
+                notices.postToast("Still no relay reachable.")
+            }
+        } catch {
+            notices.report(error, fallback: "Message not sent.")
         }
     }
 
@@ -302,6 +372,31 @@ final class ChatViewModel: ObservableObject {
     /// Convert a decrypted message into a display-ready `ChatMessageItem`.
     private func mapMessage(_ message: WhistleMessage) -> ChatMessageItem? {
         let content = message.content
+
+        // Membership and rename events share this timeline, and are worth
+        // showing — people should see who joined or left. They are rendered as
+        // a system line using MarmotKit's own resolved display text
+        // ("Member added"), never as a bubble: the raw plaintext is JSON, and
+        // attributing it to whoever performed the action made it read as a
+        // message they had typed.
+        if message.isSystemEvent {
+            guard let text = message.systemText, !text.isEmpty else { return nil }
+            return ChatMessageItem(
+                id: message.id,
+                senderPubkeyHex: message.senderPubkey,
+                senderDisplayName: nicknameStore.displayName(for: message.senderPubkey),
+                text: text,
+                timestamp: message.date,
+                isMe: false,
+                sourceEpoch: message.sourceEpoch,
+                isSystemEvent: true
+            )
+        }
+
+        // Kind is the authority on what a row is. `payloadType` reads a field
+        // out of the plaintext, which is absent on anything we did not write
+        // ourselves, so it cannot be relied on to exclude foreign kinds.
+        if message.kind != MarmotKind.ProtocolV2.chat { return nil }
 
         // Only map "chat" type messages (skip nickname broadcasts, etc.).
         // A nil type is plain text from an older client — treat as chat.
@@ -326,7 +421,8 @@ final class ChatViewModel: ObservableObject {
             senderDisplayName: nicknameStore.displayName(for: message.senderPubkey),
             text: text,
             timestamp: timestamp,
-            isMe: message.senderPubkey == myPubkeyHex
+            isMe: message.senderPubkey == myPubkeyHex,
+            sourceEpoch: message.sourceEpoch
         )
     }
 }

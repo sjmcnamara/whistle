@@ -26,13 +26,15 @@ struct GroupDetailView: View {
         groupId: String,
         marmot: MarmotKitService,
         nicknameStore: NicknameStore,
-        myPubkeyHex: String
+        myPubkeyHex: String,
+        notices: NoticeCenter
     ) {
         _viewModel = StateObject(wrappedValue: GroupDetailViewModel(
             groupId: groupId,
             marmot: marmot,
             nicknameStore: nicknameStore,
-            myPubkeyHex: myPubkeyHex
+            myPubkeyHex: myPubkeyHex,
+            notices: notices
         ))
     }
 
@@ -51,11 +53,6 @@ struct GroupDetailView: View {
             locationSharingSection
             leaveSection
 
-            if let error = viewModel.error {
-                Section {
-                    Text(error).foregroundStyle(.red).font(.caption)
-                }
-            }
         }
         .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .topLeading) {
@@ -486,7 +483,7 @@ private struct AddByNpubView: View {
                 Button {
                     Task {
                         await viewModel.addMember()
-                        if viewModel.error == nil { dismiss() }
+                        dismiss()
                     }
                 } label: {
                     HStack {
@@ -502,11 +499,6 @@ private struct AddByNpubView: View {
                 .disabled(viewModel.addMemberNpub.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isAddingMember)
             }
 
-            if let error = viewModel.error {
-                Section {
-                    Text(error).foregroundStyle(.red).font(.caption)
-                }
-            }
         }
         .navigationTitle("Add by npub")
         .navigationBarTitleDisplayMode(.inline)

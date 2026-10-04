@@ -30,6 +30,7 @@ final class GroupListViewModel: ObservableObject {
     private let marmot: MarmotKitService
     private let displayName: () -> String
     private let settings: AppSettings
+    private let notices: NoticeCenter
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Unread tracking
@@ -77,10 +78,12 @@ final class GroupListViewModel: ObservableObject {
 
     init(
         marmot: MarmotKitService,
+        notices: NoticeCenter,
         settings: AppSettings = .shared,
         displayName: @escaping () -> String = { "" }
     ) {
         self.marmot = marmot
+        self.notices = notices
         self.settings = settings
         self.displayName = displayName
 
@@ -194,6 +197,11 @@ final class GroupListViewModel: ObservableObject {
             try await marmot.leaveGroup(id)
         } catch {
             WhistleLogger.chat.error("Failed to leave group \(id): \(error)")
+            // This path only logged, so a sole admin swiping to leave saw the
+            // row animate closed and nothing else — the action looked like it
+            // had worked. `GroupDetailView`'s leave was migrated to notices
+            // and this one, the same operation by a different route, was not.
+            notices.report(error, fallback: "Couldn't leave the group.")
         }
     }
 }

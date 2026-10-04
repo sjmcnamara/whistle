@@ -17,6 +17,7 @@ struct GroupChatView: View {
         nicknameStore: NicknameStore,
         myPubkeyHex: String,
         messageCache: ChatMessageCache,
+        notices: NoticeCenter,
         groupName: String,
         onInfoTap: @escaping () -> Void,
         isUnhealthy: Bool = false
@@ -26,7 +27,8 @@ struct GroupChatView: View {
             marmot: marmot,
             nicknameStore: nicknameStore,
             myPubkeyHex: myPubkeyHex,
-            messageCache: messageCache
+            messageCache: messageCache,
+            notices: notices
         ))
         self.groupName = groupName
         self.onInfoTap = onInfoTap

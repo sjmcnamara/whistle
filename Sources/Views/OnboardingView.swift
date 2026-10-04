@@ -23,7 +23,7 @@ struct OnboardingView: View {
         Page(
             icon: "lock.shield.fill",
             title: "Private by design",
-            body: "Your location is end-to-end encrypted using MLS. No server ever sees where you are — only your family group can."
+            body: "Your location is end-to-end encrypted using MLS. No server ever sees where you are — only your group can."
         ),
         Page(
             icon: "person.crop.circle.badge.checkmark",
@@ -33,7 +33,7 @@ struct OnboardingView: View {
         Page(
             icon: "antenna.radiowaves.left.and.right",
             title: "Always in touch",
-            body: "Location updates run in the background so your family always knows where you are, even when the app is closed."
+            body: "Location updates run in the background so your group always knows where you are, even when the app is closed."
         )
     ]
 
@@ -120,7 +120,7 @@ struct OnboardingView: View {
                 .font(.title2.bold())
                 .multilineTextAlignment(.center)
 
-            Text("Whistle needs location access to share your position with your family.\n\nYour location is always encrypted — only your group members can see it.")
+            Text("Whistle needs location access to share your position with your group.\n\nYour location is always encrypted — only your group members can see it.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
