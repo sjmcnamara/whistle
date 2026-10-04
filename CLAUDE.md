@@ -45,6 +45,16 @@ The **website version is automatic** — do not hand-edit it. `website/overrides
 
 Releasing is a separate step from bumping: merging does not publish. See the `android-release` skill for tagging Android, and the `ios-release` skill for tagging iOS (archive + export + TestFlight upload is automated via `release-ios.yml`; submitting the TestFlight build for App Store review stays a manual step).
 
+## Android MarmotKit native library
+
+`libmarmot_uniffi.so` (arm64-v8a, 51.8MB) is **vendored by `scripts/vendor_marmotkit_android.py`, not committed** — MDK's own 15.6MB library was committed, but doing that for MarmotKit would add 52MB to the repository on every version bump. The generated Kotlin bindings *are* committed, same split as iOS.
+
+⚠️ **A missing `.so` is silent, and `app/build.gradle.kts` has a guard specifically to stop that.** The Kotlin bindings are committed so everything compiles; Gradle does not mind an absent `jniLibs` file; `assembleDebug` exits 0 and produces an APK with **no native library**, which crashes the moment it touches MarmotKit. Verified by deleting the file and building. Every workflow that *builds* the APK — `codeql.yml`, `release-android.yml` — must run the vendor script first; `ci.yml`'s Android job runs only JVM tests and does not need it. Do not remove the `requireMarmotKitNativeLibrary` guard: a red build is the only acceptable outcome, because the alternative is a green run shipping a broken artifact.
+
+**arm64-v8a only.** The four published ABIs total 218MB and are already stripped. `minSdk` 26 (Android 8.0, 2017) is past the 32-bit era and CI runs no emulator, so x86_64 earns nothing. Pre-2015 32-bit ARM devices and x86 emulators are no longer supported.
+
+**`MarmotAndroid.initialize(context)` must run in `Application.onCreate`**, before the first `Marmot(...)` construction anywhere, or it crashes with "android context was not initialized".
+
 ## MDK 0.8 / mdk-swift — removed (step 3d-iii-c2, 2026-10-02)
 
 `MDKBindings` and the whole mdk-swift vendoring are **gone**. Deleted with the v1 stack: `MDKBindings` from `project.yml`, `scripts/ci_use_local_mdk.py`, `build.sh`'s `ensure_local_mdk`/`restore_local_changes` and its `project.yml` backup-restore, and the LFS clone + revision-resolution + cache steps from `ci.yml`, `codeql.yml` and `release-ios.yml`.
