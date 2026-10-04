@@ -46,4 +46,27 @@ object MarmotKind {
 
     /** Leave request inner kind. */
     const val LEAVE_REQUEST: UShort = 2u
+
+    /**
+     * Inner kinds under Marmot protocol v2.
+     *
+     * MDK reserves a fixed set of inner kinds and `send_custom_event` rejects
+     * any of them outright — the check is purely value-based, with no
+     * call-path exception. The reserved set is 5, 7, 9, 447, 448, 449, 1009,
+     * 1018, 1068, 1200, 1201, 1202, 1210, 1984, 1985 and 4891.
+     *
+     * `CHAT` therefore moves from 9, which collides with MDK's own CHAT, to
+     * an unreserved low value. `LOCATION` and `LEAVE_REQUEST` are clear of
+     * every reserved value and keep their numbering.
+     */
+    object ProtocolV2 {
+        /** 9 is reserved by MDK, so chat moves to an unreserved low value. */
+        const val CHAT: UShort = 3u
+        const val LOCATION: UShort = LOCATION_V1
+        const val LEAVE_REQUEST: UShort = LEAVE_REQUEST_V1
+    }
+
+    // Aliases so `ProtocolV2` can reference these without a forward reference.
+    private const val LOCATION_V1: UShort = 1u
+    private const val LEAVE_REQUEST_V1: UShort = 2u
 }
