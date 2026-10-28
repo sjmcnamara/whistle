@@ -208,6 +208,22 @@ final class GroupDetailViewModel: ObservableObject {
             WhistleLogger.chat.info("Hard-resynced \(pubkeyHex.prefix(8)) in group \(self.groupId)")
         } catch {
             WhistleLogger.chat.error("Failed to resync member: \(error)")
+            if let failure = error as? MarmotKitService.ServiceError, case .adminNotRestored = failure {
+                // They are already back in the group, so retrying the whole
+                // resync would remove and re-add them a second time as a plain
+                // member. Retry only the promotion.
+                notices.report(error, fallback: "Couldn't make them an admin again.") { [weak self] in
+                    guard let self else { return }
+                    do {
+                        try await self.marmot.promoteToAdmin(pubkeyHex, inGroup: self.groupId)
+                        await self.load()
+                    } catch {
+                        self.notices.report(error, fallback: "Couldn't make them an admin.")
+                    }
+                }
+                await load()
+                return
+            }
             // Retry is the documented recovery for a resync that failed after
             // the remove but before the re-add.
             notices.report(error, fallback: "Resync didn't finish.") { [weak self] in

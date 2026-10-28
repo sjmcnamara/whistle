@@ -77,6 +77,11 @@ final class MarmotKitService: ObservableObject {
         case sendQueueFull
         case avatarTooLarge
         case reAddFailed(String)
+        /// A resync re-added an admin but could not make them an admin again.
+        /// Reported apart from [reAddFailed] because the recovery differs: they
+        /// are already back in the group, so retrying the whole resync would
+        /// remove and re-add them as a plain member a second time.
+        case adminNotRestored(String)
         case unrecognisedMemberCode
         /// The nsec being adopted does not belong to the identity the caller
         /// said it did. Never expected in normal operation — it means the app
@@ -106,6 +111,8 @@ final class MarmotKitService: ObservableObject {
                 return "That picture is too large to share. Try a different one."
             case .reAddFailed:
                 return "Removed the member, but re-adding them failed. Tap Resync again to retry."
+            case .adminNotRestored:
+                return "They're back in the group, but couldn't be made an admin again. Make them an admin from their row."
             case .unrecognisedMemberCode:
                 return "That code isn't a Whistle member code. Ask them to show theirs from Settings → My Member Code."
             case .identityMismatch(let expected, let adopted):
@@ -1280,6 +1287,8 @@ final class MarmotKitService: ObservableObject {
                 memberRef: memberRef
             )
         }
+        // Whatever the route, they are an admin now; nothing is owed.
+        pendingAdminRestores.remove("\(groupIdHex)|\(memberRef)")
         await refreshGroups()
     }
 
@@ -1649,18 +1658,69 @@ final class MarmotKitService: ObservableObject {
     /// Ordering matches v1: nothing is removed until the re-invite is possible,
     /// and a failure after removal is reported distinctly so the caller can
     /// retry rather than silently stranding the member.
+    ///
+    /// **An admin comes back an admin.** Admin status is part of the group's
+    /// MLS state, so the re-add commit creates a plain member; without this the
+    /// repair silently demoted whoever it repaired. In a two-admin group that
+    /// leaves one, and if that one leaves the group has none. v1 did the same.
     func resyncMember(_ memberRef: String, inGroup groupIdHex: String) async throws {
+        let key = "\(groupIdHex)|\(memberRef)"
         let members = try await members(ofGroup: groupIdHex)
+
+        let restoreAdmin: Bool
         if members.contains(memberRef) {
+            // Live group state is the truth while they are still in the group.
+            // Read strictly: `group(id:)` and `isAdmin(_:ofGroup:)` both turn a
+            // failed `groupDetails` read into an empty admin list / `false`,
+            // and a transient failure here would demote an admin without a
+            // word — the exact bug being fixed. A failure must stop the resync
+            // *before* anything is removed.
+            restoreAdmin = try await strictAdmins(ofGroup: groupIdHex).contains(memberRef)
+            // Remembered for a retry of a failed re-add, when they will no
+            // longer be in the group to ask. Cleared when they were not an
+            // admin, so a stale entry can never promote someone later.
+            if restoreAdmin { pendingAdminRestores.insert(key) } else { pendingAdminRestores.remove(key) }
             try await removeMembers([memberRef], fromGroup: groupIdHex)
+        } else {
+            // Already out — a retry after a failed re-add. Only now is the
+            // remembered role consulted, because there is nothing live to read.
+            restoreAdmin = pendingAdminRestores.contains(key)
         }
+
         do {
             try await invite(memberRefs: [memberRef], toGroup: groupIdHex)
         } catch {
             throw ServiceError.reAddFailed(memberRef)
         }
+        // Membership has changed whether or not the promotion below succeeds,
+        // so existing members re-announce their profiles either way.
         lastGroupMembershipChangeId = (groupIdHex, Date())
+
+        if restoreAdmin {
+            do {
+                try await promoteToAdmin(memberRef, inGroup: groupIdHex)
+            } catch {
+                throw ServiceError.adminNotRestored(memberRef)
+            }
+        }
     }
+
+    /// The group's admin pubkeys, throwing if they cannot be read.
+    ///
+    /// Unlike `group(id:)`, which falls back to no admins when `groupDetails`
+    /// fails. Use this wherever a wrong empty answer would be acted on.
+    private func strictAdmins(ofGroup groupIdHex: String) async throws -> [String] {
+        let account = try requireAccount()
+        return try await Self.run {
+            try await marmot.groupDetails(accountRef: account, groupIdHex: groupIdHex).group.admins
+        }
+    }
+
+    /// Admins a resync removed and still owes a promotion to, keyed by
+    /// `group|member`. Only for retrying a re-add that failed; in memory, so a
+    /// relaunch in that window returns the member as a plain member, which the
+    /// admin can fix from their row.
+    private var pendingAdminRestores: Set<String> = []
 
     // MARK: - Receive loop
 
