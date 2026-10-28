@@ -14,7 +14,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.findmyfam.models.AppSettings
+import org.findmyfam.services.ChatMessageCache
+import org.findmyfam.services.LocationCache
 import org.findmyfam.services.MarmotKitService
+import org.findmyfam.services.MemberAvatarStore
+import org.findmyfam.services.NicknameStore
+import org.findmyfam.services.SharedGroupAvatarStore
 import timber.log.Timber
 import java.io.File
 import javax.inject.Singleton
@@ -53,9 +58,23 @@ object AppModule {
     fun provideMarmotKitService(
         @ApplicationContext context: Context,
         settings: AppSettings,
+        locationCache: LocationCache,
+        nicknameStore: NicknameStore,
+        memberAvatarStore: MemberAvatarStore,
+        sharedGroupAvatarStore: SharedGroupAvatarStore,
+        chatMessageCache: ChatMessageCache,
     ): MarmotKitService = MarmotKitService(
         runtimeFactory = { buildRuntime(context, settings) },
         relayUrls = dialledRelays(context, settings),
+        // Wired here, not in AppViewModel: WhistleForegroundService can start
+        // the service headlessly from a boot receiver with no ViewModel at
+        // all, and with these null every inbound location, nickname and avatar
+        // is dropped silently (each use is `?.`).
+        locationCache = locationCache,
+        nicknameStore = nicknameStore,
+        memberAvatarStore = memberAvatarStore,
+        sharedGroupAvatarStore = sharedGroupAvatarStore,
+        chatMessageCache = chatMessageCache,
         // Not a `viewModelScope`: the foreground service outlives every
         // ViewModel, and cancelling the receive loop when the UI goes away
         // would stop background location sharing.

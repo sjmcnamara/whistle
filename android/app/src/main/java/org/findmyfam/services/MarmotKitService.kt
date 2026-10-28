@@ -1378,9 +1378,26 @@ class MarmotKitService(
             // A null type is plain text from an older client; v1 treated it as
             // chat and dropping it would silently lose messages.
             "chat", null -> _lastChatMessageGroupId.value = message.mlsGroupId
-            "nickname" -> Timber.d("nickname payload routing lands with the UI slice")
-            "avatar" -> Timber.d("avatar payload routing lands with the UI slice")
-            "group_avatar" -> Timber.d("group avatar routing lands with the UI slice")
+            "nickname" -> runCatching { NicknamePayload.fromJson(message.content) }
+                .onSuccess { nicknameStore?.set(name = it.name, pubkeyHex = message.senderPubkey) }
+                .onFailure { Timber.w(it, "Failed to decode nickname payload") }
+
+            "avatar" -> runCatching { AvatarPayload.fromJson(message.content) }
+                .onSuccess { memberAvatarStore?.apply(it, from = message.senderPubkey) }
+                .onFailure { Timber.w(it, "Failed to decode avatar payload") }
+
+            // Admin-only, and this check is the only thing enforcing it: MLS
+            // guarantees the sender is a member, not an admin, and MarmotKit
+            // accepts a non-admin's custom event intact. Every receiver has to
+            // check independently or the restriction means nothing.
+            "group_avatar" ->
+                if (isAdmin(message.senderPubkey, message.mlsGroupId)) {
+                    runCatching { GroupAvatarPayload.fromJson(message.content) }
+                        .onSuccess { sharedGroupAvatarStore?.apply(it, message.mlsGroupId) }
+                        .onFailure { Timber.w(it, "Failed to decode group avatar payload") }
+                } else {
+                    Timber.w("Ignored group avatar from non-admin ${message.senderPubkey.take(8)}")
+                }
             else -> Timber.d("Unknown chat sub-type '${message.payloadType}'")
         }
     }
