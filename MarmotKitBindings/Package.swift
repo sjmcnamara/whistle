@@ -6,9 +6,9 @@ import PackageDescription
 // its XCFramework, generated Swift, and privacy manifest as GitHub Release
 // assets under marmot-protocol/mdk, tagged `marmotkit-v<version>`. Consumers
 // are expected to hand-author this wrapper. See:
-// https://github.com/marmot-protocol/mdk/blob/v0.10.4/crates/marmot-uniffi/DISTRIBUTION.md
+// https://github.com/marmot-protocol/mdk/blob/v0.11.0/crates/marmot-uniffi/DISTRIBUTION.md
 //
-// MarmotKitFFI-0.10.4.xcframework.zip requires iOS 18.0+ (DISTRIBUTION.md,
+// MarmotKitFFI-0.11.0.xcframework.zip requires iOS 18.0+ (DISTRIBUTION.md,
 // "SwiftPM" section). That floor is applied to the WhistleTests target alone
 // (see project.yml), not app-wide: this package is only wired into the test
 // target for now, and raising the app's own minimum would drop iOS 17 support

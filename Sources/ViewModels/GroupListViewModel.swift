@@ -142,6 +142,7 @@ final class GroupListViewModel: ObservableObject {
         // expects to fix exactly that.
         try? await marmot.catchUpAccounts()
         await marmot.refreshGroups()
+        await marmot.refreshHistoryNotices()
     }
 
     private func refreshItems(from groups: [WhistleGroup]) async {

@@ -77,6 +77,7 @@ final class NoticeCenter: ObservableObject {
     enum Cause: String, CaseIterable {
         case accountSetupIncomplete
         case groupNeedsRepair
+        case historyIncomplete
         case relayUnusable
         case startupFailed
     }

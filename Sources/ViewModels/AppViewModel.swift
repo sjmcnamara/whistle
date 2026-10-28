@@ -443,6 +443,7 @@ final class AppViewModel: ObservableObject {
         startupPhase = .loadingGroups
         await service.refreshGroups()
         WhistleLogger.marmot.info("Loaded \(service.groups.count) group(s) from MarmotKit")
+        await service.refreshHistoryNotices()
 
         await Task.yield()
 
@@ -541,6 +542,30 @@ final class AppViewModel: ObservableObject {
                         actionTitle: "Retry",
                         action: { [weak service] in
                             _ = try? await service?.completeAccountSetup()
+                        }
+                    )
+                )
+            }
+            .store(in: &cancellables)
+
+        // MarmotKit raises a durable notice when it cannot prove its history
+        // is complete. A state, not an event, so a banner: it stays until the
+        // user dismisses it, which is what releases the transport cursor.
+        service.$historyNotices
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak service] found in
+                guard let self else { return }
+                let ids = found.map(\.noticeId)
+                self.notices.setBanner(
+                    .historyIncomplete,
+                    active: !found.isEmpty,
+                    message: NoticeCenter.Banner(
+                        cause: .historyIncomplete,
+                        message: "Some earlier messages or locations may be missing on this device. This can follow a poor connection or an update.",
+                        actionTitle: "Dismiss",
+                        action: { [weak service] in
+                            await service?.dismissHistoryNotices(ids)
                         }
                     )
                 )

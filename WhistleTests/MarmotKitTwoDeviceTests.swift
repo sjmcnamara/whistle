@@ -1238,6 +1238,26 @@ final class MarmotKitRuntimeRelaySetTests: XCTestCase {
         super.tearDown()
     }
 
+    /// Re-read relay status until the pool has at least `atLeast` relays or the
+    /// timeout passes, returning the last size seen. Observed, not slept on a
+    /// fixed delay: how long the pool takes to come up is not ours to guess.
+    @MainActor
+    private static func waitForPool(
+        _ service: MarmotKitService,
+        all: [String],
+        enabled: [String],
+        atLeast: Int,
+        timeout: TimeInterval = 10
+    ) async -> Int {
+        let deadline = Date().addingTimeInterval(timeout)
+        while true {
+            await service.refreshRelayStatus(all: all, enabled: enabled)
+            let total = service.relayStatus.total
+            if total >= atLeast || Date() > deadline { return total }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+    }
+
     @MainActor
     func testPublishingANewRelayListDoesNotChangeTheDialledPool() async throws {
         let root = NSTemporaryDirectory().appending("marmotkit-relayset-\(UUID().uuidString)")
@@ -1253,8 +1273,12 @@ final class MarmotKitRuntimeRelaySetTests: XCTestCase {
         )
         _ = try await service.startWithNewIdentity()
 
-        await service.refreshRelayStatus(all: [firstURL], enabled: [firstURL])
-        let before = service.relayStatus.total
+        // Wait for the pool to appear rather than reading it once. As of
+        // MarmotKit 0.11 `relayHealth` reports 0 relays until the runtime has
+        // finished bringing the pool up, so a single read straight after
+        // startup measured "not up yet" and this test failed deterministically
+        // (before=0, after=1) although the property it guards had not changed.
+        let before = await Self.waitForPool(service, all: [firstURL], enabled: [firstURL], atLeast: 1)
         XCTAssertEqual(before, 1, "expected the pool to be the single relay passed at construction")
 
         // Advertise both. If the runtime adopts its published default relays
@@ -1262,8 +1286,15 @@ final class MarmotKitRuntimeRelaySetTests: XCTestCase {
         // runtime and the UI has to say so.
         try await service.publishRelayLists(defaultRelays: [firstURL, secondURL])
 
-        await service.refreshRelayStatus(all: [firstURL, secondURL], enabled: [firstURL, secondURL])
-        let after = service.relayStatus.total
+        // Observe for a window and take the *largest* size seen: the claim is
+        // that the second relay is never dialled, and a one-off read could miss
+        // it arriving a moment later.
+        var after = 0
+        for _ in 0..<20 {
+            await service.refreshRelayStatus(all: [firstURL, secondURL], enabled: [firstURL, secondURL])
+            after = max(after, service.relayStatus.total)
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
         XCTAssertEqual(
             after, before,
             """
