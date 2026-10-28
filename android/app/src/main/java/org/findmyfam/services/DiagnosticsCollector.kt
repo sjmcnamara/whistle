@@ -143,6 +143,6 @@ class DiagnosticsCollector @Inject constructor(
          * still citing `8a7a0a5` (MDK 0.8.0 / protocol v1) would point at the
          * wrong protocol entirely.
          */
-        const val PINNED_MDK_REVISION = "marmotkit-v0.10.4"
+        const val PINNED_MDK_REVISION = "marmotkit-v0.11.0"
     }
 }

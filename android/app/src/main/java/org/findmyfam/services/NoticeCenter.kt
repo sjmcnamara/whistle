@@ -93,6 +93,7 @@ class NoticeCenter @Inject constructor() {
     enum class Cause {
         ACCOUNT_SETUP_INCOMPLETE,
         GROUP_NEEDS_REPAIR,
+        HISTORY_INCOMPLETE,
         RELAY_UNUSABLE,
         STARTUP_FAILED,
     }

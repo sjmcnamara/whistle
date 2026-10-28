@@ -29,10 +29,10 @@ import sys
 import urllib.request
 import zipfile
 
-VERSION = "0.10.4"
+VERSION = "0.11.0"
 BASE_URL = f"https://github.com/marmot-protocol/mdk/releases/download/marmotkit-v{VERSION}"
 ANDROID_ZIP_URL = f"{BASE_URL}/marmotkit-android-{VERSION}.zip"
-ANDROID_ZIP_SHA256 = "dcbb4e00c703cce2cf773c860f1f1d46b18ac49e81af5a5089902b8a31e0c16e"
+ANDROID_ZIP_SHA256 = "5ab8bf5f7723ed2c07d15a07c5691d05eb8a37354882020c0b69b952d6418923"
 
 # The one ABI we ship. See the module docstring for why.
 ABI = "arm64-v8a"
@@ -74,12 +74,14 @@ def download_and_verify_zip():
 
 
 def extract_native_library():
-    """Place the single ABI's `.so` where the Android Gradle plugin expects it."""
-    if SO_PATH.exists():
-        print(f"{SO_PATH.relative_to(REPO_ROOT)} already present")
-        return
+    """Place the single ABI's `.so` where the Android Gradle plugin expects it.
 
-    JNI_LIBS_DIR.mkdir(parents=True, exist_ok=True)
+    Compared by content, not by existence. This used to return as soon as the
+    file was there, so bumping `VERSION` left the previous release's library in
+    place on any machine (or CI cache) that already had one — the build then
+    succeeded with the old native code, the same silent wrong-artifact failure
+    the `requireMarmotKitNativeLibrary` guard exists to stop.
+    """
     with zipfile.ZipFile(ZIP_PATH) as archive:
         names = set(archive.namelist())
         if ARCHIVE_SO not in names:
@@ -87,6 +89,12 @@ def extract_native_library():
             raise SystemExit(
                 f"ERROR: {ARCHIVE_SO} not in the archive. Available: {available}"
             )
+        expected = hashlib.sha256(archive.read(ARCHIVE_SO)).hexdigest()
+        if SO_PATH.exists() and sha256_of(SO_PATH) == expected:
+            print(f"{SO_PATH.relative_to(REPO_ROOT)} already present (matches {VERSION})")
+            return
+
+        JNI_LIBS_DIR.mkdir(parents=True, exist_ok=True)
         with archive.open(ARCHIVE_SO) as source, SO_PATH.open("wb") as target:
             shutil.copyfileobj(source, target)
 
