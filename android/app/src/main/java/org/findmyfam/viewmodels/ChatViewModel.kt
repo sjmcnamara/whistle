@@ -9,14 +9,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.ChatPayload
+import org.findmyfam.shared.models.WhistleMessage
 import org.findmyfam.services.ChatMessageCache
-import org.findmyfam.services.MLSService
-import org.findmyfam.services.MarmotService
+import org.findmyfam.services.MarmotKitService
 import org.findmyfam.services.NicknameStore
-import org.findmyfam.services.innerKind
-import org.findmyfam.services.plaintextContent
-import org.json.JSONObject
-import build.marmot.mdk.Message
+import org.findmyfam.services.NoticeCenter
 import timber.log.Timber
 
 /**
@@ -27,11 +24,11 @@ import timber.log.Timber
  */
 class ChatViewModel(
     val groupId: String,
-    private val marmot: MarmotService,
-    private val mls: MLSService,
+    private val marmot: MarmotKitService,
     private val nicknameStore: NicknameStore,
     private val myPubkeyHex: String,
-    private val messageCache: ChatMessageCache
+    private val messageCache: ChatMessageCache,
+    private val notices: NoticeCenter
 ) {
     // --- Item model ---
 
@@ -41,8 +38,16 @@ class ChatViewModel(
         val senderDisplayName: String,
         val text: String,
         val timestamp: Long, // epoch seconds
-        val isMe: Boolean
+        val isMe: Boolean,
+        /** MLS epoch, for ordering — see [inChatOrder]. */
+        val sourceEpoch: Long? = null,
+        /**
+         * A membership or rename event rather than something someone typed.
+         * Rendered as a centred line, not a bubble.
+         */
+        val isSystemEvent: Boolean = false
     )
+
 
     // --- Published state ---
 
@@ -73,13 +78,14 @@ class ChatViewModel(
     // --- Pagination ---
 
     private val pageSize: UInt = 50u
-    // Offset into the RAW message store (all inner kinds — chat, location,
-    // nickname), NOT the count of displayed chat bubbles. Location updates
-    // dominate the store, so tracking this in displayed-chat units would make
-    // paging overlap itself and stall.
-    private var currentOffset: UInt = 0u
+    // The oldest RAW message loaded so far, used as the paging cursor. It is a
+    // raw message rather than a displayed bubble: location updates dominate
+    // the store, and a cursor taken from the bubbles alone would skip every
+    // raw row between them. Not cached — a stale cursor is worse than none, so
+    // a cache-seeded thread takes a fresh one on its first loadMessages().
+    private var oldestLoaded: WhistleMessage? = null
     // Safety cap on raw pages scanned in a single loadMore when a chat-sparse
-    // history is mostly location updates (1000 raw messages / call).
+    // history is mostly location updates.
     private val maxPagesPerLoadMore = 20
     private var _hasMore = true
     val hasMore: Boolean get() = _hasMore
@@ -96,14 +102,13 @@ class ChatViewModel(
         // in anything new.
         messageCache.thread(groupId)?.let { cached ->
             _messages.value = cached.messages
-            currentOffset = cached.offset
             _hasMore = cached.hasMore
         }
 
         // Observe incoming chat messages for this group
         scope.launch {
-            marmot.lastChatMessageGroupId.collect { change ->
-                if (change?.first == groupId) {
+            marmot.lastChatMessageGroupId.collect { changedGroupId ->
+                if (changedGroupId == groupId) {
                     loadMessages()
                 }
             }
@@ -134,20 +139,22 @@ class ChatViewModel(
     // --- Resync ---
 
     /**
-     * Soft resync triggered from the decryption banner: re-fetch and
-     * re-process this group's recent commits so a missed epoch advance can be
-     * applied. On success the health tracker clears the banner automatically;
-     * on failure we flag the UI to suggest the admin re-invite path.
+     * Soft resync triggered from the decryption banner. v1 re-fetched this one
+     * group's commits; v2 has no per-group equivalent and does not need one —
+     * `catchUpAccounts` drains everything outstanding, and MarmotKit reports an
+     * unrecoverable group as a typed error rather than leaving the caller to
+     * infer it from repeated failures.
      */
     fun resync() {
         if (_isResyncing.value) return
         scope.launch {
             _isResyncing.value = true
             _resyncDidNotResolve.value = false
-            val recovered = marmot.catchUpGroup(groupId)
-            if (recovered) {
+            try {
+                marmot.catchUpAccounts()
                 loadMessages()
-            } else {
+            } catch (e: Exception) {
+                Timber.e(e, "Resync failed for group $groupId")
                 _resyncDidNotResolve.value = true
             }
             _isResyncing.value = false
@@ -158,43 +165,36 @@ class ChatViewModel(
 
     suspend fun loadMessages() {
         try {
-            val mdkMessages = mls.getMessages(
-                mlsGroupId = groupId,
-                limit = pageSize,
-                offset = null,
-                sortOrder = "created_at_first"
-            )
-            // MDK returns newest-first; reverse so oldest is at the top.
-            val recent = mdkMessages.mapNotNull { mapMessage(it) }.reversed()
-            val recentRawCount = mdkMessages.size.toUInt()
+            val (page, hasMoreBefore) = marmot.messages(groupId, before = null, limit = pageSize)
+            // Newest-first from the store; reverse so oldest is at the top.
+            val recent = page.mapNotNull { mapMessage(it) }.reversed()
 
             if (_messages.value.isEmpty()) {
                 // Cold load: the recent page is the whole thread we know about.
                 _messages.value = recent
-                // Advance by the RAW page size consumed, not the mapped chat
-                // count — the offset indexes the raw store (see currentOffset).
-                currentOffset = recentRawCount
-                _hasMore = mdkMessages.size == pageSize.toInt()
+                oldestLoaded = page.lastOrNull()
+                _hasMore = hasMoreBefore
             } else {
                 // A thread is already showing (seeded from cache, or the user
-                // paged back). Merge the recent page in — picking up new/edited
-                // bubbles — without dropping older pages already loaded, and
-                // leave hasMore (the "load earlier" affordance) untouched since a
-                // newest-end refresh says nothing about the start of history.
+                // paged back). Merge the recent page in without dropping older
+                // pages, and leave hasMore untouched: a newest-end refresh says
+                // nothing about the start of history.
                 _messages.value = merge(_messages.value, recent)
-                if (recentRawCount > currentOffset) currentOffset = recentRawCount
+                // Only ever move the cursor backwards. A newest-end refresh
+                // stops short of history already paged in, so adopting its
+                // tail would rewind the cursor and re-walk seen pages.
+                if (oldestLoaded == null) oldestLoaded = page.lastOrNull()
             }
-            _error.value = null
             persist()
         } catch (e: Exception) {
-            _error.value = e.message
-            Timber.e("Failed to load messages for group $groupId: $e")
+            Timber.e(e, "Failed to load messages for group $groupId")
+            notices.report(e, "Couldn't load messages") { loadMessages() }
         }
     }
 
     /**
      * Union two bubble lists by id (incoming wins, for fresh names/text) and
-     * sort into chat order (oldest first), tie-breaking on id for stability.
+     * sort into chat order.
      */
     private fun merge(
         existing: List<ChatMessageItem>,
@@ -203,57 +203,52 @@ class ChatViewModel(
         val byId = LinkedHashMap<String, ChatMessageItem>()
         for (m in existing) byId[m.id] = m
         for (m in incoming) byId[m.id] = m
-        return byId.values.sortedWith(compareBy({ it.timestamp }, { it.id }))
+        return byId.values.sortedWith(inChatOrder)
     }
 
-    /**
-     * Write the current thread state back to the shared cache so the next visit
-     * to this group renders instantly.
-     */
     private fun persist() {
-        messageCache.store(
-            groupId = groupId,
-            messages = _messages.value,
-            offset = currentOffset,
-            hasMore = _hasMore
-        )
+        messageCache.store(groupId = groupId, messages = _messages.value, hasMore = _hasMore)
     }
 
     /**
      * Load older messages and prepend them. Because location updates dominate
      * the raw store, a single raw page can contain zero chat messages — so this
-     * keeps paging (advancing the raw offset) until it gathers at least one chat
-     * bubble or reaches the start of history, up to a bounded scan.
+     * keeps walking the cursor back until it gathers at least one new bubble or
+     * reaches the start of history, up to a bounded scan.
      */
     suspend fun loadMore() {
-        if (!_hasMore || _isLoadingMore.value) return
+        val cursor = oldestLoaded
+        if (!_hasMore || _isLoadingMore.value || cursor == null) return
         _isLoadingMore.value = true
         try {
+            // Dupes are filtered inside the loop: filtering afterwards would let
+            // a page of already-shown messages end the scan having added
+            // nothing, and "load earlier" would appear to do nothing.
+            val seen = _messages.value.map { it.id }.toMutableSet()
             val collected = mutableListOf<ChatMessageItem>()
+            var walking: WhistleMessage? = cursor
             var pages = 0
             while (_hasMore && collected.isEmpty() && pages < maxPagesPerLoadMore) {
+                val before = walking ?: break
                 pages++
-                val mdkMessages = mls.getMessages(
-                    mlsGroupId = groupId,
-                    limit = pageSize,
-                    offset = currentOffset,
-                    sortOrder = "created_at_first"
-                )
-                // Advance by the RAW count so successive pages don't overlap.
-                currentOffset += mdkMessages.size.toUInt()
-                _hasMore = mdkMessages.size == pageSize.toInt()
+                val (page, hasMoreBefore) = marmot.messages(groupId, before = before, limit = pageSize)
+                _hasMore = hasMoreBefore
+                // An empty page means history is exhausted.
+                val tail = page.lastOrNull() ?: break
+                walking = tail
+                oldestLoaded = tail
                 // Older page → its bubbles belong above anything gathered so far.
-                collected.addAll(0, mdkMessages.mapNotNull { mapMessage(it) }.reversed())
+                val mapped = page.mapNotNull { mapMessage(it) }.reversed().filter { seen.add(it.id) }
+                collected.addAll(0, mapped)
             }
-            // Dedupe against what's already shown (guards any overlap) and prepend.
-            val existing = _messages.value.map { it.id }.toSet()
-            val fresh = collected.filter { it.id !in existing }
-            if (fresh.isNotEmpty()) {
-                _messages.value = fresh + _messages.value
+            if (collected.isNotEmpty()) {
+                _messages.value = collected + _messages.value
             }
             persist()
         } catch (e: Exception) {
-            Timber.e("Failed to load more messages: $e")
+            Timber.e(e, "Failed to load more messages")
+            // Silence would look like there is nothing older, not a failure.
+            notices.report(e, "Couldn't load earlier messages") { loadMore() }
         } finally {
             _isLoadingMore.value = false
         }
@@ -261,12 +256,11 @@ class ChatViewModel(
 
     suspend fun loadMemberNames() {
         try {
-            val pubkeys = mls.getMembers(groupId).distinct()
-            val names = pubkeys.map { nicknameStore.displayName(it) }
-            _memberNames.value = names.joinToString(", ")
+            val pubkeys = marmot.members(groupId).distinct()
+            _memberNames.value = pubkeys.joinToString(", ") { nicknameStore.displayName(it) }
         } catch (e: Exception) {
             _memberNames.value = ""
-            Timber.e("Failed to load member names for group $groupId: $e")
+            Timber.e(e, "Failed to load member names for group $groupId")
         }
     }
 
@@ -279,66 +273,118 @@ class ChatViewModel(
         scope.launch {
             _isSending.value = true
             try {
-                val payload = ChatPayload(text = text)
-                val json = payload.toJson()
-                marmot.sendMessage(
-                    content = json,
-                    groupId = groupId,
-                    kind = MarmotKind.CHAT
-                )
+                val outcome = marmot.sendChat(ChatPayload(text = text), groupId)
                 _draftText.value = ""
                 loadMessages()
+                // A send that reached no relay still succeeds and still appears
+                // in the timeline, so without this it looks delivered when
+                // nobody else has it.
+                if (outcome is MarmotKitService.SendOutcome.Queued) {
+                    notices.postToast("Saved, but not sent yet — no relay reachable.") {
+                        resendQueued(text)
+                    }
+                }
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to send message: $e")
+                Timber.e(e, "Failed to send message")
+                // The draft stays in place so Retry has something to send.
+                notices.report(e, "Message not sent") { sendMessage() }
             } finally {
                 _isSending.value = false
             }
         }
     }
 
+    /**
+     * Retry for a message that was stored but never published. Re-sends the
+     * same text rather than re-running [sendMessage], whose draft is already
+     * cleared. A duplicate is possible if the original drains from the queue at
+     * the same moment — preferred to the message silently never arriving.
+     */
+    private suspend fun resendQueued(text: String) {
+        try {
+            val outcome = marmot.sendChat(ChatPayload(text = text), groupId)
+            loadMessages()
+            if (outcome is MarmotKitService.SendOutcome.Queued) {
+                notices.postToast("Still no relay reachable.")
+            }
+        } catch (e: Exception) {
+            notices.report(e, "Message not sent")
+        }
+    }
+
     // --- Mapping ---
 
-    private fun mapMessage(message: Message): ChatMessageItem? {
-        val content = message.plaintextContent ?: return null
-
-        // Only map "chat" type messages (skip nickname broadcasts, etc.)
-        try {
-            org.findmyfam.shared.JsonDepthGuard.validate(content)
-            val json = JSONObject(content)
-            val type = json.optString("type", "chat")
-            if (type != "chat") return null
-        } catch (_: Exception) {
-            // Not JSON, or rejected as too deeply nested -- treat as plain text
+    private fun mapMessage(message: WhistleMessage): ChatMessageItem? {
+        // Membership and rename events share this timeline. Shown as a system
+        // line using MarmotKit's own resolved text ("Member added"), never as
+        // a bubble: the raw plaintext is JSON, and attributing it to whoever
+        // performed the action made it read as a message they had typed.
+        if (message.isSystemEvent) {
+            val text = message.systemText?.takeIf { it.isNotEmpty() } ?: return null
+            return ChatMessageItem(
+                id = message.id,
+                senderPubkeyHex = message.senderPubkey,
+                senderDisplayName = nicknameStore.displayName(message.senderPubkey),
+                text = text,
+                timestamp = message.createdAt,
+                isMe = false,
+                sourceEpoch = message.sourceEpoch,
+                isSystemEvent = true
+            )
         }
 
-        // Try parsing as ChatPayload for rich metadata, fall back to raw text
+        // Kind is the authority on what a row is. `payloadType` reads a field
+        // out of the plaintext, absent on anything we did not write, so it
+        // cannot exclude foreign kinds.
+        if (message.kind != MarmotKind.ProtocolV2.CHAT.toInt()) return null
+
+        // Skip nickname/avatar payloads. A null type is plain text from an
+        // older client — treat as chat.
+        val type = message.payloadType
+        if (type != null && type != "chat") return null
+
         val parsed = try {
-            val payload = ChatPayload.fromJson(content)
+            val payload = ChatPayload.fromJson(message.content)
             payload.text to payload.ts
         } catch (_: Exception) {
-            content to message.createdAt.toLong()
+            message.content to message.createdAt
         }
-        val text = parsed.first
-        val timestamp = parsed.second
 
         return ChatMessageItem(
             id = message.id,
             senderPubkeyHex = message.senderPubkey,
             senderDisplayName = nicknameStore.displayName(message.senderPubkey),
-            text = text,
-            timestamp = timestamp,
-            isMe = message.senderPubkey == myPubkeyHex
+            text = parsed.first,
+            timestamp = parsed.second,
+            isMe = message.senderPubkey == myPubkeyHex,
+            sourceEpoch = message.sourceEpoch
         )
     }
 
-    /**
-     * Re-map display names in-place without reloading from MDK.
-     */
+    /** Re-map display names in place without reloading. */
     private fun refreshDisplayNames() {
         _messages.value = _messages.value.map { msg ->
             msg.copy(senderDisplayName = nicknameStore.displayName(msg.senderPubkeyHex))
         }
         persist()
+    }
+
+    companion object {
+        /**
+         * Chat order: time, then epoch, then id.
+         *
+         * Epoch is the load-bearing part. `timestamp` has one-second
+         * resolution, so the commits behind one "promote and leave" action
+         * share it, and breaking the tie on a hash ordered them arbitrarily —
+         * on iOS that put them in the exact reverse of what happened. Id stays
+         * the final tiebreaker so the sort is total and stable.
+         */
+        val inChatOrder: Comparator<ChatMessageItem> = Comparator { a, b ->
+            if (a.timestamp != b.timestamp) return@Comparator a.timestamp.compareTo(b.timestamp)
+            val ea = a.sourceEpoch
+            val eb = b.sourceEpoch
+            if (ea != null && eb != null && ea != eb) return@Comparator ea.compareTo(eb)
+            a.id.compareTo(b.id)
+        }
     }
 }

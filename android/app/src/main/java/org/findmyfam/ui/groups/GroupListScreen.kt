@@ -1,25 +1,17 @@
 package org.findmyfam.ui.groups
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.GroupAdd
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import org.findmyfam.viewmodels.AppViewModel
-import org.findmyfam.services.LocalGroupAvatarStore
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -27,11 +19,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.findmyfam.services.PendingWelcomeItem
+import org.findmyfam.services.LocalGroupAvatarStore
+import org.findmyfam.viewmodels.AppViewModel
 import org.findmyfam.viewmodels.GroupListViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,19 +39,15 @@ fun GroupListScreen(
     viewModel: GroupListViewModel,
     appViewModel: AppViewModel,
     onGroupClick: (String) -> Unit,
-    onScanQr: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val groups by viewModel.groups.collectAsState()
-    val pendingWelcomes by viewModel.pendingWelcomes.collectAsState()
-    val pendingInvites by viewModel.pendingInvites.collectAsState()
-    val unhealthyGroupIds by viewModel.unhealthyGroupIds.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val isAccountReady by viewModel.isAccountReady.collectAsState()
     val avatarRevision by LocalGroupAvatarStore.revision.collectAsState()
     val sharedAvatarRevision by appViewModel.sharedGroupAvatarStore.revision.collectAsState()
 
     var showCreateSheet by remember { mutableStateOf(false) }
-    var showJoinSheet by remember { mutableStateOf(false) }
+    var showMyCodeSheet by remember { mutableStateOf(false) }
     var showFabMenu by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -70,19 +62,21 @@ fun GroupListScreen(
                     SmallFloatingActionButton(
                         onClick = {
                             showFabMenu = false
-                            showJoinSheet = true
+                            showMyCodeSheet = true
                         },
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) {
-                        Icon(Icons.Default.GroupAdd, contentDescription = "Join Group")
+                        Icon(Icons.Default.QrCode, contentDescription = "Show My Code")
                     }
                     SmallFloatingActionButton(
                         onClick = {
                             showFabMenu = false
-                            showCreateSheet = true
+                            if (isAccountReady) {
+                                showCreateSheet = true
+                            }
                         },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        containerColor = if (isAccountReady) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) {
                         Icon(Icons.Default.Groups, contentDescription = "Create Group")
@@ -109,218 +103,127 @@ fun GroupListScreen(
                 .padding(padding)
                 .pullRefresh(pullRefreshState)
         ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
-        ) {
-                // Group invitations (unsolicited welcomes awaiting approval)
-                if (pendingWelcomes.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Group Invitations",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp)
-                        )
+            if (groups.isEmpty()) {
+                // Empty state matching iOS GroupListView
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Groups,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No groups yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Create a group, or show your code from the menu so an admin can add you to theirs.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { showCreateSheet = true },
+                        enabled = isAccountReady
+                    ) {
+                        Text("Create Group")
                     }
-                    items(pendingWelcomes, key = { "welcome_${it.mlsGroupId}" }) { welcome ->
-                        ListItem(
-                            headlineContent = {
-                                Text("Group invitation received")
-                            },
-                            supportingContent = {
-                                Text(
-                                    // Abbreviated npub, not raw hex -- matchable
-                                    // against what the sender can read off their
-                                    // own Identity card.
-                                    "From ${appViewModel.nicknameStore.displayName(welcome.senderPubkeyHex)}",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            trailingContent = {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { viewModel.declinePendingWelcome(welcome.mlsGroupId) },
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = MaterialTheme.colorScheme.error
-                                        ),
-                                        border = BorderStroke(
-                                            1.dp,
-                                            MaterialTheme.colorScheme.error
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("Decline", fontSize = 13.sp)
-                                    }
-                                    Button(
-                                        onClick = { viewModel.approvePendingWelcome(welcome.mlsGroupId) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("Accept", fontSize = 13.sp)
-                                    }
-                                }
-                            }
+                    if (!isAccountReady) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Publishing your account…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        HorizontalDivider()
                     }
                 }
-
-                // Pending invites section
-                if (pendingInvites.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Pending Invites",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp)
-                        )
-                    }
-                    items(pendingInvites, key = { "pending_${it.groupHint}_${it.inviterNpub}" }) { invite ->
-                        ListItem(
-                            headlineContent = {
-                                Text("Waiting for invite...")
-                            },
-                            supportingContent = {
-                                Text(
-                                    "From ${invite.inviterNpub.take(16)}...",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            trailingContent = {
-                                IconButton(onClick = {
-                                    viewModel.cancelPendingInvite(invite.groupHint)
-                                }) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Cancel invite",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        )
-                        HorizontalDivider()
-                    }
-                }
-
-                // Groups section
-                if (groups.isEmpty() && pendingInvites.isEmpty() && pendingWelcomes.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(48.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "No groups yet",
-                                    fontSize = 18.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Create a group or join one with an invite code",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                            }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(groups.filter { it.isActive }, key = { it.id }) { group ->
+                        val avatarBitmap = remember(avatarRevision, sharedAvatarRevision, group.id) {
+                            appViewModel.sharedGroupAvatarStore.resolvedImage(group.id)
                         }
-                    }
-                }
 
-                items(groups.filter { it.isActive }, key = { it.id }) { group ->
-                    val isUnhealthy = group.id in unhealthyGroupIds
-                    // Personal override wins over the group's shared photo —
-                    // resolved in one place so this and the detail screen
-                    // cannot drift apart.
-                    val avatarBitmap = remember(avatarRevision, sharedAvatarRevision, group.id) {
-                        appViewModel.sharedGroupAvatarStore.resolvedImage(group.id)
-                    }
-
-                    ListItem(
-                        leadingContent = {
-                            Box(contentAlignment = Alignment.TopEnd) {
+                        ListItem(
+                            leadingContent = {
                                 if (avatarBitmap != null) {
                                     Image(
                                         bitmap = avatarBitmap.asImageBitmap(),
                                         contentDescription = null,
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(36.dp).clip(CircleShape)
+                                        modifier = Modifier.size(40.dp).clip(CircleShape)
                                     )
                                 } else {
-                                    Icon(
-                                        Icons.Default.Groups,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(36.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Groups,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
-                            }
-                        },
-                        headlineContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            },
+                            headlineContent = {
                                 Text(
                                     text = group.name,
                                     fontWeight = if (group.hasUnread) FontWeight.Bold else FontWeight.Normal,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                if (group.hasUnread) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .background(
-                                                color = MaterialTheme.colorScheme.primary,
-                                                shape = androidx.compose.foundation.shape.CircleShape
-                                            )
-                                    )
-                                }
-                            }
-                        },
-                        supportingContent = {
-                            Text(
-                                text = "${group.memberCount} member${if (group.memberCount != 1) "s" else ""}",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        trailingContent = {
-                            Column(horizontalAlignment = Alignment.End) {
-                                if (group.lastActivity != null) {
+                            },
+                            supportingContent = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        text = formatRelativeTime(group.lastActivity),
+                                        text = "${group.memberCount} member${if (group.memberCount == 1) "" else "s"}",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    if (group.isSharingPaused) {
+                                        Text(
+                                            text = "• Sharing paused",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
-                                if (isUnhealthy) {
+                            },
+                            trailingContent = {
+                                if (group.lastActivity != null && group.lastActivity > 0) {
                                     Text(
-                                        text = "Epoch mismatch",
+                                        text = formatRelativeTime(group.lastActivity),
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.error
+                                        color = if (group.hasUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                if (group.isSharingPaused) {
-                                    Text(
-                                        text = "Paused",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                            },
+                            modifier = Modifier
+                                .clickable {
+                                    viewModel.markAsRead(group.id)
+                                    onGroupClick(group.id)
                                 }
-                            }
-                        },
-                        modifier = Modifier.clickable {
-                            viewModel.markAsRead(group.id)
-                            onGroupClick(group.id)
-                        }
-                    )
-                    HorizontalDivider()
+                        )
+                        HorizontalDivider()
+                    }
                 }
             }
 
@@ -330,16 +233,8 @@ fun GroupListScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
         }
-
-        // Error display
-        if (error != null) {
-            LaunchedEffect(error) {
-                kotlinx.coroutines.delay(3000)
-            }
-        }
     }
 
-    // Bottom sheets
     if (showCreateSheet) {
         CreateGroupSheet(
             onDismiss = { showCreateSheet = false },
@@ -350,17 +245,10 @@ fun GroupListScreen(
         )
     }
 
-    if (showJoinSheet) {
-        JoinGroupSheet(
-            onDismiss = { showJoinSheet = false },
-            onJoin = { code ->
-                showJoinSheet = false
-                viewModel.joinGroup(code)
-            },
-            onScanQr = {
-                showJoinSheet = false
-                onScanQr()
-            }
+    if (showMyCodeSheet) {
+        MemberCodeSheet(
+            marmot = viewModel.marmot,
+            onDismiss = { showMyCodeSheet = false }
         )
     }
 }
@@ -375,7 +263,8 @@ private fun formatRelativeTime(epochSeconds: Long): String {
         diff < 604800 -> "${diff / 86400}d ago"
         else -> {
             val sdf = SimpleDateFormat("MMM d", Locale.getDefault())
-            sdf.format(Date(epochSeconds * 1000))
+            val date = Date(epochSeconds * 1000)
+            sdf.format(date)
         }
     }
 }

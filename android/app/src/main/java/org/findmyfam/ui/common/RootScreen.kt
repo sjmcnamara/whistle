@@ -44,7 +44,6 @@ object Routes {
     const val GROUP_DETAIL = "groups/{groupId}/detail"
     const val MAP = "map"
     const val SETTINGS = "settings"
-    const val QR_SCANNER = "qr_scanner"
     const val ADVANCED_SETTINGS = "settings/advanced"
     const val DIAGNOSTICS = "settings/diagnostics"
     const val IDENTITY_CARD = "identity/card"
@@ -96,26 +95,6 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
     var avatarError by remember { mutableStateOf<String?>(null) }
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
-
-    // Shared state for QR scan results (and, below, tapped whistle:// links --
-    // both feed the same auto-join path).
-    var pendingInviteCode by remember { mutableStateOf<String?>(null) }
-
-    // A tapped whistle://invite/ link auto-joins exactly like a QR scan does,
-    // rather than opening JoinGroupSheet pre-filled -- keeps this app's own
-    // two invite-entry paths consistent with each other.
-    val pendingDeepLinkCode by viewModel.pendingDeepLinkInviteCode.collectAsState()
-    LaunchedEffect(pendingDeepLinkCode) {
-        val code = pendingDeepLinkCode ?: return@LaunchedEffect
-        viewModel.consumePendingDeepLinkInviteCode()
-        pendingInviteCode = code
-        if (currentRoute != Routes.GROUP_LIST) {
-            navController.navigate(Routes.GROUP_LIST) {
-                popUpTo(Routes.GROUP_LIST) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
 
     // Only show bottom bar on top-level destinations
     val showBottomBar = currentRoute in listOf(Routes.GROUP_LIST, Routes.MAP, Routes.SETTINGS)
@@ -179,23 +158,11 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
             composable(Routes.GROUP_LIST) {
                 val groupListViewModel: GroupListViewModel = hiltViewModel()
 
-                // Pick up scanned invite code from QR scanner
-                LaunchedEffect(pendingInviteCode) {
-                    val code = pendingInviteCode
-                    if (!code.isNullOrBlank()) {
-                        pendingInviteCode = null
-                        groupListViewModel.joinGroup(code)
-                    }
-                }
-
                 GroupListScreen(
                     viewModel = groupListViewModel,
                     appViewModel = viewModel,
                     onGroupClick = { groupId ->
                         navController.navigate(Routes.groupChat(groupId))
-                    },
-                    onScanQr = {
-                        navController.navigate(Routes.QR_SCANNER)
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -207,19 +174,21 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                 arguments = listOf(navArgument("groupId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-                val groups by viewModel.marmotService.groups.collectAsState()
+                val groups by viewModel.marmot.groups.collectAsState()
                 val groupName = groups.find { it.mlsGroupId == groupId }?.name?.ifEmpty { "Unnamed Group" } ?: "Chat"
-                val unhealthyGroupIds by viewModel.healthTracker.unhealthyGroupIds.collectAsState()
-                val isUnhealthy = groupId in unhealthyGroupIds
+                // Nothing feeds a health signal in v2 (MarmotKit reports an
+                // unrecoverable group as a typed error instead), so the banner
+                // stays off, as on iOS.
+                val isUnhealthy = false
 
                 val chatViewModel = remember(groupId) {
                     ChatViewModel(
                         groupId = groupId,
-                        marmot = viewModel.marmotService,
-                        mls = viewModel.mls,
+                        marmot = viewModel.marmot,
                         nicknameStore = viewModel.nicknameStore,
                         myPubkeyHex = viewModel.identity.publicKeyHex ?: "",
-                        messageCache = viewModel.chatMessageCache
+                        messageCache = viewModel.chatMessageCache,
+                        notices = viewModel.notices
                     )
                 }
 
@@ -243,11 +212,11 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                 val detailViewModel = remember(groupId) {
                     GroupDetailViewModel(
                         groupId = groupId,
-                        marmot = viewModel.marmotService,
-                        mls = viewModel.mls,
+                        marmot = viewModel.marmot,
                         nicknameStore = viewModel.nicknameStore,
                         myPubkeyHex = viewModel.identity.publicKeyHex ?: "",
-                        settings = viewModel.settings
+                        settings = viewModel.settings,
+                        notices = viewModel.notices
                     )
                 }
 
@@ -266,9 +235,9 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
             composable(Routes.MAP) {
                 val locationViewModel = viewModel.locationViewModel
 
-                val marmotGroups by viewModel.marmotService.groups.collectAsState()
+                val marmotGroups by viewModel.marmot.groups.collectAsState()
                 val activeGroups = marmotGroups
-                    .filter { it.state == "active" }
+                    .filter { it.isActive }
                     .map { GroupOption(id = it.mlsGroupId, name = it.name) }
 
                 val whistleState by viewModel.whistleState.collectAsState()
@@ -323,14 +292,17 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
             }
 
             composable(Routes.ADVANCED_SETTINGS) {
-                val mlsError by viewModel.mlsError.collectAsState()
+                val startupError by viewModel.startupError.collectAsState()
+                val accountReady by viewModel.accountIsReady.collectAsState()
+                val relayStatus by viewModel.marmot.relayStatus.collectAsState()
                 AdvancedSettingsScreen(
                     settings = viewModel.settings,
                     identity = viewModel.identity,
-                    relayService = viewModel.relay,
-                    mlsReady = viewModel.mls.isInitialised,
-                    mlsError = mlsError,
-                    onReconnectRelays = { viewModel.reconnectRelays() },
+                    relayStatus = relayStatus,
+                    accountReady = accountReady,
+                    startupError = startupError,
+                    onRefreshRelayStatus = { viewModel.refreshRelayStatus() },
+                    onReconnectRelays = { viewModel.applyRelaySettings() },
                     onFuzzSettingChanged = { viewModel.locationService.resetThrottle() },
                     onExportKey = { navController.navigate(Routes.EXPORT_KEY) },
                     onImportKey = { navController.navigate(Routes.IMPORT_KEY) },
@@ -376,17 +348,6 @@ private fun MainNavigationScaffold(viewModel: AppViewModel) {
                 )
             }
 
-            // QR scanner (navigated from Join Group)
-            composable(Routes.QR_SCANNER) {
-                QrScannerScreen(
-                    onScanned = { code ->
-                        pendingInviteCode = code
-                        navController.popBackStack()
-                    },
-                    onBack = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
         }
     }
 }

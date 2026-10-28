@@ -54,22 +54,20 @@ fun GroupDetailScreen(
 ) {
     val groupName by viewModel.groupName.collectAsState()
     val members by viewModel.members.collectAsState()
-    val inviteCode by viewModel.inviteCode.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isAddingMember by viewModel.isAddingMember.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val didAddMember by viewModel.didAddMember.collectAsState()
     val addMemberNpub by viewModel.addMemberNpub.collectAsState()
     val isLeaving by viewModel.isLeaving.collectAsState()
     val didLeave by viewModel.didLeave.collectAsState()
     val isRenaming by viewModel.isRenaming.collectAsState()
-    val pendingJoiners by viewModel.pendingJoiners.collectAsState()
     val pausedGroupIds by appViewModel.settings.pausedGroupIdsFlow.collectAsState()
     val isSharingPaused = viewModel.groupId in pausedGroupIds
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
     var copiedGroupId by remember { mutableStateOf(false) }
-    var showInviteSheet by remember { mutableStateOf(false) }
+    var showScanSheet by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
     var subScreen by remember { mutableStateOf("main") } // main | members | addNpub
     var submittingAdd by remember { mutableStateOf(false) }
@@ -150,19 +148,16 @@ fun GroupDetailScreen(
     }
 
     if (subScreen == "addNpub") {
-        // Pop back to the main screen once an add completes without error.
-        LaunchedEffect(isAddingMember, error) {
-            if (submittingAdd && !isAddingMember) {
-                submittingAdd = false
-                if (error == null) subScreen = "main"
+        LaunchedEffect(didAddMember) {
+            if (didAddMember) {
+                subScreen = "main"
             }
         }
         AddByNpubSubScreen(
             npub = addMemberNpub,
             isAdding = isAddingMember,
-            error = error,
             onNpubChange = { viewModel.updateAddMemberNpub(it) },
-            onAdd = { submittingAdd = true; viewModel.addMember() },
+            onAdd = { viewModel.addMember() },
             onBack = { subScreen = "main" }
         )
         return
@@ -370,83 +365,13 @@ fun GroupDetailScreen(
 
                 // Ready to Join (pending joiners). Not gated on
                 // viewModel.isAdmin -- see the comment on the invite section
-                // below for why: that check reads a cached admin list that
-                // can diverge from live MLS truth, and hiding this would make
-                // it impossible to ever recover through the UI. The
-                // underlying call fails safely via MDK's own enforcement for
-                // a genuine non-admin.
-                if (pendingJoiners.isNotEmpty()) {
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Ready to Join (${pendingJoiners.size})",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            if (pendingJoiners.size > 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                                TextButton(
-                                    onClick = { viewModel.addAllPendingJoiners() },
-                                    enabled = !isAddingMember
-                                ) { Text("Add all") }
-                            }
-                        }
-                    }
-                    itemsIndexed(pendingJoiners, key = { _, j -> j.pubkey }) { _, joiner ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(joiner.name?.takeIf { it.isNotEmpty() } ?: "Anonymous",
-                                    style = MaterialTheme.typography.bodyMedium)
-                                // Abbreviated npub, not raw hex -- matchable
-                                // against what the joiner can read off their
-                                // own Identity card.
-                                Text(viewModel.displayIdentifier(joiner.pubkey),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            // Filled circular check/cancel — same approve/deny pairing as
-                            // the pending-welcome accept/decline, and mirrors iOS's
-                            // checkmark.circle.fill/xmark.circle.fill (PersonAdd/Close
-                            // read as tiny and mismatched at this size).
-                            IconButton(onClick = { viewModel.addPendingJoiner(joiner) }, enabled = !isAddingMember) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "Approve ${joiner.pubkey.take(8)}",
-                                    tint = Color(0xFF4CAF50)
-                                )
-                            }
-                            IconButton(onClick = { viewModel.dismissPendingJoiner(joiner) }) {
-                                Icon(
-                                    Icons.Default.Cancel,
-                                    contentDescription = "Deny ${joiner.pubkey.take(8)}",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                    item { HorizontalDivider() }
-                }
-
-                // Invite People. Not gated on viewModel.isAdmin -- that reads
-                // a cached admin list that can diverge from live MLS truth,
-                // and hiding this would make it impossible to ever recover
-                // from that state through the UI (e.g. re-adding yourself as
-                // a genuine member after a stale-admin-cache incident). The
-                // underlying calls fail safely via MDK's own enforcement for
-                // a genuine non-admin.
+                // Add Member section
                 item {
-                    SectionHeader("Invite People")
+                    SectionHeader("Add Member")
                     ListItem(
-                        headlineContent = { Text("Invite via QR / Code") },
-                        leadingContent = { Icon(Icons.Default.Share, contentDescription = null) },
-                        modifier = Modifier.clickable { viewModel.generateInvite(); showInviteSheet = true }
+                        headlineContent = { Text("Scan Member Code") },
+                        leadingContent = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
+                        modifier = Modifier.clickable { showScanSheet = true }
                     )
                     ListItem(
                         headlineContent = { Text("Add by npub") },
@@ -528,12 +453,6 @@ fun GroupDetailScreen(
                     )
                 }
 
-                if (error != null) {
-                    item {
-                        Text(error ?: "", color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp, modifier = Modifier.padding(16.dp))
-                    }
-                }
             }
         }
     }
@@ -592,9 +511,17 @@ fun GroupDetailScreen(
         )
     }
 
-    // Invite share sheet
-    if (showInviteSheet && inviteCode != null) {
-        InviteShareSheet(inviteCode = inviteCode ?: "", onDismiss = { showInviteSheet = false })
+    // Scan a prospective member's code to add them
+    if (showScanSheet) {
+        ScanMemberCodeSheet(
+            groupId = viewModel.groupId,
+            groupName = groupName,
+            marmot = viewModel.marmot,
+            onDismiss = {
+                showScanSheet = false
+                viewModel.load()
+            }
+        )
     }
 }
 
@@ -768,7 +695,6 @@ private fun MembersSubScreen(
 private fun AddByNpubSubScreen(
     npub: String,
     isAdding: Boolean,
-    error: String?,
     onNpubChange: (String) -> Unit,
     onAdd: () -> Unit,
     onBack: () -> Unit
@@ -831,9 +757,6 @@ private fun AddByNpubSubScreen(
                 } else {
                     Text("Add Member")
                 }
-            }
-            if (error != null) {
-                Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
         }
     }

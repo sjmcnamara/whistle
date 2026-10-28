@@ -260,6 +260,28 @@ class AppSettings @Inject constructor(
     val keyRotationIntervalSecs: ULong
         get() = keyRotationIntervalDays.toULong() * 24u * 3600u
 
+    // --- MarmotKit root generation ---
+
+    /**
+     * Which `marmotkit/gen-N` directory the runtime opens.
+     *
+     * Bumped by [advanceMarmotKitRootGeneration] on identity replacement. A
+     * MarmotKit runtime owns its root exclusively until its *handle* is
+     * dropped — not until `shutdown()` returns — so reusing the directory for
+     * the next identity can fail with `RuntimeBusy`, which during an import or
+     * burn reports a failed identity when the key was fine. Superseded
+     * generations are deleted at launch.
+     */
+    val marmotKitRootGeneration: Int
+        get() = prefs.getInt(AppDefaults.Keys.marmotKitRootGeneration, 0)
+
+    fun advanceMarmotKitRootGeneration(): Int {
+        val next = marmotKitRootGeneration + 1
+        prefs.edit().putInt(AppDefaults.Keys.marmotKitRootGeneration, next).apply()
+        Timber.i("Advanced MarmotKit root generation to $next")
+        return next
+    }
+
     // --- Per-group location-sharing pause ---
 
     /**

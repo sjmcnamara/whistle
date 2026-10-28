@@ -21,14 +21,12 @@ import javax.inject.Singleton
 class ChatMessageCache @Inject constructor() {
 
     /**
-     * A cached thread: the displayed bubbles plus the pagination cursor so
-     * "load earlier" continues from where the deepest load reached.
+     * A cached thread: the displayed bubbles and whether older ones remain.
+     * The paging cursor is deliberately not cached — it is a message, and a
+     * stale one is worse than none (see `ChatViewModel.oldestLoaded`).
      */
     data class Thread(
         val messages: List<ChatViewModel.ChatMessageItem>,
-        // Offset into MDK's raw message store (see ChatViewModel.currentOffset).
-        val offset: UInt,
-        // Whether older messages remain to be paged in.
         val hasMore: Boolean
     )
 
@@ -38,8 +36,8 @@ class ChatMessageCache @Inject constructor() {
     fun thread(groupId: String): Thread? = threads[groupId]
 
     /** Store (or replace) the cached thread for a group. */
-    fun store(groupId: String, messages: List<ChatViewModel.ChatMessageItem>, offset: UInt, hasMore: Boolean) {
-        threads[groupId] = Thread(messages = messages, offset = offset, hasMore = hasMore)
+    fun store(groupId: String, messages: List<ChatViewModel.ChatMessageItem>, hasMore: Boolean) {
+        threads[groupId] = Thread(messages = messages, hasMore = hasMore)
     }
 
     /** Drop a single group's cached thread. */

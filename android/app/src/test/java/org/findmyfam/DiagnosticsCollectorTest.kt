@@ -3,19 +3,16 @@ package org.findmyfam
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import build.marmot.mdk.Group
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.findmyfam.models.AppSettings
 import org.findmyfam.services.DiagnosticsCollector
-import org.findmyfam.services.GroupHealthTracker
 import org.findmyfam.services.IdentityService
-import org.findmyfam.services.MLSService
-import org.findmyfam.services.MarmotService
-import org.findmyfam.services.RelayService
+import org.findmyfam.services.MarmotKitService
 import org.findmyfam.shared.models.RelayConfig
+import org.findmyfam.shared.models.WhistleGroup
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -25,17 +22,15 @@ import org.junit.Test
  * The report model's ordering/redaction is covered by DiagnosticsReportTest;
  * this covers the collector. Parity with iOS DiagnosticsCollectorTests.
  *
- * All six injected services are mocked (MockK). Groups are left empty (the
- * MLS-crypto-dependent branch is instrumented-test territory).
+ * The injected services are mocked (MockK); MarmotKit's native library cannot
+ * load in a JVM test, so nothing here touches a real runtime.
  */
 class DiagnosticsCollectorTest {
 
     private lateinit var context: Context
-    private lateinit var marmot: MarmotService
-    private lateinit var mls: MLSService
+    private lateinit var marmot: MarmotKitService
     private lateinit var identity: IdentityService
     private lateinit var settings: AppSettings
-    private lateinit var relay: RelayService
     private lateinit var collector: DiagnosticsCollector
 
     @Before
@@ -53,13 +48,10 @@ class DiagnosticsCollectorTest {
         marmot = mockk(relaxed = true)
         every { marmot.groups } returns MutableStateFlow(emptyList())
 
-        mls = mockk(relaxed = true)
-
         identity = mockk(relaxed = true)
         every { identity.publicKeyHex } returns "abcd1234ef567890"
 
-        relay = mockk(relaxed = true)
-        every { relay.connectedRelayUrls } returns MutableStateFlow(emptyList())
+        every { marmot.relayStatus } returns MutableStateFlow(MarmotKitService.RelayStatus())
 
         settings = mockk(relaxed = true)
         every { settings.relays } returns emptyList()
@@ -70,8 +62,17 @@ class DiagnosticsCollectorTest {
         every { settings.isLocationPaused } returns false
         every { settings.lastEventTimestamp } returns 0UL
 
-        collector = DiagnosticsCollector(context, marmot, mls, identity, settings, relay)
+        collector = DiagnosticsCollector(context, marmot, identity, settings)
     }
+
+    private fun group(lastMessageAt: Long?) = WhistleGroup(
+        mlsGroupId = "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+        name = "Test",
+        isActive = true,
+        epoch = 1,
+        adminPubkeys = emptyList(),
+        lastMessageAt = lastMessageAt,
+    )
 
     // MARK: - App section
 
@@ -105,11 +106,8 @@ class DiagnosticsCollectorTest {
 
     @Test
     fun groupSnapshot_secondsSinceLastEvent_reflectsThatGroupsLastMessageAt() = runTest {
-        val lastMessageAt = (System.currentTimeMillis() / 1000 - 60).toULong()
-        val group = mockk<Group>(relaxed = true)
-        every { group.mlsGroupId } returns "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
-        every { group.state } returns "active"
-        every { group.lastMessageAt } returns lastMessageAt
+        val lastMessageAt = System.currentTimeMillis() / 1000 - 60
+        val group = group(lastMessageAt = lastMessageAt)
         every { marmot.groups } returns MutableStateFlow(listOf(group))
 
         val snapshot = collector.collect().groups.first()
@@ -120,10 +118,7 @@ class DiagnosticsCollectorTest {
 
     @Test
     fun groupSnapshot_secondsSinceLastEvent_isNullWhenGroupHasNoLastMessageAt() = runTest {
-        val group = mockk<Group>(relaxed = true)
-        every { group.mlsGroupId } returns "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
-        every { group.state } returns "active"
-        every { group.lastMessageAt } returns null
+        val group = group(lastMessageAt = null)
         every { marmot.groups } returns MutableStateFlow(listOf(group))
 
         // null lastMessageAt must stay null ("never recorded"), not 0 ("just now").
@@ -151,14 +146,18 @@ class DiagnosticsCollectorTest {
     // MARK: - Relays mapping
 
     @Test
-    fun relaysReflectSettingsAndDisconnectedState() = runTest {
+    fun relaysReflectSettingsAndPolicy() = runTest {
+        every { marmot.relayStatus } returns MutableStateFlow(
+            MarmotKitService.RelayStatus(policies = mapOf("wss://alpha.example" to "retired"))
+        )
         every { settings.relays } returns listOf(
             RelayConfig(url = "wss://alpha.example", isEnabled = true),
             RelayConfig(url = "wss://beta.example", isEnabled = false)
         )
         val relays = collector.collect().relays
         assertEquals(setOf("wss://alpha.example", "wss://beta.example"), relays.map { it.url }.toSet())
-        assertTrue("nothing was told to connect", relays.none { it.connected })
+        assertEquals("retired", relays.first { it.url == "wss://alpha.example" }.policy)
+        assertNull(relays.first { it.url == "wss://beta.example" }.policy)
         assertEquals(false, relays.first { it.url == "wss://beta.example" }.enabled)
     }
 
@@ -176,27 +175,12 @@ class DiagnosticsCollectorTest {
         assertTrue(collector.collect().identity.pubkeyPrefix.length <= 8)
     }
 
-    // MARK: - Recent failures (GroupHealthTracker failure-type classification)
+    // MARK: - Recent failures
 
     @Test
-    fun recentFailures_isEmpty_whenNoneRecorded() = runTest {
-        every { marmot.healthTracker } returns GroupHealthTracker()
+    fun recentFailures_isEmpty() = runTest {
+        // v1 tallied decrypt failures by type; MarmotKit reports an
+        // unrecoverable group as a typed error, so there is nothing to count.
         assertTrue(collector.collect().recentFailures.isEmpty())
-    }
-
-    @Test
-    fun recentFailures_reflectsHealthTrackerFailureTypes() = runTest {
-        val healthTracker = GroupHealthTracker()
-        // previouslyFailed carries no group id at the MDK boundary, so this is
-        // the only place a permanently-stuck group's failure is ever recorded.
-        healthTracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
-        healthTracker.recordFailureType(GroupHealthTracker.FailureType.PREVIOUSLY_FAILED)
-        healthTracker.recordFailureType(GroupHealthTracker.FailureType.UNPROCESSABLE)
-        every { marmot.healthTracker } returns healthTracker
-
-        val failures = collector.collect().recentFailures
-        assertEquals(2, failures.size)
-        assertEquals(2, failures.first { it.type == GroupHealthTracker.FailureType.PREVIOUSLY_FAILED }.count)
-        assertEquals(1, failures.first { it.type == GroupHealthTracker.FailureType.UNPROCESSABLE }.count)
     }
 }

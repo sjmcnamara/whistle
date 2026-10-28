@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
 import org.findmyfam.models.BurnPlan
 import org.findmyfam.services.IdentityService
-import org.findmyfam.services.RelayService
+import org.findmyfam.services.MarmotKitService
 import org.findmyfam.shared.models.RelayConfig
 
 /** How often the relay status dots re-read live socket state, in milliseconds. */
@@ -32,9 +32,10 @@ private const val RELAY_STATUS_REFRESH_MS = 5_000L
 fun AdvancedSettingsScreen(
     settings: AppSettings,
     identity: IdentityService,
-    relayService: RelayService,
-    mlsReady: Boolean = false,
-    mlsError: String? = null,
+    relayStatus: MarmotKitService.RelayStatus,
+    accountReady: Boolean = false,
+    startupError: String? = null,
+    onRefreshRelayStatus: () -> Unit = {},
     onReconnectRelays: () -> Unit = {},
     onFuzzSettingChanged: () -> Unit = {},
     onExportKey: () -> Unit = {},
@@ -58,15 +59,13 @@ fun AdvancedSettingsScreen(
     var showAddRelay by remember { mutableStateOf(false) }
     var newRelayURL by remember { mutableStateOf("wss://") }
     var relayError by remember { mutableStateOf<String?>(null) }
-    val relayConnectionState by relayService.connectionState.collectAsState()
-    val connectedRelayUrls by relayService.connectedRelayUrls.collectAsState()
 
-    // Relay sockets drop and reconnect in the background, so the status dots go
-    // stale unless we re-read live status while this screen is open.
-    // Mirrors the .task refresh loop in iOS AdvancedSettingsView.
+    // Relay sockets drop and reconnect in the background, so the status goes
+    // stale unless we re-read it while this screen is open. Mirrors the .task
+    // refresh loop in iOS AdvancedSettingsView.
     LaunchedEffect(Unit) {
         while (true) {
-            relayService.refreshConnectedRelays()
+            onRefreshRelayStatus()
             kotlinx.coroutines.delay(RELAY_STATUS_REFRESH_MS)
         }
     }
@@ -226,16 +225,22 @@ fun AdvancedSettingsScreen(
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Connection status dot
+                    // Policy dot. MarmotKit reports connection in aggregate only, so
+                    // a per-relay "connected" dot would claim more than is known:
+                    // green means usable and dialled, red means it can never connect.
                     Box(
                         modifier = Modifier
                             .size(8.dp)
                             .padding(end = 0.dp)
                     ) {
-                        val dotColor = if (relay.isEnabled && relay.url in connectedRelayUrls)
-                            Color(0xFF4CAF50) // green
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        val policy = relayStatus.policies[relay.url]
+                        val dotColor = when {
+                            !relay.isEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            policy != null && policy != "allowed" -> MaterialTheme.colorScheme.error
+                            relayStatus.connection == MarmotKitService.RelayStatus.Connection.CONNECTED ->
+                                Color(0xFF4CAF50)
+                            else -> Color(0xFFFF9800)
+                        }
                         Canvas(modifier = Modifier.fillMaxSize()) {
                             drawCircle(color = dotColor)
                         }
@@ -294,6 +299,33 @@ fun AdvancedSettingsScreen(
                 Text("Add Relay")
             }
 
+            // The dialled pool is fixed at launch, so say plainly what only
+            // takes effect after a restart rather than implying the toggle did.
+            relayStatus.pendingAdditions.forEach {
+                Text(
+                    text = "Restart to connect to ${it.replace("wss://", "")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFF9800),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+            }
+            relayStatus.pendingRemovals.forEach {
+                Text(
+                    text = "Still connected to ${it.replace("wss://", "")} until you restart",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFF9800),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+            }
+            relayStatus.policies.filterValues { it != "allowed" }.forEach { (url, policy) ->
+                Text(
+                    text = "${url.replace("wss://", "")} can't be used ($policy)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+            }
+
             Text(
                 text = "Toggle relays on/off. Default relays cannot be removed.",
                 style = MaterialTheme.typography.bodySmall,
@@ -310,23 +342,25 @@ fun AdvancedSettingsScreen(
                 label = "Relay",
                 icon = Icons.Default.Wifi,
                 trailing = {
-                    val (statusText, statusColor) = when (relayConnectionState) {
-                        RelayService.ConnectionState.DISCONNECTED -> "Disconnected" to MaterialTheme.colorScheme.onSurfaceVariant
-                        RelayService.ConnectionState.CONNECTING -> "Connecting…" to Color(0xFFFF9800)
-                        RelayService.ConnectionState.CONNECTED -> "Connected" to Color(0xFF4CAF50)
-                        RelayService.ConnectionState.FAILED -> "Failed" to MaterialTheme.colorScheme.error
+                    val (statusText, statusColor) = when (relayStatus.connection) {
+                        MarmotKitService.RelayStatus.Connection.DISCONNECTED ->
+                            "Disconnected" to MaterialTheme.colorScheme.onSurfaceVariant
+                        MarmotKitService.RelayStatus.Connection.CONNECTING ->
+                            "Connecting…" to Color(0xFFFF9800)
+                        MarmotKitService.RelayStatus.Connection.CONNECTED ->
+                            "Connected (${relayStatus.connected} of ${relayStatus.total})" to Color(0xFF4CAF50)
                     }
                     Text(text = statusText, color = statusColor)
                 }
             )
 
             SettingsRow(
-                label = "MLS Crypto",
+                label = "Account",
                 icon = Icons.Default.Shield,
                 trailing = {
-                    if (mlsError != null) {
+                    if (startupError != null) {
                         Text(text = "Failed", color = MaterialTheme.colorScheme.error)
-                    } else if (mlsReady) {
+                    } else if (accountReady) {
                         Text(text = "Ready", color = Color(0xFF4CAF50))
                     } else {
                         Text(text = "Starting…", color = Color(0xFFFF9800))

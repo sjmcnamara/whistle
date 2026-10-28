@@ -1,23 +1,23 @@
 package org.findmyfam.viewmodels
 
 import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.async
+import android.net.Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.findmyfam.models.AppSettings
 import org.findmyfam.models.BurnPlan
 import org.findmyfam.shared.models.AvatarPayload
-import org.findmyfam.shared.models.GroupAvatarPayload
-import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.services.*
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,27 +25,22 @@ import kotlin.math.*
 import kotlin.random.Random
 
 /**
- * Root application ViewModel -- coordinates startup, owns service references.
+ * Root application ViewModel — coordinates startup, owns service references.
  * Mirrors iOS AppViewModel.
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     val identity: IdentityService,
-    val relay: RelayService,
-    val mls: MLSService,
-    val marmotService: MarmotService,
+    val marmot: MarmotKitService,
+    val notices: NoticeCenter,
     val settings: AppSettings,
     val nicknameStore: NicknameStore,
     val memberAvatarStore: MemberAvatarStore,
     val sharedGroupAvatarStore: SharedGroupAvatarStore,
     val diagnosticsCollector: DiagnosticsCollector,
-    val pendingInviteStore: PendingInviteStore,
-    val pendingWelcomeStore: PendingWelcomeStore,
-    val joinRequestStore: JoinRequestStore,
     val locationCache: LocationCache,
     val chatMessageCache: ChatMessageCache,
-    val healthTracker: GroupHealthTracker,
     val locationService: LocationService,
     val motionService: MotionService,
     val appLockService: AppLockService,
@@ -69,8 +64,30 @@ class AppViewModel @Inject constructor(
     private val _startupPhase = MutableStateFlow(StartupPhase.SPLASH)
     val startupPhase: StateFlow<StartupPhase> = _startupPhase.asStateFlow()
 
-    private val _mlsError = MutableStateFlow<String?>(null)
-    val mlsError: StateFlow<String?> = _mlsError.asStateFlow()
+    /**
+     * A startup failure, shown on the Advanced Settings diagnostics row.
+     *
+     * Kept despite the name's v1 origins (it was the MLS init error): the
+     * equivalent v2 failure is MarmotKit refusing to open or start, and the
+     * row that displays it is still the right place for the detail. The
+     * user-facing half is a banner, posted alongside.
+     */
+    private val _startupError = MutableStateFlow<String?>(null)
+    val startupError: StateFlow<String?> = _startupError.asStateFlow()
+
+    /**
+     * Mirrors [MarmotKitService.accountIsReady].
+     *
+     * Deliberately duplicated rather than read through `marmot` at the call
+     * site. Until the account reaches network-ready it has no published relay
+     * list or KeyPackage, so creating a group and being invited both fail —
+     * which means several screens need this value, and a screen reading it off
+     * the service would observe a flow the UI layer otherwise never collects.
+     * On iOS the equivalent mistake was made three times before the mirror
+     * existed, so it is mirrored here from the start.
+     */
+    private val _accountIsReady = MutableStateFlow(false)
+    val accountIsReady: StateFlow<Boolean> = _accountIsReady.asStateFlow()
 
     enum class WhistleState { IDLE, SENDING, SENT, FAILED }
 
@@ -85,186 +102,252 @@ class AppViewModel @Inject constructor(
 
     /**
      * Called once when the app first composes. Runs the full startup sequence:
-     * relay connect + MLS init (parallel), then loads groups and starts subscriptions.
+     * adopt the stored identity into MarmotKit, load groups, subscribe.
+     *
+     * There is no separate relay-connect or MLS-init step under v2 — relays
+     * are MarmotKit's to dial, and the MLS state machine lives inside it.
      */
     fun onAppear() {
         if (didStart) return
         didStart = true
+        viewModelScope.launch { performFullStartup() }
+    }
 
-        viewModelScope.launch {
-            val keys = identity.keys.value
-            if (keys == null) {
-                Timber.e("No identity available -- cannot connect to relays")
-                // Allow a later onAppear() call to retry -- matches iOS's
-                // AppViewModel.performFullStartup(), which resets didStart
-                // in this exact branch rather than latching it permanently.
-                didStart = false
-                _startupPhase.value = StartupPhase.READY
-                return@launch
-            }
-
-            // Connect to relays and initialise MLS in parallel
-            _startupPhase.value = StartupPhase.CONNECTING
-
-            val enabledRelays = settings.relays.filter { it.isEnabled }.map { it.url }
-
-            // Guarded: WhistleForegroundService's BackgroundSessionCoordinator
-            // may already have connected before this UI ever opened. Connecting
-            // again here would spin up a second Client and abandon the first
-            // one still holding the live socket subscriptions run on.
-            val relayJob = async {
-                if (!relay.hasConnectedRelays()) {
-                    relay.connect(keys = keys, relays = enabledRelays)
-                }
-            }
-            val mlsJob = async {
-                try {
-                    mls.initialise()
-                } catch (e: Exception) {
-                    Timber.e(e, "MLSService init failed")
-                    _mlsError.value = e.message
-                }
-            }
-
-            relayJob.await()
-            _startupPhase.value = StartupPhase.INITIALISING_ENCRYPTION
-            mlsJob.await()
-
-            _startupPhase.value = StartupPhase.LOADING_GROUPS
-
-            // Load groups from MDK
-            try {
-                marmotService.refreshGroups()
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to load groups")
-            }
-
-            // Seed local display name into NicknameStore
-            val pubkey = identity.publicKeyHex
-            val name = settings.displayName
-            if (pubkey != null && name.isNotEmpty()) {
-                nicknameStore.set(name, pubkey)
-            }
-
-            // Broadcast display name to all existing groups on startup
-            if (name.isNotEmpty()) {
-                broadcastDisplayName(name)
-            }
-
-            // Publish a fresh key package so this device is always "joinable"
-            // by npub (admin can scan our QR and add us directly).
-            val enabledRelayUrls = settings.relays.filter { it.isEnabled }.map { it.url }
-            if (enabledRelayUrls.isNotEmpty()) {
-                try {
-                    marmotService.publishKeyPackage(enabledRelayUrls)
-                    Timber.i("Published key package on startup to ${enabledRelayUrls.size} relay(s)")
-                } catch (e: Exception) {
-                    Timber.w(e, "Key package publish failed (non-fatal)")
-                }
-            }
-
-            // Start real-time subscriptions. ensureSubscriptionsActive() rather
-            // than startSubscriptions() directly: WhistleForegroundService's
-            // BackgroundSessionCoordinator may already have subscriptions
-            // running if it started before this UI ever opened, and the
-            // former is a no-op in that case rather than a second, competing
-            // subscription loop.
-            marmotService.ensureSubscriptionsActive()
-
-            // Fetch any gift-wraps (Welcomes) that arrived while offline
-            try {
-                marmotService.fetchMissedGiftWraps()
-            } catch (e: Exception) {
-                Timber.w(e, "fetchMissedGiftWraps failed (non-fatal)")
-            }
-
-            // Re-announce the group photo, and our own nickname/avatar, when
-            // membership changes, so a new joiner picks up existing members'
-            // profiles without waiting for each of them to next launch or
-            // edit. The group photo is guarded to the designated admin inside
-            // (a shared value, so only one sender should push it); the
-            // nickname/avatar re-announce has no such guard — every existing
-            // member's device independently resends only its own profile, so
-            // there's no duplicate-sender problem to avoid.
-            viewModelScope.launch {
-                marmotService.lastGroupMembershipChangeId.collect { change ->
-                    change?.let {
-                        rebroadcastGroupAvatarIfDesignated(it.first)
-                        reannounceOwnProfile(it.first)
-                    }
-                }
-            }
-
-            // Broadcast display name and trigger immediate location send for newly joined groups
-            viewModelScope.launch {
-                marmotService.lastJoinedGroupId.collect { groupId ->
-                    if (groupId != null) {
-                        val displayName = settings.displayName
-                        if (displayName.isNotEmpty()) {
-                            try {
-                                marmotService.sendNicknameUpdate(
-                                    name = displayName,
-                                    groupId = groupId
-                                )
-                            } catch (e: Exception) {
-                                Timber.w("Failed to broadcast nickname to group $groupId: ${e.message}")
-                            }
-                        }
-                        // Avatar goes to the new group only — unlike the nickname it is
-                        // never re-announced on launch, so joining is the one chance the
-                        // new group has to learn our face without waiting for a change.
-                        identity.publicKeyHex?.let { pubkey ->
-                            memberAvatarStore.ownPayload(pubkey)?.let { payload ->
-                                try {
-                                    marmotService.sendAvatarUpdate(payload, groupId)
-                                    Timber.i("Auto-broadcast avatar to newly joined group $groupId")
-                                } catch (e: Exception) {
-                                    Timber.w("Failed to broadcast avatar to group $groupId: ${e.message}")
-                                }
-                            }
-                        }
-                        // Reset location throttle so the new group gets a pin immediately
-                        locationService.resetThrottle()
-                    }
-                }
-            }
-
-            // Run key rotation check
-            viewModelScope.launch {
-                try {
-                    marmotService.rotateStaleGroups()
-                } catch (e: Exception) {
-                    Timber.w("Key rotation check failed: ${e.message}")
-                }
-            }
-
-            // Wire location pipeline: LocationService → MarmotService (all groups)
-            wireLocationPipeline()
-
-            // Keep WhistleForegroundService running exactly while there's
-            // something to share, so the process survives backgrounding
-            // without a notification sitting there for an empty account.
-            updateBackgroundServiceState()
-            viewModelScope.launch {
-                marmotService.groups.collect { updateBackgroundServiceState() }
-            }
-
+    private suspend fun performFullStartup() {
+        val nsec = identity.exportNsec()
+        if (nsec == null) {
+            Timber.e("No identity available — cannot start MarmotKit")
+            // Allow a later onAppear() to retry rather than latching the
+            // failure permanently, and dismiss the splash so onboarding or the
+            // empty state is actually visible behind it.
+            didStart = false
             _startupPhase.value = StartupPhase.READY
-            Timber.i("Startup complete -- relay: ${relay.connectionState.value}, MLS: ${mls.isInitialised}")
+            return
+        }
+
+        _startupPhase.value = StartupPhase.INITIALISING_ENCRYPTION
+
+        // Adopts the key the app already holds, so the npub carries over the
+        // v2 update. Idempotent — signs back into the existing account on
+        // every launch after the first. `ensureStarted` rather than `start`
+        // because WhistleForegroundService may have got here first.
+        try {
+            marmot.ensureStarted(adoptingNsec = nsec, expectedReference = identity.publicKeyHex)
+        } catch (error: Throwable) {
+            val message = error.message ?: error.toString()
+            Timber.e(error, "MarmotKit start failed")
+            _startupError.value = message
+            // Previously only visible in Advanced Settings' MLS row, so a
+            // failed start looked like an app that simply had no groups.
+            notices.post(
+                NoticeCenter.Banner(
+                    cause = NoticeCenter.Cause.STARTUP_FAILED,
+                    message = "Whistle couldn't start securely: $message",
+                    actionTitle = "Retry",
+                    action = {
+                        didStart = false
+                        onAppear()
+                    },
+                )
+            )
+            _startupPhase.value = StartupPhase.READY
+            return
+        }
+
+        // Load persisted groups before the UI goes interactive, so the group
+        // list never flashes its empty state on a device that has groups.
+        _startupPhase.value = StartupPhase.LOADING_GROUPS
+        marmot.refreshGroups()
+        Timber.i("Loaded ${marmot.groups.value.size} group(s) from MarmotKit")
+
+        // Seed the local display name so the user's own map pin and chat
+        // bubbles are named before any broadcast round trip.
+        val pubkey = identity.publicKeyHex
+        val name = settings.displayName
+        if (pubkey != null && name.isNotEmpty()) {
+            nicknameStore.set(name, pubkey)
+        }
+
+        _startupPhase.value = StartupPhase.READY
+
+        // --- Everything below runs after the splash dismisses. ---
+        // The UI is interactive now; these are background housekeeping tasks.
+
+        observeServiceState()
+        wireLocationPipeline()
+        updateBackgroundServiceState()
+
+        // Start the receive loop. Returns immediately — the subscriptions run
+        // inside MarmotKit's runtime.
+        marmot.startSubscriptions()
+
+        if (name.isNotEmpty()) {
+            broadcastDisplayName(name)
+        }
+
+        // Finish account setup. `beginOnboarding` stops at local-ready by
+        // design, so until this runs the account has no published relay list
+        // or KeyPackage and anything needing one fails with
+        // `OnboardingRequired` — which is what "show my member code" hit.
+        //
+        // Deliberately after the splash rather than on the launch path: this
+        // is the half that waits on relays, and the member-code screen already
+        // gates on readiness, so opening it early degrades to "Publishing your
+        // key…" instead of handing out a code no admin can invite with.
+        try {
+            Timber.i("Relays handed to MarmotKit: ${marmot.dialledRelayEndpoints.joinToString()}")
+            val readiness = marmot.completeAccountSetup()
+            Timber.i("Account setup readiness: $readiness")
+        } catch (error: Throwable) {
+            // Non-fatal — retried on next launch, and the readiness gate stops
+            // a half-published account being shown as scannable.
+            Timber.w(error, "Account setup did not complete")
+        }
+
+        // Catch up on anything that arrived while the app was closed. A
+        // Welcome lands through this, not through the live subscription, which
+        // was opened before the group existed.
+        try {
+            marmot.catchUpAccounts()
+        } catch (error: Throwable) {
+            Timber.w(error, "Catch-up failed (non-fatal)")
+        }
+
+        // Always dumped, success or failure. The iOS version logged this only
+        // on the success path, so the one run that needed it — where setup
+        // threw — printed nothing, and the counters that distinguish "relays
+        // never connected" from "relays connected but the list would not
+        // publish" were missing.
+        Timber.i(marmot.relayDiagnostics())
+        Timber.i(marmot.relayListDiagnostics())
+        for (line in marmot.onboardingDiagnostics()) {
+            Timber.i("onboarding $line")
         }
     }
 
     /**
-     * Wire LocationService updates to broadcast location to all groups
-     * and cache locally so the map shows the local user's pin.
+     * Collect the service's published state into notices, re-broadcasts and
+     * the background-service decision.
+     *
+     * One place for all of it so the collectors are started exactly once, by
+     * one caller, after the service is up — scattered `launch` blocks inside
+     * the startup sequence is how the iOS version first did it and it made the
+     * ordering impossible to follow.
+     */
+    private fun observeServiceState() {
+        // Re-announce the group photo, and our own nickname/avatar, when
+        // membership changes, so a new joiner picks up existing members'
+        // profiles without waiting for each of them to next launch or edit.
+        // The group photo is guarded to the designated admin inside (a shared
+        // value, so only one sender should push it); the nickname/avatar
+        // re-announce has no such guard — every existing member's device
+        // independently resends only its own profile, so there's no
+        // duplicate-sender problem to avoid.
+        viewModelScope.launch {
+            marmot.lastGroupMembershipChangeId.filterNotNull().collect { (groupId, _) ->
+                rebroadcastGroupAvatarIfDesignated(groupId)
+                reannounceOwnProfile(groupId)
+            }
+        }
+
+        // Broadcast display name and avatar, and trigger an immediate location
+        // send, for a group we have just been added to.
+        viewModelScope.launch {
+            marmot.lastJoinedGroupId.filterNotNull().collect { groupId ->
+                val displayName = settings.displayName
+                if (displayName.isNotEmpty()) {
+                    try {
+                        marmot.sendNicknameUpdate(displayName, groupId)
+                    } catch (error: Throwable) {
+                        Timber.w("Failed to broadcast nickname to group $groupId: ${error.message}")
+                    }
+                }
+                // The avatar goes to the new group only — unlike the nickname
+                // it is never re-announced on launch, so joining is the one
+                // chance the new group has to learn our face without waiting
+                // for a change.
+                identity.publicKeyHex?.let { pubkey ->
+                    memberAvatarStore.ownPayload(pubkey)?.let { payload ->
+                        try {
+                            marmot.sendAvatarUpdate(payload, groupId)
+                            Timber.i("Auto-broadcast avatar to newly joined group $groupId")
+                        } catch (error: Throwable) {
+                            Timber.w("Failed to broadcast avatar to group $groupId: ${error.message}")
+                        }
+                    }
+                }
+                // Reset the location throttle so the new group gets a pin
+                // immediately rather than at the next interval.
+                locationService.resetThrottle()
+            }
+        }
+
+        // The receive loop's failures finally have somewhere to go. `lastError`
+        // was published with no consumer at all, so anything it reported was
+        // dropped on the floor.
+        viewModelScope.launch {
+            marmot.lastError.filterNotNull().collect { notices.postToast(it) }
+        }
+
+        // Account setup is a *state*, so it gets a banner rather than a toast:
+        // until it completes, groups cannot be created and nobody can invite
+        // this device, and a toast would vanish while that stayed true.
+        viewModelScope.launch {
+            marmot.accountIsReady.collect { ready ->
+                _accountIsReady.value = ready
+                notices.setBanner(NoticeCenter.Cause.ACCOUNT_SETUP_INCOMPLETE, active = !ready) {
+                    NoticeCenter.Banner(
+                        cause = NoticeCenter.Cause.ACCOUNT_SETUP_INCOMPLETE,
+                        message = "Still publishing your account. You can't create or join groups until this finishes.",
+                        actionTitle = "Retry",
+                        action = { runCatching { marmot.completeAccountSetup() } },
+                    )
+                }
+            }
+        }
+
+        // A relay the user has enabled but MarmotKit refuses to dial is a
+        // standing misconfiguration, not a transient failure — it needs
+        // correcting in Settings, so it gets a banner. The per-row policy
+        // label in Advanced Settings only helps someone already looking at
+        // that screen.
+        viewModelScope.launch {
+            marmot.relayStatus
+                .map { status -> status.policies.filterValues { it != "allowed" }.keys.sorted() }
+                .distinctUntilChanged()
+                .collect { unusable ->
+                    notices.setBanner(NoticeCenter.Cause.RELAY_UNUSABLE, active = unusable.isNotEmpty()) {
+                        NoticeCenter.Banner(
+                            cause = NoticeCenter.Cause.RELAY_UNUSABLE,
+                            message = if (unusable.size == 1) {
+                                "${unusable[0]} can't be used. Remove it in Settings → Advanced."
+                            } else {
+                                "${unusable.size} relays can't be used. Check Settings → Advanced."
+                            },
+                        )
+                    }
+                }
+        }
+
+        // Keep WhistleForegroundService running exactly while there's
+        // something to share, so the process survives backgrounding without a
+        // notification sitting there for an empty account.
+        viewModelScope.launch {
+            marmot.groups.collect { updateBackgroundServiceState() }
+        }
+    }
+
+    /**
+     * Wire LocationService updates to broadcast location to all groups and
+     * cache locally so the map shows the local user's pin.
      */
     private fun wireLocationPipeline() {
         locationService.intervalSeconds = settings.locationIntervalSeconds
 
-        // Mirror iOS AppViewModel.swift:173 — observe interval changes and
-        // re-apply at runtime, otherwise the user can change the setting in
-        // Settings and the running LocationService keeps publishing at the
-        // value snapshot at startup. drop(1) skips the initial replay.
+        // Observe interval changes and re-apply at runtime, otherwise the user
+        // can change the setting and the running LocationService keeps
+        // publishing at the value snapshotted at startup. drop(1) skips the
+        // initial replay.
         viewModelScope.launch {
             settings.locationIntervalSecondsFlow.drop(1).collect { newInterval ->
                 locationService.intervalSeconds = newInterval
@@ -348,18 +431,38 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Disconnect and reconnect to relays using current settings.
-     * Called when the user toggles, adds, or removes relays.
+     * Re-read relay state and republish the account's declared relay list
+     * after the user edits relays in Settings.
+     *
+     * **This does not change which relays this device dials.** The dialled
+     * pool is fixed when the runtime opens, so a relay added or disabled here
+     * takes effect for *this device* only after a restart — which is why
+     * [MarmotKitService.RelayStatus] carries `pendingAdditions` and
+     * `pendingRemovals` and the UI says so. What does take effect immediately
+     * is the list other people discover us on, which is what gets republished.
      */
-    fun reconnectRelays() {
+    fun applyRelaySettings() {
         viewModelScope.launch {
-            val keys = identity.keys.value ?: run {
-                Timber.w("Cannot reconnect — no identity keys")
-                return@launch
+            val all = settings.relays.map { it.url }
+            val enabled = settings.relays.filter { it.isEnabled }.map { it.url }
+            try {
+                marmot.publishRelayLists(defaultRelays = enabled)
+            } catch (error: Throwable) {
+                notices.report(error, fallback = "Couldn't update your relay list.") {
+                    applyRelaySettings()
+                }
             }
-            relay.disconnect()
-            val enabledRelays = settings.relays.filter { it.isEnabled }.map { it.url }
-            relay.connect(keys = keys, relays = enabledRelays)
+            marmot.refreshRelayStatus(all = all, enabled = enabled)
+        }
+    }
+
+    /** Re-read relay state without changing anything. Safe to call on appear. */
+    fun refreshRelayStatus() {
+        viewModelScope.launch {
+            marmot.refreshRelayStatus(
+                all = settings.relays.map { it.url },
+                enabled = settings.relays.filter { it.isEnabled }.map { it.url },
+            )
         }
     }
 
@@ -368,13 +471,12 @@ class AppViewModel @Inject constructor(
      * Called from Settings when the user changes their name.
      */
     fun broadcastDisplayName(name: String) {
-        val groups = marmotService.groups.value
-        for (group in groups) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            for (group in marmot.groups.value.filter { it.isActive }) {
                 try {
-                    marmotService.sendNicknameUpdate(name, group.mlsGroupId)
-                } catch (e: Exception) {
-                    Timber.d("Failed to broadcast nickname to group ${group.mlsGroupId}: ${e.message}")
+                    marmot.sendNicknameUpdate(name, group.mlsGroupId)
+                } catch (error: Throwable) {
+                    Timber.d("Failed to broadcast nickname to group ${group.mlsGroupId}: ${error.message}")
                 }
             }
         }
@@ -413,7 +515,7 @@ class AppViewModel @Inject constructor(
     /** Set the group's shared photo and announce it. */
     suspend fun setGroupAvatar(uri: Uri, groupId: String): GroupAvatarUpdate {
         val pubkey = identity.publicKeyHex ?: return GroupAvatarUpdate.NOT_ADMIN
-        if (!marmotService.isAdmin(pubkey, groupId)) {
+        if (!marmot.isAdmin(pubkey, groupId)) {
             Timber.w("Group avatar rejected locally: not an admin of $groupId")
             return GroupAvatarUpdate.NOT_ADMIN
         }
@@ -423,9 +525,9 @@ class AppViewModel @Inject constructor(
             return GroupAvatarUpdate.COULD_NOT_ENCODE
         }
         try {
-            marmotService.sendGroupAvatarUpdate(payload, groupId)
-        } catch (e: Exception) {
-            Timber.w("Failed to broadcast group avatar for $groupId: ${e.message}")
+            marmot.sendGroupAvatarUpdate(payload, groupId)
+        } catch (error: Throwable) {
+            notices.report(error, fallback = "Couldn't share the group photo.")
         }
         return GroupAvatarUpdate.UPDATED
     }
@@ -433,32 +535,32 @@ class AppViewModel @Inject constructor(
     /** Clear the group's shared photo and tell the group to drop it. */
     suspend fun removeGroupAvatar(groupId: String) {
         val pubkey = identity.publicKeyHex ?: return
-        if (!marmotService.isAdmin(pubkey, groupId)) return
+        if (!marmot.isAdmin(pubkey, groupId)) return
         val payload = sharedGroupAvatarStore.removeImagePayload(groupId)
         try {
-            marmotService.sendGroupAvatarUpdate(payload, groupId)
-        } catch (e: Exception) {
-            Timber.w("Failed to broadcast group avatar removal for $groupId: ${e.message}")
+            marmot.sendGroupAvatarUpdate(payload, groupId)
+        } catch (error: Throwable) {
+            notices.report(error, fallback = "Couldn't remove the group photo for everyone.")
         }
     }
 
     /**
-     * Re-announce the group photo when membership changes, so a new joiner sees
-     * it without waiting for the next edit.
+     * Re-announce the group photo when membership changes, so a new joiner
+     * sees it without waiting for the next edit.
      *
-     * Only the designated admin sends. Every admin observes the same membership
-     * change, so without this a three-admin group would push three copies of
-     * the image to every member.
+     * Only the designated admin sends. Every admin observes the same
+     * membership change, so without this a three-admin group would push three
+     * copies of the image to every member.
      */
     private suspend fun rebroadcastGroupAvatarIfDesignated(groupId: String) {
         val pubkey = identity.publicKeyHex ?: return
-        if (marmotService.designatedBroadcaster(groupId) != pubkey) return
+        if (marmot.designatedBroadcaster(groupId) != pubkey) return
         val payload = sharedGroupAvatarStore.payload(groupId) ?: return
         try {
-            marmotService.sendGroupAvatarUpdate(payload, groupId)
+            marmot.sendGroupAvatarUpdate(payload, groupId)
             Timber.i("Re-announced group avatar to $groupId after membership change")
-        } catch (e: Exception) {
-            Timber.w("Group avatar re-announce failed for $groupId: ${e.message}")
+        } catch (error: Throwable) {
+            Timber.w("Group avatar re-announce failed for $groupId: ${error.message}")
         }
     }
 
@@ -474,17 +576,17 @@ class AppViewModel @Inject constructor(
         val name = settings.displayName
         if (name.isNotEmpty()) {
             try {
-                marmotService.sendNicknameUpdate(name, groupId)
-            } catch (e: Exception) {
-                Timber.w("Nickname re-announce failed for $groupId: ${e.message}")
+                marmot.sendNicknameUpdate(name, groupId)
+            } catch (error: Throwable) {
+                Timber.w("Nickname re-announce failed for $groupId: ${error.message}")
             }
         }
         memberAvatarStore.ownPayload(pubkey)?.let { payload ->
             try {
-                marmotService.sendAvatarUpdate(payload, groupId)
+                marmot.sendAvatarUpdate(payload, groupId)
                 Timber.i("Re-announced own avatar to $groupId after membership change")
-            } catch (e: Exception) {
-                Timber.w("Avatar re-announce failed for $groupId: ${e.message}")
+            } catch (error: Throwable) {
+                Timber.w("Avatar re-announce failed for $groupId: ${error.message}")
             }
         }
     }
@@ -492,18 +594,18 @@ class AppViewModel @Inject constructor(
     /**
      * Send an avatar payload to every active group.
      *
-     * Unlike nicknames this is deliberately *not* re-broadcast on launch: a name
-     * is a few bytes, whereas an avatar is several KB per group per launch.
-     * Change, join, and another member's membership-change re-announce (see
-     * [reannounceOwnProfile]) are the only triggers.
+     * Unlike nicknames this is deliberately *not* re-broadcast on launch: a
+     * name is a few bytes, whereas an avatar is several KB per group per
+     * launch. Change, join, and another member's membership-change re-announce
+     * (see [reannounceOwnProfile]) are the only triggers.
      */
     private suspend fun broadcastAvatar(payload: AvatarPayload) {
-        val groups = marmotService.groups.value.filter { it.isActive }
+        val groups = marmot.groups.value.filter { it.isActive }
         for (group in groups) {
             try {
-                marmotService.sendAvatarUpdate(payload, group.mlsGroupId)
-            } catch (e: Exception) {
-                Timber.w("Failed to broadcast avatar to group ${group.mlsGroupId}: ${e.message}")
+                marmot.sendAvatarUpdate(payload, group.mlsGroupId)
+            } catch (error: Throwable) {
+                Timber.w("Failed to broadcast avatar to group ${group.mlsGroupId}: ${error.message}")
             }
         }
         val action = if (payload.isRemoval) "removal" else "update"
@@ -519,53 +621,28 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Called from MainActivity.onResume(). See
-     * MarmotService.ensureSubscriptionsActive for why this is needed.
-     * Guarded on READY so it can't race the initial startup sequence
-     * (which starts subscriptions itself) on cold launch.
+     * Called from MainActivity.onResume().
      *
-     * Also re-runs the same catch-up sweep [onAppear] does at cold start --
-     * previously this only ran once per process, so a gift-wrap or commit
-     * missed while merely backgrounded (not force-quit) was invisible until
-     * the user force-quit and relaunched, even after subscriptions resumed.
-     * Three gaps [ensureSubscriptionsActive] alone doesn't close:
-     * - Gift-wraps carry no `since` filter (NIP-59 randomises their
-     *   timestamp), so the live subscription resubscribing on restart is not
-     *   enough -- only [MarmotService.fetchMissedGiftWraps]'s dedicated
-     *   one-shot fetch reliably catches a missed "ready to join" Welcome.
-     * - [MarmotService.ensureSubscriptionsActive] only restarts the
-     *   subscription coroutine if it was actually cancelled; if it's still
-     *   `isActive` (e.g. the socket silently degraded rather than the
-     *   coroutine dying), nothing here forces a re-check -- catchUpGroup
-     *   below re-fetches regardless of subscription state.
-     * - Key rotation ([MarmotService.rotateStaleGroups]) previously only
-     *   ran once per process too, so a group's rotation could be delayed by
-     *   however long the app stayed backgrounded across launches.
+     * Two things need doing on every foreground, and neither is covered by the
+     * cold-start path: subscriptions may have been cancelled with the process
+     * backgrounded, and anything that arrived while they were down does not
+     * replay through them — only [MarmotKitService.catchUpAccounts] fetches it.
+     * `startSubscriptions` is a no-op when the loop is already running, so
+     * this is safe however the app got here.
+     *
+     * Guarded on READY so it can't race the initial startup sequence, which
+     * starts subscriptions itself.
      */
     fun onForeground() {
         if (_startupPhase.value != StartupPhase.READY) return
-        marmotService.ensureSubscriptionsActive()
-
+        marmot.startSubscriptions()
         viewModelScope.launch {
             try {
-                marmotService.fetchMissedGiftWraps()
-            } catch (e: Exception) {
-                Timber.w("fetchMissedGiftWraps on foreground failed (non-fatal): ${e.message}")
+                marmot.catchUpAccounts()
+            } catch (error: Throwable) {
+                Timber.w(error, "Catch-up on foreground failed (non-fatal)")
             }
-
-            for (group in marmotService.groups.value.filter { it.isActive }) {
-                try {
-                    marmotService.catchUpGroup(group.mlsGroupId)
-                } catch (e: Exception) {
-                    Timber.w("catchUpGroup(${group.mlsGroupId}) on foreground failed (non-fatal): ${e.message}")
-                }
-            }
-
-            try {
-                marmotService.rotateStaleGroups()
-            } catch (e: Exception) {
-                Timber.w("rotateStaleGroups on foreground failed (non-fatal): ${e.message}")
-            }
+            marmot.refreshGroups()
         }
     }
 
@@ -574,13 +651,13 @@ class AppViewModel @Inject constructor(
      * anything to share right now ([BackgroundSessionCoordinator.shouldBeSharing]).
      * A persistent notification for an account with zero groups (or with
      * sharing explicitly paused) would be a nuisance for no benefit, so the
-     * Service runs exactly while it's useful -- not for the lifetime of the
+     * Service runs exactly while it's useful — not for the lifetime of the
      * process regardless of state.
      *
      * Not wired to live pause toggling: [AppSettings.isLocationPaused] has no
      * change flow today, matching [LocationService] itself, which also only
      * reads it at startup (SettingsScreen's toggle takes effect on next
-     * launch) -- pre-existing, unrelated to this fix.
+     * launch) — pre-existing, unrelated to the migration.
      */
     private fun updateBackgroundServiceState() {
         if (backgroundSessionCoordinator.shouldBeSharing()) {
@@ -600,8 +677,8 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Destroy the current identity and all associated state, generate a
-     * fresh keypair, and restart. One-way operation.
+     * Destroy the current identity and all associated state, generate a fresh
+     * keypair, and restart. One-way operation.
      *
      * Fire-and-forget entry point for callers with nothing to review (no
      * active groups). Normal callers should go through [prepareBurnPlan] /
@@ -618,8 +695,8 @@ class AppViewModel @Inject constructor(
 
     /**
      * Compute what burning will do to every active group, before showing any
-     * confirmation. A group where we're the sole admin can't just be left --
-     * [MarmotService.leaveGroup] already refuses that -- so those need an
+     * confirmation. A group where we're the sole admin can't just be left —
+     * [MarmotKitService.leaveGroup] already refuses that — so those need an
      * explicit decision: promote another member, or accept that group ends
      * when we burn.
      */
@@ -628,24 +705,20 @@ class AppViewModel @Inject constructor(
         val leaving = mutableListOf<BurnPlan.LeavingGroup>()
         val promoteOrEnd = mutableListOf<BurnPlan.PromoteOrEndGroup>()
         val ending = mutableListOf<BurnPlan.EndingGroup>()
-        for (group in marmotService.groups.value.filter { it.isActive }) {
+        for (group in marmot.groups.value.filter { it.isActive }) {
             val groupId = group.mlsGroupId
-            // Admin lists can drift from live MLS truth -- re-sync before
-            // deciding whether this group can just be left.
-            try {
-                mls.syncGroupMetadataFromMls(groupId)
-            } catch (e: Exception) {
-                Timber.w("Pre-burn sync failed for $groupId: ${e.message}")
-            }
-            val freshGroup = try { mls.getGroup(groupId) } catch (e: Exception) { null }
-            val adminPubkeys = freshGroup?.adminPubkeys ?: group.adminPubkeys
+            // Read the group back live rather than trusting the cached row:
+            // the admin list on a chat-list row can lag a promotion that just
+            // landed, and this decides whether the group can simply be left.
+            val fresh = runCatching { marmot.group(groupId) }.getOrNull()
+            val adminPubkeys = fresh?.adminPubkeys ?: group.adminPubkeys
             val amSoleAdmin = adminPubkeys.contains(myPubkey) && adminPubkeys.size == 1
-            val name = (freshGroup?.name ?: group.name).ifEmpty { "Unnamed Group" }
+            val name = (fresh?.name ?: group.name).ifEmpty { "Unnamed Group" }
             if (!amSoleAdmin) {
                 leaving.add(BurnPlan.LeavingGroup(groupId, name))
                 continue
             }
-            val members = try { mls.getMembers(groupId) } catch (e: Exception) { emptyList() }
+            val members = runCatching { marmot.members(groupId) }.getOrDefault(emptyList())
             val candidates = members
                 .filter { it != myPubkey }
                 .map { BurnPlan.Candidate(it, nicknameStore.displayName(it)) }
@@ -661,8 +734,8 @@ class AppViewModel @Inject constructor(
 
     /**
      * Execute a reviewed burn plan: promote where chosen, leave everything
-     * leavable, then burn. Never blocks on an individual group's failure --
-     * a compromised key being burned is a worse problem than one frozen or
+     * leavable, then burn. Never blocks on an individual group's failure — a
+     * compromised key being burned is a worse problem than one frozen or
      * stranded group, so we log and continue rather than abort.
      */
     suspend fun executeBurnPlan(plan: BurnPlan, promotions: Map<String, String>) {
@@ -678,24 +751,24 @@ class AppViewModel @Inject constructor(
         for (group in plan.promoteOrEnd) {
             val promoteePubkey = promotions[group.groupId]
             if (promoteePubkey == null) {
-                Timber.i("Burn plan: ${group.groupName} (${group.groupId}) -- no promotee chosen, group will end")
+                Timber.i("Burn plan: ${group.groupName} (${group.groupId}) — no promotee chosen, group will end")
                 continue
             }
             try {
-                marmotService.promoteToAdmin(promoteePubkey, group.groupId)
+                marmot.promoteToAdmin(promoteePubkey, group.groupId)
                 Timber.i("Burn plan: promoted $promoteePubkey in ${group.groupName} (${group.groupId})")
                 toLeave.add(group.groupId)
-            } catch (e: Exception) {
-                Timber.w("Burn plan: promote FAILED for ${group.groupName} (${group.groupId}): ${e.message} -- group will end")
+            } catch (error: Throwable) {
+                Timber.w("Burn plan: promote FAILED for ${group.groupName} (${group.groupId}): ${error.message} — group will end")
             }
         }
         for (groupId in toLeave) {
             val name = groupNames[groupId] ?: groupId
             try {
-                marmotService.leaveGroup(groupId)
+                marmot.leaveGroup(groupId)
                 Timber.i("Burn plan: left $name ($groupId) successfully")
-            } catch (e: Exception) {
-                Timber.w("Burn plan: leave FAILED for $name ($groupId): ${e.message}")
+            } catch (error: Throwable) {
+                Timber.w("Burn plan: leave FAILED for $name ($groupId): ${error.message}")
             }
         }
         Timber.i("Burn plan complete, proceeding to destroy identity")
@@ -706,36 +779,51 @@ class AppViewModel @Inject constructor(
     }
 
     private suspend fun replaceIdentityInternal(nsec: String) {
-        // Stop everything
         locationService.stopUpdating()
-        marmotService.stopSubscriptions()
-        relay.disconnect()
 
-        // Clear stores
+        // The account is removed through MarmotKit *before* the handle is
+        // dropped. v1 wiped its own database here and that was the whole job;
+        // MarmotKit keeps a separate store with its own signing key, so
+        // skipping this would leave the old identity on the device — and
+        // because startup matches an account by id, the next launch would sign
+        // straight back into it and carry on as the previous user.
+        _accountIsReady.value = false
+        marmot.forgetCurrentAccount()
+        marmot.shutdown()
+
+        // Drop the handle and move to a fresh root. `shutdown()` does not
+        // release the runtime's claim on the old root — the handle does, when
+        // it is gone — and reusing the directory would then fail with
+        // `RuntimeBusy`, telling the user their import failed when the key was
+        // fine. The superseded directory is deleted on next launch.
+        marmot.releaseRuntime()
+        settings.advanceMarmotKitRootGeneration()
+
+        // Clear identity-bound stores
         nicknameStore.clearAll()
+        LocalGroupAvatarStore.removeAll()
         // Member avatars are photographs of real people — they must not survive
         // an identity burn any more than the groups they came from do.
         memberAvatarStore.removeAll()
         sharedGroupAvatarStore.removeAll()
-        pendingInviteStore.removeAll()
-        pendingWelcomeStore.removeAll()
-        joinRequestStore.removeAll()
         locationCache.clear()
         chatMessageCache.clear()
 
-        // Clear settings — including chat timestamps
+        // Reset identity-bound settings, including chat timestamps
         settings.lastEventTimestamp = 0u
         settings.processedEventIds.clear()
         settings.pendingGiftWrapEventIds.clear()
         settings.clearChatTimestamps()
 
-        // Reset MLS database — overwrites files with zeros before deletion
-        mls.resetDatabase()
+        // v1's MLS database is not wiped here: it is no longer written to, and
+        // MarmotKit's own store is dealt with above by `forgetCurrentAccount()`
+        // plus the generation bump. A pre-v2 install upgrading still has
+        // `whistle.db` on disk; removing it is a separate cleanup, not part of
+        // identity replacement.
 
-        // Destroy old key from encrypted storage before importing new one
+        // Destroy old key from encrypted storage before importing the new one,
+        // so the old nsec is explicitly deleted rather than just overwritten.
         identity.destroyCurrentKey()
-
-        // Import the new key
         identity.importKey(nsec)
 
         // Restart
@@ -746,47 +834,22 @@ class AppViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        marmotService.stopSubscriptions()
+        // The runtime deliberately outlives this ViewModel: it is a process
+        // singleton and WhistleForegroundService shares it. Only the
+        // subscriptions and location updates are torn down, and even those
+        // restart from the foreground service's own path if it is running.
+        marmot.stopSubscriptions()
         locationService.stopUpdating()
     }
 
-    // region Deep link handling
-
-    private val _pendingDeepLinkInviteCode = MutableStateFlow<String?>(null)
-
-    /**
-     * Raw base64 invite code extracted from an incoming `whistle://invite/`
-     * deep link (tapped link, not a QR scan). [RootScreen] observes this,
-     * forwards it into the same join path a QR scan uses, then clears it via
-     * [consumePendingDeepLinkInviteCode] so a config change or process
-     * restart doesn't replay the same link.
-     */
-    val pendingDeepLinkInviteCode: StateFlow<String?> = _pendingDeepLinkInviteCode.asStateFlow()
-
-    fun consumePendingDeepLinkInviteCode() {
-        _pendingDeepLinkInviteCode.value = null
-    }
-
-    /**
-     * Route an incoming `whistle://` URI to the appropriate flow. Mirrors
-     * iOS AppViewModel.handleIncomingURL(_:); only the `invite` host is
-     * wired up on Android so far -- `addmember` one-tap approval isn't
-     * implemented on this platform yet.
-     */
-    fun handleIncomingUri(uri: Uri) {
-        if (uri.scheme != "whistle") return
-        when (uri.host) {
-            "invite" -> {
-                val code = uri.pathSegments.firstOrNull()
-                if (code.isNullOrBlank()) {
-                    Timber.w("handleIncomingUri: no code in invite URI $uri")
-                    return
-                }
-                _pendingDeepLinkInviteCode.value = code
-            }
-            else -> Timber.w("handleIncomingUri: unhandled host in $uri")
-        }
-    }
+    // MARK: - Deep links
+    //
+    // Both v1 deep links are gone, and neither has a v2 replacement.
+    // `whistle://invite` carried an invite code a non-member acted on, and
+    // protocol v2 has no out-of-group messaging for them to act *with*;
+    // `whistle://addmember` carried a group id the prospect could only have
+    // learned from such an invite. Adding a member is now always admin-side
+    // and in-group (scan their member code), so there is nothing to route.
 }
 
 /**

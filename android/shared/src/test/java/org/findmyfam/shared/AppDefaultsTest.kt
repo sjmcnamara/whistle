@@ -8,8 +8,8 @@ import kotlin.test.assertTrue
 class AppDefaultsTest {
 
     @Test
-    fun `defaultRelays contains exactly 3 entries`() {
-        assertEquals(3, AppDefaults.defaultRelays.size)
+    fun `defaultRelays is not empty`() {
+        assertTrue(AppDefaults.defaultRelays.isNotEmpty())
     }
 
     @Test
@@ -20,8 +20,20 @@ class AppDefaultsTest {
     }
 
     @Test
-    fun `first default relay is relay damus io`() {
-        assertEquals("wss://relay.damus.io", AppDefaults.defaultRelays[0])
+    fun `retired relay is not a default`() {
+        assertTrue(
+            AppDefaults.defaultRelays.none { it.contains("relay.damus.io") },
+            "relay.damus.io is retired — MarmotKit refuses it and the whole directory fetch fails"
+        )
+    }
+
+    @Test
+    fun `defaultRelays has no duplicates`() {
+        assertEquals(
+            AppDefaults.defaultRelays.toSet().size,
+            AppDefaults.defaultRelays.size,
+            "a duplicated default relay would be dialled twice"
+        )
     }
 
     @Test
