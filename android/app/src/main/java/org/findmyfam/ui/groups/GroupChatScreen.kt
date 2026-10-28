@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import org.findmyfam.services.GroupHealthTracker
 import org.findmyfam.ui.common.ChatBubble
 import org.findmyfam.viewmodels.ChatViewModel
 
