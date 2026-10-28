@@ -21,7 +21,10 @@ import dev.ipf.marmotkit.RelayEndpointPolicyFfi
 import dev.ipf.marmotkit.RelayPolicyFfi
 import dev.ipf.marmotkit.TimelineMessageQueryFfi
 import dev.ipf.marmotkit.TimelineMessageRecordFfi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +34,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.AvatarPayload
 import org.findmyfam.shared.models.GroupAvatarPayload
@@ -92,7 +96,7 @@ class MarmotKitService(
      * to release this reference ([releaseRuntime]) and build the next one on a
      * fresh root.
      */
-    private var runtime: MarmotInterface? = null
+    @Volatile private var runtime: MarmotInterface? = null
 
     private val marmot: MarmotInterface
         get() = runtime ?: runtimeFactory().also { runtime = it }
@@ -179,7 +183,40 @@ class MarmotKitService(
         }
     }
 
-    private inline fun <T> run(body: () -> T): T =
+    /**
+     * Where every suspending MarmotKit call runs — never the caller's thread.
+     *
+     * This used to be an inline `run` that switched nothing, so each FFI call
+     * executed on whatever thread the caller was on, which for almost every
+     * view model is the main thread. UniFFI's async wrappers poll the Rust
+     * future on the calling dispatcher, and with `Dispatchers.Main.immediate`
+     * (the `viewModelScope` default) Rust waking the continuation resumed it
+     * *inline, nested inside the outer poll*, which re-polled into a lock the
+     * outer poll still held. The main thread deadlocked for good: an ANR with
+     * `rust_future_poll` on the stack, found on a Pixel the first time a real
+     * device added a member. Never run these on the caller's thread.
+     */
+    private val ffiDispatcher: CoroutineDispatcher = Dispatchers.Default
+
+    /** Run an FFI call off the caller's thread, leaving exceptions untouched. */
+    private suspend inline fun <T> onFfi(crossinline body: suspend () -> T): T =
+        withContext(ffiDispatcher) { body() }
+
+    /** [onFfi], mapping MarmotKit's errors to [ServiceError] on the way out. */
+    private suspend inline fun <T> run(crossinline body: suspend () -> T): T =
+        withContext(ffiDispatcher) {
+            try {
+                body()
+            } catch (error: CancellationException) {
+                // Not a MarmotKit failure; wrapping it would break cancellation.
+                throw error
+            } catch (error: Throwable) {
+                throw mapError(error)
+            }
+        }
+
+    /** For the few genuinely synchronous, local calls (no async poll to deadlock). */
+    private inline fun <T> runSync(body: () -> T): T =
         try {
             body()
         } catch (error: Throwable) {
@@ -211,7 +248,7 @@ class MarmotKitService(
     private val _accountIsReady = MutableStateFlow(false)
     val accountIsReady: StateFlow<Boolean> = _accountIsReady.asStateFlow()
 
-    private var accountRef: String? = null
+    @Volatile private var accountRef: String? = null
     val currentAccountRef: String? get() = accountRef
 
     private fun requireAccount(): String = accountRef ?: throw ServiceError.NotStarted
@@ -312,7 +349,7 @@ class MarmotKitService(
      *   rather than as still configured.
      */
     suspend fun refreshRelayStatus(all: List<String> = emptyList(), enabled: List<String>? = null) {
-        val health = marmot.`relayHealth`()
+        val health = onFfi { marmot.`relayHealth`() }
         val connection = when {
             health.`connected` > 0u -> RelayStatus.Connection.CONNECTED
             health.`connecting` > 0u || health.`pending` > 0u -> RelayStatus.Connection.CONNECTING
@@ -320,8 +357,10 @@ class MarmotKitService(
         }
 
         val everything = all.ifEmpty { relayUrls }
-        val policies = marmot.`classifyRelayEndpoints`(everything)
-            .associate { it.`endpoint` to it.`policy`.name.lowercase() }
+        val policies = onFfi {
+            marmot.`classifyRelayEndpoints`(everything)
+                .associate { it.`endpoint` to it.`policy`.name.lowercase() }
+        }
 
         // Only relays that *could* be dialled count as pending additions. A
         // retired or unsafe endpoint will never connect, so "Restart to
@@ -352,7 +391,7 @@ class MarmotKitService(
      * Connection counters straight from the runtime, so "no relay
      * connectivity" is a measurement rather than a symptom.
      */
-    suspend fun relayDiagnostics(): String = with(marmot.`relayHealth`()) {
+    suspend fun relayDiagnostics(): String = with(onFfi { marmot.`relayHealth`() }) {
         "relays total=$`totalRelays` connected=$`connected` connecting=$`connecting` " +
             "pending=$`pending` disconnected=$`disconnected` terminated=$`terminated` " +
             "banned=$`banned` sleeping=$`sleeping` attempts=$`connectionAttempts` " +
@@ -470,7 +509,7 @@ class MarmotKitService(
     private val startMutex = Mutex()
 
     /** The account's nsec, for key backup and export. */
-    fun revealNsec(): String = run { marmot.`revealNsec`(requireAccount()) }
+    fun revealNsec(): String = runSync { marmot.`revealNsec`(requireAccount()) }
 
     /**
      * Remove this device's account, destroying its local signing key.
@@ -483,7 +522,7 @@ class MarmotKitService(
     suspend fun forgetCurrentAccount() {
         val account = accountRef ?: return
         try {
-            marmot.`removeAccount`(account)
+            onFfi { marmot.`removeAccount`(account) }
             Timber.i("Removed account ${account.take(8)} on identity replacement")
         } catch (error: Throwable) {
             Timber.e(error, "Failed to remove account on identity replacement")
@@ -494,7 +533,7 @@ class MarmotKitService(
     suspend fun shutdown() {
         stopSubscriptions()
         try {
-            marmot.`shutdown`()
+            onFfi { marmot.`shutdown`() }
         } catch (error: Throwable) {
             Timber.w(error, "Shutdown reported an error")
         }
@@ -554,7 +593,7 @@ class MarmotKitService(
     // MARK: - Account setup
 
     fun setupReadiness(): AccountSetupReadinessFfi =
-        run { marmot.`accountSetupReadiness`(requireAccount()) }
+        runSync { marmot.`accountSetupReadiness`(requireAccount()) }
 
     /**
      * Whether the account is published and usable for anything that touches
@@ -770,7 +809,10 @@ class MarmotKitService(
         account: String,
     ): OnboardingSnapshotFfi? {
         val relays = allowedRelays(relayUrls)
-        return when (strategy) {
+        // Off the caller's thread, and *not* through `run`: the callers of this
+        // (resolveOnboardingStep) catch and log each failure themselves and
+        // expect the raw exception, not a mapped one.
+        return onFfi { when (strategy) {
             OnboardingStrategy.CONTINUE_WITHOUT ->
                 marmot.`continueOnboardingWithout`(account, step)
 
@@ -802,7 +844,7 @@ class MarmotKitService(
                 else marmot.`setOnboardingDiscoveryRelays`(account, relays)
 
             OnboardingStrategy.ACKNOWLEDGE_SINGLE_DEVICE -> {
-                val current = marmot.`onboardingSnapshot`(account) ?: return null
+                val current = marmot.`onboardingSnapshot`(account) ?: return@onFfi null
                 marmot.`acknowledgeOnboardingSingleDevice`(account, current.`revision`)
             }
 
@@ -810,11 +852,11 @@ class MarmotKitService(
                 // Re-read rather than trusting the snapshot passed in: the
                 // revision moves as the machine works, and approving is
                 // revision-scoped.
-                val current = marmot.`onboardingSnapshot`(account) ?: return null
+                val current = marmot.`onboardingSnapshot`(account) ?: return@onFfi null
                 if (current.`proposal` == null) null
                 else marmot.`approveOnboardingRepair`(account, current.`revision`)
             }
-        }
+        } }
     }
 
     /**
@@ -874,7 +916,7 @@ class MarmotKitService(
     suspend fun refreshHistoryNotices() {
         val account = accountRef ?: return
         try {
-            _historyNotices.value = marmot.`historyNotices`(account).map {
+            _historyNotices.value = onFfi { marmot.`historyNotices`(account) }.map {
                 HistoryNotice(
                     noticeId = it.`noticeId`,
                     cause = it.`cause`.name.lowercase(),
@@ -994,7 +1036,7 @@ class MarmotKitService(
     suspend fun isAdmin(pubkeyHex: String, groupIdHex: String): Boolean =
         runCatching {
             val account = requireAccount()
-            marmot.`groupDetails`(account, groupIdHex).`group`.`admins`.contains(pubkeyHex)
+            onFfi { marmot.`groupDetails`(account, groupIdHex) }.`group`.`admins`.contains(pubkeyHex)
         }.getOrDefault(false)
 
     // MARK: - Membership
@@ -1080,7 +1122,7 @@ class MarmotKitService(
         }
 
         try {
-            marmot.`selfDemoteAdmin`(account, groupIdHex)
+            onFfi { marmot.`selfDemoteAdmin`(account, groupIdHex) }
         } catch (error: MarmotKitException) {
             when (error) {
                 // Genuine now: other members exist, and one of them has to
@@ -1097,7 +1139,7 @@ class MarmotKitService(
         // list, faded, labelled "Inactive" — the right display for a group
         // that *ended* around you, the wrong one for a group you chose to
         // leave. Removing it also unwinds any pushed chat view.
-        runCatching { marmot.`deleteGroupLocal`(account, groupIdHex) }
+        runCatching { onFfi { marmot.`deleteGroupLocal`(account, groupIdHex) } }
         purgeLocalData(groupIdHex)
         refreshGroups()
     }
@@ -1250,8 +1292,8 @@ class MarmotKitService(
 
     // MARK: - Receive loop
 
-    private var receiveJob: Job? = null
-    private var chatListJob: Job? = null
+    @Volatile private var receiveJob: Job? = null
+    @Volatile private var chatListJob: Job? = null
 
     /**
      * Group ids known when the chat-list subscription was opened.
@@ -1263,7 +1305,7 @@ class MarmotKitService(
      * the case that matters most looked like a startup load and the joiner
      * never broadcast its name or avatar.
      */
-    private var knownGroupIdsAtSubscribe: Set<String> = emptySet()
+    @Volatile private var knownGroupIdsAtSubscribe: Set<String> = emptySet()
 
     // MARK: - Chat sub-type senders
 

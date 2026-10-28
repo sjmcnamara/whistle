@@ -361,6 +361,55 @@ class MarmotKitServiceTest {
         assertTrue(sut.historyNotices.value.isEmpty())
     }
 
+    // MARK: - Threading
+
+    /**
+     * The bug this guards. Every MarmotKit call used to run on the *caller's*
+     * thread, which for nearly every view model is the main thread. With
+     * `Dispatchers.Main.immediate` (the `viewModelScope` default) Rust waking
+     * the continuation resumed it inline, nested inside the outer poll, which
+     * re-polled into a lock the outer poll still held — the main thread
+     * deadlocked permanently (an ANR with `rust_future_poll` on the stack, on a
+     * Pixel, the first time a real device added a member).
+     *
+     * The deadlock itself needs the native library and cannot be reproduced on
+     * the JVM, so this pins the invariant that causes it: an FFI call must never
+     * execute on the thread that asked for it.
+     */
+    @Test
+    fun `a suspending call runs off the callers thread`() = runTest {
+        val sut = startedService()
+        var ffiThread: Thread? = null
+        coEvery { marmot.`groupMembers`(any(), any()) } coAnswers {
+            ffiThread = Thread.currentThread()
+            emptyList()
+        }
+        val caller = Thread.currentThread()
+
+        sut.members("group-1")
+
+        assertNotNull("the FFI call never ran", ffiThread)
+        assertTrue(
+            "ran on the caller's thread (${caller.name}); this is what deadlocked the main thread",
+            ffiThread !== caller,
+        )
+    }
+
+    /** The other half of the same boundary: a failure must still map, off-thread. */
+    @Test
+    fun `errors raised off-thread are still mapped to ServiceError`() = runTest {
+        val sut = startedService()
+        coEvery { marmot.`groupMembers`(any(), any()) } throws
+            MarmotKitException.NotGroupAdmin("group-1")
+
+        val thrown = runCatching { sut.members("group-1") }.exceptionOrNull()
+
+        assertTrue(
+            "expected a mapped ServiceError, got $thrown",
+            thrown is MarmotKitService.ServiceError.NotGroupAdmin,
+        )
+    }
+
     private suspend fun startedService(): MarmotKitService {
         every { marmot.`accountIdHex`(any()) } returns "alice-hex"
         every { marmot.`listAccounts`() } returns listOf(account("alice-hex"))
