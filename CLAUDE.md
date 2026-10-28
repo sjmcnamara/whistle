@@ -39,7 +39,7 @@ Edit **every** item in this list — it is the complete set, and a partial bump 
 4. `README.md` — the status line
 5. `ROADMAP.md` — release entry
 
-**Exception in force during the v2.0 migration (2026-10-02):** iOS is at `2.0.0` while Android stays at `1.11.2`, deliberately. Android still runs protocol v1, and an APK labelled 2.0.0 that cannot talk to a 2.0.0 iOS client is worse than the platforms showing different versions. Do **not** "fix" this by bumping Android — it moves to 2.0.0 when the port lands, and v2.0.0 does not ship until both are ready. The rule above assumes both platforms move together, which is normally true.
+**The v2.0 migration exception has ended (2026-10-28).** iOS was bumped to `2.0.0` on 2026-10-02 while Android was held at `1.11.2`, because Android still ran protocol v1. The Android port (#273) brought it to `2.0.0` / versionCode 71, so both platforms are on the same version again and the rule above applies as written. Bumping is not releasing — v2.0.0 does not ship until both platforms are device-tested.
 
 The **website version is automatic** — do not hand-edit it. `website/overrides/home.html` renders `{{ config.extra.app_version }}`, which `.github/workflows/docs.yml` injects from `project.yml`'s `MARKETING_VERSION` at build time; `project.yml` is in that workflow's `paths` trigger so a bump redeploys the site on its own. The site's Android APK link points at `releases/latest/download/whistle.apk` and likewise needs no edit. (Both used to be hand-maintained and were repeatedly missed — that is why they are generated now.)
 
@@ -180,4 +180,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v1.11.2 — Relay-delivery-order commit buffering** (bugfix, iOS & Android). See ROADMAP.md for next steps.
+Current version: **v2.0.0 — Marmot protocol v2 (MarmotKit)** (unreleased, iOS & Android). See ROADMAP.md for next steps.

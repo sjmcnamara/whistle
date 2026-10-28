@@ -13,10 +13,8 @@ protocol v2 (MarmotKit 0.10.4). The two are not wire-compatible: **existing
 groups do not carry over and cannot be recovered.** Your identity does — you
 keep the same npub.
 
-**Android is still on 1.11.2 and still speaks protocol v1.** It is deliberately
-not bumped: an APK labelled 2.0.0 that could not talk to a 2.0.0 iOS client
-would be worse than the version numbers differing. Android moves to 2.0.0 when
-the port lands, and v2.0.0 does not ship until both platforms are ready.
+**Android is on 2.0.0 as well** and speaks protocol v2, so iOS and Android
+groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
 
 ### Changed
 
@@ -34,6 +32,17 @@ the port lands, and v2.0.0 does not ship until both platforms are ready.
   messages being skipped or repeated when new ones arrive mid-session.
 - **(iOS) Minimum iOS version is now 18.0**, required by MarmotKit's
   XCFramework.
+- **(Android) Rebuilt on MarmotKit (protocol v2).** The same migration as iOS:
+  `MarmotService`, `MLSService` and `RelayService` are gone, and MarmotKit owns
+  the MLS state, relay transport and account lifecycle.
+- **(Android) Your identity carries over**, as on iOS — the existing nsec is
+  adopted on first v2 launch, so your npub is unchanged.
+- **(Android) Joining a group is scan-to-invite**, matching iOS: show your
+  member code, and an admin scans it or pastes your npub. Invite codes, join
+  requests and `whistle://` invite links are removed.
+- **(Android) Chat history pages by cursor** rather than by offset.
+- **(Android) `arm64-v8a` only.** MarmotKit's native library ships for 64-bit
+  ARM, so 32-bit ARM devices and x86 emulators are no longer supported.
 
 ### Added
 
