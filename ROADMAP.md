@@ -636,11 +636,13 @@ Deferred for the full plan and the step-by-step findings.
 
 - **iOS: `MARKETING_VERSION` 2.0.0, build 76.** Bumped ahead of release so
   device builds stop reporting 1.11.2 while v2 is being tested.
-- **Android: deliberately left at 1.11.2 / versionCode 70.** It still runs
-  protocol v1. An APK labelled 2.0.0 that cannot talk to a 2.0.0 iOS client
-  would be worse than the platforms showing different versions, so this is a
-  knowing exception to CLAUDE.md's "bump every item" rule — not a missed step.
-  Android moves to 2.0.0 with the port.
+- **Android: bumped to 2.0.0 / versionCode 71 (2026-10-28)** with the port
+  (#273). It was held at 1.11.2 / 70 while Android still ran protocol v1,
+  because an APK labelled 2.0.0 that could not talk to a 2.0.0 iOS client would
+  have been worse than the platforms showing different versions. That
+  exception ended when the port landed. Bumping is not releasing: nothing
+  publishes until the tag, and the Android tag waits on the remaining device
+  checks (QR scan, 16KB-page `.so` load).
 
 ### Deferred
 

@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -86,4 +87,34 @@ fun ChatBubble(
 private fun formatTimestamp(epochSeconds: Long): String {
     val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
     return sdf.format(Date(epochSeconds * 1000))
+}
+
+/**
+ * A membership or rename event: centred, quiet, no sender and no tail — the
+ * conventional shape for "something happened to the group" rather than
+ * "someone said this". Rendering these as bubbles attributed them to whoever
+ * performed the action, which read as a message they had typed.
+ */
+@Composable
+fun SystemEventRow(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
 }

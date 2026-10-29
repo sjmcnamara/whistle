@@ -1,9 +1,13 @@
 package org.findmyfam.services
 
 import dev.ipf.marmotkit.AccountSetupReadinessFfi
+import dev.ipf.marmotkit.ChatListRowFfi
+import dev.ipf.marmotkit.GroupDetailsFfi
 import dev.ipf.marmotkit.GroupLifecycleStateFfi
 import dev.ipf.marmotkit.SelfMembershipFfi
+import dev.ipf.marmotkit.Marmot
 import dev.ipf.marmotkit.MarmotInterface
+import dev.ipf.marmotkit.MarmotOptions
 import dev.ipf.marmotkit.MarmotKitException
 import dev.ipf.marmotkit.OnboardingActionFfi
 import dev.ipf.marmotkit.OnboardingOptionsFfi
@@ -14,9 +18,13 @@ import dev.ipf.marmotkit.MessageUpdateFfi
 import dev.ipf.marmotkit.OnboardingStepStateFfi
 import dev.ipf.marmotkit.ReceivedMessageFfi
 import dev.ipf.marmotkit.RelayEndpointPolicyFfi
+import dev.ipf.marmotkit.RelayPolicyFfi
 import dev.ipf.marmotkit.TimelineMessageQueryFfi
 import dev.ipf.marmotkit.TimelineMessageRecordFfi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,13 +32,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.findmyfam.shared.MarmotKind
+import org.findmyfam.shared.models.AvatarPayload
+import org.findmyfam.shared.models.GroupAvatarPayload
 import org.findmyfam.shared.models.ChatPayload
+import org.findmyfam.shared.models.NicknamePayload
 import org.findmyfam.shared.models.LocationPayload
 import org.findmyfam.shared.models.WhistleGroup
 import org.findmyfam.shared.models.WhistleMessage
 import org.json.JSONObject
 import timber.log.Timber
+import java.io.File
 
 /**
  * Marmot protocol v2 group operations, backed by MarmotKit (MDK 0.10.x).
@@ -49,7 +64,7 @@ import timber.log.Timber
  * `Marmot` internally would not.
  */
 class MarmotKitService(
-    private val marmot: MarmotInterface,
+    private val runtimeFactory: () -> MarmotInterface,
     private val relayUrls: List<String>,
     private val scope: CoroutineScope,
     var locationCache: LocationCache? = null,
@@ -58,6 +73,33 @@ class MarmotKitService(
     var sharedGroupAvatarStore: SharedGroupAvatarStore? = null,
     var chatMessageCache: ChatMessageCache? = null,
 ) {
+
+    /**
+     * One fixed runtime, never rebuilt. For tests and for any caller that has
+     * no identity-replacement path; [releaseRuntime] is a no-op worth avoiding
+     * here, since the factory would hand back the same closed handle.
+     */
+    constructor(
+        marmot: MarmotInterface,
+        relayUrls: List<String>,
+        scope: CoroutineScope,
+    ) : this({ marmot }, relayUrls, scope)
+
+    /**
+     * The live runtime, created on first use rather than at construction.
+     *
+     * Deferred because this service is a process-wide singleton — the
+     * foreground service can start from a boot receiver before any Activity
+     * exists — while the runtime is identity-scoped and has to be replaceable.
+     * A runtime owns its root directory exclusively until its handle is
+     * *dropped*, not until `shutdown()` returns, so identity replacement has
+     * to release this reference ([releaseRuntime]) and build the next one on a
+     * fresh root.
+     */
+    @Volatile private var runtime: MarmotInterface? = null
+
+    private val marmot: MarmotInterface
+        get() = runtime ?: runtimeFactory().also { runtime = it }
 
     // MARK: - Errors
 
@@ -105,6 +147,20 @@ class MarmotKitService(
         class IdentityMismatch(expected: String, adopted: String) : ServiceError(
             "Identity mismatch: expected ${expected.take(8)}…, adopted ${adopted.take(8)}…"
         )
+        object AvatarTooLarge : ServiceError(
+            "That image is too large to send. Try a smaller one."
+        )
+
+        /**
+         * A fork repair removed the member but could not add them back, so
+         * they are now outside a group they were in. Reported distinctly
+         * because the caller has to retry rather than treat the repair as
+         * done.
+         */
+        class ReAddFailed(memberRef: String) : ServiceError(
+            "Removed ${memberRef.take(8)}… but couldn't add them back. Try inviting them again."
+        )
+
         class Underlying(detail: String) : ServiceError(detail)
     }
 
@@ -127,7 +183,40 @@ class MarmotKitService(
         }
     }
 
-    private inline fun <T> run(body: () -> T): T =
+    /**
+     * Where every suspending MarmotKit call runs — never the caller's thread.
+     *
+     * This used to be an inline `run` that switched nothing, so each FFI call
+     * executed on whatever thread the caller was on, which for almost every
+     * view model is the main thread. UniFFI's async wrappers poll the Rust
+     * future on the calling dispatcher, and with `Dispatchers.Main.immediate`
+     * (the `viewModelScope` default) Rust waking the continuation resumed it
+     * *inline, nested inside the outer poll*, which re-polled into a lock the
+     * outer poll still held. The main thread deadlocked for good: an ANR with
+     * `rust_future_poll` on the stack, found on a Pixel the first time a real
+     * device added a member. Never run these on the caller's thread.
+     */
+    private val ffiDispatcher: CoroutineDispatcher = Dispatchers.Default
+
+    /** Run an FFI call off the caller's thread, leaving exceptions untouched. */
+    private suspend inline fun <T> onFfi(crossinline body: suspend () -> T): T =
+        withContext(ffiDispatcher) { body() }
+
+    /** [onFfi], mapping MarmotKit's errors to [ServiceError] on the way out. */
+    private suspend inline fun <T> run(crossinline body: suspend () -> T): T =
+        withContext(ffiDispatcher) {
+            try {
+                body()
+            } catch (error: CancellationException) {
+                // Not a MarmotKit failure; wrapping it would break cancellation.
+                throw error
+            } catch (error: Throwable) {
+                throw mapError(error)
+            }
+        }
+
+    /** For the few genuinely synchronous, local calls (no async poll to deadlock). */
+    private inline fun <T> runSync(body: () -> T): T =
         try {
             body()
         } catch (error: Throwable) {
@@ -159,7 +248,7 @@ class MarmotKitService(
     private val _accountIsReady = MutableStateFlow(false)
     val accountIsReady: StateFlow<Boolean> = _accountIsReady.asStateFlow()
 
-    private var accountRef: String? = null
+    @Volatile private var accountRef: String? = null
     val currentAccountRef: String? get() = accountRef
 
     private fun requireAccount(): String = accountRef ?: throw ServiceError.NotStarted
@@ -169,9 +258,16 @@ class MarmotKitService(
     /** Hostnames MarmotKit "will never dial or adopt". */
     fun retiredRelayHosts(): List<String> = marmot.`retiredRelayHosts`()
 
-    /** Classify relay URLs with the same policy applied when dialling. */
+    /**
+     * Classify relay URLs with the same policy applied when dialling.
+     *
+     * Policy names are lowercased so they read as iOS writes them
+     * (`allowed`, `retired`, …). Not cosmetic: a diagnostics bundle is meant
+     * to diff against one from the other platform, and `ALLOWED` vs `allowed`
+     * would make every relay row differ.
+     */
     fun classifyRelays(endpoints: List<String>): List<Pair<String, String>> =
-        marmot.`classifyRelayEndpoints`(endpoints).map { it.`endpoint` to it.`policy`.toString() }
+        marmot.`classifyRelayEndpoints`(endpoints).map { it.`endpoint` to it.`policy`.name.lowercase() }
 
     /** The subset of [endpoints] MarmotKit is willing to dial. */
     fun allowedRelays(endpoints: List<String>): List<String> =
@@ -196,6 +292,138 @@ class MarmotKitService(
 
     /** The pool this runtime is dialling, fixed at construction. */
     val dialledRelayEndpoints: List<String> get() = relayUrls
+
+    /** Relays MarmotKit is actually willing to dial from the configured set. */
+    val activeRelayUrls: List<String> get() = allowedRelays(relayUrls)
+
+    /**
+     * What the UI can honestly say about relays.
+     *
+     * MarmotKit exposes **no per-endpoint connection status** — `relayHealth()`
+     * is aggregate only, and `classifyRelayEndpoints` returns policy rather
+     * than connectivity. So connection state is aggregate and per-endpoint
+     * information is policy. v1's per-relay green dot has no v2 equivalent,
+     * and faking one from the aggregate would report relays as connected that
+     * may not be.
+     */
+    data class RelayStatus(
+        val connection: Connection = Connection.DISCONNECTED,
+        val total: Int = 0,
+        val connected: Int = 0,
+        /**
+         * Endpoint → policy (`ALLOWED`, `RETIRED`, `UNSAFE`, …). A retired
+         * endpoint is a permanent configuration error, which is more
+         * actionable than a connectivity dot ever was.
+         */
+        val policies: Map<String, String> = emptyMap(),
+        /**
+         * Enabled in settings but not in the dialled pool — a relay added
+         * since launch. Discoverable by others already (the declared list is
+         * republished immediately); dialled only after a restart.
+         */
+        val pendingAdditions: List<String> = emptyList(),
+        /**
+         * In the dialled pool but no longer enabled in settings.
+         *
+         * The pool is fixed at construction, so **disabling a relay does not
+         * stop this device talking to it** until the app restarts. Worth
+         * stating plainly rather than leaving the user to assume the toggle
+         * took effect.
+         */
+        val pendingRemovals: List<String> = emptyList(),
+    ) {
+        enum class Connection { DISCONNECTED, CONNECTING, CONNECTED }
+    }
+
+    private val _relayStatus = MutableStateFlow(RelayStatus())
+    val relayStatus: StateFlow<RelayStatus> = _relayStatus.asStateFlow()
+
+    /**
+     * Re-read relay state from the runtime. Cheap; safe to call on appear.
+     *
+     * @param all Every relay in settings, enabled or not. Used for policy
+     *   classification, so a disabled relay still shows *why* it is unusable
+     *   if it is retired.
+     * @param enabled Only the enabled relays. Used for the diff against the
+     *   dialled pool, so switching one off registers as a pending removal
+     *   rather than as still configured.
+     */
+    suspend fun refreshRelayStatus(all: List<String> = emptyList(), enabled: List<String>? = null) {
+        val health = onFfi { marmot.`relayHealth`() }
+        val connection = when {
+            health.`connected` > 0u -> RelayStatus.Connection.CONNECTED
+            health.`connecting` > 0u || health.`pending` > 0u -> RelayStatus.Connection.CONNECTING
+            else -> RelayStatus.Connection.DISCONNECTED
+        }
+
+        val everything = all.ifEmpty { relayUrls }
+        val policies = onFfi {
+            marmot.`classifyRelayEndpoints`(everything)
+                .associate { it.`endpoint` to it.`policy`.name.lowercase() }
+        }
+
+        // Only relays that *could* be dialled count as pending additions. A
+        // retired or unsafe endpoint will never connect, so "Restart to
+        // connect to X" sat directly beneath a banner saying X cannot be used
+        // — two contradictory claims about the same relay.
+        val dialable = (enabled ?: everything).filter { policies[it]?.equals("allowed") ?: true }
+
+        // Canonical forms on both sides. `relayUrls` holds what the policy
+        // probe produced, which is MarmotKit's *normalised* endpoint, while
+        // settings holds whatever the user typed. Comparing those directly —
+        // which an earlier iOS version did, with a prefix test — reported a
+        // permanent "restart to connect" for whichever relay normalised to
+        // anything beyond a trailing-slash difference.
+        val configured = canonical(dialable)
+        val dialled = canonical(relayUrls)
+
+        _relayStatus.value = RelayStatus(
+            connection = connection,
+            total = health.`totalRelays`.toInt(),
+            connected = health.`connected`.toInt(),
+            policies = policies,
+            pendingAdditions = (configured - dialled).sorted(),
+            pendingRemovals = (dialled - configured).sorted(),
+        )
+    }
+
+    /**
+     * Connection counters straight from the runtime, so "no relay
+     * connectivity" is a measurement rather than a symptom.
+     */
+    suspend fun relayDiagnostics(): String = with(onFfi { marmot.`relayHealth`() }) {
+        "relays total=$`totalRelays` connected=$`connected` connecting=$`connecting` " +
+            "pending=$`pending` disconnected=$`disconnected` terminated=$`terminated` " +
+            "banned=$`banned` sleeping=$`sleeping` attempts=$`connectionAttempts` " +
+            "successes=$`connectionSuccesses` sdkBacked=$`sdkBacked` " +
+            "forwarder=$`notificationForwarderRunning`"
+    }
+
+    /**
+     * What the account actually believes its relays are, which is not
+     * necessarily what was passed in at construction.
+     */
+    fun relayListDiagnostics(): String {
+        val account = accountRef ?: return "no account"
+        val lists = runCatching { marmot.`accountRelayLists`(account) }.getOrNull()
+            ?: return "relay lists unavailable (setup may be incomplete)"
+        return "relay lists: $lists"
+    }
+
+    /**
+     * Advertise a new relay list for this account.
+     *
+     * Updates what others discover about us. It does **not** necessarily
+     * change which relays this runtime dials — the dialled pool is fixed at
+     * construction, which is why a relay added in Settings reports "restart to
+     * connect".
+     */
+    suspend fun publishRelayLists(defaultRelays: List<String>, bootstrapRelays: List<String> = emptyList()) {
+        val account = requireAccount()
+        val allowed = allowedRelays(defaultRelays)
+        val bootstrap = if (bootstrapRelays.isEmpty()) allowed else allowedRelays(bootstrapRelays)
+        run { marmot.`publishRelayLists`(account, allowed, bootstrap) }
+    }
 
     // MARK: - Lifecycle
 
@@ -262,8 +490,26 @@ class MarmotKitService(
         }
     }
 
+    /**
+     * [start], but safe to call from both entry points.
+     *
+     * Android has two, and neither can assume it is first:
+     * [WhistleForegroundService] can start headlessly from a boot receiver
+     * while no Activity exists, and `AppViewModel` starts when the UI opens.
+     * They share one service (see `AppModule`), so without this the second
+     * caller would re-run `beginOnboarding`/`signInAccount` on an already
+     * started runtime — or, worse, race the first mid-flight. iOS needs no
+     * equivalent: nothing there starts the stack but `AppViewModel`.
+     */
+    suspend fun ensureStarted(adoptingNsec: String, expectedReference: String?): String =
+        startMutex.withLock {
+            accountRef ?: start(adoptingNsec, expectedReference)
+        }
+
+    private val startMutex = Mutex()
+
     /** The account's nsec, for key backup and export. */
-    fun revealNsec(): String = run { marmot.`revealNsec`(requireAccount()) }
+    fun revealNsec(): String = runSync { marmot.`revealNsec`(requireAccount()) }
 
     /**
      * Remove this device's account, destroying its local signing key.
@@ -276,7 +522,7 @@ class MarmotKitService(
     suspend fun forgetCurrentAccount() {
         val account = accountRef ?: return
         try {
-            marmot.`removeAccount`(account)
+            onFfi { marmot.`removeAccount`(account) }
             Timber.i("Removed account ${account.take(8)} on identity replacement")
         } catch (error: Throwable) {
             Timber.e(error, "Failed to remove account on identity replacement")
@@ -287,16 +533,67 @@ class MarmotKitService(
     suspend fun shutdown() {
         stopSubscriptions()
         try {
-            marmot.`shutdown`()
+            onFfi { marmot.`shutdown`() }
         } catch (error: Throwable) {
             Timber.w(error, "Shutdown reported an error")
         }
     }
 
+    /**
+     * Drop the runtime handle, releasing its claim on the root directory.
+     *
+     * `shutdown()` is not enough on its own: root ownership is held until the
+     * handle itself is gone. Kotlin gives us the deterministic release iOS has
+     * to get from ARC — `Marmot` is `AutoCloseable`, and closing it runs the
+     * Rust-side drop. Call after [forgetCurrentAccount] and [shutdown] on
+     * identity replacement, then advance the generation
+     * ([advanceIdentityGeneration]) so the next runtime opens a fresh root
+     * regardless of whether anything else still happens to hold a reference.
+     */
+    fun releaseRuntime() {
+        val handle = runtime ?: return
+        runtime = null
+        accountRef = null
+        _accountIsReady.value = false
+        _groups.value = emptyList()
+        try {
+            (handle as? AutoCloseable)?.close()
+        } catch (error: Throwable) {
+            Timber.w(error, "Releasing the runtime handle reported an error")
+        }
+    }
+
+    /**
+     * Ask the runtime to catch up on anything it missed while not running.
+     *
+     * MarmotKit's own equivalent of v1's `catchUpGroup`, which re-fetched 30
+     * days of kind-445 events by hand, and of `fetchMissedGiftWraps` — a
+     * Welcome that arrived while the app was closed lands through this, not
+     * through the live subscription.
+     */
+    suspend fun catchUpAccounts() {
+        run { marmot.`catchUpAccounts`() }
+    }
+
+    /**
+     * Mint and publish a **fresh** KeyPackage, superseding the current slot.
+     *
+     * Not a startup call, unlike v1's, and that distinction matters: upstream
+     * documents this as the sanctioned repair for an epoch-stalled group
+     * (`publish_new_key_package` is the legacy name for `rotateKeyPackage`),
+     * while the *first* KeyPackage is published by onboarding. Calling it at
+     * launch both fails before setup completes and needlessly rotates
+     * afterwards.
+     */
+    suspend fun publishKeyPackage(): ULong {
+        val account = requireAccount()
+        return run { marmot.`publishNewKeyPackage`(account) }
+    }
+
     // MARK: - Account setup
 
     fun setupReadiness(): AccountSetupReadinessFfi =
-        run { marmot.`accountSetupReadiness`(requireAccount()) }
+        runSync { marmot.`accountSetupReadiness`(requireAccount()) }
 
     /**
      * Whether the account is published and usable for anything that touches
@@ -307,6 +604,16 @@ class MarmotKitService(
      * rejects the operation with `OnboardingRequired`. Gate UI on this rather
      * than letting the user act and fail.
      */
+    /**
+     * Whether this account can currently be invited by someone else.
+     *
+     * The same precondition as creating a group, hence the shared
+     * implementation: until setup reaches `NETWORK_READY` the account has no
+     * published relay list or KeyPackage, and MarmotKit rejects the operation
+     * with `OnboardingRequired`.
+     */
+    fun isReadyToBeInvited(): Boolean = isAccountReady()
+
     fun isAccountReady(): Boolean {
         val ready = runCatching { setupReadiness() }.getOrNull() ==
             AccountSetupReadinessFfi.NETWORK_READY
@@ -502,7 +809,10 @@ class MarmotKitService(
         account: String,
     ): OnboardingSnapshotFfi? {
         val relays = allowedRelays(relayUrls)
-        return when (strategy) {
+        // Off the caller's thread, and *not* through `run`: the callers of this
+        // (resolveOnboardingStep) catch and log each failure themselves and
+        // expect the raw exception, not a mapped one.
+        return onFfi { when (strategy) {
             OnboardingStrategy.CONTINUE_WITHOUT ->
                 marmot.`continueOnboardingWithout`(account, step)
 
@@ -534,7 +844,7 @@ class MarmotKitService(
                 else marmot.`setOnboardingDiscoveryRelays`(account, relays)
 
             OnboardingStrategy.ACKNOWLEDGE_SINGLE_DEVICE -> {
-                val current = marmot.`onboardingSnapshot`(account) ?: return null
+                val current = marmot.`onboardingSnapshot`(account) ?: return@onFfi null
                 marmot.`acknowledgeOnboardingSingleDevice`(account, current.`revision`)
             }
 
@@ -542,11 +852,11 @@ class MarmotKitService(
                 // Re-read rather than trusting the snapshot passed in: the
                 // revision moves as the machine works, and approving is
                 // revision-scoped.
-                val current = marmot.`onboardingSnapshot`(account) ?: return null
+                val current = marmot.`onboardingSnapshot`(account) ?: return@onFfi null
                 if (current.`proposal` == null) null
                 else marmot.`approveOnboardingRepair`(account, current.`revision`)
             }
-        }
+        } }
     }
 
     /**
@@ -586,48 +896,94 @@ class MarmotKitService(
         }
     }
 
+    /**
+     * All groups, newest activity first.
+     *
+     * Costs one `chatList` plus a `groupDetails` per group: a chat row carries
+     * identity and activity but neither the admin list nor the epoch. Fine at
+     * this app's scale (a handful of groups).
+     */
     private suspend fun loadGroups(): List<WhistleGroup> {
         val account = requireAccount()
         return run {
             marmot.`chatList`(account, false).map { row ->
                 val details = runCatching { marmot.`groupDetails`(account, row.`groupIdHex`) }
                     .getOrNull()
-                WhistleGroup(
-                    mlsGroupId = row.`groupIdHex`,
-                    name = row.`groupName`,
-                    // A group we have left, been removed from, or that was
-                    // disbanded is not active. `UNRECOVERABLE` deliberately
-                    // still counts as active: it needs a re-admit to work
-                    // again, but hiding it would leave the user unable to see
-                    // the group they have to act on.
-                    isActive = row.`selfMembership` == SelfMembershipFfi.MEMBER &&
-                        row.`lifecycleState` != GroupLifecycleStateFfi.DISBANDED,
-                    epoch = details?.`mlsState`?.`epoch`?.toLong() ?: 0L,
-                    adminPubkeys = details?.`group`?.`admins` ?: emptyList(),
-                    // 0 means "no activity recorded", which the app models as null.
-                    lastMessageAt = row.`activitySortAt`.takeIf { it != 0uL }?.toLong(),
-                )
+                mapGroup(row, details)
             }
         }
     }
+
+    private fun mapGroup(row: ChatListRowFfi, details: GroupDetailsFfi?): WhistleGroup =
+        WhistleGroup(
+            mlsGroupId = row.`groupIdHex`,
+            name = row.`groupName`,
+            // A group we have left, been removed from, or that was disbanded
+            // is not active. `UNRECOVERABLE` deliberately still counts as
+            // active: it needs a re-admit to work again, but hiding it would
+            // leave the user unable to see the group they have to act on.
+            isActive = row.`selfMembership` == SelfMembershipFfi.MEMBER &&
+                row.`lifecycleState` != GroupLifecycleStateFfi.DISBANDED,
+            epoch = details?.`mlsState`?.`epoch`?.toLong() ?: 0L,
+            adminPubkeys = details?.`group`?.`admins` ?: emptyList(),
+            // 0 means "no activity recorded", which the app models as null.
+            lastMessageAt = row.`activitySortAt`.takeIf { it != 0uL }?.toLong(),
+        )
 
     suspend fun members(groupIdHex: String): List<String> {
         val account = requireAccount()
         return run { marmot.`groupMembers`(account, groupIdHex).map { it.`memberIdHex` } }
     }
 
+    /** One group by id, or null if this account has no such group. */
+    suspend fun group(groupIdHex: String): WhistleGroup? {
+        val account = requireAccount()
+        return run {
+            val row = marmot.`chatListRow`(account, groupIdHex) ?: return@run null
+            val details = runCatching { marmot.`groupDetails`(account, groupIdHex) }.getOrNull()
+            mapGroup(row, details)
+        }
+    }
+
+    /**
+     * Whether a leave is already in flight.
+     *
+     * MarmotKit keeps re-proposing a durable leave until a commit removes us,
+     * so a second attempt is progress to surface rather than an error to
+     * retry.
+     */
+    suspend fun isLeavePending(groupIdHex: String): Boolean {
+        val account = requireAccount()
+        return run { marmot.`chatListRow`(account, groupIdHex)?.`leaveRequestPending` ?: false }
+    }
+
+    /**
+     * The admin responsible for re-announcing group state to new joiners.
+     *
+     * Lexicographically smallest admin pubkey, as in v1: every admin sees a
+     * join, so without a rule a three-admin group would send three copies of
+     * the group photo, and "first in the array" resolves differently per
+     * device.
+     */
+    suspend fun designatedBroadcaster(groupIdHex: String): String? =
+        runCatching { group(groupIdHex) }.getOrNull()?.adminPubkeys?.minOrNull()
+
     suspend fun isAdmin(pubkeyHex: String, groupIdHex: String): Boolean =
         runCatching {
             val account = requireAccount()
-            marmot.`groupDetails`(account, groupIdHex).`group`.`admins`.contains(pubkeyHex)
+            onFfi { marmot.`groupDetails`(account, groupIdHex) }.`group`.`admins`.contains(pubkeyHex)
         }.getOrDefault(false)
 
     // MARK: - Membership
 
-    suspend fun createGroup(name: String, description: String? = null): String {
+    suspend fun createGroup(
+        name: String,
+        description: String? = null,
+        memberRefs: List<String> = emptyList(),
+    ): String {
         val account = requireAccount()
         val groupId = run {
-            marmot.`createGroup`(account, name, emptyList(), description)
+            marmot.`createGroup`(account, name, memberRefs, description)
         }
         // Mutations must republish `groups`: the UI observes the flow, and
         // MarmotKit does not emit on its own for a change this device just
@@ -701,7 +1057,7 @@ class MarmotKitService(
         }
 
         try {
-            marmot.`selfDemoteAdmin`(account, groupIdHex)
+            onFfi { marmot.`selfDemoteAdmin`(account, groupIdHex) }
         } catch (error: MarmotKitException) {
             when (error) {
                 // Genuine now: other members exist, and one of them has to
@@ -718,7 +1074,7 @@ class MarmotKitService(
         // list, faded, labelled "Inactive" — the right display for a group
         // that *ended* around you, the wrong one for a group you chose to
         // leave. Removing it also unwinds any pushed chat view.
-        runCatching { marmot.`deleteGroupLocal`(account, groupIdHex) }
+        runCatching { onFfi { marmot.`deleteGroupLocal`(account, groupIdHex) } }
         purgeLocalData(groupIdHex)
         refreshGroups()
     }
@@ -871,8 +1227,8 @@ class MarmotKitService(
 
     // MARK: - Receive loop
 
-    private var receiveJob: Job? = null
-    private var chatListJob: Job? = null
+    @Volatile private var receiveJob: Job? = null
+    @Volatile private var chatListJob: Job? = null
 
     /**
      * Group ids known when the chat-list subscription was opened.
@@ -884,7 +1240,56 @@ class MarmotKitService(
      * the case that matters most looked like a startup load and the joiner
      * never broadcast its name or avatar.
      */
-    private var knownGroupIdsAtSubscribe: Set<String> = emptySet()
+    @Volatile private var knownGroupIdsAtSubscribe: Set<String> = emptySet()
+
+    // MARK: - Chat sub-type senders
+
+    /**
+     * Nickname, member avatar and group avatar all ride the chat kind with a
+     * `type` discriminator, exactly as in v1 — the wire shape of these
+     * payloads is unchanged by the migration, only the transport and the kind
+     * number are.
+     */
+    suspend fun sendNicknameUpdate(name: String, groupIdHex: String) {
+        send(NicknamePayload(name = name).toJson(), MarmotKind.ProtocolV2.CHAT, groupIdHex)
+    }
+
+    suspend fun sendAvatarUpdate(payload: AvatarPayload, groupIdHex: String) {
+        if (!payload.isWithinSizeLimit) throw ServiceError.AvatarTooLarge
+        send(payload.toJson(), MarmotKind.ProtocolV2.CHAT, groupIdHex)
+    }
+
+    suspend fun sendGroupAvatarUpdate(payload: GroupAvatarPayload, groupIdHex: String) {
+        if (!payload.isWithinSizeLimit) throw ServiceError.AvatarTooLarge
+        send(payload.toJson(), MarmotKind.ProtocolV2.CHAT, groupIdHex)
+    }
+
+    // MARK: - Fork repair
+
+    /**
+     * Remove a member and immediately re-invite them.
+     *
+     * Ported forward deliberately. The iOS spike showed MarmotKit resolving a
+     * two-admin concurrent-commit fork on its own, but upstream still
+     * documents `GroupUnrecoverableRepairRequired` as a group "halted until
+     * another member re-admits this device" — a state that only exists if some
+     * divergence is unrecoverable, and this is the only cure for it.
+     *
+     * Ordering matches v1: nothing is removed until the re-invite is possible,
+     * and a failure after removal is reported distinctly ([ServiceError.ReAddFailed])
+     * so the caller can retry rather than silently stranding the member.
+     */
+    suspend fun resyncMember(memberRef: String, groupIdHex: String) {
+        if (members(groupIdHex).contains(memberRef)) {
+            removeMembers(listOf(memberRef), groupIdHex)
+        }
+        try {
+            invite(listOf(memberRef), groupIdHex)
+        } catch (error: Throwable) {
+            throw ServiceError.ReAddFailed(memberRef)
+        }
+        _lastGroupMembershipChangeId.value = groupIdHex to System.currentTimeMillis()
+    }
 
     fun startSubscriptions() {
         if (receiveJob != null) return
@@ -1015,9 +1420,26 @@ class MarmotKitService(
             // A null type is plain text from an older client; v1 treated it as
             // chat and dropping it would silently lose messages.
             "chat", null -> _lastChatMessageGroupId.value = message.mlsGroupId
-            "nickname" -> Timber.d("nickname payload routing lands with the UI slice")
-            "avatar" -> Timber.d("avatar payload routing lands with the UI slice")
-            "group_avatar" -> Timber.d("group avatar routing lands with the UI slice")
+            "nickname" -> runCatching { NicknamePayload.fromJson(message.content) }
+                .onSuccess { nicknameStore?.set(name = it.name, pubkeyHex = message.senderPubkey) }
+                .onFailure { Timber.w(it, "Failed to decode nickname payload") }
+
+            "avatar" -> runCatching { AvatarPayload.fromJson(message.content) }
+                .onSuccess { memberAvatarStore?.apply(it, from = message.senderPubkey) }
+                .onFailure { Timber.w(it, "Failed to decode avatar payload") }
+
+            // Admin-only, and this check is the only thing enforcing it: MLS
+            // guarantees the sender is a member, not an admin, and MarmotKit
+            // accepts a non-admin's custom event intact. Every receiver has to
+            // check independently or the restriction means nothing.
+            "group_avatar" ->
+                if (isAdmin(message.senderPubkey, message.mlsGroupId)) {
+                    runCatching { GroupAvatarPayload.fromJson(message.content) }
+                        .onSuccess { sharedGroupAvatarStore?.apply(it, message.mlsGroupId) }
+                        .onFailure { Timber.w(it, "Failed to decode group avatar payload") }
+                } else {
+                    Timber.w("Ignored group avatar from non-admin ${message.senderPubkey.take(8)}")
+                }
             else -> Timber.d("Unknown chat sub-type '${message.payloadType}'")
         }
     }
@@ -1029,5 +1451,111 @@ class MarmotKitService(
          * bound would give up mid-flight.
          */
         private const val MAX_ONBOARDING_PASSES = 24
+
+        /**
+         * The directory MarmotKit owns its account database under.
+         *
+         * Deliberately a sibling of v1's `whistle.db` rather than a
+         * replacement: protocol v2 is not wire-compatible, v1 groups do not
+         * migrate, and keeping the two stores apart means an install that
+         * falls back to v1 still finds its data intact.
+         *
+         * **The path must be fully symlink-resolved.** MarmotKit opens its
+         * root as a "complete authorized directory path" and refuses any
+         * symlink along the way with `ELOOP` ("Too many levels of symbolic
+         * links", os error 62) — not a diagnostic anyone would read as "your
+         * prefix has a symlink in it". On iOS the offender was `/var` →
+         * `/private/var`; on Android it is `/data/user/0` → `/data/data`,
+         * which is exactly what `Context.getFilesDir()` hands back. Hence
+         * [File.getCanonicalFile], the JVM's `realpath`. Resolution needs the
+         * directory to exist, so it is created first.
+         *
+         * Suffixed with a [generation] number, which identity replacement
+         * bumps. A runtime owns its root until its handle is *dropped*, not
+         * until `shutdown()` returns, so restarting on the same root can fail
+         * with `RuntimeBusy` — which during an import or burn tells the user
+         * their new identity failed when the key itself was fine. Giving each
+         * generation its own directory removes the contention rather than
+         * depending on release timing.
+         */
+        fun rootPath(filesDir: File, generation: Int): String {
+            val container = File(filesDir, "marmotkit").apply { mkdirs() }
+            val name = "gen-$generation"
+            purgeSupersededGenerations(container, keeping = name)
+            val root = File(container, name).apply { mkdirs() }
+            val resolved = runCatching { root.canonicalPath }.getOrElse {
+                // Nothing better to do than pass the original through;
+                // MarmotKit will report what it could not open, and the log
+                // line below records exactly what it was given.
+                Timber.w(it, "canonicalPath failed for ${root.path} — passing it through unresolved")
+                root.absolutePath
+            }
+            Timber.i("MarmotKit root: $resolved")
+            return resolved
+        }
+
+        /**
+         * Delete roots left behind by previous identities.
+         *
+         * Done at launch, where exactly one service exists and nothing can
+         * still be holding them.
+         */
+        fun purgeSupersededGenerations(container: File, keeping: String) {
+            val stale = container.listFiles()
+                ?.filter { it.name.startsWith("gen-") && it.name != keeping }
+                ?: return
+            for (directory in stale) {
+                if (directory.deleteRecursively()) {
+                    Timber.i("Removed superseded MarmotKit root ${directory.name}")
+                } else {
+                    Timber.w("Could not remove ${directory.name}")
+                }
+            }
+        }
+
+        /**
+         * The subset of [endpoints] MarmotKit is willing to dial, answered
+         * *before* a service exists.
+         *
+         * Startup needs this ordering: MarmotKit refuses a retired host
+         * outright — a relay-list declaration naming one fails the whole
+         * directory fetch with "relay endpoint host is retired", which on
+         * device presented as a total startup failure rather than one bad URL.
+         * So the list has to be filtered before it is handed to the runtime,
+         * not after.
+         *
+         * Classification is an instance method, so this stands up a throwaway
+         * runtime to ask, on a temporary root of its own — a root is owned
+         * exclusively for as long as its handle lives, and sharing the real one
+         * here would risk the `RuntimeBusy` that two instances on one root
+         * produce. Nothing is dialled: networking begins at `start()`, which
+         * this probe never calls.
+         */
+        fun allowedRelayEndpoints(probeRoot: File, endpoints: List<String>): List<String> {
+            if (endpoints.isEmpty()) return emptyList()
+            probeRoot.mkdirs()
+            val resolved = runCatching { probeRoot.canonicalPath }.getOrElse { probeRoot.absolutePath }
+            return try {
+                Marmot.newWithConfiguration(
+                    rootPath = resolved,
+                    relayUrls = emptyList(),
+                    options = MarmotOptions(relayPolicy = RelayPolicyFfi.PUBLIC_ONLY, secretStore = null),
+                ).use { probe ->
+                    probe.`classifyRelayEndpoints`(endpoints)
+                        .filter { it.`policy` == RelayEndpointPolicyFfi.ALLOWED }
+                        .map { it.`normalizedEndpoint` ?: it.`endpoint` }
+                }
+            } catch (error: Throwable) {
+                // Policy unavailable. Returning the input unfiltered is the
+                // right failure: it preserves today's behaviour and lets
+                // `start()` report the real problem, rather than silently
+                // dropping every relay and presenting that as "no relays
+                // configured".
+                Timber.w(error, "Relay policy probe unavailable — using relays unfiltered")
+                endpoints
+            } finally {
+                probeRoot.deleteRecursively()
+            }
+        }
     }
 }

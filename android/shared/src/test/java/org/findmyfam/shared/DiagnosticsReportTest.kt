@@ -40,8 +40,8 @@ class DiagnosticsReportTest {
     @Test
     fun `relays are sorted by url`() {
         val r = report(relays = listOf(
-            DiagnosticsReport.RelaySnapshot("wss://zebra.example", true, true),
-            DiagnosticsReport.RelaySnapshot("wss://alpha.example", true, false)
+            DiagnosticsReport.RelaySnapshot("wss://zebra.example", true),
+            DiagnosticsReport.RelaySnapshot("wss://alpha.example", true)
         ))
         assertEquals(
             listOf("wss://alpha.example", "wss://zebra.example"),
@@ -118,7 +118,7 @@ class DiagnosticsReportTest {
         // field later and puts a full pubkey or group id in it, this fails.
         val json = report(
             groups = listOf(group("aaaaaaaa")),
-            relays = listOf(DiagnosticsReport.RelaySnapshot("wss://relay.example", true, true))
+            relays = listOf(DiagnosticsReport.RelaySnapshot("wss://relay.example", true))
         ).toJson()
         val longHex = Regex("[0-9a-f]{32,}")
         assertTrue(

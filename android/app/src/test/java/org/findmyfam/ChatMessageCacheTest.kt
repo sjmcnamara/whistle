@@ -47,38 +47,35 @@ class ChatMessageCacheTest {
     @Test
     fun store_thenThread_returnsSameMessages() {
         val messages = listOf(item(id = "m1"), item(id = "m2", sender = bob))
-        cache.store(group1, messages, offset = 5u, hasMore = true)
+        cache.store(group1, messages, hasMore = true)
 
         val thread = cache.thread(group1)
         assertEquals(messages, thread?.messages)
-        assertEquals(5u, thread?.offset)
         assertEquals(true, thread?.hasMore)
     }
 
     @Test
     fun store_preservesPaginationCursor() {
-        cache.store(group1, listOf(item(id = "m1")), offset = 42u, hasMore = false)
+        cache.store(group1, listOf(item(id = "m1")), hasMore = false)
 
         val thread = cache.thread(group1)
-        assertEquals(42u, thread?.offset)
         assertEquals(false, thread?.hasMore)
     }
 
     @Test
     fun store_replacesExistingThread() {
-        cache.store(group1, listOf(item(id = "m1")), offset = 1u, hasMore = true)
-        cache.store(group1, listOf(item(id = "m2"), item(id = "m3")), offset = 9u, hasMore = false)
+        cache.store(group1, listOf(item(id = "m1")), hasMore = true)
+        cache.store(group1, listOf(item(id = "m2"), item(id = "m3")), hasMore = false)
 
         val thread = cache.thread(group1)
         assertEquals(listOf("m2", "m3"), thread?.messages?.map { it.id })
-        assertEquals(9u, thread?.offset)
         assertEquals(false, thread?.hasMore)
     }
 
     @Test
     fun groups_areIsolated() {
-        cache.store(group1, listOf(item(id = "a1")), offset = 1u, hasMore = true)
-        cache.store(group2, listOf(item(id = "b1")), offset = 2u, hasMore = false)
+        cache.store(group1, listOf(item(id = "a1")), hasMore = true)
+        cache.store(group2, listOf(item(id = "b1")), hasMore = false)
 
         assertEquals(listOf("a1"), cache.thread(group1)?.messages?.map { it.id })
         assertEquals(listOf("b1"), cache.thread(group2)?.messages?.map { it.id })
@@ -86,8 +83,8 @@ class ChatMessageCacheTest {
 
     @Test
     fun clearGroup_dropsOnlyThatGroup() {
-        cache.store(group1, listOf(item(id = "a1")), offset = 1u, hasMore = true)
-        cache.store(group2, listOf(item(id = "b1")), offset = 2u, hasMore = false)
+        cache.store(group1, listOf(item(id = "a1")), hasMore = true)
+        cache.store(group2, listOf(item(id = "b1")), hasMore = false)
 
         cache.clearGroup(group1)
 
@@ -97,15 +94,15 @@ class ChatMessageCacheTest {
 
     @Test
     fun clearGroup_isNoOp_forUnknownGroup() {
-        cache.store(group1, listOf(item(id = "a1")), offset = 1u, hasMore = true)
+        cache.store(group1, listOf(item(id = "a1")), hasMore = true)
         cache.clearGroup("does-not-exist")
         assertNotNull(cache.thread(group1))
     }
 
     @Test
     fun clear_dropsEveryThread() {
-        cache.store(group1, listOf(item(id = "a1")), offset = 1u, hasMore = true)
-        cache.store(group2, listOf(item(id = "b1")), offset = 2u, hasMore = false)
+        cache.store(group1, listOf(item(id = "a1")), hasMore = true)
+        cache.store(group2, listOf(item(id = "b1")), hasMore = false)
 
         cache.clear()
 
@@ -115,7 +112,7 @@ class ChatMessageCacheTest {
 
     @Test
     fun store_emptyMessages_isDistinctFromUnstored() {
-        cache.store(group1, emptyList(), offset = 0u, hasMore = false)
+        cache.store(group1, emptyList(), hasMore = false)
         val thread = cache.thread(group1)
         assertNotNull("an empty-but-loaded thread must be cached, not treated as absent", thread)
         assertEquals(0, thread?.messages?.size)

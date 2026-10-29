@@ -30,7 +30,7 @@ import kotlin.math.max
 class LocationBroadcaster @Inject constructor(
     @ApplicationContext private val context: Context,
     private val identity: IdentityService,
-    private val marmotService: MarmotService,
+    private val marmot: MarmotKitService,
     private val locationCache: LocationCache,
     private val locationService: LocationService,
     private val settings: AppSettings,
@@ -73,7 +73,7 @@ class LocationBroadcaster @Inject constructor(
             stationary = isStationary
         )
         val myPubkey = identity.publicKeyHex ?: return null
-        val groups = marmotService.groups.value.filter { it.isActive }
+        val groups = marmot.groups.value.filter { it.isActive }
         for (group in groups) {
             // Cache locally so the map shows our own pin, even in a group
             // where outbound sharing is paused (see pausedGroupIds below) --
@@ -86,9 +86,14 @@ class LocationBroadcaster @Inject constructor(
             // Broadcast to group
             scope.launch {
                 try {
-                    marmotService.sendLocationUpdate(payload, group.mlsGroupId)
-                } catch (e: Exception) {
-                    Timber.e("Failed to send location to group ${group.mlsGroupId}: ${e.message}")
+                    // A `Queued` outcome is deliberately not surfaced. Nothing
+                    // reached a relay, but location is republished on a timer,
+                    // so the next fix supersedes it — a toast per missed fix
+                    // while offline would be relentless and useless. A failed
+                    // *chat* send is the opposite case and does get one.
+                    marmot.sendLocation(payload, group.mlsGroupId)
+                } catch (error: Exception) {
+                    Timber.e("Failed to send location to group ${group.mlsGroupId}: ${error.message}")
                 }
             }
         }

@@ -73,9 +73,20 @@ class IdentityService @Inject constructor(
     }
 
     /**
+     * The stored nsec, for key backup and for handing to MarmotKit.
+     *
+     * MarmotKit owns accounts itself and minting a new key would give every
+     * existing user a new npub, orphaning them from everyone who knows them.
+     * `MarmotKitService.start(adoptingNsec = …)` adopts this one instead, so
+     * the identity carries across the v2 cutover. Null before the first
+     * identity exists.
+     */
+    fun exportNsec(): String? = prefs.getString(KEY_NSEC, null)
+
+    /**
      * Explicitly destroy the current key from encrypted storage.
      * Called during burn identity to ensure old key material is deleted
-     * before the new key is written. Nil's in-memory reference too.
+     * before the new key is written. Nulls the in-memory reference too.
      */
     fun destroyCurrentKey() {
         prefs.edit().remove(KEY_NSEC).commit()

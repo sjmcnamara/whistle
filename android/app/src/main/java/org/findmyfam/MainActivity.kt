@@ -42,8 +42,6 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleIntent(intent)
-
         appLockService.onLaunch()
 
         setContent {
@@ -87,18 +85,5 @@ class MainActivity : FragmentActivity() {
         // Restart relay subscriptions if backgrounding tore them down without
         // a proper resume -- see AppViewModel.onForeground for why.
         appViewModel.onForeground()
-    }
-
-    // Fires when a whistle:// link is tapped while this Activity's task is
-    // already running -- singleTask launchMode routes it here instead of
-    // spawning a second instance. onCreate above covers the cold-start case.
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent) {
-        val uri = intent.data ?: return
-        appViewModel.handleIncomingUri(uri)
     }
 }

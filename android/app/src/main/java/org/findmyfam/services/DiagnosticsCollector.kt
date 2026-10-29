@@ -21,11 +21,9 @@ import javax.inject.Singleton
 @Singleton
 class DiagnosticsCollector @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val marmotService: MarmotService,
-    private val mls: MLSService,
+    private val marmot: MarmotKitService,
     private val identity: IdentityService,
     private val settings: AppSettings,
-    private val relay: RelayService
 ) {
     suspend fun collect(): DiagnosticsReport {
         // Read from the package manager rather than BuildConfig — buildConfig
@@ -50,32 +48,52 @@ class DiagnosticsCollector @Inject constructor(
         )
 
         val now = System.currentTimeMillis() / 1000
-        val groups = marmotService.groups.value.filter { it.isActive }.map { group ->
-            val detail = runCatching { mls.getGroup(group.mlsGroupId) }.getOrNull()
-            val admins = detail?.adminPubkeys ?: emptyList()
+        val groups = marmot.groups.value.filter { it.isActive }.map { group ->
+            // Re-read live rather than trusting the published cache: a report
+            // is only useful if its epoch and admin list reflect the group
+            // state right now.
+            val detail = runCatching { marmot.group(group.mlsGroupId) }.getOrNull()
+            val admins = detail?.adminPubkeys ?: group.adminPubkeys
             DiagnosticsReport.GroupSnapshot(
                 id = DiagnosticsReport.shortHex(group.mlsGroupId),
-                epoch = detail?.epoch?.toLong() ?: 0L,
-                memberCount = runCatching { mls.getMembers(group.mlsGroupId).size }.getOrDefault(0),
+                epoch = detail?.epoch ?: group.epoch,
+                memberCount = runCatching { marmot.members(group.mlsGroupId).size }.getOrDefault(0),
                 adminCount = admins.size,
                 isAdmin = myPubkey in admins,
-                healthy = !marmotService.healthTracker.isUnhealthy(group.mlsGroupId),
-                consecutiveFailures = marmotService.healthTracker.failureCount(group.mlsGroupId),
-                // group.lastMessageAt advances on any MLS event (location,
+                // v1 inferred health by counting consecutive decrypt failures.
+                // MarmotKit reports an unrecoverable group outright, so there
+                // is nothing to tally — a group that loads is healthy by the
+                // only measure available.
+                healthy = true,
+                consecutiveFailures = 0,
+                // group.lastMessageAt advances on any group event (location,
                 // chat, nickname, commit) -- null means never recorded.
-                secondsSinceLastEvent = group.lastMessageAt?.let { maxOf(0L, now - it.toLong()).toInt() },
-                ownLeafIndex = runCatching { mls.ownLeafIndex(group.mlsGroupId) }.getOrNull()
+                secondsSinceLastEvent = group.lastMessageAt?.let { maxOf(0L, now - it).toInt() },
+                // Not exposed by MarmotKit's domain-level API — it was an MLS
+                // ratchet-tree detail of the low-level bindings.
+                ownLeafIndex = null,
             )
         }
 
-        val connected = relay.connectedRelayUrls.value.toSet()
+        // Relay state comes from MarmotKit, and is refreshed here rather than
+        // read as-is: `relayStatus` is a cache, and the only other thing that
+        // fills it is the Advanced Settings screen. A bundle generated without
+        // visiting that screen would otherwise report the default —
+        // disconnected, 0 of 0.
+        marmot.refreshRelayStatus(
+            all = settings.relays.map { it.url },
+            enabled = settings.relays.filter { it.isEnabled }.map { it.url },
+        )
+        val status = marmot.relayStatus.value
         val relays = settings.relays.map {
             DiagnosticsReport.RelaySnapshot(
                 url = it.url,
                 enabled = it.isEnabled,
-                connected = it.url in connected
+                policy = status.policies[it.url],
             )
         }
+        val relayConnectivity = "${status.connection.name.lowercase()} " +
+            "(${status.connected} of ${status.total})"
 
         val settingsSnapshot = DiagnosticsReport.Settings(
             locationIntervalSeconds = settings.locationIntervalSeconds,
@@ -90,9 +108,12 @@ class DiagnosticsCollector @Inject constructor(
         }
         val volatile = DiagnosticsReport.Volatile(generatedAt = iso.format(Date()))
 
-        val recentFailures = marmotService.healthTracker.failureTypeCountsSnapshot().map { (type, count) ->
-            DiagnosticsReport.FailureCount(type = type, count = count)
-        }
+        // Always empty under protocol v2. v1 tallied decrypt failures by type
+        // because the MDK boundary gave it nothing better to go on. MarmotKit
+        // reports an unrecoverable group as a typed error instead, so there is
+        // no tally. The field stays in the report rather than being dropped, so
+        // an older diagnostics bundle still decodes.
+        val recentFailures = emptyList<DiagnosticsReport.FailureCount>()
 
         return DiagnosticsReport(
             app = app,
@@ -101,19 +122,27 @@ class DiagnosticsCollector @Inject constructor(
             relays = relays,
             settings = settingsSnapshot,
             recentFailures = recentFailures,
-            volatile = volatile
+            volatile = volatile,
+            relayConnectivity = relayConnectivity
         )
     }
 
     companion object {
         /**
-         * MDK revision this build was compiled against.
+         * MDK build this app was compiled against.
          *
-         * Hand-maintained, mirroring the iOS constant. **Update this whenever
-         * the MDK dependency changes** — a report naming the wrong protocol
-         * build is worse than one naming none, because it sends whoever reads
-         * it looking at the wrong source.
+         * Hand-maintained, mirroring the iOS constant, because the pin lives
+         * in a build input (`scripts/vendor_marmotkit_android.py`) rather than
+         * anywhere readable at runtime. **Update this whenever that pin
+         * changes** — a report naming the wrong protocol build is worse than
+         * one naming none, because it sends whoever reads it looking at the
+         * wrong source.
+         *
+         * Names the MarmotKit release rather than an mdk-swift commit: the app
+         * runs protocol v2, and the two are not wire-compatible, so a report
+         * still citing `8a7a0a5` (MDK 0.8.0 / protocol v1) would point at the
+         * wrong protocol entirely.
          */
-        const val PINNED_MDK_REVISION = "8a7a0a5"
+        const val PINNED_MDK_REVISION = "marmotkit-v0.10.4"
     }
 }

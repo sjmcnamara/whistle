@@ -33,7 +33,17 @@ data class DiagnosticsReport(
     val relays: List<RelaySnapshot>,
     val settings: Settings,
     val recentFailures: List<FailureCount>,
-    val volatile: Volatile
+    val volatile: Volatile,
+    /**
+     * Aggregate relay connectivity, e.g. "connected (2 of 2)".
+     *
+     * Carries what a per-relay `connected` flag cannot: protocol v2 reports
+     * connection counts for the pool, not per endpoint. Null when unknown, and
+     * then omitted from the JSON entirely — Swift's synthesized `Codable`
+     * drops a nil optional rather than writing `null`, and the two encoders
+     * have to agree byte for byte.
+     */
+    val relayConnectivity: String? = null
 ) {
     val schema: Int = SCHEMA_VERSION
 
@@ -62,22 +72,50 @@ data class DiagnosticsReport(
         val memberCount: Int,
         val adminCount: Int,
         val isAdmin: Boolean,
-        /** From GroupHealthTracker — whether recent MLS operations failed. */
+        /**
+         * Whether recent group operations succeeded.
+         *
+         * Always true under protocol v2, and always 0 failures with it. v1
+         * inferred health by counting consecutive decrypt failures because the
+         * MDK boundary gave it nothing better to go on — a stuck group could
+         * only be recognised by how often it failed. MarmotKit reports an
+         * unrecoverable group as a typed error instead, so there is no tally.
+         * Both fields stay in the report rather than being dropped, so an
+         * older bundle still decodes.
+         */
         val healthy: Boolean,
         val consecutiveFailures: Int,
         /** Seconds since this device last processed an MLS event for *this*
          *  group specifically. Null if never recorded (e.g. just joined). */
         val secondsSinceLastEvent: Int?,
-        /** This device's own MLS leaf index in the group's ratchet tree, read
-         *  directly from MDK independent of the member-list enumeration used
-         *  for memberCount/isAdmin. Null if the lookup itself failed (e.g.
-         *  genuinely not a member). Included because those two can disagree --
-         *  this device can hold a real, working leaf while the member list it
-         *  reads elsewhere doesn't appear to include it. */
+        /**
+         * This device's own MLS leaf index in the group's ratchet tree.
+         *
+         * Always null under protocol v2: it was a ratchet-tree detail of the
+         * low-level MDK bindings, and MarmotKit's domain-level API does not
+         * expose it. Retained because a v1-era bundle carries it.
+         */
         val ownLeafIndex: UInt? = null
     )
 
-    data class RelaySnapshot(val url: String, val enabled: Boolean, val connected: Boolean)
+    data class RelaySnapshot(
+        val url: String,
+        val enabled: Boolean,
+        /**
+         * Relay policy (`allowed`, `retired`, `unsafe`, …).
+         *
+         * There is deliberately no per-relay `connected` flag. Protocol v2
+         * reports connection counts for the pool, not per endpoint, so the
+         * field could only ever have been invented — and a diagnostics bundle
+         * asserting something it cannot know is worse than one that omits it.
+         * Pool-wide state is on [relayConnectivity].
+         *
+         * More actionable than connectivity anyway: a retired endpoint is a
+         * permanent configuration error the user has to correct, not a
+         * transient failure to retry.
+         */
+        val policy: String? = null,
+    )
 
     data class Settings(
         val locationIntervalSeconds: Int,
@@ -143,11 +181,15 @@ data class DiagnosticsReport(
             }))
             put("relays", JSONArray(sortedRelays.map {
                 JSONObject().apply {
-                    put("connected", it.connected)
                     put("enabled", it.enabled)
+                    // Omitted when absent, not written as null: Swift's
+                    // synthesized Codable drops a nil optional, and the two
+                    // encoders have to agree byte for byte.
+                    it.policy?.let { policy -> put("policy", policy) }
                     put("url", it.url)
                 }
             }))
+            relayConnectivity?.let { put("relayConnectivity", it) }
             put("schema", schema)
             put("settings", JSONObject().apply {
                 put("keyRotationDays", settings.keyRotationDays)

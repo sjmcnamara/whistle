@@ -18,8 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import org.findmyfam.services.GroupHealthTracker
 import org.findmyfam.ui.common.ChatBubble
+import org.findmyfam.ui.common.SystemEventRow
 import org.findmyfam.viewmodels.ChatViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -173,12 +173,16 @@ fun GroupChatScreen(
                 }
 
                 itemsIndexed(messages, key = { index, msg -> "${msg.id}_$index" }) { _, message ->
-                    ChatBubble(
-                        senderDisplayName = message.senderDisplayName,
-                        text = message.text,
-                        timestamp = message.timestamp,
-                        isMe = message.isMe
-                    )
+                    if (message.isSystemEvent) {
+                        SystemEventRow(text = message.text)
+                    } else {
+                        ChatBubble(
+                            senderDisplayName = message.senderDisplayName,
+                            text = message.text,
+                            timestamp = message.timestamp,
+                            isMe = message.isMe
+                        )
+                    }
                 }
             }
 

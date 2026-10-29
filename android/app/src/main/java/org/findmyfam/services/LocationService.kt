@@ -97,7 +97,14 @@ class LocationService @Inject constructor(
                     LocationManager.GPS_PROVIDER,
                     0L,       // min time between updates (ms) — rely on time throttle only
                     0f,       // min distance (meters) — rely on time throttle only
-                    this
+                    this,
+                    // Explicit, not the caller's looper: the headless boot path
+                    // starts this from a Dispatchers.IO worker, which has none,
+                    // and the call then throws "Can't create handler inside
+                    // thread … has not called Looper.prepare()" — caught and
+                    // logged, leaving a service that reports started and never
+                    // receives a fix.
+                    context.mainLooper
                 )
             }
         } catch (e: Exception) {
@@ -110,7 +117,8 @@ class LocationService @Inject constructor(
                     LocationManager.NETWORK_PROVIDER,
                     0L,
                     0f,
-                    this
+                    this,
+                    context.mainLooper
                 )
             }
         } catch (e: Exception) {

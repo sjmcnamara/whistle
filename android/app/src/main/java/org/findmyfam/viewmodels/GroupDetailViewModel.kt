@@ -7,23 +7,25 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.findmyfam.services.*
-import org.findmyfam.shared.models.DiagnosticsReport
+import org.findmyfam.models.AppSettings
+import org.findmyfam.services.MarmotKitService
+import org.findmyfam.services.NicknameStore
+import org.findmyfam.services.NoticeCenter
 import rust.nostr.sdk.PublicKey
 import timber.log.Timber
 
 /**
- * Drives the group detail / management view -- member list, invite, remove.
+ * Drives the group detail / management view — member list, invite, remove.
  *
- * Not a HiltViewModel -- created per-group with explicit dependencies.
+ * Not a HiltViewModel — created per-group with explicit dependencies.
  */
 class GroupDetailViewModel(
     val groupId: String,
-    private val marmot: MarmotService,
-    private val mls: MLSService,
+    val marmot: MarmotKitService,
     private val nicknameStore: NicknameStore,
     private val myPubkeyHex: String,
-    private val settings: org.findmyfam.models.AppSettings? = null
+    private val settings: AppSettings? = null,
+    val notices: NoticeCenter
 ) {
     // --- Item model ---
 
@@ -43,9 +45,6 @@ class GroupDetailViewModel(
     private val _members = MutableStateFlow<List<MemberItem>>(emptyList())
     val members: StateFlow<List<MemberItem>> = _members.asStateFlow()
 
-    private val _inviteCode = MutableStateFlow<String?>(null)
-    val inviteCode: StateFlow<String?> = _inviteCode.asStateFlow()
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -54,9 +53,6 @@ class GroupDetailViewModel(
 
     private val _didAddMember = MutableStateFlow(false)
     val didAddMember: StateFlow<Boolean> = _didAddMember.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
 
     private val _addMemberNpub = MutableStateFlow("")
     val addMemberNpub: StateFlow<String> = _addMemberNpub.asStateFlow()
@@ -74,10 +70,6 @@ class GroupDetailViewModel(
     private val _resyncingMemberPubkey = MutableStateFlow<String?>(null)
     val resyncingMemberPubkey: StateFlow<String?> = _resyncingMemberPubkey.asStateFlow()
 
-    /** Invitees who gift-wrapped a join-request for this group, awaiting the admin's add. */
-    private val _pendingJoiners = MutableStateFlow<List<org.findmyfam.shared.models.JoinRequest>>(emptyList())
-    val pendingJoiners: StateFlow<List<org.findmyfam.shared.models.JoinRequest>> = _pendingJoiners.asStateFlow()
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
@@ -87,12 +79,28 @@ class GroupDetailViewModel(
                 refreshDisplayNames()
             }
         }
+    }
 
-        // Surface incoming join-requests for this group.
-        scope.launch {
-            marmot.joinRequestStore.requests.collect { all ->
-                _pendingJoiners.value = all.filter { it.groupId == groupId }
-            }
+    val isAdmin: Boolean
+        get() = _members.value.firstOrNull { it.isMe }?.isAdmin == true
+
+    val diagnosticsGroupId: String
+        get() = org.findmyfam.shared.models.DiagnosticsReport.shortHex(groupId)
+
+    fun displayIdentifier(pubkeyHex: String): String {
+        return try {
+            val npub = PublicKey.parse(pubkeyHex).toBech32()
+            "${npub.take(12)}…${npub.takeLast(4)}"
+        } catch (_: Exception) {
+            "${pubkeyHex.take(8)}…"
+        }
+    }
+
+    fun fullNpub(pubkeyHex: String): String {
+        return try {
+            PublicKey.parse(pubkeyHex).toBech32()
+        } catch (_: Exception) {
+            pubkeyHex
         }
     }
 
@@ -106,19 +114,12 @@ class GroupDetailViewModel(
         scope.launch {
             _isLoading.value = true
             try {
-                // Refresh cached metadata (name/admins/etc.) from live MLS
-                // state first -- our cache can drift from what MLS actually
-                // enforces, which otherwise shows a stale admin list here.
-                mls.syncGroupMetadataFromMls(groupId)
-
-                // Load group metadata
-                val group = mls.getGroup(groupId)
+                val group = marmot.group(groupId)
                 if (group != null) {
                     _groupName.value = group.name.ifEmpty { "Unnamed Group" }
                 }
 
-                // Load member pubkeys and admin list
-                val memberPubkeys = mls.getMembers(groupId).distinct()
+                val memberPubkeys = marmot.members(groupId).distinct()
                 val adminPubkeys = (group?.adminPubkeys ?: emptyList()).toSet()
 
                 _members.value = memberPubkeys.map { pubkey ->
@@ -129,34 +130,17 @@ class GroupDetailViewModel(
                         isAdmin = pubkey in adminPubkeys,
                         isMe = pubkey == myPubkeyHex
                     )
-                }.sortedWith(compareByDescending<MemberItem> { it.isMe }
-                    .thenByDescending { it.isAdmin }
-                    .thenBy { it.displayName })
-
-                _error.value = null
+                }.sortedWith(
+                    compareByDescending<MemberItem> { it.isMe }
+                        .thenByDescending { it.isAdmin }
+                        .thenBy { it.displayName }
+                )
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to load group detail for $groupId: $e")
+                Timber.e(e, "Failed to load group detail for $groupId")
+                notices.report(e, "Couldn't load group details")
             } finally {
                 _isLoading.value = false
             }
-        }
-    }
-
-    // --- Invite ---
-
-    fun generateInvite() {
-        try {
-            val relays = marmot.activeRelayUrls
-            val relay = relays.firstOrNull() ?: run {
-                _error.value = "No connected relays"
-                return
-            }
-            _inviteCode.value = marmot.generateInviteCode(groupId = groupId, relayUrl = relay)
-            _error.value = null
-        } catch (e: Exception) {
-            _error.value = e.message
-            Timber.e("Failed to generate invite: $e")
         }
     }
 
@@ -169,79 +153,39 @@ class GroupDetailViewModel(
         scope.launch {
             _isAddingMember.value = true
             try {
-                // Resolve npub -> hex if needed
                 val pubkeyHex: String = if (input.startsWith("npub")) {
-                    val pk = PublicKey.parse(publicKey = input)
-                    pk.toHex()
+                    runCatching { PublicKey.parse(input).toHex() }.getOrDefault(input)
                 } else {
                     input
                 }
 
-                marmot.addMember(pubkeyHex = pubkeyHex, groupId = groupId)
+                marmot.invite(listOf(pubkeyHex), groupId)
                 _addMemberNpub.value = ""
-                _error.value = null
-
-                // Reload member list
                 load()
-                Timber.i("Added member ${pubkeyHex.take(8)} to group $groupId")
-
                 _didAddMember.value = true
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to add member: $e")
+                Timber.e(e, "Failed to add member: $input")
+                notices.report(e, "Couldn't add member") {
+                    addMember()
+                }
             } finally {
                 _isAddingMember.value = false
             }
         }
     }
 
-    /**
-     * Add a joiner from their gift-wrapped join-request.
-     *
-     * Interim: uses the existing single-add (fetches their published key package
-     * from the relay). A later batch path will use the inline key package and add
-     * everyone in one MLS commit via "Add all".
-     */
-    fun addPendingJoiner(request: org.findmyfam.shared.models.JoinRequest) {
-        scope.launch {
-            _isAddingMember.value = true
-            try {
-                marmot.addMember(pubkeyHex = request.pubkey, groupId = groupId)
-                marmot.joinRequestStore.remove(groupId = groupId, pubkey = request.pubkey)
-                _error.value = null
-                load()
-                Timber.i("Added pending joiner ${request.pubkey.take(8)} to group $groupId")
-            } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to add pending joiner: $e")
-            } finally {
-                _isAddingMember.value = false
-            }
-        }
-    }
+    // --- Promote member ---
 
-    /** Discard a join-request without adding (e.g. unrecognised requester). */
-    fun dismissPendingJoiner(request: org.findmyfam.shared.models.JoinRequest) {
-        marmot.joinRequestStore.remove(groupId = groupId, pubkey = request.pubkey)
-    }
-
-    /** Admit every pending joiner in a single MLS commit (one epoch bump for all). */
-    fun addAllPendingJoiners() {
-        val toAdd = _pendingJoiners.value
-        if (toAdd.isEmpty()) return
+    fun promoteToAdmin(pubkeyHex: String) {
         scope.launch {
-            _isAddingMember.value = true
             try {
-                val result = marmot.addMembers(requests = toAdd, groupId = groupId)
-                result.added.forEach { marmot.joinRequestStore.remove(groupId = groupId, pubkey = it) }
-                _error.value = null
+                marmot.promoteToAdmin(pubkeyHex, groupId)
                 load()
-                Timber.i("Batch-added ${result.added.size} joiner(s) to group $groupId")
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to batch-add joiners: $e")
-            } finally {
-                _isAddingMember.value = false
+                Timber.e(e, "Failed to promote member: $pubkeyHex")
+                notices.report(e, "Couldn't make admin") {
+                    promoteToAdmin(pubkeyHex)
+                }
             }
         }
     }
@@ -251,102 +195,34 @@ class GroupDetailViewModel(
     fun removeMember(pubkeyHex: String) {
         scope.launch {
             try {
-                marmot.removeMember(pubkeyHex = pubkeyHex, groupId = groupId)
+                marmot.removeMembers(listOf(pubkeyHex), groupId)
                 load()
                 Timber.i("Removed member ${pubkeyHex.take(8)} from group $groupId")
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to remove member: $e")
+                Timber.e(e, "Failed to remove member: $pubkeyHex")
+                notices.report(e, "Couldn't remove member") {
+                    removeMember(pubkeyHex)
+                }
             }
         }
     }
 
-    /**
-     * Hard resync a member: remove + re-add to rebuild their ratchet-tree leaf,
-     * curing a fork that soft catch-up cannot. Admin-only. On failure (including
-     * a re-add that failed after removal), surfaces the error so the UI can
-     * prompt a retry — tapping Resync again re-adds the now-removed member.
-     */
+    // --- Resync member (remove + re-add) ---
+
     fun resyncMember(pubkeyHex: String) {
-        if (_resyncingMemberPubkey.value != null) return
         scope.launch {
             _resyncingMemberPubkey.value = pubkeyHex
             try {
-                marmot.resyncMember(pubkeyHex = pubkeyHex, groupId = groupId)
-                _error.value = null
+                marmot.resyncMember(memberRef = pubkeyHex, groupIdHex = groupId)
                 load()
-                Timber.i("Hard-resynced member ${pubkeyHex.take(8)} in group $groupId")
+                Timber.i("Resynced member ${pubkeyHex.take(8)} in group $groupId")
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to resync member: $e")
+                Timber.e(e, "Failed to resync member: $pubkeyHex")
+                notices.report(e, "Couldn't re-invite member") {
+                    resyncMember(pubkeyHex)
+                }
             } finally {
                 _resyncingMemberPubkey.value = null
-            }
-        }
-    }
-
-    /**
-     * Display identifier for a pubkey with no group membership yet (e.g. a
-     * pending joiner) -- a nickname if one is already known, otherwise an
-     * abbreviated npub the admin can match against what the joiner reads off
-     * their own Identity card, rather than meaningless raw hex.
-     */
-    fun displayIdentifier(pubkeyHex: String): String = nicknameStore.displayName(pubkeyHex)
-
-    /**
-     * The same 8-char group-id prefix diagnostics exports use -- lets you
-     * match a group in the diagnostics report (which deliberately shows no
-     * name, only this id) back to an actual group when you're in more than one.
-     */
-    val diagnosticsGroupId: String
-        get() = DiagnosticsReport.shortHex(groupId)
-
-    /**
-     * Full npub for a member -- lets you verify a *named* member's identity
-     * out-of-band by comparing it against what they read off their own
-     * Identity card. Unlike a nickname-less fallback (which already shows an
-     * abbreviated npub in place of a name), a member with a cached nickname
-     * otherwise has no way to reveal the pubkey backing that name.
-     */
-    fun fullNpub(pubkeyHex: String): String =
-        try { PublicKey.parse(publicKey = pubkeyHex).toBech32() } catch (_: Exception) { pubkeyHex }
-
-    /**
-     * Whether the current user is an admin of this group.
-     */
-    val isAdmin: Boolean
-        get() = _members.value.firstOrNull { it.isMe }?.isAdmin ?: false
-
-    // --- Promote to admin ---
-
-    fun promoteToAdmin(pubkeyHex: String) {
-        scope.launch {
-            try {
-                marmot.promoteToAdmin(pubkeyHex = pubkeyHex, groupId = groupId)
-                load()
-                _error.value = null
-            } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to promote to admin: $e")
-            }
-        }
-    }
-
-    // --- Leave group ---
-
-    /** Leave the group directly -- a self-remove MLS commit, takes effect immediately. */
-    fun leaveGroup() {
-        scope.launch {
-            _isLeaving.value = true
-            try {
-                marmot.leaveGroup(groupId = groupId)
-                _didLeave.value = true
-                _error.value = null
-            } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to leave group: $e")
-            } finally {
-                _isLeaving.value = false
             }
         }
     }
@@ -355,28 +231,49 @@ class GroupDetailViewModel(
 
     fun renameGroup(newName: String) {
         val trimmed = newName.trim()
-        if (trimmed.isEmpty() || trimmed == _groupName.value) return
-
+        if (trimmed.isEmpty()) return
         scope.launch {
             _isRenaming.value = true
             try {
-                marmot.renameGroup(groupId = groupId, newName = trimmed)
+                marmot.rename(groupId, trimmed)
                 _groupName.value = trimmed
-                _error.value = null
             } catch (e: Exception) {
-                _error.value = e.message
-                Timber.e("Failed to rename group: $e")
+                Timber.e(e, "Failed to rename group $groupId")
+                notices.report(e, "Couldn't rename group") {
+                    renameGroup(newName)
+                }
             } finally {
                 _isRenaming.value = false
             }
         }
     }
 
-    // --- Nickname refresh ---
+    // --- Leave group ---
+
+    fun leaveGroup() {
+        scope.launch {
+            _isLeaving.value = true
+            try {
+                marmot.leaveGroup(groupId)
+                _didLeave.value = true
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to leave group $groupId")
+                notices.report(e, "Couldn't leave group") {
+                    leaveGroup()
+                }
+            } finally {
+                _isLeaving.value = false
+            }
+        }
+    }
 
     private fun refreshDisplayNames() {
-        _members.value = _members.value.map { m ->
-            m.copy(displayName = nicknameStore.displayName(m.pubkeyHex))
-        }
+        _members.value = _members.value.map {
+            it.copy(displayName = nicknameStore.displayName(it.pubkeyHex))
+        }.sortedWith(
+            compareByDescending<MemberItem> { it.isMe }
+                .thenByDescending { it.isAdmin }
+                .thenBy { it.displayName }
+        )
     }
 }
