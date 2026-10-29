@@ -261,10 +261,27 @@ final class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Seed initial value (no broadcast — we do that after Marmot starts)
-        if let pubkey = myPubkeyHex, !settings.displayName.isEmpty {
-            nicknameStore.set(name: settings.displayName, for: pubkey)
-        }
+        // Seed initial value (no broadcast — we do that after Marmot starts).
+        // On a normal launch this does nothing: `observeSettings()` runs from
+        // `init`, before `identity.initialise()` has loaded the key, so there is
+        // no pubkey yet. The real launch-time seed is in the startup sequence;
+        // this stays for `replaceIdentity`, which re-wires with the identity
+        // already in place.
+        seedOwnDisplayName()
+    }
+
+    /// Put our own display name into `NicknameStore` under our own pubkey.
+    ///
+    /// Our own row in a group's member list and our own chat bubbles resolve the
+    /// name exactly as every other member's does — through `NicknameStore` —
+    /// and nothing echoes our own nickname back to us, so this is the only way
+    /// an entry for our own pubkey ever exists. When it is missing the row
+    /// reads as the abbreviated npub followed by "(you)".
+    ///
+    /// Needs the identity, so it cannot run before `identity.initialise()`.
+    private func seedOwnDisplayName() {
+        guard let pubkey = myPubkeyHex, !settings.displayName.isEmpty else { return }
+        nicknameStore.set(name: settings.displayName, for: pubkey)
     }
 
     // MARK: - Deep Link Handling
@@ -345,6 +362,11 @@ final class AppViewModel: ObservableObject {
         // its own keyring, but the identity has to come from somewhere on an
         // upgrade, and this is where existing users' keys already are.
         await identity.initialise()
+
+        // The launch-time seed. `observeSettings()` cannot do it: it runs from
+        // `init`, before the identity exists, so its own seed is a no-op on a
+        // normal launch and the name only appeared once it was next edited.
+        seedOwnDisplayName()
 
         // Record the time so we can enforce a minimum splash display duration.
         let splashStart = ContinuousClock.now
@@ -868,9 +890,7 @@ final class AppViewModel: ObservableObject {
         try identity.importKey(nsec: nsec)
 
         // 11. Seed display name for new identity
-        if let pubkey = myPubkeyHex, !settings.displayName.isEmpty {
-            nicknameStore.set(name: settings.displayName, for: pubkey)
-        }
+        seedOwnDisplayName()
 
         // 12. Re-wire Combine pipelines and restart.
         forwardChildChanges()
