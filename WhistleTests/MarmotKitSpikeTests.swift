@@ -8,7 +8,7 @@ import MarmotKit
 /// `MarmotKitBindings` is wired into `WhistleTests` only (see project.yml) — it is NOT a
 /// dependency of the shipping `Whistle` app target yet. This proves the package resolves,
 /// compiles, and the API shape documented in `crates/marmot-uniffi/API-REFERENCE.md`
-/// (marmot-protocol/mdk, marmotkit-v0.10.4) matches what the generated Swift bindings
+/// (marmot-protocol/mdk, marmotkit-v0.11.0) matches what the generated Swift bindings
 /// actually expose — before `MarmotService` is rewritten around it (step 3).
 ///
 /// The round-trip itself needs a real relay: MarmotKit owns its own relay pub/sub

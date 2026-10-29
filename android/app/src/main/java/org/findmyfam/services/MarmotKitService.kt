@@ -885,6 +885,71 @@ class MarmotKitService(
         return lines
     }
 
+    // MARK: - History notices
+
+    /**
+     * "History may be incomplete", as the app sees it.
+     *
+     * Since 0.11 MarmotKit stops retrying a recovery it cannot certify and
+     * raises a durable notice instead of reporting success it cannot prove.
+     * Showing it and letting the user dismiss it is a required host duty, not
+     * an optional extra. Mapped to an app type for the same reason as
+     * [WhistleGroup]: nothing outside this class should hold a MarmotKit type.
+     */
+    data class HistoryNotice(
+        /** Opaque and short-lived: it changes when recovery re-arms, so never persist it. */
+        val noticeId: String,
+        val cause: String,
+        /** Set for a group-scoped occurrence (an epoch gap); null when account-wide. */
+        val groupIdHex: String?,
+    )
+
+    private val _historyNotices = MutableStateFlow<List<HistoryNotice>>(emptyList())
+    val historyNotices: StateFlow<List<HistoryNotice>> = _historyNotices.asStateFlow()
+
+    /**
+     * Re-read the notices from MarmotKit. Local durable state, no network, so
+     * it is cheap enough to call on every chat-list change and on foreground.
+     * A failure leaves the previous list: dropping a notice because a read
+     * failed would hide exactly the condition the user needs to know about.
+     */
+    suspend fun refreshHistoryNotices() {
+        val account = accountRef ?: return
+        try {
+            _historyNotices.value = onFfi { marmot.`historyNotices`(account) }.map {
+                HistoryNotice(
+                    noticeId = it.`noticeId`,
+                    cause = it.`cause`.name.lowercase(),
+                    groupIdHex = it.`groupIdHex`,
+                )
+            }
+        } catch (error: Throwable) {
+            Timber.w(error, "Could not read history notices")
+        }
+    }
+
+    /**
+     * Record the user's decision to dismiss these notices.
+     *
+     * Only ever called from an explicit user action: upstream is emphatic that
+     * a host must not dismiss on the user's behalf. A `false` return is a stale
+     * id — recovery re-armed since the list was read — so the list is re-read
+     * rather than treated as an error.
+     */
+    suspend fun dismissHistoryNotices(noticeIds: List<String>) {
+        val account = requireAccount()
+        run {
+            noticeIds.forEach { id ->
+                try {
+                    marmot.`dismissHistoryNotice`(account, id)
+                } catch (error: Throwable) {
+                    Timber.w(error, "Could not dismiss history notice")
+                }
+            }
+        }
+        refreshHistoryNotices()
+    }
+
     // MARK: - Groups
 
     suspend fun refreshGroups() {
@@ -1353,6 +1418,9 @@ class MarmotKitService(
 
     private suspend fun refreshGroupsDetectingJoins() {
         refreshGroups()
+        // Every chat-list change is also the signal that a notice may have
+        // appeared or cleared, and the read is local.
+        refreshHistoryNotices()
         val current = _groups.value.map { it.mlsGroupId }
         val arrived = current.filterNot { it in knownGroupIdsAtSubscribe }
         knownGroupIdsAtSubscribe = knownGroupIdsAtSubscribe + current

@@ -2,6 +2,8 @@ package org.findmyfam
 
 import dev.ipf.marmotkit.AccountSetupReadinessFfi
 import dev.ipf.marmotkit.AccountSummaryFfi
+import dev.ipf.marmotkit.HistoryNoticeCauseFfi
+import dev.ipf.marmotkit.HistoryNoticeFfi
 import dev.ipf.marmotkit.MarmotInterface
 import dev.ipf.marmotkit.MarmotKitException
 import dev.ipf.marmotkit.OnboardingSnapshotFfi
@@ -276,6 +278,87 @@ class MarmotKitServiceTest {
     @Test
     fun `there is no member code before the account exists`() {
         assertNull(service().myMemberCode())
+    }
+
+    // MARK: - History notices
+
+    private fun notice(id: String, group: String? = null) =
+        HistoryNoticeFfi(
+            noticeId = id,
+            cause = HistoryNoticeCauseFfi.DELIVERY_LOSS,
+            groupIdHex = group,
+            parkedAtMs = null,
+        )
+
+    @Test
+    fun `history notices are mapped to app types and published`() = runTest {
+        val sut = startedService()
+        coEvery { marmot.`historyNotices`(any()) } returns listOf(notice("n1"), notice("n2", group = "g"))
+
+        sut.refreshHistoryNotices()
+
+        assertEquals(listOf("n1", "n2"), sut.historyNotices.value.map { it.noticeId })
+        assertEquals("delivery_loss", sut.historyNotices.value.first().cause)
+        assertNull(sut.historyNotices.value.first().groupIdHex)
+        assertEquals("g", sut.historyNotices.value.last().groupIdHex)
+    }
+
+    /**
+     * Dropping the list because a read failed would hide exactly the condition
+     * the user most needs to know about.
+     */
+    @Test
+    fun `a failed read keeps the previous notices`() = runTest {
+        val sut = startedService()
+        coEvery { marmot.`historyNotices`(any()) } returns listOf(notice("n1"))
+        sut.refreshHistoryNotices()
+
+        coEvery { marmot.`historyNotices`(any()) } throws IllegalStateException("db busy")
+        sut.refreshHistoryNotices()
+
+        assertEquals(listOf("n1"), sut.historyNotices.value.map { it.noticeId })
+    }
+
+    @Test
+    fun `dismissing records each notice and then re-reads the list`() = runTest {
+        val sut = startedService()
+        coEvery { marmot.`historyNotices`(any()) } returns listOf(notice("n1"), notice("n2"))
+        sut.refreshHistoryNotices()
+        coEvery { marmot.`dismissHistoryNotice`(any(), any()) } returns true
+        coEvery { marmot.`historyNotices`(any()) } returns emptyList()
+
+        sut.dismissHistoryNotices(listOf("n1", "n2"))
+
+        coVerify(exactly = 1) { marmot.`dismissHistoryNotice`(any(), "n1") }
+        coVerify(exactly = 1) { marmot.`dismissHistoryNotice`(any(), "n2") }
+        assertTrue(sut.historyNotices.value.isEmpty())
+    }
+
+    /**
+     * A `false` return means the id is stale — recovery re-armed since the list
+     * was read. That is an expected race, not an error, and the answer is to
+     * show the current list.
+     */
+    @Test
+    fun `a stale id on dismiss re-reads rather than failing`() = runTest {
+        val sut = startedService()
+        coEvery { marmot.`dismissHistoryNotice`(any(), "old") } returns false
+        coEvery { marmot.`historyNotices`(any()) } returns listOf(notice("new"))
+
+        sut.dismissHistoryNotices(listOf("old"))
+
+        assertEquals(listOf("new"), sut.historyNotices.value.map { it.noticeId })
+    }
+
+    /** The service must not read notices for an account it has not adopted. */
+    @Test
+    fun `refreshing before an account exists does nothing`() = runTest {
+        val sut = service()
+
+        sut.refreshHistoryNotices()
+
+        coVerify(exactly = 0) { marmot.`historyNotices`(any()) }
+        assertTrue(sut.historyNotices.value.isEmpty())
     }
 
     // MARK: - Threading

@@ -21,7 +21,7 @@ enum DiagnosticsCollector {
     /// app target runs protocol v2, and the two are not wire-compatible, so a
     /// report still citing `8a7a0a5` (MDK 0.8.0 / protocol v1) would point at
     /// the wrong protocol entirely.
-    static let pinnedMDKRevision = "marmotkit-v0.10.4"
+    static let pinnedMDKRevision = "marmotkit-v0.11.0"
 
     static func collect(
         marmot: MarmotKitService?,

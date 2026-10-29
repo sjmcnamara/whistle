@@ -159,6 +159,7 @@ class AppViewModel @Inject constructor(
         _startupPhase.value = StartupPhase.LOADING_GROUPS
         marmot.refreshGroups()
         Timber.i("Loaded ${marmot.groups.value.size} group(s) from MarmotKit")
+        marmot.refreshHistoryNotices()
 
         // Seed the local display name so the user's own map pin and chat
         // bubbles are named before any broadcast round trip.
@@ -301,6 +302,23 @@ class AppViewModel @Inject constructor(
                         message = "Still publishing your account. You can't create or join groups until this finishes.",
                         actionTitle = "Retry",
                         action = { runCatching { marmot.completeAccountSetup() } },
+                    )
+                }
+            }
+        }
+
+        // MarmotKit raises a durable notice when it cannot prove its history
+        // is complete. A state, not an event, so a banner: it stays until the
+        // user dismisses it, which is what releases the transport cursor.
+        viewModelScope.launch {
+            marmot.historyNotices.collect { found ->
+                notices.setBanner(NoticeCenter.Cause.HISTORY_INCOMPLETE, active = found.isNotEmpty()) {
+                    NoticeCenter.Banner(
+                        cause = NoticeCenter.Cause.HISTORY_INCOMPLETE,
+                        message = "Some earlier messages or locations may be missing on this device. " +
+                            "This can follow a poor connection or an update.",
+                        actionTitle = "Dismiss",
+                        action = { marmot.dismissHistoryNotices(found.map { it.noticeId }) },
                     )
                 }
             }
@@ -643,6 +661,7 @@ class AppViewModel @Inject constructor(
                 Timber.w(error, "Catch-up on foreground failed (non-fatal)")
             }
             marmot.refreshGroups()
+            marmot.refreshHistoryNotices()
         }
     }
 

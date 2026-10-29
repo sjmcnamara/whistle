@@ -53,19 +53,23 @@ ci_use_local_mdk.py --print-revision).
 import hashlib
 import pathlib
 import re
+import shutil
 import sys
 import urllib.request
 import zipfile
 
-VERSION = "0.10.4"
+VERSION = "0.11.0"
 BASE_URL = f"https://github.com/marmot-protocol/mdk/releases/download/marmotkit-v{VERSION}"
 XCFRAMEWORK_ZIP_URL = f"{BASE_URL}/MarmotKitFFI-{VERSION}.xcframework.zip"
-XCFRAMEWORK_ZIP_SHA256 = "9deeeed623ec8dc193cedb5501faa820b4abc7423c6b2b3ba58b631c8c25560f"
+XCFRAMEWORK_ZIP_SHA256 = "c342c3b5a42c79c4fbd9fbe7fe06a27ac6267da4731319239b2af0cb11e9f96d"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 VENDOR_DIR = REPO_ROOT / "vendor"
 ZIP_PATH = VENDOR_DIR / f"MarmotKitFFI-{VERSION}.xcframework.zip"
 XCFRAMEWORK_DIR = VENDOR_DIR / "MarmotKitFFI.xcframework"
+# Which release the extracted tree came from. Kept beside the framework, not
+# inside it: an extra file in an .xcframework is something Xcode may look at.
+VERSION_MARKER = VENDOR_DIR / ".MarmotKitFFI.version"
 PACKAGE_SWIFT_PATH = REPO_ROOT / "MarmotKitBindings" / "Package.swift"
 
 BINARY_TARGET_PATTERN = re.compile(
@@ -108,8 +112,14 @@ def download_and_verify_zip():
 
 
 def repackage_xcframework():
+    # Keyed on the release, not on the directory existing. This used to return
+    # as soon as the directory was there, so bumping VERSION left the previous
+    # release's XCFramework in place on any machine or CI cache that already had
+    # one, and the build succeeded against the old native code.
     if XCFRAMEWORK_DIR.exists():
-        return
+        if VERSION_MARKER.exists() and VERSION_MARKER.read_text().strip() == VERSION:
+            return
+        shutil.rmtree(XCFRAMEWORK_DIR)
     with zipfile.ZipFile(ZIP_PATH) as zf:
         zf.extractall(VENDOR_DIR)
     extracted = VENDOR_DIR / "MarmotKit.xcframework"
@@ -117,6 +127,7 @@ def repackage_xcframework():
 
     for modulemap in XCFRAMEWORK_DIR.glob("*/Headers/module.modulemap"):
         modulemap.unlink()
+    VERSION_MARKER.write_text(VERSION + "\n")
 
 
 def patch_package_swift():

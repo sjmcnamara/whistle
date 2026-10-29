@@ -41,6 +41,7 @@ groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
   member code, and an admin scans it or pastes your npub. Invite codes, join
   requests and `whistle://` invite links are removed.
 - **(Android) Chat history pages by cursor** rather than by offset.
+- **(iOS & Android) MarmotKit 0.11.0.** Android's native library is now 16KB-aligned, which removes the "app isn't 16 KB compatible" warning on Android 16+. Account databases migrate forward on first open and cannot be downgraded. When MarmotKit cannot prove a recovered history is complete it now says so: a banner reads "Some earlier messages or locations may be missing on this device" with a Dismiss button.
 - **(Android) `arm64-v8a` only.** MarmotKit's native library ships for 64-bit
   ARM, so 32-bit ARM devices and x86 emulators are no longer supported.
 

@@ -1481,6 +1481,63 @@ final class MarmotKitService: ObservableObject {
         }
     }
 
+    // MARK: - History notices
+
+    /// "History may be incomplete", as the app sees it.
+    ///
+    /// Since 0.11 MarmotKit stops retrying a recovery it cannot certify and
+    /// raises a durable notice instead of reporting success it cannot prove.
+    /// Showing it and letting the user dismiss it is a required host duty, not
+    /// an optional extra. Mapped to an app type for the same reason as
+    /// `WhistleGroup`: nothing outside this class should hold a MarmotKit type.
+    struct HistoryNotice: Equatable {
+        /// Opaque and short-lived: it changes when recovery re-arms, so never persist it.
+        let noticeId: String
+        let cause: String
+        /// Set for a group-scoped occurrence (an epoch gap); nil when account-wide.
+        let groupIdHex: String?
+    }
+
+    @Published private(set) var historyNotices: [HistoryNotice] = []
+
+    /// Re-read the notices from MarmotKit. Local durable state, no network, so
+    /// it is cheap enough to call on every chat-list change and on foreground.
+    /// A failure leaves the previous list: dropping a notice because a read
+    /// failed would hide exactly the condition the user needs to know about.
+    func refreshHistoryNotices() async {
+        guard let account = accountRef else { return }
+        do {
+            let found = try await marmot.historyNotices(accountRef: account)
+            historyNotices = found.map {
+                HistoryNotice(
+                    noticeId: $0.noticeId,
+                    cause: String(describing: $0.cause),
+                    groupIdHex: $0.groupIdHex
+                )
+            }
+        } catch {
+            WhistleLogger.marmot.warning("Could not read history notices: \(error)")
+        }
+    }
+
+    /// Record the user's decision to dismiss these notices.
+    ///
+    /// Only ever called from an explicit user action: upstream is emphatic that
+    /// a host must not dismiss on the user's behalf. A `false` return is a stale
+    /// id — recovery re-armed since the list was read — so the list is re-read
+    /// rather than treated as an error.
+    func dismissHistoryNotices(_ noticeIds: [String]) async {
+        guard let account = accountRef else { return }
+        for id in noticeIds {
+            do {
+                _ = try await marmot.dismissHistoryNotice(accountRef: account, noticeId: id)
+            } catch {
+                WhistleLogger.marmot.warning("Could not dismiss history notice: \(error)")
+            }
+        }
+        await refreshHistoryNotices()
+    }
+
     /// Is this pubkey an admin of the group, per live MLS state?
     func isAdmin(_ pubkeyHex: String, ofGroup groupIdHex: String) async -> Bool {
         (try? await group(id: groupIdHex))?.isAdmin(pubkeyHex) ?? false
@@ -1719,6 +1776,9 @@ final class MarmotKitService: ObservableObject {
     /// profile — which is what the admin saw.
     private func refreshGroupsDetectingJoins() async {
         await refreshGroups()
+        // Every chat-list change is also the signal that a notice may have
+        // appeared or cleared, and the read is local.
+        await refreshHistoryNotices()
         let current = groups.map(\.mlsGroupId)
         let arrived = current.filter { !knownGroupIdsAtSubscribe.contains($0) }
         knownGroupIdsAtSubscribe.formUnion(current)
