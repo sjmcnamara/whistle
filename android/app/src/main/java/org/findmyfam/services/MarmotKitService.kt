@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import org.findmyfam.shared.MarmotKind
 import org.findmyfam.shared.models.AvatarPayload
 import org.findmyfam.shared.models.GroupAvatarPayload
@@ -159,6 +160,17 @@ class MarmotKitService(
          */
         class ReAddFailed(memberRef: String) : ServiceError(
             "Removed ${memberRef.take(8)}… but couldn't add them back. Try inviting them again."
+        )
+
+        /**
+         * A resync re-added an admin but could not make them an admin again.
+         * Reported apart from [ReAddFailed] because the recovery differs: they
+         * are already back in the group, so retrying the whole resync would
+         * remove and re-add them as a plain member a second time.
+         */
+        class AdminNotRestored(memberRef: String) : ServiceError(
+            "${memberRef.take(8)}… is back in the group, but couldn't be made an admin again. " +
+                "Make them an admin from their row."
         )
 
         class Underlying(detail: String) : ServiceError(detail)
@@ -1092,6 +1104,8 @@ class MarmotKitService(
     suspend fun promoteToAdmin(memberRef: String, groupIdHex: String) {
         val account = requireAccount()
         run { marmot.`promoteAdmin`(account, groupIdHex, memberRef) }
+        // Whatever the route, they are an admin now; nothing is owed.
+        pendingAdminRestores.remove("$groupIdHex|$memberRef")
         refreshGroups()
     }
 
@@ -1343,18 +1357,71 @@ class MarmotKitService(
      * Ordering matches v1: nothing is removed until the re-invite is possible,
      * and a failure after removal is reported distinctly ([ServiceError.ReAddFailed])
      * so the caller can retry rather than silently stranding the member.
+     *
+     * **An admin comes back an admin.** Admin status is part of the group's MLS
+     * state, so the re-add commit creates a plain member; without this the
+     * repair silently demoted whoever it repaired. In a two-admin group that
+     * leaves one, and if that one leaves the group has none. v1 did the same.
      */
     suspend fun resyncMember(memberRef: String, groupIdHex: String) {
+        val key = "$groupIdHex|$memberRef"
+
+        val restoreAdmin: Boolean
         if (members(groupIdHex).contains(memberRef)) {
+            // Live group state is the truth while they are still in the group.
+            // Read strictly: `group()` turns a failed `groupDetails` read into
+            // an empty admin list, and a transient failure here would demote an
+            // admin without a word — the exact bug being fixed. A failure must
+            // stop the resync *before* anything is removed.
+            restoreAdmin = strictAdmins(groupIdHex).contains(memberRef)
+            // Remembered for a retry of a failed re-add, when they will no
+            // longer be in the group to ask. Cleared when they were not an
+            // admin, so a stale entry can never promote someone later.
+            if (restoreAdmin) pendingAdminRestores.add(key) else pendingAdminRestores.remove(key)
             removeMembers(listOf(memberRef), groupIdHex)
+        } else {
+            // Already out — a retry after a failed re-add. Only now is the
+            // remembered role consulted, because there is nothing live to read.
+            restoreAdmin = key in pendingAdminRestores
         }
+
         try {
             invite(listOf(memberRef), groupIdHex)
         } catch (error: Throwable) {
             throw ServiceError.ReAddFailed(memberRef)
         }
+        // Membership has changed whether or not the promotion below succeeds,
+        // so existing members re-announce their profiles either way.
         _lastGroupMembershipChangeId.value = groupIdHex to System.currentTimeMillis()
+
+        if (restoreAdmin) {
+            try {
+                promoteToAdmin(memberRef, groupIdHex)
+            } catch (error: Throwable) {
+                throw ServiceError.AdminNotRestored(memberRef)
+            }
+        }
     }
+
+    /**
+     * The group's admin pubkeys, throwing if they cannot be read.
+     *
+     * Unlike [group], which falls back to no admins when `groupDetails` fails.
+     * Use this wherever a wrong empty answer would be acted on.
+     */
+    private suspend fun strictAdmins(groupIdHex: String): List<String> {
+        val account = requireAccount()
+        return run { marmot.`groupDetails`(account, groupIdHex).`group`.`admins` }
+    }
+
+    /**
+     * Admins a resync removed and still owes a promotion to, keyed by
+     * `group|member`. Only for retrying a re-add that failed; in memory, so a
+     * relaunch in that window returns the member as a plain member, which the
+     * admin can fix from their row. A concurrent set because resyncs run on a
+     * worker thread.
+     */
+    private val pendingAdminRestores: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     fun startSubscriptions() {
         if (receiveJob != null) return

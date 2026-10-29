@@ -57,6 +57,8 @@ groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
 
 ### Fixed
 
+- **(iOS & Android) Resyncing an admin no longer demotes them.** Resync removes and re-adds a member, and the re-add produced an ordinary member, so repairing an admin silently took their admin role. They now come back an admin. If the role cannot be restored you are told, separately from a failed re-add.
+
 - **(iOS) A group you are alone in can be left.** It previously reported
   "promote another member to admin before leaving" with nobody to promote,
   leaving identity burn as the only way out.

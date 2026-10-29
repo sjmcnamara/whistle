@@ -216,6 +216,15 @@ class GroupDetailViewModel(
                 marmot.resyncMember(memberRef = pubkeyHex, groupIdHex = groupId)
                 load()
                 Timber.i("Resynced member ${pubkeyHex.take(8)} in group $groupId")
+            } catch (e: MarmotKitService.ServiceError.AdminNotRestored) {
+                // They are already back in the group, so retrying the whole
+                // resync would remove and re-add them a second time as a plain
+                // member. Retry only the promotion.
+                Timber.e(e, "Resynced $pubkeyHex but could not restore admin")
+                load()
+                notices.report(e, "Couldn't make them an admin again") {
+                    promoteToAdmin(pubkeyHex)
+                }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to resync member: $pubkeyHex")
                 notices.report(e, "Couldn't re-invite member") {

@@ -185,6 +185,59 @@ final class MarmotKitTwoDeviceTests: XCTestCase {
         XCTAssertTrue(bobsGroup.isActive)
     }
 
+    // MARK: - Resync keeps an admin an admin
+
+    /// The bug. `resyncMember` is remove + invite, and admin status lives in the
+    /// group's MLS state, so the re-add produced an ordinary member: repairing
+    /// an admin silently demoted them. Found on a device, where an iOS admin
+    /// resynced an Android admin and got a plain member back.
+    ///
+    /// Also answers the open question the fix rested on: whether promoting
+    /// straight after the re-invite works, or races the re-added member's
+    /// Welcome. Asserted from **both** sides, because an admin list that
+    /// diverges between devices is the failure this guards against.
+    @MainActor
+    func testResyncingAnAdminLeavesThemAnAdmin() async throws {
+        let (alice, bob, bobRef, groupId) = try await makePair()
+        try await alice.promoteToAdmin(bobRef, inGroup: groupId)
+        try await eventually("Alice to see Bob as an admin") {
+            try await alice.group(id: groupId)?.isAdmin(bobRef) == true
+        }
+
+        try await alice.resyncMember(bobRef, inGroup: groupId)
+
+        try await eventually("Alice to see Bob back in the group, still an admin") {
+            let members = try await alice.members(ofGroup: groupId)
+            let group = try await alice.group(id: groupId)
+            return members.contains(bobRef) && group?.isAdmin(bobRef) == true
+        }
+        try await eventually("Bob to rejoin and see himself as an admin") {
+            let group = try await bob.group(id: groupId)
+            return group?.isActive == true && group?.isAdmin(bobRef) == true
+        }
+    }
+
+    /// The reverse, and the one that makes the fix safe: a fix that promoted
+    /// unconditionally would be worse than the bug, quietly handing admin to
+    /// every member that was ever resynced.
+    @MainActor
+    func testResyncingAPlainMemberDoesNotMakeThemAnAdmin() async throws {
+        let (alice, bob, bobRef, groupId) = try await makePair()
+        let before = try await alice.group(id: groupId)
+        XCTAssertEqual(before?.isAdmin(bobRef), false, "precondition: Bob starts as a plain member")
+
+        try await alice.resyncMember(bobRef, inGroup: groupId)
+
+        try await eventually("Bob to rejoin") {
+            let group = try await bob.group(id: groupId)
+            return group?.isActive == true
+        }
+        let afterAlice = try await alice.group(id: groupId)
+        let afterBob = try await bob.group(id: groupId)
+        XCTAssertEqual(afterAlice?.isAdmin(bobRef), false, "Alice's view must not show Bob as an admin")
+        XCTAssertEqual(afterBob?.isAdmin(bobRef), false, "Bob's own view must not show him as an admin")
+    }
+
     // MARK: - Step 4: does MarmotKit survive out-of-order commit delivery?
 
     /// The delete-authorisation gate for Whistle's v1.11.2
