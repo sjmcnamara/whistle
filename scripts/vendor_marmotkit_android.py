@@ -29,10 +29,10 @@ import sys
 import urllib.request
 import zipfile
 
-VERSION = "0.11.0"
+VERSION = "0.14.0"
 BASE_URL = f"https://github.com/marmot-protocol/mdk/releases/download/marmotkit-v{VERSION}"
 ANDROID_ZIP_URL = f"{BASE_URL}/marmotkit-android-{VERSION}.zip"
-ANDROID_ZIP_SHA256 = "5ab8bf5f7723ed2c07d15a07c5691d05eb8a37354882020c0b69b952d6418923"
+ANDROID_ZIP_SHA256 = "a4f99bd844e3839c3598751ca5b08bc4f6b7298435a22739a426e445248e9839"
 
 # The one ABI we ship. See the module docstring for why.
 ABI = "arm64-v8a"
