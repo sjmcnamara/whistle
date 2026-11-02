@@ -58,10 +58,10 @@ import sys
 import urllib.request
 import zipfile
 
-VERSION = "0.11.0"
+VERSION = "0.14.0"
 BASE_URL = f"https://github.com/marmot-protocol/mdk/releases/download/marmotkit-v{VERSION}"
 XCFRAMEWORK_ZIP_URL = f"{BASE_URL}/MarmotKitFFI-{VERSION}.xcframework.zip"
-XCFRAMEWORK_ZIP_SHA256 = "c342c3b5a42c79c4fbd9fbe7fe06a27ac6267da4731319239b2af0cb11e9f96d"
+XCFRAMEWORK_ZIP_SHA256 = "5806dd9ed939833fc932727d8fcc3b968a0421d490537746570460a0db5a9925"
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 VENDOR_DIR = REPO_ROOT / "vendor"

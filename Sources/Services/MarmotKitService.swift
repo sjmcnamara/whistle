@@ -205,9 +205,17 @@ final class MarmotKitService: ObservableObject {
         secretStore: SecretStore? = nil
     ) throws {
         self.relayUrls = relayUrls
+        // `deployment` is required since 0.14.0 and has no default. The White
+        // Noise preset is what 0.11.0 compiled in (recovery relays, discovery
+        // indexers, media/image servers, and the keychain service
+        // `com.marmot.whitenoise`), so taking it keeps the upgrade to one
+        // variable. Whether Whistle should keep White Noise's services is a
+        // separate decision: changing the keychain service later strands every
+        // stored secret.
         let options = MarmotOptions(
             relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly,
-            secretStore: secretStore
+            secretStore: secretStore,
+            deployment: marmotDeploymentWhiteNoise()
         )
         self.marmot = try Marmot.newWithConfiguration(
             rootPath: rootPath,
@@ -354,7 +362,9 @@ final class MarmotKitService: ObservableObject {
         guard let probe = try? Marmot.newWithConfiguration(
             rootPath: resolvedProbeRoot,
             relayUrls: [],
-            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil)
+            // Same deployment as the real runtime: 0.14.0 requires one on every
+            // constructor in every process.
+            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil, deployment: marmotDeploymentWhiteNoise())
         ) else {
             // Policy unavailable. Returning the input unfiltered is the right
             // failure: it preserves today's behaviour and lets `start()`
