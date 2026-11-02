@@ -1451,20 +1451,32 @@ class MarmotKitService(
                 return@launch
             }
 
+            Timber.i("Message subscription open")
             while (isActive) {
                 val update = subscription.`next`() ?: break
                 // Agent-stream starts are skipped: Whistle sends no agent
                 // payloads, and surfacing them would make every caller handle
                 // a case with no meaning here.
-                val received = (update as? MessageUpdateFfi.Message)?.`received`?.`message` ?: continue
+                val received = (update as? MessageUpdateFfi.Message)?.`received`?.`message` ?: run {
+                    Timber.i("Message subscription update ignored: ${update::class.java.simpleName}")
+                    null
+                } ?: continue
+                Timber.i("Message subscription delivered kind=${received.`kind`}")
                 route(mapReceivedMessage(received))
             }
+            // `next()` returning null means the stream closed. Silent until
+            // now, which made "the app stops receiving" indistinguishable from
+            // "nothing was sent".
+            Timber.w("Message subscription ended")
         }
 
         chatListJob = scope.launch {
             val subscription = runCatching {
                 marmot.`subscribeChatList`(account, false)
+            }.onFailure {
+                Timber.w(it, "Failed to open chat-list subscription")
             }.getOrNull() ?: return@launch
+            Timber.i("Chat-list subscription open")
 
             // Every row change republishes the list. This is the only signal
             // for "a group you were not in has appeared" — the message
