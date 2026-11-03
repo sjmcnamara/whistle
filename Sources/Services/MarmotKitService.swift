@@ -1668,10 +1668,31 @@ final class MarmotKitService: ObservableObject {
             // id and would have hidden the duplicate instead of surfacing it,
             // and anything that trusted the page contents would double-render
             // one message per page.
-            let mapped = page.messages
-                .map { Self.map(timeline: $0) }
-                .filter { $0.id != before?.id }
+            //
+            // Newest first, enforced here rather than trusted. Both chat view
+            // models and the "load earlier" cursor (`page.messages.last` is
+            // taken to be the *oldest* row) assume the page arrives newest
+            // first, but `timelineMessages` returns it oldest first — measured
+            // on Android: row 0 was the group's creation, the last row the
+            // newest message. Reversed, a cold chat load showed the thread
+            // upside down, so freshly delivered messages looked missing until
+            // the chat was left and re-entered and the merge path's sort fixed
+            // it; and the cursor pointed at the newest row, so "Load earlier
+            // messages" re-fetched the same page and did nothing.
+            let mapped = Self.sortedNewestFirst(
+                page.messages
+                    .map { Self.map(timeline: $0) }
+                    .filter { $0.id != before?.id }
+            )
             return (mapped, page.hasMoreBefore)
+        }
+    }
+
+    /// Newest first; messages in the same second are ordered by id, newest
+    /// first, to match the backend's compound (time, id) cursor.
+    nonisolated static func sortedNewestFirst(_ messages: [WhistleMessage]) -> [WhistleMessage] {
+        messages.sorted { lhs, rhs in
+            lhs.createdAt != rhs.createdAt ? lhs.createdAt > rhs.createdAt : lhs.id > rhs.id
         }
     }
 
