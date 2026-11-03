@@ -82,6 +82,14 @@ fun RootScreen(
         ) {
             SplashScreen(phase = phase)
         }
+
+        // Banners and toasts, above everything else, mounted once here as on
+        // iOS's RootView. `NoticeOverlay` was written in the MarmotKit port and
+        // never attached to anything, so on Android every toast ("Saved, but not
+        // sent yet", "Message not sent", "Couldn't load messages") and every
+        // banner (account setup, relay unusable, MarmotKit's required "history
+        // may be incomplete" notice with its Dismiss) was posted and never shown.
+        NoticeOverlay(notices = viewModel.notices)
     }
 }
 
