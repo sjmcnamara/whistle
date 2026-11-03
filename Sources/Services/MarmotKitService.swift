@@ -205,17 +205,12 @@ final class MarmotKitService: ObservableObject {
         secretStore: SecretStore? = nil
     ) throws {
         self.relayUrls = relayUrls
-        // `deployment` is required since 0.14.0 and has no default. The White
-        // Noise preset is what 0.11.0 compiled in (recovery relays, discovery
-        // indexers, media/image servers, and the keychain service
-        // `com.marmot.whitenoise`), so taking it keeps the upgrade to one
-        // variable. Whether Whistle should keep White Noise's services is a
-        // separate decision: changing the keychain service later strands every
-        // stored secret.
+        // `deployment` is required since 0.14.0 and has no default; see
+        // `WhistleDeployment` for what is chosen and why.
         let options = MarmotOptions(
             relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly,
             secretStore: secretStore,
-            deployment: marmotDeploymentWhiteNoise()
+            deployment: WhistleDeployment.make()
         )
         self.marmot = try Marmot.newWithConfiguration(
             rootPath: rootPath,
@@ -364,7 +359,7 @@ final class MarmotKitService: ObservableObject {
             relayUrls: [],
             // Same deployment as the real runtime: 0.14.0 requires one on every
             // constructor in every process.
-            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil, deployment: marmotDeploymentWhiteNoise())
+            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil, deployment: WhistleDeployment.make())
         ) else {
             // Policy unavailable. Returning the input unfiltered is the right
             // failure: it preserves today's behaviour and lets `start()`
@@ -383,9 +378,11 @@ final class MarmotKitService: ObservableObject {
     /// The app's own default relay list is not automatically acceptable:
     /// MarmotKit enforces a relay safety policy at the dial boundary and
     /// refuses retired hosts outright, failing identity creation with a
-    /// `Runtime` error rather than quietly skipping them. Verified on device —
-    /// `wss://relay.damus.io` is retired, and it is the first entry in
-    /// `AppDefaults.defaultRelays`.
+    /// `Runtime` error rather than quietly skipping them. Verified on device
+    /// against 0.11.0, where `wss://relay.damus.io` was retired and was the
+    /// first entry in `AppDefaults.defaultRelays` (0.13.0 no longer retires it;
+    /// the list is unchanged, so check `retiredRelayHosts()` rather than
+    /// assuming any particular host).
     nonisolated func retiredRelayHosts() -> [String] {
         marmot.retiredRelayHosts()
     }
