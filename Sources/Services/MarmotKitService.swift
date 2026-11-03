@@ -744,6 +744,10 @@ final class MarmotKitService: ObservableObject {
         parts.append("successes=\(health.connectionSuccesses)")
         parts.append("sdkBacked=\(health.sdkBacked)")
         parts.append("forwarder=\(health.notificationForwarderRunning)")
+        parts.append("forwarderRestarts=\(health.notificationForwarderRestarts)")
+        parts.append("forwarderLagIncidents=\(health.notificationForwarderLagIncidents)")
+        parts.append("forwarderPanics=\(health.notificationForwarderPanics)")
+        parts.append("forwarderUnexpectedExits=\(health.notificationForwarderUnexpectedExits)")
         return "relays " + parts.joined(separator: " ")
     }
 
@@ -1810,6 +1814,16 @@ final class MarmotKitService: ObservableObject {
             let members = try await marmot.groupMembers(accountRef: account, groupIdHex: row.groupIdHex)
             _ = try await marmot.groupDetails(accountRef: account, groupIdHex: row.groupIdHex)
             WhistleLogger.marmot.notice("probe OK: members=\(members.count) relays \(relays, privacy: .public)")
+            // Same per-group state the Android debug build logs, so the two can
+            // be compared: Android's receive path went silent with every
+            // aggregate signal reading normal.
+            let id = row.groupIdHex.prefix(8)
+            if let r = try? await marmot.groupRecoveryStatus(accountRef: account, groupIdHex: row.groupIdHex) {
+                WhistleLogger.marmot.notice("probe group \(id, privacy: .public) recovery autoFailed=\(r.automaticRecoveryFailed) pendingReinvites=\(r.pendingReinvites) failedReinvites=\(r.failedReinvites) historyMayBeIncomplete=\(r.historyMayBeIncomplete)")
+            }
+            if let m = try? await marmot.groupMaintenanceStatus(accountRef: account, groupIdHex: row.groupIdHex) {
+                WhistleLogger.marmot.notice("probe group \(id, privacy: .public) maintenance paused=\(m.paused) obligations=\(m.obligations.count) evolutions=\(m.evolutions.count) fanouts=\(m.fanouts.count)")
+            }
         } catch {
             WhistleLogger.marmot.warning("probe FAILED: \(String(describing: error), privacy: .public); relays \(relays, privacy: .public)")
         }
