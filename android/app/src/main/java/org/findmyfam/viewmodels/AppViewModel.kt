@@ -9,6 +9,7 @@ import android.net.Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
@@ -23,6 +24,12 @@ import timber.log.Timber
 import javax.inject.Inject
 import kotlin.math.*
 import kotlin.random.Random
+
+/**
+ * How long account setup may be merely "in progress" before the banner is shown
+ * anyway. Informational: nothing waits on it.
+ */
+private const val SETUP_SLOW_AFTER_MS = 60_000L
 
 /**
  * Root application ViewModel — coordinates startup, owns service references.
@@ -293,10 +300,31 @@ class AppViewModel @Inject constructor(
         // Account setup is a *state*, so it gets a banner rather than a toast:
         // until it completes, groups cannot be created and nobody can invite
         // this device, and a toast would vanish while that stayed true.
+        //
+        // Only when something is actually wrong, though. `accountIsReady` is
+        // false at the start of *every* launch until setup is observed, so
+        // keying the banner on `!ready` showed "Still publishing your account.
+        // You can't create or join groups…" on each cold start of an account
+        // published long ago — an alarm for a normal timing gap. While setup is
+        // merely in progress the group list shows a quiet "Starting…" spinner
+        // instead. The banner appears when setup stalled or threw, or when it is
+        // still unfinished after a generous grace period (informational only —
+        // nothing waits on this timer; readiness itself is observed, never
+        // polled against a deadline).
+        val setupSlow = MutableStateFlow(false)
         viewModelScope.launch {
-            marmot.accountIsReady.collect { ready ->
+            delay(SETUP_SLOW_AFTER_MS)
+            setupSlow.value = true
+        }
+        viewModelScope.launch {
+            combine(marmot.accountIsReady, marmot.accountSetupStalled, setupSlow) { ready, stalled, slow ->
+                Triple(ready, stalled, slow)
+            }.collect { (ready, stalled, slow) ->
                 _accountIsReady.value = ready
-                notices.setBanner(NoticeCenter.Cause.ACCOUNT_SETUP_INCOMPLETE, active = !ready) {
+                notices.setBanner(
+                    NoticeCenter.Cause.ACCOUNT_SETUP_INCOMPLETE,
+                    active = !ready && (stalled || slow),
+                ) {
                     NoticeCenter.Banner(
                         cause = NoticeCenter.Cause.ACCOUNT_SETUP_INCOMPLETE,
                         message = "Still publishing your account. You can't create or join groups until this finishes.",

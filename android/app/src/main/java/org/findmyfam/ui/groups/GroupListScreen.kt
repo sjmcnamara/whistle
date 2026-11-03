@@ -139,12 +139,24 @@ fun GroupListScreen(
                         Text("Create Group")
                     }
                     if (!isAccountReady) {
+                        // Says why the button is dim. A quiet spinner, not a
+                        // warning: this is the normal state for the first few
+                        // seconds of every launch.
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Publishing your account…",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Starting…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             } else {
