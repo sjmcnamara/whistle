@@ -80,7 +80,12 @@ object AppModule {
         // ViewModel, and cancelling the receive loop when the UI goes away
         // would stop background location sharing.
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    )
+    ).also {
+        // Debug builds log relay and per-group health every 30 s. Read from the
+        // package flags: `buildConfig` is not enabled for this module.
+        it.receiveHealthLogging =
+            (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 
     private fun buildRuntime(context: Context, settings: AppSettings): MarmotInterface {
         // Read live, not captured: after `advanceMarmotKitRootGeneration()`

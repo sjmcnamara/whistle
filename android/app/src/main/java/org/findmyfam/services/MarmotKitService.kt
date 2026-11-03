@@ -409,7 +409,11 @@ class MarmotKitService(
             "pending=$`pending` disconnected=$`disconnected` terminated=$`terminated` " +
             "banned=$`banned` sleeping=$`sleeping` attempts=$`connectionAttempts` " +
             "successes=$`connectionSuccesses` sdkBacked=$`sdkBacked` " +
-            "forwarder=$`notificationForwarderRunning`"
+            "forwarder=$`notificationForwarderRunning` " +
+            "forwarderRestarts=$`notificationForwarderRestarts` " +
+            "forwarderLagIncidents=$`notificationForwarderLagIncidents` " +
+            "forwarderPanics=$`notificationForwarderPanics` " +
+            "forwarderUnexpectedExits=$`notificationForwarderUnexpectedExits`"
     }
 
     /**
@@ -1470,6 +1474,15 @@ class MarmotKitService(
             Timber.w("Message subscription ended")
         }
 
+        if (receiveHealthLogging) {
+            healthJob = scope.launch {
+                while (isActive) {
+                    delay(30_000)
+                    logReceiveHealth()
+                }
+            }
+        }
+
         chatListJob = scope.launch {
             val subscription = runCatching {
                 marmot.`subscribeChatList`(account, false)
@@ -1489,7 +1502,59 @@ class MarmotKitService(
         }
     }
 
+    /**
+     * Debug builds only (set from `AppModule`): log relay health and each
+     * group's recovery / maintenance state every 30 seconds while subscribed.
+     * Added because on a Pixel the message subscription stayed open and
+     * delivered nothing while every aggregate signal (`connected=2`, forwarder
+     * running, onboarding ready) read normal; the counters and per-group
+     * state below are the ones that could show *why*.
+     */
+    @Volatile var receiveHealthLogging = false
+    @Volatile private var healthJob: Job? = null
+
+    private suspend fun logReceiveHealth() {
+        val account = accountRef ?: return
+        runCatching { onFfi { marmot.`relayHealth`() } }
+            .onSuccess { h ->
+                Timber.i(
+                    "health: relays connected=${h.`connected`}/${h.`totalRelays`} " +
+                        "attempts=${h.`connectionAttempts`} successes=${h.`connectionSuccesses`} " +
+                        "forwarder running=${h.`notificationForwarderRunning`} " +
+                        "restarts=${h.`notificationForwarderRestarts`} " +
+                        "lagIncidents=${h.`notificationForwarderLagIncidents`} " +
+                        "lagged=${h.`notificationForwarderLaggedNotifications`} " +
+                        "panics=${h.`notificationForwarderPanics`} " +
+                        "unexpectedExits=${h.`notificationForwarderUnexpectedExits`}"
+                )
+            }
+            .onFailure { Timber.w(it, "health: relayHealth failed") }
+        for (group in _groups.value) {
+            val id = group.mlsGroupId.take(8)
+            runCatching { onFfi { marmot.`groupRecoveryStatus`(account, group.mlsGroupId) } }
+                .onSuccess { r ->
+                    Timber.i(
+                        "health: group $id recovery autoFailed=${r.`automaticRecoveryFailed`} " +
+                            "pendingReinvites=${r.`pendingReinvites`} failedReinvites=${r.`failedReinvites`} " +
+                            "historyMayBeIncomplete=${r.`historyMayBeIncomplete`}"
+                    )
+                }
+                .onFailure { Timber.w(it, "health: groupRecoveryStatus failed for $id") }
+            runCatching { onFfi { marmot.`groupMaintenanceStatus`(account, group.mlsGroupId) } }
+                .onSuccess { m ->
+                    Timber.i(
+                        "health: group $id maintenance paused=${m.`paused`} " +
+                            "obligations=${m.`obligations`.size} evolutions=${m.`evolutions`.size} " +
+                            "fanouts=${m.`fanouts`.size}"
+                    )
+                }
+                .onFailure { Timber.w(it, "health: groupMaintenanceStatus failed for $id") }
+        }
+    }
+
     fun stopSubscriptions() {
+        healthJob?.cancel()
+        healthJob = null
         receiveJob?.cancel()
         receiveJob = null
         chatListJob?.cancel()
