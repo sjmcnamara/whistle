@@ -205,9 +205,12 @@ final class MarmotKitService: ObservableObject {
         secretStore: SecretStore? = nil
     ) throws {
         self.relayUrls = relayUrls
+        // `deployment` is required since 0.14.0 and has no default; see
+        // `WhistleDeployment` for what is chosen and why.
         let options = MarmotOptions(
             relayPolicy: allowLoopback ? .allowLoopbackRelaysAndBlobs : .publicOnly,
-            secretStore: secretStore
+            secretStore: secretStore,
+            deployment: WhistleDeployment.make()
         )
         self.marmot = try Marmot.newWithConfiguration(
             rootPath: rootPath,
@@ -354,7 +357,9 @@ final class MarmotKitService: ObservableObject {
         guard let probe = try? Marmot.newWithConfiguration(
             rootPath: resolvedProbeRoot,
             relayUrls: [],
-            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil)
+            // Same deployment as the real runtime: 0.14.0 requires one on every
+            // constructor in every process.
+            options: MarmotOptions(relayPolicy: .publicOnly, secretStore: nil, deployment: WhistleDeployment.make())
         ) else {
             // Policy unavailable. Returning the input unfiltered is the right
             // failure: it preserves today's behaviour and lets `start()`
@@ -373,9 +378,11 @@ final class MarmotKitService: ObservableObject {
     /// The app's own default relay list is not automatically acceptable:
     /// MarmotKit enforces a relay safety policy at the dial boundary and
     /// refuses retired hosts outright, failing identity creation with a
-    /// `Runtime` error rather than quietly skipping them. Verified on device —
-    /// `wss://relay.damus.io` is retired, and it is the first entry in
-    /// `AppDefaults.defaultRelays`.
+    /// `Runtime` error rather than quietly skipping them. Verified on device
+    /// against 0.11.0, where `wss://relay.damus.io` was retired and was the
+    /// first entry in `AppDefaults.defaultRelays` (0.13.0 no longer retires it;
+    /// the list is unchanged, so check `retiredRelayHosts()` rather than
+    /// assuming any particular host).
     nonisolated func retiredRelayHosts() -> [String] {
         marmot.retiredRelayHosts()
     }
@@ -746,6 +753,10 @@ final class MarmotKitService: ObservableObject {
         parts.append("successes=\(health.connectionSuccesses)")
         parts.append("sdkBacked=\(health.sdkBacked)")
         parts.append("forwarder=\(health.notificationForwarderRunning)")
+        parts.append("forwarderRestarts=\(health.notificationForwarderRestarts)")
+        parts.append("forwarderLagIncidents=\(health.notificationForwarderLagIncidents)")
+        parts.append("forwarderPanics=\(health.notificationForwarderPanics)")
+        parts.append("forwarderUnexpectedExits=\(health.notificationForwarderUnexpectedExits)")
         return "relays " + parts.joined(separator: " ")
     }
 
@@ -1830,6 +1841,16 @@ final class MarmotKitService: ObservableObject {
             let members = try await marmot.groupMembers(accountRef: account, groupIdHex: row.groupIdHex)
             _ = try await marmot.groupDetails(accountRef: account, groupIdHex: row.groupIdHex)
             WhistleLogger.marmot.notice("probe OK: members=\(members.count) relays \(relays, privacy: .public)")
+            // Same per-group state the Android debug build logs, so the two can
+            // be compared: Android's receive path went silent with every
+            // aggregate signal reading normal.
+            let id = row.groupIdHex.prefix(8)
+            if let r = try? await marmot.groupRecoveryStatus(accountRef: account, groupIdHex: row.groupIdHex) {
+                WhistleLogger.marmot.notice("probe group \(id, privacy: .public) recovery autoFailed=\(r.automaticRecoveryFailed) pendingReinvites=\(r.pendingReinvites) failedReinvites=\(r.failedReinvites) historyMayBeIncomplete=\(r.historyMayBeIncomplete)")
+            }
+            if let m = try? await marmot.groupMaintenanceStatus(accountRef: account, groupIdHex: row.groupIdHex) {
+                WhistleLogger.marmot.notice("probe group \(id, privacy: .public) maintenance paused=\(m.paused) obligations=\(m.obligations.count) evolutions=\(m.evolutions.count) fanouts=\(m.fanouts.count)")
+            }
         } catch {
             WhistleLogger.marmot.warning("probe FAILED: \(String(describing: error), privacy: .public); relays \(relays, privacy: .public)")
         }
