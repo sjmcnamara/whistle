@@ -147,6 +147,59 @@ class MarmotKitServiceTest {
         assertEquals(MarmotKitService.ServiceError.NotStarted, error)
     }
 
+    // MARK: - Message page order
+
+    private fun timelineRecord(id: String, at: ULong) =
+        mockk<dev.ipf.marmotkit.TimelineMessageRecordFfi>(relaxed = true).also {
+            every { it.`messageIdHex` } returns id
+            every { it.`groupIdHex` } returns "group-1"
+            every { it.`sender` } returns "sender"
+            every { it.`kind` } returns 3uL
+            every { it.`plaintext` } returns "hi"
+            every { it.`timelineAt` } returns at
+            every { it.`groupSystem` } returns null
+            every { it.`sourceEpoch` } returns null
+        }
+
+    /**
+     * Callers (both chat view models and the load-earlier cursor) assume a page
+     * arrives newest first, but `timelineMessages` returns it oldest first.
+     * Trusting that showed a cold chat load upside down and pointed the cursor
+     * at the newest row, so the order is enforced where the page is read.
+     */
+    @Test
+    fun `a message page is newest first whatever order the store returns`() = runTest {
+        val sut = startedService()
+        every { marmot.`timelineMessages`(any(), any()) } returns
+            dev.ipf.marmotkit.TimelinePageFfi(
+                `messages` = listOf(
+                    timelineRecord("a", 100uL), timelineRecord("b", 200uL), timelineRecord("c", 300uL),
+                ),
+                `hasMoreBefore` = true,
+                `hasMoreAfter` = false,
+            )
+
+        val (page, hasMore) = sut.messages("group-1")
+
+        assertEquals(listOf("c", "b", "a"), page.map { it.id })
+        assertEquals(true, hasMore)
+        // The cursor for "load earlier" is the last row, so that must be the oldest.
+        assertEquals("a", page.last().id)
+    }
+
+    @Test
+    fun `messages in the same second are ordered by id, newest first`() = runTest {
+        val sut = startedService()
+        every { marmot.`timelineMessages`(any(), any()) } returns
+            dev.ipf.marmotkit.TimelinePageFfi(
+                `messages` = listOf(timelineRecord("m1", 100uL), timelineRecord("m3", 100uL), timelineRecord("m2", 100uL)),
+                `hasMoreBefore` = false,
+                `hasMoreAfter` = false,
+            )
+
+        assertEquals(listOf("m3", "m2", "m1"), sut.messages("group-1").first.map { it.id })
+    }
+
     // MARK: - Relay policy
 
     @Test
