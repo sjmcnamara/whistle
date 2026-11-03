@@ -15,9 +15,14 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.findmyfam.services.MarmotKitService
+import org.findmyfam.shared.MarmotKind
+import org.findmyfam.shared.models.WhistleMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -145,6 +150,32 @@ class MarmotKitServiceTest {
     fun `operations before start report not-started rather than crashing`() = runTest {
         val error = runCatching { service().members("group") }.exceptionOrNull()
         assertEquals(MarmotKitService.ServiceError.NotStarted, error)
+    }
+
+    // MARK: - Live chat updates
+
+    @Test
+    fun `every chat message in a group notifies collectors, not only the first`() = runTest {
+        val sut = service()
+        val received = mutableListOf<String>()
+        // Unconfined, so each emission is delivered the moment it is made.
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            sut.chatMessageGroupIds.toList(received)
+        }
+        fun chat(id: String) = WhistleMessage(
+            id = id, mlsGroupId = "group-1", senderPubkey = "sender",
+            kind = MarmotKind.ProtocolV2.CHAT.toInt(), content = "hello", createdAt = 1L,
+        )
+
+        sut.route(chat("m1"))
+        sut.route(chat("m2"))
+        sut.route(chat("m3"))
+        collector.cancel()
+
+        // This was a StateFlow<String?> holding the last group id, which drops
+        // a value equal to the current one: an open chat updated for the first
+        // message only, until it was left and re-entered.
+        assertEquals(listOf("group-1", "group-1", "group-1"), received)
     }
 
     // MARK: - Relay policy
