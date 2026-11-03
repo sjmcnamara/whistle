@@ -10,7 +10,6 @@ import dev.ipf.marmotkit.Marmot
 import dev.ipf.marmotkit.MarmotInterface
 import dev.ipf.marmotkit.MarmotOptions
 import dev.ipf.marmotkit.RelayPolicyFfi
-import dev.ipf.marmotkit.marmotDeploymentWhiteNoise
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,6 +20,7 @@ import org.findmyfam.services.MarmotKitService
 import org.findmyfam.services.MemberAvatarStore
 import org.findmyfam.services.NicknameStore
 import org.findmyfam.services.SharedGroupAvatarStore
+import org.findmyfam.services.WhistleDeployment
 import timber.log.Timber
 import java.io.File
 import javax.inject.Singleton
@@ -102,14 +102,9 @@ object AppModule {
                 // in the app; only JVM unit tests cannot reach it, and those
                 // mock the whole interface rather than injecting a store.
                 secretStore = null,
-                // Required since 0.14.0, with no default. The White Noise
-                // preset is what 0.11.0 compiled in (recovery relays,
-                // discovery indexers, media/image servers, and the keystore
-                // service name `com.marmot.whitenoise`), so taking it keeps
-                // this upgrade to one variable. Whether Whistle should keep
-                // White Noise's services is a separate decision: changing the
-                // keystore service name later strands every stored secret.
-                deployment = marmotDeploymentWhiteNoise(),
+                // Required since 0.14.0, with no default; see `WhistleDeployment`
+                // for what is chosen and why.
+                deployment = WhistleDeployment.create(),
             ),
         )
     }

@@ -9,7 +9,6 @@ import dev.ipf.marmotkit.Marmot
 import dev.ipf.marmotkit.MarmotInterface
 import dev.ipf.marmotkit.MarmotOptions
 import dev.ipf.marmotkit.MarmotKitException
-import dev.ipf.marmotkit.marmotDeploymentWhiteNoise
 import dev.ipf.marmotkit.OnboardingActionFfi
 import dev.ipf.marmotkit.OnboardingOptionsFfi
 import dev.ipf.marmotkit.OnboardingSnapshotFfi
@@ -1770,12 +1769,12 @@ class MarmotKitService(
                 Marmot.newWithConfiguration(
                     rootPath = resolved,
                     relayUrls = emptyList(),
-                    // The same deployment as the real runtime (see AppModule): 0.14.0
-                    // requires one on every constructor in every process.
+                    // The same deployment as the real runtime: 0.14.0 requires one on
+                    // every constructor in every process.
                     options = MarmotOptions(
                         relayPolicy = RelayPolicyFfi.PUBLIC_ONLY,
                         secretStore = null,
-                        deployment = marmotDeploymentWhiteNoise(),
+                        deployment = WhistleDeployment.create(),
                     ),
                 ).use { probe ->
                     probe.`classifyRelayEndpoints`(endpoints)
