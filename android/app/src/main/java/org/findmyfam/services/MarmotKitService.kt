@@ -194,7 +194,12 @@ class MarmotKitService(
             is MarmotKitException.LeaveAlreadyRequested -> ServiceError.LeaveAlreadyRequested
             is MarmotKitException.GroupUnrecoverableRepairRequired -> ServiceError.GroupNeedsRepair
             is MarmotKitException.GroupSendQueueFull -> ServiceError.SendQueueFull
-            else -> ServiceError.Underlying(error.message ?: error.toString())
+            // Several MarmotKit errors carry no message (`TransportClosed`,
+            // for one), which surfaced as `Underlying("")` and left nothing to
+            // diagnose from. Name the type when there is no text.
+            else -> ServiceError.Underlying(
+                error.message?.takeIf { it.isNotBlank() } ?: error::class.java.simpleName
+            )
         }
     }
 
@@ -1002,6 +1007,13 @@ class MarmotKitService(
         return run {
             marmot.`chatList`(account, false).map { row ->
                 val details = runCatching { marmot.`groupDetails`(account, row.`groupIdHex`) }
+                    .onFailure {
+                        // Falling back to no admins / epoch 0 is deliberate (a
+                        // group we cannot read details for still has to be
+                        // listed), but doing it silently made a group read as
+                        // "0 members" with nothing in the log.
+                        Timber.w(it, "groupDetails failed for ${row.`groupIdHex`.take(8)}; listing without admins")
+                    }
                     .getOrNull()
                 mapGroup(row, details)
             }
