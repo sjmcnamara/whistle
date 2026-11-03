@@ -20,6 +20,7 @@ import org.findmyfam.services.MarmotKitService
 import org.findmyfam.services.MemberAvatarStore
 import org.findmyfam.services.NicknameStore
 import org.findmyfam.services.SharedGroupAvatarStore
+import org.findmyfam.services.WhistleDeployment
 import timber.log.Timber
 import java.io.File
 import javax.inject.Singleton
@@ -79,7 +80,12 @@ object AppModule {
         // ViewModel, and cancelling the receive loop when the UI goes away
         // would stop background location sharing.
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    )
+    ).also {
+        // Debug builds log relay and per-group health every 30 s. Read from the
+        // package flags: `buildConfig` is not enabled for this module.
+        it.receiveHealthLogging =
+            (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 
     private fun buildRuntime(context: Context, settings: AppSettings): MarmotInterface {
         // Read live, not captured: after `advanceMarmotKitRootGeneration()`
@@ -96,6 +102,9 @@ object AppModule {
                 // in the app; only JVM unit tests cannot reach it, and those
                 // mock the whole interface rather than injecting a store.
                 secretStore = null,
+                // Required since 0.14.0, with no default; see `WhistleDeployment`
+                // for what is chosen and why.
+                deployment = WhistleDeployment.create(),
             ),
         )
     }
