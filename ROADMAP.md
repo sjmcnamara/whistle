@@ -628,7 +628,7 @@ _Released 2026-09-22_
 
 ---
 
-### v2.0.0 — Marmot protocol v2 (MarmotKit) — iOS bumped 2026-10-02, unreleased
+### v2.0.0 — Marmot protocol v2 (MarmotKit) — never released; shipped as 2.0.1
 
 Protocol-breaking. Groups do not carry over; identity does. Shipped only when
 the Android port lands — see the MDK 2.0 / MarmotKit migration entry under
@@ -644,10 +644,21 @@ Deferred for the full plan and the step-by-step findings.
   publishes until the tag, and the Android tag waits on the remaining device
   checks (QR scan, 16KB-page `.so` load).
 
-### v2.0.1 — Bugfixes found while device-testing v2.0.0 _(planned, not started)_
+### v2.0.1 — First public v2 release (MarmotKit 0.14.0) _(unreleased)_
 
-- **(iOS & Android) "Still publishing your account" shows as an alarming banner on every cold start.** `accountIsReady` starts `false` on each launch and only flips once `completeAccountSetup()` finishes, which waits on relays. Until then the app shows the `accountSetupIncomplete` banner ("Still publishing your account. You can't create or join groups until this finishes.") and the group list's "Publishing your account…" row — even for an account published long ago, so a normal network-setup and timing gap reads like an error. Replace it with a quiet in-progress state (a spinner / "starting…"), not a banner or error popup. Reserve the banner for a genuine stall: setup threw, or is still not ready after a generous timeout. Also try seeding readiness right after sign-in from `accountSetupReadiness(accountRef:)` (a synchronous call; **unverified** that it answers before relays connect), which would remove the flash for established accounts. iOS: `AppViewModel.swift:551`, `MarmotKitService.swift:1244`, `GroupListView.swift:153`. Android shows the same readiness log shortly after launch; check it uses the same banner path.
-- **(Android; check iOS) After Burn Identity, the UI keeps a chat screen for the deleted group.** `ChatViewModel` repeatedly fails with "Failed to load member names" for the old group id for as long as the screen stays up. Tear down navigation (or clear the chat view model) when the identity is replaced.
+2.0.0 was never tagged; this is the first public v2 release. iOS `MARKETING_VERSION` 2.0.1 / build 77; Android 2.0.1 / versionCode 72.
+
+- **MarmotKit 0.11.0 → 0.14.0** (#283), iOS and Android. New required `deployment` record: `WhistleDeployment` uses White Noise's preset with Whistle's own keychain/keystore service `org.getwhistle.whistle.marmotkit` (permanent — see CLAUDE.md). Moving off White Noise's relays/servers is a separate, reversible follow-up, **not done and untested**.
+- **Fixed: chat thread shown upside down on a cold open, and "Load earlier messages" doing nothing** (#282, both platforms). `timelineMessages` returns oldest-first; callers assumed newest-first.
+- **Fixed: Android open chat updated only for the first message** (#280). A `StateFlow` dropped repeated equal values.
+- **Fixed: alarming "Still publishing your account" banner on every launch** (#281, both platforms). Readiness is seeded at sign-in; the banner needs a stall or 60 s.
+- **Debug-build diagnostics** (#277, #278, #283): named errors, subscription open/delivered/ended, relay and per-group health. Release builds unaffected.
+
+**Not in this release (known, still open):**
+- **(Android; check iOS) After Burn Identity the UI keeps a chat screen for the deleted group.** `ChatViewModel` repeatedly fails with "Failed to load member names" for the old group id.
+- **(Android) A MarmotKit startup failure shows "Starting…" indefinitely** with no error (seen as `SecretNotFound` when the keychain service name changed under an existing account). iOS shows an error banner.
+- **nostr-sdk is still 0.44.8 on iOS and 0.44.2 on Android.** 0.45.1 fixes the `unsigned` header problem that broke 0.45.0 (verified by scanning the headers); Android's stable line on Maven stops at 0.44.8. Bump deliberately, one variable at a time.
+- **Dependabot:** 10 open PRs, deferred until after the release (CI actions, AGP/Gradle/KSP, a test dependency). Dependabot security alerts are disabled on the repository.
 
 ### Deferred
 

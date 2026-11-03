@@ -6,19 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.0.0] — unreleased
+## [2.0.1] — unreleased
+
+**2.0.0 was never released.** This is the first public v2 release, so it covers
+everything since 1.x.
 
 **Protocol-breaking.** Whistle moves from Marmot protocol v1 (MDK 0.8.0) to
-protocol v2 (MarmotKit 0.10.4). The two are not wire-compatible: **existing
+protocol v2 (MarmotKit 0.14.0). The two are not wire-compatible: **existing
 groups do not carry over and cannot be recovered.** Your identity does — you
 keep the same npub.
 
-**Android is on 2.0.0 as well** and speaks protocol v2, so iOS and Android
-groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
+**Android is on 2.0.1 as well** and speaks protocol v2, so iOS and Android
+groups interoperate. A 1.x client on either platform cannot join a v2 group.
 
 ### Changed
 
-- **(iOS) Rebuilt on MarmotKit (MDK 0.10.4, protocol v2).** `MarmotService`,
+- **(iOS) Rebuilt on MarmotKit (0.14.0, protocol v2).** `MarmotService`,
   `MLSService` and `RelayService` are gone; MarmotKit owns the MLS state,
   relay transport and account lifecycle.
 - **(iOS) Your identity carries over.** The existing nsec is adopted on first
@@ -41,7 +44,7 @@ groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
   member code, and an admin scans it or pastes your npub. Invite codes, join
   requests and `whistle://` invite links are removed.
 - **(Android) Chat history pages by cursor** rather than by offset.
-- **(iOS & Android) MarmotKit 0.11.0.** Android's native library is now 16KB-aligned, which removes the "app isn't 16 KB compatible" warning on Android 16+. Account databases migrate forward on first open and cannot be downgraded. When MarmotKit cannot prove a recovered history is complete it now says so: a banner reads "Some earlier messages or locations may be missing on this device" with a Dismiss button.
+- **(iOS & Android) MarmotKit 0.14.0.** Android's native library is 16KB-aligned, which removes the "app isn't 16 KB compatible" warning on Android 16+. Account databases migrate forward on first open and cannot be downgraded. When MarmotKit cannot prove a recovered history is complete it says so: a banner reads "Some earlier messages or locations may be missing on this device" with a Dismiss button. Your secret key is stored under a Whistle-specific keychain/keystore service (`org.getwhistle.whistle.marmotkit`).
 - **(Android) `arm64-v8a` only.** MarmotKit's native library ships for 64-bit
   ARM, so 32-bit ARM devices and x86 emulators are no longer supported.
 
@@ -57,6 +60,9 @@ groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
 
 ### Fixed
 
+- **(iOS & Android) The chat thread is no longer shown upside down when you open it fresh.** After the app restarted or the phone rebooted, the newest messages appeared at the top and "Member added" at the bottom, so recent messages looked missing until you left the chat and came back. "Load earlier messages" also did nothing for the same reason.
+- **(Android) An open chat now updates for every new message,** not just the first one; you no longer have to leave the chat and return to see more. The group list's unread marker had the same flaw.
+- **(iOS & Android) No more alarming "Still publishing your account" banner on every launch.** A normal moment of network setup now shows a small "Starting…" spinner; the banner appears only if setup actually stalls or runs long.
 - **(iOS & Android) Resyncing an admin no longer demotes them.** Resync removes and re-adds a member, and the re-add produced an ordinary member, so repairing an admin silently took their admin role. They now come back an admin. If the role cannot be restored you are told, separately from a failed re-add.
 
 - **(iOS) A group you are alone in can be left.** It previously reported
@@ -67,9 +73,10 @@ groups interoperate. A 1.x client on either platform cannot join a 2.0.0 group.
 
 ### Removed
 
-- **(iOS) `wss://relay.damus.io` from the default relay list.** MarmotKit
-  classifies it as retired and refuses to dial it, and one retired entry
-  failed the whole relay directory fetch.
+- **(iOS) `wss://relay.damus.io` from the default relay list.** MarmotKit 0.11
+  classified it as retired and refused to dial it, and one retired entry
+  failed the whole relay directory fetch. (0.13 no longer retires it; it stays
+  out of the defaults.)
 
 ---
 
