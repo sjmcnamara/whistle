@@ -8,7 +8,7 @@ import MarmotKit
 /// `MarmotKitBindings` is wired into `WhistleTests` only (see project.yml) — it is NOT a
 /// dependency of the shipping `Whistle` app target yet. This proves the package resolves,
 /// compiles, and the API shape documented in `crates/marmot-uniffi/API-REFERENCE.md`
-/// (marmot-protocol/mdk, marmotkit-v0.11.0) matches what the generated Swift bindings
+/// (marmot-protocol/mdk, marmotkit-v0.14.0) matches what the generated Swift bindings
 /// actually expose — before `MarmotService` is rewritten around it (step 3).
 ///
 /// The round-trip itself needs a real relay: MarmotKit owns its own relay pub/sub
@@ -37,7 +37,7 @@ final class MarmotKitSpikeTests: XCTestCase {
         let rootPath = NSTemporaryDirectory().appending("marmotkit-spike-\(UUID().uuidString)")
         let relayUrls = ["wss://nos.lol"]
 
-        let marmot = try Marmot(rootPath: rootPath, relayUrls: relayUrls)
+        let marmot = try Marmot(rootPath: rootPath, relayUrls: relayUrls, deployment: marmotDeploymentWhiteNoise())
         try await marmot.start()
 
         let identity = try await marmot.createIdentityWithProfile(

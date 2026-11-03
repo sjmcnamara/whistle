@@ -1521,6 +1521,104 @@ internal open class UniffiVTableCallbackInterfaceSecretStore(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // For large crates we prevent `MethodTooLargeException` (see #2340)
 // N.B. the name of the extension is very misleading, since it is 
 // rather `InterfaceTooLargeException`, caused by too many methods 
@@ -1536,9 +1634,17 @@ internal open class UniffiVTableCallbackInterfaceSecretStore(
 // when the library is loaded.
 internal interface IntegrityCheckingUniffiLib : Library {
     // Integrity check functions only
-    fun uniffi_marmot_uniffi_checksum_func_parse_media_imeta_tag(
+    fun uniffi_marmot_uniffi_checksum_func_marmot_deployment_neutral(
+): Short
+fun uniffi_marmot_uniffi_checksum_func_marmot_deployment_white_noise(
+): Short
+fun uniffi_marmot_uniffi_checksum_func_max_file_media_ciphertext_bytes(
+): Short
+fun uniffi_marmot_uniffi_checksum_func_parse_media_imeta_tag(
 ): Short
 fun uniffi_marmot_uniffi_checksum_func_verify_public_nostr_event_json(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_accountattachmentversion_change_since(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_accountattentionsubscription_next(
 ): Short
@@ -1620,6 +1726,10 @@ fun uniffi_marmot_uniffi_checksum_method_groupstatesubscription_snapshot(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_accept_group_invite(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_account_attachment_history_page(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_account_attachment_history_version(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_account_follows(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_account_id_hex(
@@ -1640,6 +1750,10 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_account_unread_summary(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_disband_failure(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_group_catching_up(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_group_commit_undelivered(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_onboarding_single_device(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_onboarding_single_device_in_epoch(
@@ -1656,7 +1770,13 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_history_page(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_history_version(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_keep_media(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_local_assets(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_storage_by_chat(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_storage_usage(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_attachment_transfer_snapshot(
 ): Short
@@ -1675,6 +1795,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_block_user(
 fun uniffi_marmot_uniffi_checksum_method_marmot_build_media_imeta_tag(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_cached_identity_projections(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_cached_public_event_previews(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_cancel_onboarding(
 ): Short
@@ -1704,6 +1826,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_clear_push_registration(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_collect_notifications_after_wake(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_configure_moderation_reporting(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_confirm_group_rejoin(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_content_reports(
@@ -1727,6 +1851,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_create_group_with_options_detail
 fun uniffi_marmot_uniffi_checksum_method_marmot_create_group_with_prepared_initial_image(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_create_identity(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_create_identity_with_initial_profile(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_create_identity_with_profile(
 ): Short
@@ -1786,6 +1912,10 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_forget_group_local(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_get_blocked_users(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_group_app_component(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_group_commit_delivery(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_group_conversation_snapshot(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_group_details(
@@ -1826,6 +1956,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_is_user_blocked(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_key_package_maintenance_status(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_largest_retained_attachments(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_leave_group(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_list_accounts(
@@ -1852,7 +1984,11 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_message_drafts(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_message_edit_history(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_message_reactions(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_messages(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_moderation_reporting_available(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_normalize_member_ref(
 ): Short
@@ -1868,6 +2004,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_onboarding_snapshot(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_open_agent_publisher(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_open_attachment_handoff(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_open_chat_list_window(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_open_conversation_window(
@@ -1879,6 +2017,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_parse_markdown(
 fun uniffi_marmot_uniffi_checksum_method_marmot_pause_maintenance(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_periodic_maintenance_policy(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_poll_votes(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_post_audit_log_file(
 ): Short
@@ -1906,6 +2046,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_profile(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_recommended_relays(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_relay_repair(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_relays(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_publish_new_key_package(
@@ -1923,6 +2065,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_quarantined_groups(
 fun uniffi_marmot_uniffi_checksum_method_marmot_random_profile_pseudonym(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_react_to_message(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_react_with_media(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_read_attachment_asset(
 ): Short
@@ -1948,7 +2092,13 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_relay_health(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_relay_telemetry_settings(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_release_attachment_handoff(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_remove_account(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_remove_attachments_older_than(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_remove_chat_attachments(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_remove_members(
 ): Short
@@ -1972,7 +2122,11 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_request_automatic_attachment(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_request_avatar_assets(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_request_explicit_attachment(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_reset_incomplete_account_setup(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_resolve_public_event_preview(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_resume_maintenance(
 ): Short
@@ -2020,6 +2174,12 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_send_message_draft(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_send_message_draft_with_client_token(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_send_prepared_media_with_client_token(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_send_tagged_media(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_send_tagged_text(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_send_text(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_send_text_with_client_token(
@@ -2031,6 +2191,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_set_account_nip65_relays(
 fun uniffi_marmot_uniffi_checksum_method_marmot_set_attachment_automatic_permission(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_set_attachment_download_policy(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_set_attachment_keep_media(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_set_audit_log_settings(
 ): Short
@@ -2064,6 +2226,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_set_relay_telemetry_runtime_conf
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_set_relay_telemetry_settings(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_set_startup_diagnostics_enabled(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_set_usage_diagnostics_consent(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_shutdown(
@@ -2082,7 +2246,11 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_start(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_start_agent_text_stream(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_startup_diagnostics_snapshot(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_storage_is_closed(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_submit_moderation_report(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_subscribe_account_attention(
 ): Short
@@ -2118,6 +2286,8 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_unfollow_user(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_unreact_from_message(
 ): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_update_app_component(
+): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_update_group_avatar_url(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_update_group_image(
@@ -2127,6 +2297,10 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_update_group_profile(
 fun uniffi_marmot_uniffi_checksum_method_marmot_update_message_retention(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_upload_media(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_upload_media_files(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_marmot_upload_media_files_with_client_token(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_upload_media_with_client_token(
 ): Short
@@ -2147,6 +2321,14 @@ fun uniffi_marmot_uniffi_checksum_method_marmot_user_profile_website(
 fun uniffi_marmot_uniffi_checksum_method_marmot_user_relay_lists(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_marmot_watch_agent_text_stream(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_mediafiletransfercontrolffi_cancel(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_mediafiletransfercontrolffi_is_cancelled(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_mediafiletransfercontrolffi_processed_bytes(
+): Short
+fun uniffi_marmot_uniffi_checksum_method_messagedraftrevisionffi_includes_chat_list_version(
 ): Short
 fun uniffi_marmot_uniffi_checksum_method_messagessubscription_next(
 ): Short
@@ -2195,6 +2377,8 @@ fun uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_cursor_persistence
 fun uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_options(
 ): Short
 fun uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_secret_store(
+): Short
+fun uniffi_marmot_uniffi_checksum_constructor_mediafiletransfercontrolffi_new(
 ): Short
 fun ffi_marmot_uniffi_uniffi_contract_version(
 ): Int
@@ -2247,7 +2431,17 @@ internal interface UniffiLib : Library {
     }
 
     // FFI functions
-    fun uniffi_marmot_uniffi_fn_clone_accountattentionsubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    fun uniffi_marmot_uniffi_fn_clone_accountattachmentcursor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_free_accountattachmentcursor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+fun uniffi_marmot_uniffi_fn_clone_accountattachmentversion(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_free_accountattachmentversion(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+fun uniffi_marmot_uniffi_fn_method_accountattachmentversion_change_since(`ptr`: Pointer,`previous`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_clone_accountattentionsubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_accountattentionsubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
@@ -2301,6 +2495,10 @@ fun uniffi_marmot_uniffi_fn_method_blocklistsubscription_next(`ptr`: Pointer,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_blocklistsubscription_snapshot(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_clone_chatlistdraftversionffi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_free_chatlistdraftversionffi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 fun uniffi_marmot_uniffi_fn_clone_chatlistsubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_chatlistsubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -2325,6 +2523,10 @@ fun uniffi_marmot_uniffi_fn_method_chatlistwindowsubscription_set_visible_anchor
 ): Long
 fun uniffi_marmot_uniffi_fn_method_chatlistwindowsubscription_snapshot(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_clone_chatstoragecursor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_free_chatstoragecursor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 fun uniffi_marmot_uniffi_fn_clone_chatssubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_chatssubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -2387,19 +2589,23 @@ fun uniffi_marmot_uniffi_fn_clone_marmot(`ptr`: Pointer,uniffi_out_err: UniffiRu
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_marmot(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
-fun uniffi_marmot_uniffi_fn_constructor_marmot_new(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+fun uniffi_marmot_uniffi_fn_constructor_marmot_new(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`deployment`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
-fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_client_name(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`clientName`: RustBuffer.ByValue,`cursorPersistence`: RustBuffer.ByValue,`secretStore`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_client_name(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`clientName`: RustBuffer.ByValue,`cursorPersistence`: RustBuffer.ByValue,`secretStore`: RustBuffer.ByValue,`deployment`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_configuration(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
-fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_cursor_persistence(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`cursorPersistence`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_cursor_persistence(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`cursorPersistence`: RustBuffer.ByValue,`deployment`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
-fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_options(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`relayPolicy`: RustBuffer.ByValue,`secretStore`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_options(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`relayPolicy`: RustBuffer.ByValue,`secretStore`: RustBuffer.ByValue,`deployment`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
-fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_secret_store(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`secretStore`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+fun uniffi_marmot_uniffi_fn_constructor_marmot_new_with_secret_store(`rootPath`: RustBuffer.ByValue,`relayUrls`: RustBuffer.ByValue,`secretStore`: Pointer,`deployment`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_method_marmot_accept_group_invite(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_account_attachment_history_page(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`query`: RustBuffer.ByValue,`limit`: Int,`cursor`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_account_attachment_history_version(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_account_follows(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -2421,6 +2627,10 @@ fun uniffi_marmot_uniffi_fn_method_marmot_account_unread_summary(`ptr`: Pointer,
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_acknowledge_disband_failure(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_acknowledge_group_catching_up(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_acknowledge_group_commit_undelivered(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_acknowledge_onboarding_single_device(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`revision`: Long,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_acknowledge_onboarding_single_device_in_epoch(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`revision`: Long,`recoveryEpoch`: RustBuffer.ByValue,
@@ -2437,7 +2647,13 @@ fun uniffi_marmot_uniffi_fn_method_marmot_attachment_history_page(`ptr`: Pointer
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_attachment_history_version(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_attachment_keep_media(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_attachment_local_assets(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targets`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_attachment_storage_by_chat(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`limit`: Int,`cursor`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_attachment_storage_usage(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_attachment_transfer_snapshot(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targets`: RustBuffer.ByValue,
 ): Long
@@ -2456,6 +2672,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_block_user(`ptr`: Pointer,`accountRef`
 fun uniffi_marmot_uniffi_fn_method_marmot_build_media_imeta_tag(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`reference`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_cached_identity_projections(`ptr`: Pointer,`accountIdHexes`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_method_marmot_cached_public_event_previews(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`references`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_cancel_onboarding(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
@@ -2485,6 +2703,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_clear_push_registration(`ptr`: Pointer
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_collect_notifications_after_wake(`ptr`: Pointer,`maxWaitMs`: Int,`source`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_configure_moderation_reporting(`ptr`: Pointer,`config`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 fun uniffi_marmot_uniffi_fn_method_marmot_confirm_group_rejoin(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`welcomeIdHex`: RustBuffer.ByValue,`localStateToken`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_content_reports(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`messageId`: RustBuffer.ByValue,`after`: RustBuffer.ByValue,`limit`: Int,uniffi_out_err: UniffiRustCallStatus, 
@@ -2507,9 +2727,11 @@ fun uniffi_marmot_uniffi_fn_method_marmot_create_group_with_options_detailed(`pt
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_create_group_with_prepared_initial_image(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`name`: RustBuffer.ByValue,`memberRefs`: RustBuffer.ByValue,`description`: RustBuffer.ByValue,`uploadId`: RustBuffer.ByValue,
 ): Long
-fun uniffi_marmot_uniffi_fn_method_marmot_create_identity(`ptr`: Pointer,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,
+fun uniffi_marmot_uniffi_fn_method_marmot_create_identity(`ptr`: Pointer,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`inboxRelays`: RustBuffer.ByValue,
 ): Long
-fun uniffi_marmot_uniffi_fn_method_marmot_create_identity_with_profile(`ptr`: Pointer,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,
+fun uniffi_marmot_uniffi_fn_method_marmot_create_identity_with_initial_profile(`ptr`: Pointer,`profile`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`inboxRelays`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_create_identity_with_profile(`ptr`: Pointer,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`inboxRelays`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_create_poll(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`question`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,`pollType`: RustBuffer.ByValue,`endsAt`: RustBuffer.ByValue,
 ): Long
@@ -2567,6 +2789,10 @@ fun uniffi_marmot_uniffi_fn_method_marmot_forget_group_local(`ptr`: Pointer,`acc
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_get_blocked_users(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_method_marmot_group_app_component(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`componentId`: Short,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_group_commit_delivery(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_group_conversation_snapshot(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_group_details(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
@@ -2607,6 +2833,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_is_user_blocked(`ptr`: Pointer,`accoun
 ): Byte
 fun uniffi_marmot_uniffi_fn_method_marmot_key_package_maintenance_status(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_largest_retained_attachments(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`limit`: Int,`cursor`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_leave_group(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_list_accounts(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -2617,11 +2845,11 @@ fun uniffi_marmot_uniffi_fn_method_marmot_local_account_key_packages(`ptr`: Poin
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_local_send_status(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`clientToken`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
-fun uniffi_marmot_uniffi_fn_method_marmot_login(`ptr`: Pointer,`identity`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,
+fun uniffi_marmot_uniffi_fn_method_marmot_login(`ptr`: Pointer,`identity`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`inboxRelays`: RustBuffer.ByValue,
 ): Long
-fun uniffi_marmot_uniffi_fn_method_marmot_login_external_signer(`ptr`: Pointer,`publicKey`: RustBuffer.ByValue,`signer`: Pointer,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,
+fun uniffi_marmot_uniffi_fn_method_marmot_login_external_signer(`ptr`: Pointer,`publicKey`: RustBuffer.ByValue,`signer`: Pointer,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`inboxRelays`: RustBuffer.ByValue,
 ): Long
-fun uniffi_marmot_uniffi_fn_method_marmot_login_recovering_incomplete_setup(`ptr`: Pointer,`nsec`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`acknowledgePossibleKeyPackageOrphan`: Byte,
+fun uniffi_marmot_uniffi_fn_method_marmot_login_recovering_incomplete_setup(`ptr`: Pointer,`nsec`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`acknowledgePossibleKeyPackageOrphan`: Byte,`inboxRelays`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_mark_timeline_message_read(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`messageIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -2633,8 +2861,12 @@ fun uniffi_marmot_uniffi_fn_method_marmot_message_drafts(`ptr`: Pointer,`account
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_message_edit_history(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targetMessageIdHex`: RustBuffer.ByValue,`beforeEditedAt`: RustBuffer.ByValue,`beforeMessageIdHex`: RustBuffer.ByValue,`limit`: Int,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_method_marmot_message_reactions(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`messageIdHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_messages(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`limit`: RustBuffer.ByValue,`kinds`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_method_marmot_moderation_reporting_available(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
 fun uniffi_marmot_uniffi_fn_method_marmot_normalize_member_ref(`ptr`: Pointer,`memberRef`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_notification_settings(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -2649,6 +2881,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_onboarding_snapshot(`ptr`: Pointer,`ac
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_open_agent_publisher(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_open_attachment_handoff(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`target`: RustBuffer.ByValue,`control`: Pointer,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_open_chat_list_window(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`view`: RustBuffer.ByValue,`initialRows`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_open_conversation_window(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`mode`: RustBuffer.ByValue,`messageIdHex`: RustBuffer.ByValue,`initialRows`: RustBuffer.ByValue,`timeoutMs`: Int,
@@ -2661,6 +2895,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_pause_maintenance(`ptr`: Pointer,`acco
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_periodic_maintenance_policy(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_poll_votes(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`pollEventId`: RustBuffer.ByValue,`afterVotedAt`: RustBuffer.ByValue,`afterVoterAccountIdHex`: RustBuffer.ByValue,`limit`: Int,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_post_audit_log_file(`ptr`: Pointer,`path`: RustBuffer.ByValue,`endpoint`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_post_audit_log_tracker_update(`ptr`: Pointer,
@@ -2687,11 +2923,13 @@ fun uniffi_marmot_uniffi_fn_method_marmot_propose_onboarding_profile(`ptr`: Poin
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_propose_onboarding_recommended_relays(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`step`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_propose_onboarding_relay_repair(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`step`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_propose_onboarding_relays(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`step`: RustBuffer.ByValue,`readRelays`: RustBuffer.ByValue,`writeRelays`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_publish_new_key_package(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
-fun uniffi_marmot_uniffi_fn_method_marmot_publish_relay_lists(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,
+fun uniffi_marmot_uniffi_fn_method_marmot_publish_relay_lists(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,`inboxRelays`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_publish_user_profile(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`profile`: RustBuffer.ByValue,`defaultRelays`: RustBuffer.ByValue,`bootstrapRelays`: RustBuffer.ByValue,
 ): Long
@@ -2704,6 +2942,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_quarantined_groups(`ptr`: Pointer,`acc
 fun uniffi_marmot_uniffi_fn_method_marmot_random_profile_pseudonym(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_react_to_message(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targetMessageId`: RustBuffer.ByValue,`emoji`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_react_with_media(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targetMessageId`: RustBuffer.ByValue,`emoji`: RustBuffer.ByValue,`tags`: RustBuffer.ByValue,`attachments`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_read_attachment_asset(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`reference`: RustBuffer.ByValue,`offset`: Long,`limit`: Int,
 ): Long
@@ -2729,7 +2969,13 @@ fun uniffi_marmot_uniffi_fn_method_marmot_relay_health(`ptr`: Pointer,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_relay_telemetry_settings(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_method_marmot_release_attachment_handoff(`ptr`: Pointer,`lease`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_remove_account(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_remove_attachments_older_than(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`receivedBefore`: Long,`groupIdHex`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_remove_chat_attachments(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_remove_members(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`memberRefs`: RustBuffer.ByValue,
 ): Long
@@ -2753,7 +2999,11 @@ fun uniffi_marmot_uniffi_fn_method_marmot_request_automatic_attachment(`ptr`: Po
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_request_avatar_assets(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`targets`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_request_explicit_attachment(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`target`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_reset_incomplete_account_setup(`ptr`: Pointer,`nsec`: RustBuffer.ByValue,`acknowledgePossibleKeyPackageOrphan`: Byte,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_resolve_public_event_preview(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`reference`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_resume_maintenance(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,
 ): Long
@@ -2801,6 +3051,12 @@ fun uniffi_marmot_uniffi_fn_method_marmot_send_message_draft(`ptr`: Pointer,`acc
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_send_message_draft_with_client_token(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`revision`: Pointer,`attachments`: RustBuffer.ByValue,`clientToken`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_send_prepared_media_with_client_token(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`attachments`: RustBuffer.ByValue,`caption`: RustBuffer.ByValue,`clientToken`: RustBuffer.ByValue,`consumingDraft`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_send_tagged_media(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`attachments`: RustBuffer.ByValue,`caption`: RustBuffer.ByValue,`tags`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_send_tagged_text(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,`tags`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_send_text(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_send_text_with_client_token(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,`clientToken`: RustBuffer.ByValue,
@@ -2812,6 +3068,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_set_account_nip65_relays(`ptr`: Pointe
 fun uniffi_marmot_uniffi_fn_method_marmot_set_attachment_automatic_permission(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`generation`: RustBuffer.ByValue,`permission`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_set_attachment_download_policy(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`policy`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_set_attachment_keep_media(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`keep`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_set_audit_log_settings(`ptr`: Pointer,`settings`: RustBuffer.ByValue,
 ): Long
@@ -2845,6 +3103,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_set_relay_telemetry_runtime_config(`pt
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_set_relay_telemetry_settings(`ptr`: Pointer,`settings`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_set_startup_diagnostics_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 fun uniffi_marmot_uniffi_fn_method_marmot_set_usage_diagnostics_consent(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_shutdown(`ptr`: Pointer,
@@ -2863,8 +3123,12 @@ fun uniffi_marmot_uniffi_fn_method_marmot_start(`ptr`: Pointer,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_start_agent_text_stream(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`streamIdHex`: RustBuffer.ByValue,`quicCandidates`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_startup_diagnostics_snapshot(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_storage_is_closed(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Byte
+fun uniffi_marmot_uniffi_fn_method_marmot_submit_moderation_report(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`reportedPubkey`: RustBuffer.ByValue,`reason`: RustBuffer.ByValue,`explanation`: RustBuffer.ByValue,`origin`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_subscribe_account_attention(`ptr`: Pointer,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_subscribe_attachment_transfers(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targets`: RustBuffer.ByValue,
@@ -2899,6 +3163,8 @@ fun uniffi_marmot_uniffi_fn_method_marmot_unfollow_user(`ptr`: Pointer,`accountR
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_unreact_from_message(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`targetMessageId`: RustBuffer.ByValue,
 ): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_update_app_component(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`componentId`: Short,`data`: RustBuffer.ByValue,
+): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_update_group_avatar_url(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`url`: RustBuffer.ByValue,`dim`: RustBuffer.ByValue,`thumbhash`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_update_group_image(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`plaintext`: RustBuffer.ByValue,`mediaType`: RustBuffer.ByValue,
@@ -2908,6 +3174,10 @@ fun uniffi_marmot_uniffi_fn_method_marmot_update_group_profile(`ptr`: Pointer,`a
 fun uniffi_marmot_uniffi_fn_method_marmot_update_message_retention(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`disappearingMessageSecs`: Long,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_upload_media(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`request`: RustBuffer.ByValue,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_upload_media_files(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`request`: RustBuffer.ByValue,`control`: Pointer,
+): Long
+fun uniffi_marmot_uniffi_fn_method_marmot_upload_media_files_with_client_token(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`request`: RustBuffer.ByValue,`control`: Pointer,`clientToken`: RustBuffer.ByValue,
 ): Long
 fun uniffi_marmot_uniffi_fn_method_marmot_upload_media_with_client_token(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`request`: RustBuffer.ByValue,`clientToken`: RustBuffer.ByValue,
 ): Long
@@ -2929,10 +3199,24 @@ fun uniffi_marmot_uniffi_fn_method_marmot_user_relay_lists(`ptr`: Pointer,`accou
 ): RustBuffer.ByValue
 fun uniffi_marmot_uniffi_fn_method_marmot_watch_agent_text_stream(`ptr`: Pointer,`accountRef`: RustBuffer.ByValue,`groupIdHex`: RustBuffer.ByValue,`streamIdHex`: RustBuffer.ByValue,`serverCertDer`: RustBuffer.ByValue,`insecureLocal`: Byte,
 ): Long
+fun uniffi_marmot_uniffi_fn_clone_mediafiletransfercontrolffi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_free_mediafiletransfercontrolffi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+fun uniffi_marmot_uniffi_fn_constructor_mediafiletransfercontrolffi_new(uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_method_mediafiletransfercontrolffi_cancel(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+fun uniffi_marmot_uniffi_fn_method_mediafiletransfercontrolffi_is_cancelled(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+fun uniffi_marmot_uniffi_fn_method_mediafiletransfercontrolffi_processed_bytes(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Long
 fun uniffi_marmot_uniffi_fn_clone_messagedraftrevisionffi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_messagedraftrevisionffi(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
+fun uniffi_marmot_uniffi_fn_method_messagedraftrevisionffi_includes_chat_list_version(`ptr`: Pointer,`version`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
 fun uniffi_marmot_uniffi_fn_clone_messagessubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_messagessubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -2963,6 +3247,10 @@ fun uniffi_marmot_uniffi_fn_method_presentedchatlistsubscription_next(`ptr`: Poi
 ): Long
 fun uniffi_marmot_uniffi_fn_method_presentedchatlistsubscription_snapshot(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_clone_retainedattachmentscursor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Pointer
+fun uniffi_marmot_uniffi_fn_free_retainedattachmentscursor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 fun uniffi_marmot_uniffi_fn_clone_secretstore(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_marmot_uniffi_fn_free_secretstore(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -2998,6 +3286,12 @@ fun uniffi_marmot_uniffi_fn_clone_usersearchsubscription(`ptr`: Pointer,uniffi_o
 fun uniffi_marmot_uniffi_fn_free_usersearchsubscription(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
 fun uniffi_marmot_uniffi_fn_method_usersearchsubscription_next_update(`ptr`: Pointer,
+): Long
+fun uniffi_marmot_uniffi_fn_func_marmot_deployment_neutral(uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_func_marmot_deployment_white_noise(uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+fun uniffi_marmot_uniffi_fn_func_max_file_media_ciphertext_bytes(uniffi_out_err: UniffiRustCallStatus, 
 ): Long
 fun uniffi_marmot_uniffi_fn_func_parse_media_imeta_tag(`tag`: RustBuffer.ByValue,`sourceEpoch`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -3129,10 +3423,22 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if (lib.uniffi_marmot_uniffi_checksum_func_marmot_deployment_neutral() != 64004.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_func_marmot_deployment_white_noise() != 54153.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_func_max_file_media_ciphertext_bytes() != 26159.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_func_parse_media_imeta_tag() != 61566.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_func_verify_public_nostr_event_json() != 9646.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_accountattachmentversion_change_since() != 52642.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_accountattentionsubscription_next() != 8393.toShort()) {
@@ -3255,6 +3561,12 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_accept_group_invite() != 61156.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_account_attachment_history_page() != 26758.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_account_attachment_history_version() != 6613.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_account_follows() != 12625.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3285,6 +3597,12 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_disband_failure() != 63327.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_group_catching_up() != 62766.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_group_commit_undelivered() != 52476.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_acknowledge_onboarding_single_device() != 7833.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3309,7 +3627,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_attachment_history_version() != 22193.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_attachment_keep_media() != 65370.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_attachment_local_assets() != 38276.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_attachment_storage_by_chat() != 34555.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_attachment_storage_usage() != 49731.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_attachment_transfer_snapshot() != 19293.toShort()) {
@@ -3337,6 +3664,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_cached_identity_projections() != 57035.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_cached_public_event_previews() != 11066.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_cancel_onboarding() != 2669.toShort()) {
@@ -3381,6 +3711,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_collect_notifications_after_wake() != 273.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_configure_moderation_reporting() != 22367.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_confirm_group_rejoin() != 6199.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3414,13 +3747,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_group_with_prepared_initial_image() != 14270.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_identity() != 60507.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_identity() != 12514.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_identity_with_profile() != 486.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_identity_with_initial_profile() != 22601.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_poll() != 2964.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_identity_with_profile() != 65394.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_create_poll() != 31740.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_decline_group_invite() != 24239.toShort()) {
@@ -3480,7 +3816,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_edit_local_message_with_client_token() != 8069.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_edit_message() != 50965.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_edit_message() != 60575.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_enable_group_disbanding() != 25467.toShort()) {
@@ -3495,13 +3831,19 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_flush_product_analytics() != 63031.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_follow_user() != 26050.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_follow_user() != 64554.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_forget_group_local() != 60226.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_get_blocked_users() != 21604.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_group_app_component() != 45914.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_group_commit_delivery() != 27652.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_group_conversation_snapshot() != 51785.toShort()) {
@@ -3564,6 +3906,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_key_package_maintenance_status() != 367.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_largest_retained_attachments() != 59582.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_leave_group() != 31366.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3579,13 +3924,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_local_send_status() != 62132.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_login() != 33167.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_login() != 10007.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_login_external_signer() != 44038.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_login_external_signer() != 48495.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_login_recovering_incomplete_setup() != 65462.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_login_recovering_incomplete_setup() != 3221.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_mark_timeline_message_read() != 32522.toShort()) {
@@ -3603,7 +3948,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_message_edit_history() != 28120.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_message_reactions() != 16843.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_messages() != 16666.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_moderation_reporting_available() != 15869.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_normalize_member_ref() != 23964.toShort()) {
@@ -3627,6 +3978,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_open_agent_publisher() != 14224.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_open_attachment_handoff() != 41576.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_open_chat_list_window() != 26719.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3643,6 +3997,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_periodic_maintenance_policy() != 2598.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_poll_votes() != 3245.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_post_audit_log_file() != 63080.toShort()) {
@@ -3684,13 +4041,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_recommended_relays() != 40382.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_relay_repair() != 10514.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_propose_onboarding_relays() != 8305.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_publish_new_key_package() != 11266.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_publish_relay_lists() != 48323.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_publish_relay_lists() != 42046.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_publish_user_profile() != 56905.toShort()) {
@@ -3709,6 +4069,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_react_to_message() != 39138.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_react_with_media() != 10392.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_read_attachment_asset() != 20920.toShort()) {
@@ -3747,7 +4110,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_relay_telemetry_settings() != 36605.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_release_attachment_handoff() != 63595.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_remove_account() != 37396.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_remove_attachments_older_than() != 45882.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_remove_chat_attachments() != 2085.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_remove_members() != 32012.toShort()) {
@@ -3783,7 +4155,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_request_avatar_assets() != 35630.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_request_explicit_attachment() != 48149.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_reset_incomplete_account_setup() != 58104.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_resolve_public_event_preview() != 26469.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_resume_maintenance() != 1654.toShort()) {
@@ -3855,6 +4233,15 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_send_message_draft_with_client_token() != 11648.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_send_prepared_media_with_client_token() != 565.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_send_tagged_media() != 11125.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_send_tagged_text() != 27615.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_send_text() != 60625.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3871,6 +4258,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_set_attachment_download_policy() != 9264.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_set_attachment_keep_media() != 15472.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_set_audit_log_settings() != 36141.toShort()) {
@@ -3921,6 +4311,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_set_relay_telemetry_settings() != 3204.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_set_startup_diagnostics_enabled() != 2865.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_set_usage_diagnostics_consent() != 34489.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -3948,7 +4341,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_start_agent_text_stream() != 35574.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_startup_diagnostics_snapshot() != 61678.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_storage_is_closed() != 37723.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_submit_moderation_report() != 50855.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_subscribe_account_attention() != 57261.toShort()) {
@@ -3996,10 +4395,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_unblock_user() != 43899.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_unfollow_user() != 7605.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_unfollow_user() != 44806.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_unreact_from_message() != 52209.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_update_app_component() != 33870.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_update_group_avatar_url() != 57913.toShort()) {
@@ -4014,7 +4416,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_update_message_retention() != 47317.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_upload_media() != 20405.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_upload_media() != 63007.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_upload_media_files() != 10572.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_upload_media_files_with_client_token() != 12665.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_upload_media_with_client_token() != 53498.toShort()) {
@@ -4044,7 +4452,19 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_marmot_user_relay_lists() != 26650.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_watch_agent_text_stream() != 24253.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_method_marmot_watch_agent_text_stream() != 15795.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_mediafiletransfercontrolffi_cancel() != 42436.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_mediafiletransfercontrolffi_is_cancelled() != 43037.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_mediafiletransfercontrolffi_processed_bytes() != 10989.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_method_messagedraftrevisionffi_includes_chat_list_version() != 40294.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_marmot_uniffi_checksum_method_messagessubscription_next() != 31202.toShort()) {
@@ -4101,22 +4521,25 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_marmot_uniffi_checksum_method_usersearchsubscription_next_update() != 9602.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new() != 53434.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new() != 55945.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_client_name() != 58090.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_client_name() != 48100.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_configuration() != 36878.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_configuration() != 36944.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_cursor_persistence() != 18903.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_cursor_persistence() != 15021.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_options() != 20223.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_options() != 22591.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_secret_store() != 61899.toShort()) {
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_marmot_new_with_secret_store() != 26816.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_marmot_uniffi_checksum_constructor_mediafiletransfercontrolffi_new() != 3802.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -4567,6 +4990,470 @@ public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
     override fun write(value: ByteArray, buf: ByteBuffer) {
         buf.putInt(value.size)
         buf.put(value)
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// to the live Rust struct on the other side of the FFI.
+//
+// Each instance implements core operations for working with the Rust `Arc<T>` and the
+// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque pointer to the underlying Rust struct.
+//     Method calls need to read this pointer from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its pointer should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
+//      before it can pass the pointer over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+public interface AccountAttachmentCursorInterface {
+    
+    companion object
+}
+
+open class AccountAttachmentCursor: Disposable, AutoCloseable, AccountAttachmentCursorInterface
+{
+
+    constructor(pointer: Pointer) {
+        this.pointer = pointer
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    /**
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noPointer: NoPointer) {
+        this.pointer = null
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    protected val pointer: Pointer?
+    protected val cleanable: UniffiCleaner.Cleanable
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the pointer being freed concurrently.
+        try {
+            return block(this.uniffiClonePointer())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+        override fun run() {
+            pointer?.let { ptr ->
+                uniffiRustCall { status ->
+                    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_free_accountattachmentcursor(ptr, status)
+                }
+            }
+        }
+    }
+
+    fun uniffiClonePointer(): Pointer {
+        return uniffiRustCall() { status ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_accountattachmentcursor(pointer!!, status)
+        }
+    }
+
+    
+
+    
+    
+    companion object
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAccountAttachmentCursor: FfiConverter<AccountAttachmentCursor, Pointer> {
+
+    override fun lower(value: AccountAttachmentCursor): Pointer {
+        return value.uniffiClonePointer()
+    }
+
+    override fun lift(value: Pointer): AccountAttachmentCursor {
+        return AccountAttachmentCursor(value)
+    }
+
+    override fun read(buf: ByteBuffer): AccountAttachmentCursor {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: AccountAttachmentCursor) = 8UL
+
+    override fun write(value: AccountAttachmentCursor, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// to the live Rust struct on the other side of the FFI.
+//
+// Each instance implements core operations for working with the Rust `Arc<T>` and the
+// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque pointer to the underlying Rust struct.
+//     Method calls need to read this pointer from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its pointer should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
+//      before it can pass the pointer over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+public interface AccountAttachmentVersionInterface {
+    
+    /**
+     * RestartRequired invalidates loaded rows; Additions leaves older-page cursors valid and offers refresh.
+     */
+    fun `changeSince`(`previous`: AccountAttachmentVersion): AttachmentHistoryChangeFfi
+    
+    companion object
+}
+
+open class AccountAttachmentVersion: Disposable, AutoCloseable, AccountAttachmentVersionInterface
+{
+
+    constructor(pointer: Pointer) {
+        this.pointer = pointer
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    /**
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noPointer: NoPointer) {
+        this.pointer = null
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    protected val pointer: Pointer?
+    protected val cleanable: UniffiCleaner.Cleanable
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the pointer being freed concurrently.
+        try {
+            return block(this.uniffiClonePointer())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+        override fun run() {
+            pointer?.let { ptr ->
+                uniffiRustCall { status ->
+                    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_free_accountattachmentversion(ptr, status)
+                }
+            }
+        }
+    }
+
+    fun uniffiClonePointer(): Pointer {
+        return uniffiRustCall() { status ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_accountattachmentversion(pointer!!, status)
+        }
+    }
+
+    
+    /**
+     * RestartRequired invalidates loaded rows; Additions leaves older-page cursors valid and offers refresh.
+     */override fun `changeSince`(`previous`: AccountAttachmentVersion): AttachmentHistoryChangeFfi {
+            return FfiConverterTypeAttachmentHistoryChangeFfi.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_accountattachmentversion_change_since(
+        it, FfiConverterTypeAccountAttachmentVersion.lower(`previous`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+
+    
+    
+    companion object
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAccountAttachmentVersion: FfiConverter<AccountAttachmentVersion, Pointer> {
+
+    override fun lower(value: AccountAttachmentVersion): Pointer {
+        return value.uniffiClonePointer()
+    }
+
+    override fun lift(value: Pointer): AccountAttachmentVersion {
+        return AccountAttachmentVersion(value)
+    }
+
+    override fun read(buf: ByteBuffer): AccountAttachmentVersion {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: AccountAttachmentVersion) = 8UL
+
+    override fun write(value: AccountAttachmentVersion, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
     }
 }
 
@@ -6503,6 +7390,234 @@ public object FfiConverterTypeBlockListSubscription: FfiConverter<BlockListSubsc
 //
 
 
+/**
+ * Read-only store/group-scoped draft metadata. No constructor or mutation capability.
+ */
+public interface ChatListDraftVersionFfiInterface {
+    
+    companion object
+}
+
+/**
+ * Read-only store/group-scoped draft metadata. No constructor or mutation capability.
+ */
+open class ChatListDraftVersionFfi: Disposable, AutoCloseable, ChatListDraftVersionFfiInterface
+{
+
+    constructor(pointer: Pointer) {
+        this.pointer = pointer
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    /**
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noPointer: NoPointer) {
+        this.pointer = null
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    protected val pointer: Pointer?
+    protected val cleanable: UniffiCleaner.Cleanable
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the pointer being freed concurrently.
+        try {
+            return block(this.uniffiClonePointer())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+        override fun run() {
+            pointer?.let { ptr ->
+                uniffiRustCall { status ->
+                    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_free_chatlistdraftversionffi(ptr, status)
+                }
+            }
+        }
+    }
+
+    fun uniffiClonePointer(): Pointer {
+        return uniffiRustCall() { status ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_chatlistdraftversionffi(pointer!!, status)
+        }
+    }
+
+    
+
+    
+    
+    companion object
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChatListDraftVersionFfi: FfiConverter<ChatListDraftVersionFfi, Pointer> {
+
+    override fun lower(value: ChatListDraftVersionFfi): Pointer {
+        return value.uniffiClonePointer()
+    }
+
+    override fun lift(value: Pointer): ChatListDraftVersionFfi {
+        return ChatListDraftVersionFfi(value)
+    }
+
+    override fun read(buf: ByteBuffer): ChatListDraftVersionFfi {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: ChatListDraftVersionFfi) = 8UL
+
+    override fun write(value: ChatListDraftVersionFfi, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// to the live Rust struct on the other side of the FFI.
+//
+// Each instance implements core operations for working with the Rust `Arc<T>` and the
+// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque pointer to the underlying Rust struct.
+//     Method calls need to read this pointer from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its pointer should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
+//      before it can pass the pointer over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
 public interface ChatListSubscriptionInterface {
     
     /**
@@ -7070,6 +8185,234 @@ public object FfiConverterTypeChatListWindowSubscription: FfiConverter<ChatListW
     override fun allocationSize(value: ChatListWindowSubscription) = 8UL
 
     override fun write(value: ChatListWindowSubscription, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// to the live Rust struct on the other side of the FFI.
+//
+// Each instance implements core operations for working with the Rust `Arc<T>` and the
+// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque pointer to the underlying Rust struct.
+//     Method calls need to read this pointer from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its pointer should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
+//      before it can pass the pointer over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * Where the next page of chats starts.
+ */
+public interface ChatStorageCursorInterface {
+    
+    companion object
+}
+
+/**
+ * Where the next page of chats starts.
+ */
+open class ChatStorageCursor: Disposable, AutoCloseable, ChatStorageCursorInterface
+{
+
+    constructor(pointer: Pointer) {
+        this.pointer = pointer
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    /**
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noPointer: NoPointer) {
+        this.pointer = null
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    protected val pointer: Pointer?
+    protected val cleanable: UniffiCleaner.Cleanable
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the pointer being freed concurrently.
+        try {
+            return block(this.uniffiClonePointer())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+        override fun run() {
+            pointer?.let { ptr ->
+                uniffiRustCall { status ->
+                    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_free_chatstoragecursor(ptr, status)
+                }
+            }
+        }
+    }
+
+    fun uniffiClonePointer(): Pointer {
+        return uniffiRustCall() { status ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_chatstoragecursor(pointer!!, status)
+        }
+    }
+
+    
+
+    
+    
+    companion object
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChatStorageCursor: FfiConverter<ChatStorageCursor, Pointer> {
+
+    override fun lower(value: ChatStorageCursor): Pointer {
+        return value.uniffiClonePointer()
+    }
+
+    override fun lift(value: Pointer): ChatStorageCursor {
+        return ChatStorageCursor(value)
+    }
+
+    override fun read(buf: ByteBuffer): ChatStorageCursor {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: ChatStorageCursor) = 8UL
+
+    override fun write(value: ChatStorageCursor, buf: ByteBuffer) {
         // The Rust code always expects pointers written as 8 bytes,
         // and will fail to compile if they don't fit.
         buf.putLong(Pointer.nativeValue(lower(value)))
@@ -8857,6 +10200,17 @@ public interface MarmotInterface {
     suspend fun `acceptGroupInvite`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): AppGroupRecordFfi
     
     /**
+     * Read at most 100 indexed account candidates; filtered empty pages can still have a continuation.
+     * Cursors are account-incarnation/query bound and must be discarded on runtime reconstruction or source mutation.
+     */
+    suspend fun `accountAttachmentHistoryPage`(`accountRef`: kotlin.String, `query`: AccountAttachmentQueryFfi, `limit`: kotlin.UInt, `cursor`: AccountAttachmentCursor?): AccountAttachmentPageReadFfi
+    
+    /**
+     * Read the constant-work local change token without starting transfers or loading history.
+     */
+    suspend fun `accountAttachmentHistoryVersion`(`accountRef`: kotlin.String): AccountAttachmentVersion
+    
+    /**
      * Return the complete locally cached kind-3 follow list for `account_ref`
      * as canonical lowercase public-key hex strings.
      *
@@ -8924,6 +10278,26 @@ public interface MarmotInterface {
     suspend fun `acknowledgeDisbandFailure`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): kotlin.Boolean
     
     /**
+     * After a group change fails with `GroupCatchingUp`, record that the user
+     * accepts the risk: this device may be behind its group, so the change can
+     * split the group for everyone. Retry the change afterwards. Admits one
+     * change attempt at the device's current epoch, consumed even if it
+     * fails, and is not persisted. Returns false when the group is not
+     * catching up.
+     */
+    suspend fun `acknowledgeGroupCatchingUp`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): kotlin.Boolean
+    
+    /**
+     * After a group change fails with `GroupCommitUndelivered`, record that the
+     * user accepts the risk: the group's last change has not reached every
+     * relay, so members on those relays may not follow this change either.
+     * Retry the change afterwards. Admits one change attempt, consumed even if
+     * it fails, and is not persisted. Returns false when no relay is owed the
+     * group's last change.
+     */
+    suspend fun `acknowledgeGroupCommitUndelivered`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): kotlin.Boolean
+    
+    /**
      * Record Continue anyway for the displayed notice, then resume setup.
      */
     suspend fun `acknowledgeOnboardingSingleDevice`(`accountRef`: kotlin.String, `revision`: kotlin.ULong): OnboardingSnapshotFfi
@@ -8968,11 +10342,31 @@ public interface MarmotInterface {
     suspend fun `attachmentHistoryVersion`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): AttachmentHistoryVersion
     
     /**
+     * The account's "Keep media" setting: `Forever` unless the user chose
+     * a window. Needs no started runtime.
+     */
+    suspend fun `attachmentKeepMedia`(`accountRef`: kotlin.String): AttachmentKeepMediaFfi
+    
+    /**
      * Local-only metadata for up to 64 original source slots in one group.
      * Results preserve input order/duplicates. No bytes are loaded, jobs queued,
      * downloads started or engine state hydrated. Requires no runtime start.
      */
     suspend fun `attachmentLocalAssets`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targets`: List<AttachmentLocalTargetFfi>): List<AttachmentLocalAssetFfi>
+    
+    /**
+     * Chats by retained attachment bytes, largest first, `limit` (1..=256)
+     * per page. Pass the page's `next_cursor` to continue.
+     */
+    suspend fun `attachmentStorageByChat`(`accountRef`: kotlin.String, `limit`: kotlin.UInt, `cursor`: ChatStorageCursor?): ChatStoragePageFfi
+    
+    /**
+     * Account-wide attachment storage across both body layouts: media-store
+     * bytes (a shared file counted once), legacy database bytes, the
+     * retained attachment count, and the database's size and free pages.
+     * Reads no bodies; needs no started runtime.
+     */
+    suspend fun `attachmentStorageUsage`(`accountRef`: kotlin.String): AttachmentStorageUsageFfi
     
     suspend fun `attachmentTransferSnapshot`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targets`: List<AttachmentLocalTargetFfi>): AttachmentTransferSnapshotFfi
     
@@ -9021,6 +10415,16 @@ public interface MarmotInterface {
      * identity. Maximum page size is 100 account IDs.
      */
     fun `cachedIdentityProjections`(`accountIdHexes`: List<kotlin.String>): List<CachedIdentityProjectionFfi>
+    
+    /**
+     * Network-free cached previews for first-frame rendering: one result per
+     * reference, in input order, duplicates included. Accepts at most 16
+     * references (`note`, `nevent`, `naddr` or hex event ID, with or without
+     * `nostr:`). A cold call may open the account's encrypted cache, so warm
+     * it off the UI thread. Author profiles come from
+     * `cached_identity_projections`.
+     */
+    fun `cachedPublicEventPreviews`(`accountRef`: kotlin.String, `references`: List<kotlin.String>): List<PublicEventPreviewFfi>
     
     /**
      * Cancel the current interactive onboarding attempt at any step, including
@@ -9090,6 +10494,12 @@ public interface MarmotInterface {
     suspend fun `clearPushRegistration`(`accountRef`: kotlin.String): PushRegistrationShareOutcomeFfi
     
     suspend fun `collectNotificationsAfterWake`(`maxWaitMs`: kotlin.UInt, `source`: NotificationWakeSourceFfi): BackgroundNotificationCollectionFfi
+    
+    /**
+     * Install (`Some`) or clear (`None`) the moderation-report destination at runtime.
+     * An invalid config is rejected whole and leaves reporting unconfigured.
+     */
+    fun `configureModerationReporting`(`config`: ModerationReportConfigFfi?)
     
     /**
      * Call only after explicit user consent to replace the active copy. Show
@@ -9162,8 +10572,23 @@ public interface MarmotInterface {
      * and an explicit readiness state. Public indexers receive best-effort
      * copies of both relay lists and kind-0 metadata; KeyPackages remain on
      * the advertised write relays.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
-    suspend fun `createIdentity`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>): AccountSummaryFfi
+    suspend fun `createIdentity`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String> = listOf()): AccountSummaryFfi
+    
+    /**
+     * Create a generated identity whose first public kind-0 is `profile`,
+     * returning at durable local readiness like `create_identity_with_profile`.
+     * Use this when onboarding collects a name: publishing it afterwards with
+     * `publish_user_profile` would first expose the key-derived default to
+     * contacts. The returned profile is the stamped one that setup publishes.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
+     */
+    suspend fun `createIdentityWithInitialProfile`(`profile`: UserProfileMetadataFfi, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String> = listOf()): IdentityCreationResultFfi
     
     /**
      * Create a generated identity and return at durable local readiness with
@@ -9171,11 +10596,14 @@ public interface MarmotInterface {
      * authority for whether relay publication has completed; `LocalReady`
      * must not be presented as invite-receivable. Account setup copies both
      * relay lists and the default kind-0 profile to public indexers.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
-    suspend fun `createIdentityWithProfile`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>): IdentityCreationResultFfi
+    suspend fun `createIdentityWithProfile`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String> = listOf()): IdentityCreationResultFfi
     
     /**
-     * Create an encrypted NIP-88 poll in a group conversation. Option ids use
+     * Create an encrypted NIP-88 poll in a direct or group conversation. Option ids use
      * `"0"` through `"9"`.
      */
     suspend fun `createPoll`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `question`: kotlin.String, `options`: List<kotlin.String>, `pollType`: PollTypeFfi, `endsAt`: kotlin.ULong?): SendSummaryFfi
@@ -9307,7 +10735,10 @@ public interface MarmotInterface {
      * Edit `target_message_id` by publishing a kind-1009 event that
      * references it and carries the replacement plaintext in `content`.
      * Recipients honour the edit only when its authenticated author matches
-     * the target's author; MDK ignores mismatched edits.
+     * the target's author; MDK ignores mismatched edits. It returns
+     * `InvalidEditTarget`, publishing nothing, unless the target is an
+     * available chat message this account sent. Competing edits resolve by
+     * `created_at`, then the larger event id.
      *
      * MDK overlays accepted edits on the target timeline row and selected list
      * preview, without changing its identity, activity order or unread state.
@@ -9367,9 +10798,12 @@ public interface MarmotInterface {
      * current kind-3 contact list. Returns the complete updated list.
      *
      * This fetches the current replaceable event from the account's known
-     * outbox/default relays before publishing. If no current event can be
-     * established, it returns `FollowListUnavailable` rather than risking a
-     * destructive replacement.
+     * outbox/default relays and appends one `p` tag; petnames, relay hints,
+     * other tags and the content are republished unchanged. If no current
+     * event can be established, it returns `FollowListUnavailable` rather
+     * than risking a destructive replacement. If the list has 2,048 follows
+     * or more, the most MDK reads from one list, it returns
+     * `FollowListTooLarge` and publishes nothing.
      */
     suspend fun `followUser`(`accountRef`: kotlin.String, `userRef`: kotlin.String): List<kotlin.String>
     
@@ -9386,6 +10820,25 @@ public interface MarmotInterface {
     suspend fun `forgetGroupLocal`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): kotlin.Boolean
     
     fun `getBlockedUsers`(`accountRef`: kotlin.String): List<BlockedUserFfi>
+    
+    /**
+     * Read local committed application-owned state; None means absent.
+     * Refresh on group events. Ids below the application range
+     * (`APP_OWNED_APP_COMPONENT_ID_START`, 0xf000) are protocol space and
+     * are rejected.
+     */
+    suspend fun `groupAppComponent`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `componentId`: kotlin.UShort): GroupAppComponentFfi?
+    
+    /**
+     * The group's oldest change that some group relays have not accepted yet,
+     * or `None` once every relay has accepted or definitively rejected it.
+     * `Some` means show "not delivered to every relay yet"; it does not mean
+     * the next change fails. Group changes fail with `GroupCommitUndelivered`
+     * only once `since` is two minutes old, because a healthy relay cut off at
+     * the first acknowledgement is retried after 30 seconds. No event
+     * announces delivery completing; poll while showing it.
+     */
+    suspend fun `groupCommitDelivery`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): GroupCommitDeliveryFfi?
     
     /**
      * Group details and management state captured for conversation loading in
@@ -9498,6 +10951,13 @@ public interface MarmotInterface {
     
     suspend fun `keyPackageMaintenanceStatus`(`accountRef`: kotlin.String): KeyPackageMaintenanceStatusFfi?
     
+    /**
+     * Retained attachments, largest first, `limit` (1..=256) per page,
+     * optionally within one chat. Pass the page's `next_cursor` to
+     * continue.
+     */
+    suspend fun `largestRetainedAttachments`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String?, `limit`: kotlin.UInt, `cursor`: RetainedAttachmentsCursor?): RetainedAttachmentsPageFfi
+    
     suspend fun `leaveGroup`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): SendSummaryFfi
     
     /**
@@ -9535,8 +10995,11 @@ public interface MarmotInterface {
      * Log in with an existing identity. `identity` can be an `nsec` (private
      * key) for a local-signing account, or an `npub` to track a public
      * identity without local signing.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
-    suspend fun `login`(`identity`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>): AccountSummaryFfi
+    suspend fun `login`(`identity`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String> = listOf()): AccountSummaryFfi
     
     /**
      * Log in with an external account signer such as Amber/NIP-55.
@@ -9546,16 +11009,22 @@ public interface MarmotInterface {
      * account-identity proof signing are routed through `signer`; apps must
      * call this again after process restart before the external account can
      * publish, decrypt welcomes, or start its worker.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
-    suspend fun `loginExternalSigner`(`publicKey`: kotlin.String, `signer`: ExternalAccountSignerFfi, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>): AccountSummaryFfi
+    suspend fun `loginExternalSigner`(`publicKey`: kotlin.String, `signer`: ExternalAccountSignerFfi, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String> = listOf()): AccountSummaryFfi
     
     /**
      * Consent-gated one-call recovery for installations stranded before MDK
      * had durable account-setup journals. This validates the same nsec,
      * removes only the recognized ambiguous partial shape, preserves an
      * existing account-id Keychain credential, and immediately retries login.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
-    suspend fun `loginRecoveringIncompleteSetup`(`nsec`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `acknowledgePossibleKeyPackageOrphan`: kotlin.Boolean): AccountSummaryFfi
+    suspend fun `loginRecoveringIncompleteSetup`(`nsec`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `acknowledgePossibleKeyPackageOrphan`: kotlin.Boolean, `inboxRelays`: List<kotlin.String> = listOf()): AccountSummaryFfi
     
     /**
      * Mark a kind-9 timeline message visible/read. Own kind-9 messages can
@@ -9589,6 +11058,20 @@ public interface MarmotInterface {
     fun `messageEditHistory`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targetMessageIdHex`: kotlin.String, `beforeEditedAt`: kotlin.ULong?, `beforeMessageIdHex`: kotlin.String?, `limit`: kotlin.UInt): TimelineEditHistoryPageFfi
     
     /**
+     * Complete effective reaction participants for one account/group/message.
+     *
+     * Unlike a conversation window's bounded reactor preview, this includes
+     * every distinct sender/emoji pair, selecting the latest event per pair.
+     * The local materialized read applies block visibility;
+     * missing, hidden, retention-pruned, deleted or invalidated targets return an empty list.
+     * Results are ordered by timestamp, sender and emoji in one snapshot.
+     * Re-read on conversation updates; no network request is made. This
+     * synchronous read must run off the UI thread. Use matching generated
+     * bindings and native libraries; returned records are owned by the caller.
+     */
+    fun `messageReactions`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `messageIdHex`: kotlin.String): List<TimelineUserReactionFfi>
+    
+    /**
      * Initial history fetch for a group (or, when `group_id_hex` is None,
      * the account-wide tail). Used to populate the conversation view before
      * the subscription stream takes over.
@@ -9597,6 +11080,11 @@ public interface MarmotInterface {
      * app-defined custom kind); `None` or an empty list returns all kinds.
      */
     fun `messages`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String?, `limit`: kotlin.UInt?, `kinds`: List<kotlin.ULong>?): List<AppMessageRecordFfi>
+    
+    /**
+     * True when a valid moderation-report destination is installed.
+     */
+    fun `moderationReportingAvailable`(): kotlin.Boolean
     
     /**
      * Normalize a member reference for group-management UI. Accepts hex,
@@ -9639,6 +11127,25 @@ public interface MarmotInterface {
     suspend fun `openAgentPublisher`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `options`: PublisherOptionsFfi): AgentTextPublisher
     
     /**
+     * Write a plaintext copy of one retained attachment for an OS surface
+     * that needs a real file (package installer, share sheet, "open with",
+     * Quick Look) and lend it under a lease. `None` means the attachment is
+     * not held locally, as `attachment_local_assets` reports it. The copy
+     * stays until `release_attachment_handoff`, account removal, or the
+     * account worker's next start in a new process; removing the attachment
+     * does not revoke it. `control` reports copied bytes and cancels the
+     * copy. `StorageFull` when the disk cannot hold the copy beyond the
+     * reserve. No network or download is started.
+     *
+     * Cancel a handoff only through `control`, which always leaves no copy
+     * and no lease. Do not cancel the awaiting coroutine or task: if that
+     * happens just as the call completes, the result can be dropped before
+     * the host sees the lease, and the copy then stays until the account
+     * worker's next start in a new process, which deletes it.
+     */
+    suspend fun `openAttachmentHandoff`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `target`: AttachmentLocalTargetFfi, `control`: MediaFileTransferControlFfi): AttachmentHandoffFfi?
+    
+    /**
      * Bind to one account/view. None defaults to 50; explicit sizes must be 1–100.
      */
     suspend fun `openChatListWindow`(`accountRef`: kotlin.String, `view`: ChatListViewFfi, `initialRows`: kotlin.UInt?): ChatListWindowSubscription
@@ -9666,6 +11173,21 @@ public interface MarmotInterface {
     suspend fun `pauseMaintenance`(`accountRef`: kotlin.String)
     
     suspend fun `periodicMaintenancePolicy`(`accountRef`: kotlin.String): PeriodicMaintenancePolicyFfi
+    
+    /**
+     * Who voted for what in one poll: each voter's effective (latest valid)
+     * selection, using the same rules as the row's `PollProjectionFfi`, so all
+     * pages together hold `participants` entries that sum to each option's
+     * `votes`. Polls in this profile are not anonymous: every member can
+     * already read each response and its sender. Blocked voters stay listed
+     * because the tally still counts them; mark them with the account's block
+     * list. Hidden, deleted, missing, or non-poll rows return an empty page.
+     * Votes are ordered by `(voted_at, voter_account_id_hex)`; pass both
+     * cursor fields from the last vote to read the next page (limit 1..=100).
+     * Re-read from the start when the poll row is reprojected. Run this
+     * synchronous details query off the UI thread.
+     */
+    fun `pollVotes`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `pollEventId`: kotlin.String, `afterVotedAt`: kotlin.ULong?, `afterVoterAccountIdHex`: kotlin.String?, `limit`: kotlin.UInt): PollVotePageFfi
     
     /**
      * POST one selected JSONL audit log to a forensic analyzer endpoint.
@@ -9719,6 +11241,12 @@ public interface MarmotInterface {
     
     suspend fun `proposeOnboardingRecommendedRelays`(`accountRef`: kotlin.String, `step`: OnboardingStepFfi): OnboardingSnapshotFfi
     
+    /**
+     * Preview an exact, minimal relay-list repair without signing or publishing.
+     * A manual-review preview has no approvable action.
+     */
+    suspend fun `proposeOnboardingRelayRepair`(`accountRef`: kotlin.String, `step`: OnboardingStepFfi): OnboardingSnapshotFfi
+    
     suspend fun `proposeOnboardingRelays`(`accountRef`: kotlin.String, `step`: OnboardingStepFfi, `readRelays`: List<kotlin.String>, `writeRelays`: List<kotlin.String>): OnboardingSnapshotFfi
     
     /**
@@ -9732,8 +11260,11 @@ public interface MarmotInterface {
      * relays and schedules public indexer copies when eligible, so call when
      * the relay lists need publication rather than on every launch. Indexers
      * are not advertised as account relays.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
-    suspend fun `publishRelayLists`(`accountRef`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>)
+    suspend fun `publishRelayLists`(`accountRef`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String> = listOf())
     
     /**
      * Publish Nostr kind:0 metadata with explicit caller-supplied relay
@@ -9787,6 +11318,12 @@ public interface MarmotInterface {
      * React to `target_message_id` with `emoji` (an "add" reaction).
      */
     suspend fun `reactToMessage`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targetMessageId`: kotlin.String, `emoji`: kotlin.String): SendSummaryFfi
+    
+    /**
+     * React with a custom emoji image: `attachments` become `imeta` tags on
+     * the kind-7 and `tags` name them (NIP-30 `emoji`).
+     */
+    suspend fun `reactWithMedia`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targetMessageId`: kotlin.String, `emoji`: kotlin.String, `tags`: List<List<kotlin.String>>, `attachments`: List<MediaAttachmentReferenceFfi>): SendSummaryFfi
     
     /**
      * Read 1..=1048576 bytes at an offset from an opaque local asset reference.
@@ -9871,9 +11408,33 @@ public interface MarmotInterface {
     fun `relayTelemetrySettings`(): RelayTelemetrySettingsFfi
     
     /**
+     * Delete a handoff copy once the OS surface is done with it. An unknown
+     * or already released lease is not an error. A malformed lease returns
+     * `InvalidMediaReference`, which no retry fixes. A copy that cannot be
+     * deleted returns `Io` and stays leased: retry the release. A release
+     * the host stops waiting for still runs to completion.
+     */
+    suspend fun `releaseAttachmentHandoff`(`lease`: kotlin.String)
+    
+    /**
      * Remove a local-signing account from this device.
      */
     suspend fun `removeAccount`(`accountRef`: kotlin.String)
+    
+    /**
+     * Removes retained attachments of messages received before
+     * `received_before` (Unix seconds), across the account or within one
+     * chat, as Remove does. Returns how many it removed.
+     */
+    suspend fun `removeAttachmentsOlderThan`(`accountRef`: kotlin.String, `receivedBefore`: kotlin.ULong, `groupIdHex`: kotlin.String?): kotlin.ULong
+    
+    /**
+     * Removes every retained attachment in one chat, as `control_attachment`
+     * Remove does (shown as removed; download-again stays allowed), and
+     * returns how many it removed. Media-store space is freed before this
+     * returns; legacy database bodies free database pages.
+     */
+    suspend fun `removeChatAttachments`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String): kotlin.ULong
     
     suspend fun `removeMembers`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `memberRefs`: List<kotlin.String>): SendSummaryFfi
     
@@ -9919,12 +11480,29 @@ public interface MarmotInterface {
     suspend fun `requestAvatarAssets`(`accountRef`: kotlin.String, `targets`: List<kotlin.String>): List<AvatarAssetFfi>
     
     /**
+     * Idempotent explicit demand for the current source. Preserves active
+     * attempts, retry budgets and backoff; does not recover cancelled/removed
+     * or terminal work. Use control Retry or Download again for that intent.
+     */
+    suspend fun `requestExplicitAttachment`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `target`: AttachmentLocalTargetFfi): kotlin.String?
+    
+    /**
      * Remove only the legacy ambiguous partial-account shape so a subsequent
      * `login` with the same nsec can recreate it. The acknowledgement is
      * required because old local state cannot prove that no KeyPackage was
      * exposed before its stable slot was lost.
      */
     suspend fun `resetIncompleteAccountSetup`(`nsec`: kotlin.String, `acknowledgePossibleKeyPackageOrphan`: kotlin.Boolean)
+    
+    /**
+     * Fetch one referenced event from relays when it is missing or stale,
+     * then return its local state. An event-ID preview never refetches once
+     * every relay answered the fetch that cached it; otherwise, and for
+     * `naddr` previews, it refetches after 30 minutes. Calls within 30
+     * seconds of a finished fetch for the same reference return local state.
+     * A failed or empty fetch keeps prior content.
+     */
+    suspend fun `resolvePublicEventPreview`(`accountRef`: kotlin.String, `reference`: kotlin.String): PublicEventPreviewFfi
     
     suspend fun `resumeMaintenance`(`accountRef`: kotlin.String)
     
@@ -10085,6 +11663,25 @@ public interface MarmotInterface {
     suspend fun `sendMessageDraftWithClientToken`(`accountRef`: kotlin.String, `revision`: MessageDraftRevisionFfi, `attachments`: List<MediaAttachmentReferenceFfi>, `clientToken`: kotlin.String): LocalSendAcceptanceFfi
     
     /**
+     * Admit an immutable ordinary-media snapshot and consume only its unchanged captured draft.
+     * Keep the original token/revision for live retries; recover ownership by token after restart.
+     */
+    suspend fun `sendPreparedMediaWithClientToken`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `attachments`: List<MediaAttachmentReferenceFfi>, `caption`: kotlin.String?, `clientToken`: kotlin.String, `consumingDraft`: MessageDraftRevisionFfi?): LocalSendAcceptanceFfi
+    
+    /**
+     * `send_media_attachments` plus application tags on the same kind-9
+     * event, e.g. NIP-30 `emoji` tags pointing at these attachments.
+     */
+    suspend fun `sendTaggedMedia`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `attachments`: List<MediaAttachmentReferenceFfi>, `caption`: kotlin.String?, `tags`: List<List<kotlin.String>>): SendSummaryFfi
+    
+    /**
+     * `send_text` plus application tags on the same kind-9, e.g. NIP-30
+     * `["emoji", shortcode, url]`. At most 64 tags and 16 KiB of values;
+     * `imeta` rows are rejected (use `send_tagged_media` for attachments).
+     */
+    suspend fun `sendTaggedText`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `text`: kotlin.String, `tags`: List<List<kotlin.String>>): SendSummaryFfi
+    
+    /**
      * Send a plain UTF-8 text message. Structured payloads (reactions,
      * replies, deletes, media) go through dedicated methods.
      */
@@ -10112,6 +11709,18 @@ public interface MarmotInterface {
     suspend fun `setAttachmentAutomaticPermission`(`accountRef`: kotlin.String, `generation`: kotlin.String, `permission`: AttachmentAutomaticPermissionFfi): kotlin.Boolean
     
     suspend fun `setAttachmentDownloadPolicy`(`accountRef`: kotlin.String, `policy`: AttachmentDownloadPolicyFfi)
+    
+    /**
+     * Sets the account's "Keep media" setting, then removes every retained
+     * attachment older than the new window, and every unfinished automatic
+     * download past it, and returns how many it removed. Age is the later of
+     * the message's received time and the user's last explicit download of
+     * that attachment. They show as `CleanedBySetting` (download again
+     * allowed), and media-store space is freed before this returns.
+     * `Forever` removes nothing. While the runtime runs, the account worker
+     * keeps applying the window as attachments age.
+     */
+    suspend fun `setAttachmentKeepMedia`(`accountRef`: kotlin.String, `keep`: AttachmentKeepMediaFfi): kotlin.ULong
     
     /**
      * Persist local forensic audit-log recording settings and return the stored
@@ -10195,6 +11804,11 @@ public interface MarmotInterface {
      * This compatibility setter still updates the telemetry interval.
      */
     suspend fun `setRelayTelemetrySettings`(`settings`: RelayTelemetrySettingsFfi): RelayTelemetrySettingsFfi
+    
+    /**
+     * Enable or revoke bounded process-local capture. No database, upload or consent setting is changed.
+     */
+    fun `setStartupDiagnosticsEnabled`(`enabled`: kotlin.Boolean)
     
     fun `setUsageDiagnosticsConsent`(`enabled`: kotlin.Boolean): UsageDiagnosticsSettingsFfi
     
@@ -10318,11 +11932,22 @@ public interface MarmotInterface {
     suspend fun `startAgentTextStream`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `streamIdHex`: kotlin.String?, `quicCandidates`: List<kotlin.String>): AgentStreamStartFfi
     
     /**
+     * Snapshot fixed native phases and migration progress without account/keystore/storage queries.
+     */
+    fun `startupDiagnosticsSnapshot`(): NativeStartupSnapshotFfi
+    
+    /**
      * True once [`Marmot::shutdown_and_close`] has closed the store. A host
      * can check this to confirm it is safe to be suspended, or to notice it is
      * holding a spent handle and needs a fresh one.
      */
     fun `storageIsClosed`(): kotlin.Boolean
+    
+    /**
+     * Privately report a user to the configured moderation team (NIP-56 report,
+     * NIP-59 gift-wrapped). Additive to `report_message`, which is unchanged.
+     */
+    suspend fun `submitModerationReport`(`accountRef`: kotlin.String, `reportedPubkey`: kotlin.String, `reason`: ReportReasonFfi, `explanation`: kotlin.String, `origin`: ModerationReportOriginFfi): ModerationReportOutcomeFfi
     
     /**
      * Signed-in local/external accounts, independent of any list or active worker.
@@ -10418,6 +12043,10 @@ public interface MarmotInterface {
     /**
      * Unfollow `user_ref` while preserving every other entry in the account's
      * current kind-3 contact list. Returns the complete updated list.
+     *
+     * Removes only `user_ref`'s `p` tags and otherwise behaves as
+     * `follow_user`, including `FollowListUnavailable` and
+     * `FollowListTooLarge`.
      */
     suspend fun `unfollowUser`(`accountRef`: kotlin.String, `userRef`: kotlin.String): List<kotlin.String>
     
@@ -10425,6 +12054,15 @@ public interface MarmotInterface {
      * Remove all of this account's active reactions from `target_message_id`.
      */
     suspend fun `unreactFromMessage`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targetMessageId`: kotlin.String): SendSummaryFfi
+    
+    /**
+     * Admin-only replacement of optional application-owned group state.
+     * Ids below the application range (0xf000), required components and data
+     * over `APP_COMPONENT_DATA_MAX_LEN` are rejected. Empty bytes do not
+     * remove the component. State survives message expiry and is included in
+     * Welcomes, so it is re-encoded into every later commit; keep it small.
+     */
+    suspend fun `updateAppComponent`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `componentId`: kotlin.UShort, `data`: kotlin.ByteArray): SendSummaryFfi
     
     /**
      * Set (or clear, with `url = None`) the group's URL-based avatar
@@ -10453,9 +12091,37 @@ public interface MarmotInterface {
     
     /**
      * Encrypt plaintext attachments, upload the ciphertext blobs, and
-     * optionally send the resulting media references into the group.
+     * optionally send the resulting media references into the group. Each
+     * body is first kept in the account's encrypted media store; one the disk
+     * cannot hold beyond its reserve fails with `StorageFull` before anything
+     * is uploaded.
      */
     suspend fun `uploadMedia`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `request`: MediaUploadRequestFfi): MediaUploadResultFfi
+    
+    /**
+     * File-backed `upload_media`: each `source_path` is copied into the
+     * account's encrypted media store with bounded buffers before the first
+     * upload, so large attachments never cross the FFI as byte arrays, and
+     * the ciphertext streams from that copy without being written to disk.
+     * A source the disk cannot hold beyond its reserve fails with
+     * `StorageFull` before anything is uploaded. Ordered server fallback
+     * re-sends the identical ciphertext. `control`
+     * reports progress and cancels preparation, transfer and fallback; a
+     * cancellation observed before message admission starts returns an error
+     * and nothing is published. Admission is not interruptible once started.
+     * The resulting references and sent message are identical
+     * to `upload_media`'s.
+     */
+    suspend fun `uploadMediaFiles`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `request`: MediaFileUploadRequestFfi, `control`: MediaFileTransferControlFfi): MediaUploadResultFfi
+    
+    /**
+     * File-backed `upload_media_with_client_token`. Every attachment is
+     * prepared and uploaded before durable admission. Cancellation observed
+     * before admission starts returns an error and admits nothing. Once
+     * admission starts it is not interruptible; follow `local_send_status`
+     * and timeline delivery updates for the outcome.
+     */
+    suspend fun `uploadMediaFilesWithClientToken`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `request`: MediaFileUploadRequestFfi, `control`: MediaFileTransferControlFfi, `clientToken`: kotlin.String): MediaUploadSubmissionFfi
     
     /**
      * Upload encrypted attachments, then admit a correlated message if send=true.
@@ -10520,8 +12186,9 @@ public interface MarmotInterface {
      * `stream_id_hex = None` to follow the latest stream in the group (the
      * common case when reacting to an AgentStreamStarted event). The returned
      * subscription yields incremental `Chunk`s then a terminal `Finished` /
-     * `Failed`. `server_cert_der` pins a self-signed broker cert (else platform
-     * trust); `insecure_local` is loopback-only for testing.
+     * `Failed`. `server_cert_der` pins a self-signed broker cert (else the
+     * bundled public-CA roots, not the OS trust store); `insecure_local` is
+     * loopback-only for testing.
      *
      * `async` only so the underlying runtime call can spawn the QUIC
      * subscriber task via `tokio::spawn` (which needs an active runtime); the
@@ -10553,9 +12220,9 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     }
     /**
      * Open the Marmot app at `root_path`, configured with the given default
-     * relay URLs. Account secrets (Nostr private keys) are stored in the
-     * platform keyring (Keychain on Apple platforms, Android's native
-     * keyring on Android) via the default keychain-backed account home —
+     * relay URLs and `deployment`. Account secrets (Nostr private keys) are
+     * stored in the platform keyring (Keychain on Apple platforms, Android's
+     * native keyring on Android) under the deployment's keychain service —
      * not in a plaintext file. Fallible because initializing the platform
      * secret store can fail or another process may own the same root
      * ([`MarmotKitError::RuntimeBusy`]). Root ownership is nonblocking and
@@ -10563,11 +12230,11 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * after [`Marmot::shutdown`]. Call [`Marmot::start`] before subscribing
      * to events.
      */
-    constructor(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>) :
+    constructor(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `deployment`: MarmotDeploymentFfi) :
         this(
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_constructor_marmot_new(
-        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),_status)
+        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeMarmotDeploymentFfi.lower(`deployment`),_status)
 }
     )
 
@@ -10650,6 +12317,55 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
         // lift function
         { FfiConverterTypeAppGroupRecordFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Read at most 100 indexed account candidates; filtered empty pages can still have a continuation.
+     * Cursors are account-incarnation/query bound and must be discarded on runtime reconstruction or source mutation.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `accountAttachmentHistoryPage`(`accountRef`: kotlin.String, `query`: AccountAttachmentQueryFfi, `limit`: kotlin.UInt, `cursor`: AccountAttachmentCursor?) : AccountAttachmentPageReadFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_account_attachment_history_page(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterTypeAccountAttachmentQueryFfi.lower(`query`),FfiConverterUInt.lower(`limit`),FfiConverterOptionalTypeAccountAttachmentCursor.lower(`cursor`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeAccountAttachmentPageReadFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Read the constant-work local change token without starting transfers or loading history.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `accountAttachmentHistoryVersion`(`accountRef`: kotlin.String) : AccountAttachmentVersion {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_account_attachment_history_version(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_pointer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_pointer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_pointer(future) },
+        // lift function
+        { FfiConverterTypeAccountAttachmentVersion.lift(it) },
         // Error FFI converter
         MarmotKitException.ErrorHandler,
     )
@@ -10857,6 +12573,64 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * After a group change fails with `GroupCatchingUp`, record that the user
+     * accepts the risk: this device may be behind its group, so the change can
+     * split the group for everyone. Retry the change afterwards. Admits one
+     * change attempt at the device's current epoch, consumed even if it
+     * fails, and is not persisted. Returns false when the group is not
+     * catching up.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `acknowledgeGroupCatchingUp`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String) : kotlin.Boolean {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_acknowledge_group_catching_up(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_i8(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_i8(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_i8(future) },
+        // lift function
+        { FfiConverterBoolean.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * After a group change fails with `GroupCommitUndelivered`, record that the
+     * user accepts the risk: the group's last change has not reached every
+     * relay, so members on those relays may not follow this change either.
+     * Retry the change afterwards. Admits one change attempt, consumed even if
+     * it fails, and is not persisted. Returns false when no relay is owed the
+     * group's last change.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `acknowledgeGroupCommitUndelivered`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String) : kotlin.Boolean {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_acknowledge_group_commit_undelivered(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_i8(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_i8(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_i8(future) },
+        // lift function
+        { FfiConverterBoolean.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
      * Record Continue anyway for the displayed notice, then resume setup.
      */
     @Throws(MarmotKitException::class)
@@ -11044,6 +12818,31 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * The account's "Keep media" setting: `Forever` unless the user chose
+     * a window. Needs no started runtime.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `attachmentKeepMedia`(`accountRef`: kotlin.String) : AttachmentKeepMediaFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_attachment_keep_media(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeAttachmentKeepMediaFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
      * Local-only metadata for up to 64 original source slots in one group.
      * Results preserve input order/duplicates. No bytes are loaded, jobs queued,
      * downloads started or engine state hydrated. Requires no runtime start.
@@ -11063,6 +12862,58 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
         // lift function
         { FfiConverterSequenceTypeAttachmentLocalAssetFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Chats by retained attachment bytes, largest first, `limit` (1..=256)
+     * per page. Pass the page's `next_cursor` to continue.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `attachmentStorageByChat`(`accountRef`: kotlin.String, `limit`: kotlin.UInt, `cursor`: ChatStorageCursor?) : ChatStoragePageFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_attachment_storage_by_chat(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterUInt.lower(`limit`),FfiConverterOptionalTypeChatStorageCursor.lower(`cursor`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeChatStoragePageFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Account-wide attachment storage across both body layouts: media-store
+     * bytes (a shared file counted once), legacy database bytes, the
+     * retained attachment count, and the database's size and free pages.
+     * Reads no bodies; needs no started runtime.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `attachmentStorageUsage`(`accountRef`: kotlin.String) : AttachmentStorageUsageFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_attachment_storage_usage(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeAttachmentStorageUsageFfi.lift(it) },
         // Error FFI converter
         MarmotKitException.ErrorHandler,
     )
@@ -11258,6 +13109,27 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_cached_identity_projections(
         it, FfiConverterSequenceString.lower(`accountIdHexes`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Network-free cached previews for first-frame rendering: one result per
+     * reference, in input order, duplicates included. Accepts at most 16
+     * references (`note`, `nevent`, `naddr` or hex event ID, with or without
+     * `nostr:`). A cold call may open the account's encrypted cache, so warm
+     * it off the UI thread. Author profiles come from
+     * `cached_identity_projections`.
+     */
+    @Throws(MarmotKitException::class)override fun `cachedPublicEventPreviews`(`accountRef`: kotlin.String, `references`: List<kotlin.String>): List<PublicEventPreviewFfi> {
+            return FfiConverterSequenceTypePublicEventPreviewFfi.lift(
+    callWithPointer {
+    uniffiRustCallWithError(MarmotKitException) { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_cached_public_event_previews(
+        it, FfiConverterString.lower(`accountRef`),FfiConverterSequenceString.lower(`references`),_status)
 }
     }
     )
@@ -11555,6 +13427,22 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Install (`Some`) or clear (`None`) the moderation-report destination at runtime.
+     * An invalid config is rejected whole and leaves reporting unconfigured.
+     */
+    @Throws(MarmotKitException::class)override fun `configureModerationReporting`(`config`: ModerationReportConfigFfi?)
+        = 
+    callWithPointer {
+    uniffiRustCallWithError(MarmotKitException) { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_configure_moderation_reporting(
+        it, FfiConverterOptionalTypeModerationReportConfigFfi.lower(`config`),_status)
+}
+    }
+    
+    
+
+    
+    /**
      * Call only after explicit user consent to replace the active copy. Show
      * the offer's authenticated inviter and pass its exact id and state token.
      */
@@ -11826,15 +13714,18 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * and an explicit readiness state. Public indexers receive best-effort
      * copies of both relay lists and kind-0 metadata; KeyPackages remain on
      * the advertised write relays.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `createIdentity`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>) : AccountSummaryFfi {
+    override suspend fun `createIdentity`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String>) : AccountSummaryFfi {
         return uniffiRustCallAsync(
         callWithPointer { thisPtr ->
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_create_identity(
                 thisPtr,
-                FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),
+                FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterSequenceString.lower(`inboxRelays`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -11849,20 +13740,23 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
-     * Create a generated identity and return at durable local readiness with
-     * the exact locally persisted default profile. `readiness` remains the
-     * authority for whether relay publication has completed; `LocalReady`
-     * must not be presented as invite-receivable. Account setup copies both
-     * relay lists and the default kind-0 profile to public indexers.
+     * Create a generated identity whose first public kind-0 is `profile`,
+     * returning at durable local readiness like `create_identity_with_profile`.
+     * Use this when onboarding collects a name: publishing it afterwards with
+     * `publish_user_profile` would first expose the key-derived default to
+     * contacts. The returned profile is the stamped one that setup publishes.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `createIdentityWithProfile`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>) : IdentityCreationResultFfi {
+    override suspend fun `createIdentityWithInitialProfile`(`profile`: UserProfileMetadataFfi, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String>) : IdentityCreationResultFfi {
         return uniffiRustCallAsync(
         callWithPointer { thisPtr ->
-            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_create_identity_with_profile(
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_create_identity_with_initial_profile(
                 thisPtr,
-                FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),
+                FfiConverterTypeUserProfileMetadataFfi.lower(`profile`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterSequenceString.lower(`inboxRelays`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -11877,7 +13771,38 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
-     * Create an encrypted NIP-88 poll in a group conversation. Option ids use
+     * Create a generated identity and return at durable local readiness with
+     * the exact locally persisted default profile. `readiness` remains the
+     * authority for whether relay publication has completed; `LocalReady`
+     * must not be presented as invite-receivable. Account setup copies both
+     * relay lists and the default kind-0 profile to public indexers.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `createIdentityWithProfile`(`defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String>) : IdentityCreationResultFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_create_identity_with_profile(
+                thisPtr,
+                FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterSequenceString.lower(`inboxRelays`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeIdentityCreationResultFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Create an encrypted NIP-88 poll in a direct or group conversation. Option ids use
      * `"0"` through `"9"`.
      */
     @Throws(MarmotKitException::class)
@@ -12363,7 +14288,10 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * Edit `target_message_id` by publishing a kind-1009 event that
      * references it and carries the replacement plaintext in `content`.
      * Recipients honour the edit only when its authenticated author matches
-     * the target's author; MDK ignores mismatched edits.
+     * the target's author; MDK ignores mismatched edits. It returns
+     * `InvalidEditTarget`, publishing nothing, unless the target is an
+     * available chat message this account sent. Competing edits resolve by
+     * `created_at`, then the larger event id.
      *
      * MDK overlays accepted edits on the target timeline row and selected list
      * preview, without changing its identity, activity order or unread state.
@@ -12511,9 +14439,12 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * current kind-3 contact list. Returns the complete updated list.
      *
      * This fetches the current replaceable event from the account's known
-     * outbox/default relays before publishing. If no current event can be
-     * established, it returns `FollowListUnavailable` rather than risking a
-     * destructive replacement.
+     * outbox/default relays and appends one `p` tag; petnames, relay hints,
+     * other tags and the content are republished unchanged. If no current
+     * event can be established, it returns `FollowListUnavailable` rather
+     * than risking a destructive replacement. If the list has 2,048 follows
+     * or more, the most MDK reads from one list, it returns
+     * `FollowListTooLarge` and publishes nothing.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
@@ -12578,6 +14509,63 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     )
     }
     
+
+    
+    /**
+     * Read local committed application-owned state; None means absent.
+     * Refresh on group events. Ids below the application range
+     * (`APP_OWNED_APP_COMPONENT_ID_START`, 0xf000) are protocol space and
+     * are rejected.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `groupAppComponent`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `componentId`: kotlin.UShort) : GroupAppComponentFfi? {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_group_app_component(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterUShort.lower(`componentId`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterOptionalTypeGroupAppComponentFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * The group's oldest change that some group relays have not accepted yet,
+     * or `None` once every relay has accepted or definitively rejected it.
+     * `Some` means show "not delivered to every relay yet"; it does not mean
+     * the next change fails. Group changes fail with `GroupCommitUndelivered`
+     * only once `since` is two minutes old, because a healthy relay cut off at
+     * the first acknowledgement is retried after 30 seconds. No event
+     * announces delivery completing; poll while showing it.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `groupCommitDelivery`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String) : GroupCommitDeliveryFfi? {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_group_commit_delivery(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterOptionalTypeGroupCommitDeliveryFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
 
     
     /**
@@ -13038,6 +15026,32 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     }
 
     
+    /**
+     * Retained attachments, largest first, `limit` (1..=256) per page,
+     * optionally within one chat. Pass the page's `next_cursor` to
+     * continue.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `largestRetainedAttachments`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String?, `limit`: kotlin.UInt, `cursor`: RetainedAttachmentsCursor?) : RetainedAttachmentsPageFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_largest_retained_attachments(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterOptionalString.lower(`groupIdHex`),FfiConverterUInt.lower(`limit`),FfiConverterOptionalTypeRetainedAttachmentsCursor.lower(`cursor`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeRetainedAttachmentsPageFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
     override suspend fun `leaveGroup`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String) : SendSummaryFfi {
@@ -13138,15 +15152,18 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * Log in with an existing identity. `identity` can be an `nsec` (private
      * key) for a local-signing account, or an `npub` to track a public
      * identity without local signing.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `login`(`identity`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>) : AccountSummaryFfi {
+    override suspend fun `login`(`identity`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String>) : AccountSummaryFfi {
         return uniffiRustCallAsync(
         callWithPointer { thisPtr ->
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_login(
                 thisPtr,
-                FfiConverterString.lower(`identity`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),
+                FfiConverterString.lower(`identity`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterSequenceString.lower(`inboxRelays`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -13168,15 +15185,18 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * account-identity proof signing are routed through `signer`; apps must
      * call this again after process restart before the external account can
      * publish, decrypt welcomes, or start its worker.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `loginExternalSigner`(`publicKey`: kotlin.String, `signer`: ExternalAccountSignerFfi, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>) : AccountSummaryFfi {
+    override suspend fun `loginExternalSigner`(`publicKey`: kotlin.String, `signer`: ExternalAccountSignerFfi, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String>) : AccountSummaryFfi {
         return uniffiRustCallAsync(
         callWithPointer { thisPtr ->
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_login_external_signer(
                 thisPtr,
-                FfiConverterString.lower(`publicKey`),FfiConverterTypeExternalAccountSignerFfi.lower(`signer`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),
+                FfiConverterString.lower(`publicKey`),FfiConverterTypeExternalAccountSignerFfi.lower(`signer`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterSequenceString.lower(`inboxRelays`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -13195,15 +15215,18 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * had durable account-setup journals. This validates the same nsec,
      * removes only the recognized ambiguous partial shape, preserves an
      * existing account-id Keychain credential, and immediately retries login.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `loginRecoveringIncompleteSetup`(`nsec`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `acknowledgePossibleKeyPackageOrphan`: kotlin.Boolean) : AccountSummaryFfi {
+    override suspend fun `loginRecoveringIncompleteSetup`(`nsec`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `acknowledgePossibleKeyPackageOrphan`: kotlin.Boolean, `inboxRelays`: List<kotlin.String>) : AccountSummaryFfi {
         return uniffiRustCallAsync(
         callWithPointer { thisPtr ->
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_login_recovering_incomplete_setup(
                 thisPtr,
-                FfiConverterString.lower(`nsec`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterBoolean.lower(`acknowledgePossibleKeyPackageOrphan`),
+                FfiConverterString.lower(`nsec`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterBoolean.lower(`acknowledgePossibleKeyPackageOrphan`),FfiConverterSequenceString.lower(`inboxRelays`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -13304,6 +15327,31 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Complete effective reaction participants for one account/group/message.
+     *
+     * Unlike a conversation window's bounded reactor preview, this includes
+     * every distinct sender/emoji pair, selecting the latest event per pair.
+     * The local materialized read applies block visibility;
+     * missing, hidden, retention-pruned, deleted or invalidated targets return an empty list.
+     * Results are ordered by timestamp, sender and emoji in one snapshot.
+     * Re-read on conversation updates; no network request is made. This
+     * synchronous read must run off the UI thread. Use matching generated
+     * bindings and native libraries; returned records are owned by the caller.
+     */
+    @Throws(MarmotKitException::class)override fun `messageReactions`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `messageIdHex`: kotlin.String): List<TimelineUserReactionFfi> {
+            return FfiConverterSequenceTypeTimelineUserReactionFfi.lift(
+    callWithPointer {
+    uniffiRustCallWithError(MarmotKitException) { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_message_reactions(
+        it, FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterString.lower(`messageIdHex`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Initial history fetch for a group (or, when `group_id_hex` is None,
      * the account-wide tail). Used to populate the conversation view before
      * the subscription stream takes over.
@@ -13317,6 +15365,21 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_messages(
         it, FfiConverterString.lower(`accountRef`),FfiConverterOptionalString.lower(`groupIdHex`),FfiConverterOptionalUInt.lower(`limit`),FfiConverterOptionalSequenceULong.lower(`kinds`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * True when a valid moderation-report destination is installed.
+     */override fun `moderationReportingAvailable`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_moderation_reporting_available(
+        it, _status)
 }
     }
     )
@@ -13458,6 +15521,44 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Write a plaintext copy of one retained attachment for an OS surface
+     * that needs a real file (package installer, share sheet, "open with",
+     * Quick Look) and lend it under a lease. `None` means the attachment is
+     * not held locally, as `attachment_local_assets` reports it. The copy
+     * stays until `release_attachment_handoff`, account removal, or the
+     * account worker's next start in a new process; removing the attachment
+     * does not revoke it. `control` reports copied bytes and cancels the
+     * copy. `StorageFull` when the disk cannot hold the copy beyond the
+     * reserve. No network or download is started.
+     *
+     * Cancel a handoff only through `control`, which always leaves no copy
+     * and no lease. Do not cancel the awaiting coroutine or task: if that
+     * happens just as the call completes, the result can be dropped before
+     * the host sees the lease, and the copy then stays until the account
+     * worker's next start in a new process, which deletes it.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `openAttachmentHandoff`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `target`: AttachmentLocalTargetFfi, `control`: MediaFileTransferControlFfi) : AttachmentHandoffFfi? {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_open_attachment_handoff(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterTypeAttachmentLocalTargetFfi.lower(`target`),FfiConverterTypeMediaFileTransferControlFfi.lower(`control`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterOptionalTypeAttachmentHandoffFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
      * Bind to one account/view. None defaults to 50; explicit sizes must be 1–100.
      */
     @Throws(MarmotKitException::class)
@@ -13590,6 +15691,32 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         MarmotKitException.ErrorHandler,
     )
     }
+
+    
+    /**
+     * Who voted for what in one poll: each voter's effective (latest valid)
+     * selection, using the same rules as the row's `PollProjectionFfi`, so all
+     * pages together hold `participants` entries that sum to each option's
+     * `votes`. Polls in this profile are not anonymous: every member can
+     * already read each response and its sender. Blocked voters stay listed
+     * because the tally still counts them; mark them with the account's block
+     * list. Hidden, deleted, missing, or non-poll rows return an empty page.
+     * Votes are ordered by `(voted_at, voter_account_id_hex)`; pass both
+     * cursor fields from the last vote to read the next page (limit 1..=100).
+     * Re-read from the start when the poll row is reprojected. Run this
+     * synchronous details query off the UI thread.
+     */
+    @Throws(MarmotKitException::class)override fun `pollVotes`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `pollEventId`: kotlin.String, `afterVotedAt`: kotlin.ULong?, `afterVoterAccountIdHex`: kotlin.String?, `limit`: kotlin.UInt): PollVotePageFfi {
+            return FfiConverterTypePollVotePageFfi.lift(
+    callWithPointer {
+    uniffiRustCallWithError(MarmotKitException) { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_poll_votes(
+        it, FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterString.lower(`pollEventId`),FfiConverterOptionalULong.lower(`afterVotedAt`),FfiConverterOptionalString.lower(`afterVoterAccountIdHex`),FfiConverterUInt.lower(`limit`),_status)
+}
+    }
+    )
+    }
+    
 
     
     /**
@@ -13891,6 +16018,31 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     }
 
     
+    /**
+     * Preview an exact, minimal relay-list repair without signing or publishing.
+     * A manual-review preview has no approvable action.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `proposeOnboardingRelayRepair`(`accountRef`: kotlin.String, `step`: OnboardingStepFfi) : OnboardingSnapshotFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_propose_onboarding_relay_repair(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterTypeOnboardingStepFfi.lower(`step`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeOnboardingSnapshotFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
     override suspend fun `proposeOnboardingRelays`(`accountRef`: kotlin.String, `step`: OnboardingStepFfi, `readRelays`: List<kotlin.String>, `writeRelays`: List<kotlin.String>) : OnboardingSnapshotFfi {
@@ -13942,15 +16094,18 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * relays and schedules public indexer copies when eligible, so call when
      * the relay lists need publication rather than on every launch. Indexers
      * are not advertised as account relays.
+     *
+     * `inbox_relays` (default empty) sets the kind-10050 inbox list
+     * separately; empty declares `default_relays` in both lists.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `publishRelayLists`(`accountRef`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>) {
+    override suspend fun `publishRelayLists`(`accountRef`: kotlin.String, `defaultRelays`: List<kotlin.String>, `bootstrapRelays`: List<kotlin.String>, `inboxRelays`: List<kotlin.String>) {
         return uniffiRustCallAsync(
         callWithPointer { thisPtr ->
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_publish_relay_lists(
                 thisPtr,
-                FfiConverterString.lower(`accountRef`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),
+                FfiConverterString.lower(`accountRef`),FfiConverterSequenceString.lower(`defaultRelays`),FfiConverterSequenceString.lower(`bootstrapRelays`),FfiConverterSequenceString.lower(`inboxRelays`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_void(future, callback, continuation) },
@@ -14102,6 +16257,31 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_react_to_message(
                 thisPtr,
                 FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterString.lower(`targetMessageId`),FfiConverterString.lower(`emoji`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeSendSummaryFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * React with a custom emoji image: `attachments` become `imeta` tags on
+     * the kind-7 and `tags` name them (NIP-30 `emoji`).
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `reactWithMedia`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `targetMessageId`: kotlin.String, `emoji`: kotlin.String, `tags`: List<List<kotlin.String>>, `attachments`: List<MediaAttachmentReferenceFfi>) : SendSummaryFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_react_with_media(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterString.lower(`targetMessageId`),FfiConverterString.lower(`emoji`),FfiConverterSequenceSequenceString.lower(`tags`),FfiConverterSequenceTypeMediaAttachmentReferenceFfi.lower(`attachments`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -14393,6 +16573,35 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Delete a handoff copy once the OS surface is done with it. An unknown
+     * or already released lease is not an error. A malformed lease returns
+     * `InvalidMediaReference`, which no retry fixes. A copy that cannot be
+     * deleted returns `Io` and stays leased: retry the release. A release
+     * the host stops waiting for still runs to completion.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `releaseAttachmentHandoff`(`lease`: kotlin.String) {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_release_attachment_handoff(
+                thisPtr,
+                FfiConverterString.lower(`lease`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
      * Remove a local-signing account from this device.
      */
     @Throws(MarmotKitException::class)
@@ -14411,6 +16620,59 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         // lift function
         { Unit },
         
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Removes retained attachments of messages received before
+     * `received_before` (Unix seconds), across the account or within one
+     * chat, as Remove does. Returns how many it removed.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `removeAttachmentsOlderThan`(`accountRef`: kotlin.String, `receivedBefore`: kotlin.ULong, `groupIdHex`: kotlin.String?) : kotlin.ULong {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_remove_attachments_older_than(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterULong.lower(`receivedBefore`),FfiConverterOptionalString.lower(`groupIdHex`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_u64(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_u64(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_u64(future) },
+        // lift function
+        { FfiConverterULong.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Removes every retained attachment in one chat, as `control_attachment`
+     * Remove does (shown as removed; download-again stays allowed), and
+     * returns how many it removed. Media-store space is freed before this
+     * returns; legacy database bodies free database pages.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `removeChatAttachments`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String) : kotlin.ULong {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_remove_chat_attachments(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_u64(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_u64(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_u64(future) },
+        // lift function
+        { FfiConverterULong.lift(it) },
         // Error FFI converter
         MarmotKitException.ErrorHandler,
     )
@@ -14654,6 +16916,32 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Idempotent explicit demand for the current source. Preserves active
+     * attempts, retry budgets and backoff; does not recover cancelled/removed
+     * or terminal work. Use control Retry or Download again for that intent.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `requestExplicitAttachment`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `target`: AttachmentLocalTargetFfi) : kotlin.String? {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_request_explicit_attachment(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterTypeAttachmentLocalTargetFfi.lower(`target`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterOptionalString.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
      * Remove only the legacy ambiguous partial-account shape so a subsequent
      * `login` with the same nsec can recreate it. The acknowledgement is
      * required because old local state cannot prove that no KeyPackage was
@@ -14675,6 +16963,35 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         // lift function
         { Unit },
         
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Fetch one referenced event from relays when it is missing or stale,
+     * then return its local state. An event-ID preview never refetches once
+     * every relay answered the fetch that cached it; otherwise, and for
+     * `naddr` previews, it refetches after 30 minutes. Calls within 30
+     * seconds of a finished fetch for the same reference return local state.
+     * A failed or empty fetch keeps prior content.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `resolvePublicEventPreview`(`accountRef`: kotlin.String, `reference`: kotlin.String) : PublicEventPreviewFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_resolve_public_event_preview(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`reference`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypePublicEventPreviewFfi.lift(it) },
         // Error FFI converter
         MarmotKitException.ErrorHandler,
     )
@@ -15229,6 +17546,82 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Admit an immutable ordinary-media snapshot and consume only its unchanged captured draft.
+     * Keep the original token/revision for live retries; recover ownership by token after restart.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `sendPreparedMediaWithClientToken`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `attachments`: List<MediaAttachmentReferenceFfi>, `caption`: kotlin.String?, `clientToken`: kotlin.String, `consumingDraft`: MessageDraftRevisionFfi?) : LocalSendAcceptanceFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_send_prepared_media_with_client_token(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterSequenceTypeMediaAttachmentReferenceFfi.lower(`attachments`),FfiConverterOptionalString.lower(`caption`),FfiConverterString.lower(`clientToken`),FfiConverterOptionalTypeMessageDraftRevisionFfi.lower(`consumingDraft`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeLocalSendAcceptanceFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * `send_media_attachments` plus application tags on the same kind-9
+     * event, e.g. NIP-30 `emoji` tags pointing at these attachments.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `sendTaggedMedia`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `attachments`: List<MediaAttachmentReferenceFfi>, `caption`: kotlin.String?, `tags`: List<List<kotlin.String>>) : SendSummaryFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_send_tagged_media(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterSequenceTypeMediaAttachmentReferenceFfi.lower(`attachments`),FfiConverterOptionalString.lower(`caption`),FfiConverterSequenceSequenceString.lower(`tags`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeSendSummaryFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * `send_text` plus application tags on the same kind-9, e.g. NIP-30
+     * `["emoji", shortcode, url]`. At most 64 tags and 16 KiB of values;
+     * `imeta` rows are rejected (use `send_tagged_media` for attachments).
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `sendTaggedText`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `text`: kotlin.String, `tags`: List<List<kotlin.String>>) : SendSummaryFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_send_tagged_text(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterString.lower(`text`),FfiConverterSequenceSequenceString.lower(`tags`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeSendSummaryFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
      * Send a plain UTF-8 text message. Structured payloads (reactions,
      * replies, deletes, media) go through dedicated methods.
      */
@@ -15366,6 +17759,37 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         // lift function
         { Unit },
         
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Sets the account's "Keep media" setting, then removes every retained
+     * attachment older than the new window, and every unfinished automatic
+     * download past it, and returns how many it removed. Age is the later of
+     * the message's received time and the user's last explicit download of
+     * that attachment. They show as `CleanedBySetting` (download again
+     * allowed), and media-store space is freed before this returns.
+     * `Forever` removes nothing. While the runtime runs, the account worker
+     * keeps applying the window as attachments age.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `setAttachmentKeepMedia`(`accountRef`: kotlin.String, `keep`: AttachmentKeepMediaFfi) : kotlin.ULong {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_set_attachment_keep_media(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterTypeAttachmentKeepMediaFfi.lower(`keep`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_u64(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_u64(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_u64(future) },
+        // lift function
+        { FfiConverterULong.lift(it) },
         // Error FFI converter
         MarmotKitException.ErrorHandler,
     )
@@ -15697,6 +18121,21 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     }
 
     
+    /**
+     * Enable or revoke bounded process-local capture. No database, upload or consent setting is changed.
+     */
+    @Throws(MarmotKitException::class)override fun `setStartupDiagnosticsEnabled`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCallWithError(MarmotKitException) { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_set_startup_diagnostics_enabled(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
+}
+    }
+    
+    
+
+    
     @Throws(MarmotKitException::class)override fun `setUsageDiagnosticsConsent`(`enabled`: kotlin.Boolean): UsageDiagnosticsSettingsFfi {
             return FfiConverterTypeUsageDiagnosticsSettingsFfi.lift(
     callWithPointer {
@@ -15984,6 +18423,22 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
     
     /**
+     * Snapshot fixed native phases and migration progress without account/keystore/storage queries.
+     */
+    @Throws(MarmotKitException::class)override fun `startupDiagnosticsSnapshot`(): NativeStartupSnapshotFfi {
+            return FfiConverterTypeNativeStartupSnapshotFfi.lift(
+    callWithPointer {
+    uniffiRustCallWithError(MarmotKitException) { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_startup_diagnostics_snapshot(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * True once [`Marmot::shutdown_and_close`] has closed the store. A host
      * can check this to confirm it is safe to be suspended, or to notice it is
      * holding a spent handle and needs a fresh one.
@@ -15998,6 +18453,31 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     )
     }
     
+
+    
+    /**
+     * Privately report a user to the configured moderation team (NIP-56 report,
+     * NIP-59 gift-wrapped). Additive to `report_message`, which is unchanged.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `submitModerationReport`(`accountRef`: kotlin.String, `reportedPubkey`: kotlin.String, `reason`: ReportReasonFfi, `explanation`: kotlin.String, `origin`: ModerationReportOriginFfi) : ModerationReportOutcomeFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_submit_moderation_report(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`reportedPubkey`),FfiConverterTypeReportReasonFfi.lower(`reason`),FfiConverterString.lower(`explanation`),FfiConverterTypeModerationReportOriginFfi.lower(`origin`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeModerationReportOutcomeFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
 
     
     /**
@@ -16339,6 +18819,10 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     /**
      * Unfollow `user_ref` while preserving every other entry in the account's
      * current kind-3 contact list. Returns the complete updated list.
+     *
+     * Removes only `user_ref`'s `p` tags and otherwise behaves as
+     * `follow_user`, including `FollowListUnavailable` and
+     * `FollowListTooLarge`.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
@@ -16372,6 +18856,34 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_unreact_from_message(
                 thisPtr,
                 FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterString.lower(`targetMessageId`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeSendSummaryFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Admin-only replacement of optional application-owned group state.
+     * Ids below the application range (0xf000), required components and data
+     * over `APP_COMPONENT_DATA_MAX_LEN` are rejected. Empty bytes do not
+     * remove the component. State survives message expiry and is included in
+     * Welcomes, so it is re-encoded into every later commit; keep it small.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `updateAppComponent`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `componentId`: kotlin.UShort, `data`: kotlin.ByteArray) : SendSummaryFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_update_app_component(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterUShort.lower(`componentId`),FfiConverterByteArray.lower(`data`),
             )
         },
         { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
@@ -16488,7 +19000,10 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
     
     /**
      * Encrypt plaintext attachments, upload the ciphertext blobs, and
-     * optionally send the resulting media references into the group.
+     * optionally send the resulting media references into the group. Each
+     * body is first kept in the account's encrypted media store; one the disk
+     * cannot hold beyond its reserve fails with `StorageFull` before anything
+     * is uploaded.
      */
     @Throws(MarmotKitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
@@ -16505,6 +19020,69 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
         { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
         // lift function
         { FfiConverterTypeMediaUploadResultFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * File-backed `upload_media`: each `source_path` is copied into the
+     * account's encrypted media store with bounded buffers before the first
+     * upload, so large attachments never cross the FFI as byte arrays, and
+     * the ciphertext streams from that copy without being written to disk.
+     * A source the disk cannot hold beyond its reserve fails with
+     * `StorageFull` before anything is uploaded. Ordered server fallback
+     * re-sends the identical ciphertext. `control`
+     * reports progress and cancels preparation, transfer and fallback; a
+     * cancellation observed before message admission starts returns an error
+     * and nothing is published. Admission is not interruptible once started.
+     * The resulting references and sent message are identical
+     * to `upload_media`'s.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `uploadMediaFiles`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `request`: MediaFileUploadRequestFfi, `control`: MediaFileTransferControlFfi) : MediaUploadResultFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_upload_media_files(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterTypeMediaFileUploadRequestFfi.lower(`request`),FfiConverterTypeMediaFileTransferControlFfi.lower(`control`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeMediaUploadResultFfi.lift(it) },
+        // Error FFI converter
+        MarmotKitException.ErrorHandler,
+    )
+    }
+
+    
+    /**
+     * File-backed `upload_media_with_client_token`. Every attachment is
+     * prepared and uploaded before durable admission. Cancellation observed
+     * before admission starts returns an error and admits nothing. Once
+     * admission starts it is not interruptible; follow `local_send_status`
+     * and timeline delivery updates for the outcome.
+     */
+    @Throws(MarmotKitException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `uploadMediaFilesWithClientToken`(`accountRef`: kotlin.String, `groupIdHex`: kotlin.String, `request`: MediaFileUploadRequestFfi, `control`: MediaFileTransferControlFfi, `clientToken`: kotlin.String) : MediaUploadSubmissionFfi {
+        return uniffiRustCallAsync(
+        callWithPointer { thisPtr ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_marmot_upload_media_files_with_client_token(
+                thisPtr,
+                FfiConverterString.lower(`accountRef`),FfiConverterString.lower(`groupIdHex`),FfiConverterTypeMediaFileUploadRequestFfi.lower(`request`),FfiConverterTypeMediaFileTransferControlFfi.lower(`control`),FfiConverterString.lower(`clientToken`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.INSTANCE.ffi_marmot_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypeMediaUploadSubmissionFfi.lift(it) },
         // Error FFI converter
         MarmotKitException.ErrorHandler,
     )
@@ -16705,8 +19283,9 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * `stream_id_hex = None` to follow the latest stream in the group (the
      * common case when reacting to an AgentStreamStarted event). The returned
      * subscription yields incremental `Chunk`s then a terminal `Finished` /
-     * `Failed`. `server_cert_der` pins a self-signed broker cert (else platform
-     * trust); `insecure_local` is loopback-only for testing.
+     * `Failed`. `server_cert_der` pins a self-signed broker cert (else the
+     * bundled public-CA roots, not the OS trust store); `insecure_local` is
+     * loopback-only for testing.
      *
      * `async` only so the underlying runtime call can spawn the QUIC
      * subscriber task via `tokio::spawn` (which needs an active runtime); the
@@ -16743,11 +19322,11 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * Existing constructors remain untagged. Whitespace-only labels are omitted.
      * Hosts must supply this on every foreground/background runtime construction.
      */
-    @Throws(MarmotKitException::class) fun `newWithClientName`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `clientName`: kotlin.String?, `cursorPersistence`: CursorPersistenceFfi, `secretStore`: SecretStore?): Marmot {
+    @Throws(MarmotKitException::class) fun `newWithClientName`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `clientName`: kotlin.String?, `cursorPersistence`: CursorPersistenceFfi, `secretStore`: SecretStore?, `deployment`: MarmotDeploymentFfi): Marmot {
             return FfiConverterTypeMarmot.lift(
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_constructor_marmot_new_with_client_name(
-        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterOptionalString.lower(`clientName`),FfiConverterTypeCursorPersistenceFfi.lower(`cursorPersistence`),FfiConverterOptionalTypeSecretStore.lower(`secretStore`),_status)
+        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterOptionalString.lower(`clientName`),FfiConverterTypeCursorPersistenceFfi.lower(`cursorPersistence`),FfiConverterOptionalTypeSecretStore.lower(`secretStore`),FfiConverterTypeMarmotDeploymentFfi.lower(`deployment`),_status)
 }
     )
     }
@@ -16755,8 +19334,9 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
 
         
     /**
-     * Open with any combination of runtime options. Existing constructors are
-     * compatibility wrappers around this entry point.
+     * Open with any combination of runtime options, including the required
+     * deployment. The other constructors are wrappers around this entry
+     * point and take the deployment as their last argument.
      */
     @Throws(MarmotKitException::class) fun `newWithConfiguration`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `options`: MarmotOptions): Marmot {
             return FfiConverterTypeMarmot.lift(
@@ -16782,11 +19362,11 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * ratchet the durable `since` floor past events it did not receive (the
      * wake-collection trigger). Foreground app processes keep [`Marmot::new`].
      */
-    @Throws(MarmotKitException::class) fun `newWithCursorPersistence`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `cursorPersistence`: CursorPersistenceFfi): Marmot {
+    @Throws(MarmotKitException::class) fun `newWithCursorPersistence`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `cursorPersistence`: CursorPersistenceFfi, `deployment`: MarmotDeploymentFfi): Marmot {
             return FfiConverterTypeMarmot.lift(
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_constructor_marmot_new_with_cursor_persistence(
-        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeCursorPersistenceFfi.lower(`cursorPersistence`),_status)
+        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeCursorPersistenceFfi.lower(`cursorPersistence`),FfiConverterTypeMarmotDeploymentFfi.lower(`deployment`),_status)
 }
     )
     }
@@ -16797,11 +19377,11 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * Open with an explicit relay policy and optional host-owned key storage.
      * Existing constructors retain their public-only relay policy.
      */
-    @Throws(MarmotKitException::class) fun `newWithOptions`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `relayPolicy`: RelayPolicyFfi, `secretStore`: SecretStore?): Marmot {
+    @Throws(MarmotKitException::class) fun `newWithOptions`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `relayPolicy`: RelayPolicyFfi, `secretStore`: SecretStore?, `deployment`: MarmotDeploymentFfi): Marmot {
             return FfiConverterTypeMarmot.lift(
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_constructor_marmot_new_with_options(
-        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeRelayPolicyFfi.lower(`relayPolicy`),FfiConverterOptionalTypeSecretStore.lower(`secretStore`),_status)
+        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeRelayPolicyFfi.lower(`relayPolicy`),FfiConverterOptionalTypeSecretStore.lower(`secretStore`),FfiConverterTypeMarmotDeploymentFfi.lower(`deployment`),_status)
 }
     )
     }
@@ -16823,11 +19403,11 @@ open class Marmot: Disposable, AutoCloseable, MarmotInterface
      * `secret_store` is called from runtime worker threads and may be called
      * concurrently; implementations must be thread-safe.
      */
-    @Throws(MarmotKitException::class) fun `newWithSecretStore`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `secretStore`: SecretStore): Marmot {
+    @Throws(MarmotKitException::class) fun `newWithSecretStore`(`rootPath`: kotlin.String, `relayUrls`: List<kotlin.String>, `secretStore`: SecretStore, `deployment`: MarmotDeploymentFfi): Marmot {
             return FfiConverterTypeMarmot.lift(
     uniffiRustCallWithError(MarmotKitException) { _status ->
     UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_constructor_marmot_new_with_secret_store(
-        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeSecretStore.lower(`secretStore`),_status)
+        FfiConverterString.lower(`rootPath`),FfiConverterSequenceString.lower(`relayUrls`),FfiConverterTypeSecretStore.lower(`secretStore`),FfiConverterTypeMarmotDeploymentFfi.lower(`deployment`),_status)
 }
     )
     }
@@ -16966,9 +19546,301 @@ public object FfiConverterTypeMarmot: FfiConverter<Marmot, Pointer> {
 
 
 /**
+ * Cancellation and progress for one file-backed media operation. Create one
+ * per operation; `processed_bytes` is monotonic across the copy into the
+ * account's encrypted media store, the digest pass over that copy and the
+ * body transfer, and is not a percentage. Cancellation observed before
+ * message admission starts prevents publication. Admission is not
+ * interruptible once started; delivery follows the normal local-send status.
+ */
+public interface MediaFileTransferControlFfiInterface {
+    
+    fun `cancel`()
+    
+    fun `isCancelled`(): kotlin.Boolean
+    
+    fun `processedBytes`(): kotlin.ULong
+    
+    companion object
+}
+
+/**
+ * Cancellation and progress for one file-backed media operation. Create one
+ * per operation; `processed_bytes` is monotonic across the copy into the
+ * account's encrypted media store, the digest pass over that copy and the
+ * body transfer, and is not a percentage. Cancellation observed before
+ * message admission starts prevents publication. Admission is not
+ * interruptible once started; delivery follows the normal local-send status.
+ */
+open class MediaFileTransferControlFfi: Disposable, AutoCloseable, MediaFileTransferControlFfiInterface
+{
+
+    constructor(pointer: Pointer) {
+        this.pointer = pointer
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    /**
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noPointer: NoPointer) {
+        this.pointer = null
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+    constructor() :
+        this(
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_constructor_mediafiletransfercontrolffi_new(
+        _status)
+}
+    )
+
+    protected val pointer: Pointer?
+    protected val cleanable: UniffiCleaner.Cleanable
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the pointer being freed concurrently.
+        try {
+            return block(this.uniffiClonePointer())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+        override fun run() {
+            pointer?.let { ptr ->
+                uniffiRustCall { status ->
+                    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_free_mediafiletransfercontrolffi(ptr, status)
+                }
+            }
+        }
+    }
+
+    fun uniffiClonePointer(): Pointer {
+        return uniffiRustCall() { status ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_mediafiletransfercontrolffi(pointer!!, status)
+        }
+    }
+
+    override fun `cancel`()
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_mediafiletransfercontrolffi_cancel(
+        it, _status)
+}
+    }
+    
+    
+
+    override fun `isCancelled`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_mediafiletransfercontrolffi_is_cancelled(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `processedBytes`(): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_mediafiletransfercontrolffi_processed_bytes(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+
+    
+    
+    companion object
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMediaFileTransferControlFfi: FfiConverter<MediaFileTransferControlFfi, Pointer> {
+
+    override fun lower(value: MediaFileTransferControlFfi): Pointer {
+        return value.uniffiClonePointer()
+    }
+
+    override fun lift(value: Pointer): MediaFileTransferControlFfi {
+        return MediaFileTransferControlFfi(value)
+    }
+
+    override fun read(buf: ByteBuffer): MediaFileTransferControlFfi {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: MediaFileTransferControlFfi) = 8UL
+
+    override fun write(value: MediaFileTransferControlFfi, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// to the live Rust struct on the other side of the FFI.
+//
+// Each instance implements core operations for working with the Rust `Arc<T>` and the
+// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque pointer to the underlying Rust struct.
+//     Method calls need to read this pointer from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its pointer should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
+//      before it can pass the pointer over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
  * Opaque store/group-scoped revision. Keep this object to perform conditional draft operations.
  */
 public interface MessageDraftRevisionFfiInterface {
+    
+    /**
+     * Compare opaque chat-list draft metadata without exposing revision internals.
+     * False for a newer version or another account store/group.
+     */
+    fun `includesChatListVersion`(`version`: ChatListDraftVersionFfi): kotlin.Boolean
     
     companion object
 }
@@ -17057,6 +19929,22 @@ open class MessageDraftRevisionFfi: Disposable, AutoCloseable, MessageDraftRevis
             UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_messagedraftrevisionffi(pointer!!, status)
         }
     }
+
+    
+    /**
+     * Compare opaque chat-list draft metadata without exposing revision internals.
+     * False for a newer version or another account store/group.
+     */override fun `includesChatListVersion`(`version`: ChatListDraftVersionFfi): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_method_messagedraftrevisionffi_includes_chat_list_version(
+        it, FfiConverterTypeChatListDraftVersionFfi.lower(`version`),_status)
+}
+    }
+    )
+    }
+    
 
     
 
@@ -18227,6 +21115,234 @@ public object FfiConverterTypePresentedChatListSubscription: FfiConverter<Presen
 
 
 /**
+ * Where the next page of attachments starts.
+ */
+public interface RetainedAttachmentsCursorInterface {
+    
+    companion object
+}
+
+/**
+ * Where the next page of attachments starts.
+ */
+open class RetainedAttachmentsCursor: Disposable, AutoCloseable, RetainedAttachmentsCursorInterface
+{
+
+    constructor(pointer: Pointer) {
+        this.pointer = pointer
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    /**
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noPointer: NoPointer) {
+        this.pointer = null
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
+    }
+
+    protected val pointer: Pointer?
+    protected val cleanable: UniffiCleaner.Cleanable
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithPointer(block: (ptr: Pointer) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the pointer being freed concurrently.
+        try {
+            return block(this.uniffiClonePointer())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val pointer: Pointer?) : Runnable {
+        override fun run() {
+            pointer?.let { ptr ->
+                uniffiRustCall { status ->
+                    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_free_retainedattachmentscursor(ptr, status)
+                }
+            }
+        }
+    }
+
+    fun uniffiClonePointer(): Pointer {
+        return uniffiRustCall() { status ->
+            UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_clone_retainedattachmentscursor(pointer!!, status)
+        }
+    }
+
+    
+
+    
+    
+    companion object
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRetainedAttachmentsCursor: FfiConverter<RetainedAttachmentsCursor, Pointer> {
+
+    override fun lower(value: RetainedAttachmentsCursor): Pointer {
+        return value.uniffiClonePointer()
+    }
+
+    override fun lift(value: Pointer): RetainedAttachmentsCursor {
+        return RetainedAttachmentsCursor(value)
+    }
+
+    override fun read(buf: ByteBuffer): RetainedAttachmentsCursor {
+        // The Rust code always writes pointers as 8 bytes, and will
+        // fail to compile if they don't fit.
+        return lift(Pointer(buf.getLong()))
+    }
+
+    override fun allocationSize(value: RetainedAttachmentsCursor) = 8UL
+
+    override fun write(value: RetainedAttachmentsCursor, buf: ByteBuffer) {
+        // The Rust code always expects pointers written as 8 bytes,
+        // and will fail to compile if they don't fit.
+        buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a Pointer/Arc<T>
+// to the live Rust struct on the other side of the FFI.
+//
+// Each instance implements core operations for working with the Rust `Arc<T>` and the
+// Kotlin Pointer to work with the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque pointer to the underlying Rust struct.
+//     Method calls need to read this pointer from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its pointer should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the pointer, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the pointer, but is interrupted
+//      before it can pass the pointer over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read pointer value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
  * Foreign-implemented storage for account signing keys.
  *
  * Implementations must be thread-safe: the runtime calls these methods
@@ -19257,6 +22373,142 @@ public object FfiConverterTypeUserSearchSubscription: FfiConverter<UserSearchSub
         // The Rust code always expects pointers written as 8 bytes,
         // and will fail to compile if they don't fit.
         buf.putLong(Pointer.nativeValue(lower(value)))
+    }
+}
+
+
+
+data class AccountAttachmentEntryFfi (
+    var `metadataLimited`: kotlin.Boolean, 
+    var `groupIdHex`: kotlin.String, 
+    var `entry`: AttachmentEntryFfi
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAccountAttachmentEntryFfi: FfiConverterRustBuffer<AccountAttachmentEntryFfi> {
+    override fun read(buf: ByteBuffer): AccountAttachmentEntryFfi {
+        return AccountAttachmentEntryFfi(
+            FfiConverterBoolean.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterTypeAttachmentEntryFfi.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: AccountAttachmentEntryFfi) = (
+            FfiConverterBoolean.allocationSize(value.`metadataLimited`) +
+            FfiConverterString.allocationSize(value.`groupIdHex`) +
+            FfiConverterTypeAttachmentEntryFfi.allocationSize(value.`entry`)
+    )
+
+    override fun write(value: AccountAttachmentEntryFfi, buf: ByteBuffer) {
+            FfiConverterBoolean.write(value.`metadataLimited`, buf)
+            FfiConverterString.write(value.`groupIdHex`, buf)
+            FfiConverterTypeAttachmentEntryFfi.write(value.`entry`, buf)
+    }
+}
+
+
+
+data class AccountAttachmentPageFfi (
+    var `entries`: List<AccountAttachmentEntryFfi>, 
+    var `version`: AccountAttachmentVersion, 
+    /**
+     * Continue while present, including when this filtered page has no entries.
+     */
+    var `nextCursor`: AccountAttachmentCursor?, 
+    var `nextExpiry`: kotlin.ULong?
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`entries`,
+        this.`version`,
+        this.`nextCursor`,
+        this.`nextExpiry`
+    )
+    }
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAccountAttachmentPageFfi: FfiConverterRustBuffer<AccountAttachmentPageFfi> {
+    override fun read(buf: ByteBuffer): AccountAttachmentPageFfi {
+        return AccountAttachmentPageFfi(
+            FfiConverterSequenceTypeAccountAttachmentEntryFfi.read(buf),
+            FfiConverterTypeAccountAttachmentVersion.read(buf),
+            FfiConverterOptionalTypeAccountAttachmentCursor.read(buf),
+            FfiConverterOptionalULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: AccountAttachmentPageFfi) = (
+            FfiConverterSequenceTypeAccountAttachmentEntryFfi.allocationSize(value.`entries`) +
+            FfiConverterTypeAccountAttachmentVersion.allocationSize(value.`version`) +
+            FfiConverterOptionalTypeAccountAttachmentCursor.allocationSize(value.`nextCursor`) +
+            FfiConverterOptionalULong.allocationSize(value.`nextExpiry`)
+    )
+
+    override fun write(value: AccountAttachmentPageFfi, buf: ByteBuffer) {
+            FfiConverterSequenceTypeAccountAttachmentEntryFfi.write(value.`entries`, buf)
+            FfiConverterTypeAccountAttachmentVersion.write(value.`version`, buf)
+            FfiConverterOptionalTypeAccountAttachmentCursor.write(value.`nextCursor`, buf)
+            FfiConverterOptionalULong.write(value.`nextExpiry`, buf)
+    }
+}
+
+
+
+data class AccountAttachmentQueryFfi (
+    var `groups`: List<kotlin.String>, 
+    var `senders`: List<kotlin.String>, 
+    /**
+     * Inclusive lower timeline timestamp bound; absent means unbounded.
+     */
+    var `minTimelineAt`: kotlin.ULong?, 
+    /**
+     * Inclusive upper timeline timestamp bound; absent means unbounded.
+     */
+    var `maxTimelineAt`: kotlin.ULong?
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAccountAttachmentQueryFfi: FfiConverterRustBuffer<AccountAttachmentQueryFfi> {
+    override fun read(buf: ByteBuffer): AccountAttachmentQueryFfi {
+        return AccountAttachmentQueryFfi(
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalULong.read(buf),
+            FfiConverterOptionalULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: AccountAttachmentQueryFfi) = (
+            FfiConverterSequenceString.allocationSize(value.`groups`) +
+            FfiConverterSequenceString.allocationSize(value.`senders`) +
+            FfiConverterOptionalULong.allocationSize(value.`minTimelineAt`) +
+            FfiConverterOptionalULong.allocationSize(value.`maxTimelineAt`)
+    )
+
+    override fun write(value: AccountAttachmentQueryFfi, buf: ByteBuffer) {
+            FfiConverterSequenceString.write(value.`groups`, buf)
+            FfiConverterSequenceString.write(value.`senders`, buf)
+            FfiConverterOptionalULong.write(value.`minTimelineAt`, buf)
+            FfiConverterOptionalULong.write(value.`maxTimelineAt`, buf)
     }
 }
 
@@ -20794,6 +24046,10 @@ data class AttachmentEntryFfi (
     var `sourceEpoch`: kotlin.ULong?, 
     var `category`: AttachmentCategoryFfi, 
     /**
+     * Exclude InlineEmoji from shared galleries; keep original slots and acquisition intact.
+     */
+    var `role`: AttachmentRoleFfi, 
+    /**
      * Accepted or rejected in original album order, with its original attachment index.
      */
     var `attachment`: MediaAttachmentOutcomeFfi
@@ -20815,6 +24071,7 @@ public object FfiConverterTypeAttachmentEntryFfi: FfiConverterRustBuffer<Attachm
             FfiConverterULong.read(buf),
             FfiConverterOptionalULong.read(buf),
             FfiConverterTypeAttachmentCategoryFfi.read(buf),
+            FfiConverterTypeAttachmentRoleFfi.read(buf),
             FfiConverterTypeMediaAttachmentOutcomeFfi.read(buf),
         )
     }
@@ -20827,6 +24084,7 @@ public object FfiConverterTypeAttachmentEntryFfi: FfiConverterRustBuffer<Attachm
             FfiConverterULong.allocationSize(value.`receivedAt`) +
             FfiConverterOptionalULong.allocationSize(value.`sourceEpoch`) +
             FfiConverterTypeAttachmentCategoryFfi.allocationSize(value.`category`) +
+            FfiConverterTypeAttachmentRoleFfi.allocationSize(value.`role`) +
             FfiConverterTypeMediaAttachmentOutcomeFfi.allocationSize(value.`attachment`)
     )
 
@@ -20838,7 +24096,68 @@ public object FfiConverterTypeAttachmentEntryFfi: FfiConverterRustBuffer<Attachm
             FfiConverterULong.write(value.`receivedAt`, buf)
             FfiConverterOptionalULong.write(value.`sourceEpoch`, buf)
             FfiConverterTypeAttachmentCategoryFfi.write(value.`category`, buf)
+            FfiConverterTypeAttachmentRoleFfi.write(value.`role`, buf)
             FfiConverterTypeMediaAttachmentOutcomeFfi.write(value.`attachment`, buf)
+    }
+}
+
+
+
+/**
+ * A plaintext copy of a retained attachment lent to the host (a handoff
+ * lease). Pass `path` to the OS surface that needs a file, then call
+ * `release_attachment_handoff` with `lease` when it is done.
+ */
+data class AttachmentHandoffFfi (
+    /**
+     * Opaque lease id for `release_attachment_handoff`.
+     */
+    var `lease`: kotlin.String, 
+    /**
+     * Absolute path of the private plaintext copy under the account's
+     * `handoff/` directory. Valid until the lease is released.
+     */
+    var `path`: kotlin.String, 
+    var `byteCount`: kotlin.ULong, 
+    var `mediaType`: kotlin.String, 
+    /**
+     * The file's name: the attachment's own name made safe, with an
+     * extension from the media type when it had none.
+     */
+    var `fileName`: kotlin.String
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAttachmentHandoffFfi: FfiConverterRustBuffer<AttachmentHandoffFfi> {
+    override fun read(buf: ByteBuffer): AttachmentHandoffFfi {
+        return AttachmentHandoffFfi(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: AttachmentHandoffFfi) = (
+            FfiConverterString.allocationSize(value.`lease`) +
+            FfiConverterString.allocationSize(value.`path`) +
+            FfiConverterULong.allocationSize(value.`byteCount`) +
+            FfiConverterString.allocationSize(value.`mediaType`) +
+            FfiConverterString.allocationSize(value.`fileName`)
+    )
+
+    override fun write(value: AttachmentHandoffFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`lease`, buf)
+            FfiConverterString.write(value.`path`, buf)
+            FfiConverterULong.write(value.`byteCount`, buf)
+            FfiConverterString.write(value.`mediaType`, buf)
+            FfiConverterString.write(value.`fileName`, buf)
     }
 }
 
@@ -21002,6 +24321,92 @@ public object FfiConverterTypeAttachmentPageFfi: FfiConverterRustBuffer<Attachme
             FfiConverterTypeAttachmentHistoryVersion.write(value.`version`, buf)
             FfiConverterOptionalTypeAttachmentHistoryCursor.write(value.`nextCursor`, buf)
             FfiConverterBoolean.write(value.`hasMore`, buf)
+    }
+}
+
+
+
+/**
+ * Account-wide attachment storage across both body layouts.
+ */
+data class AttachmentStorageUsageFfi (
+    /**
+     * Media-store files, each counted once however many attachments share
+     * it.
+     */
+    var `mediaBytes`: kotlin.ULong, 
+    /**
+     * Bodies still in the account database (the legacy layout). They move
+     * to the media store in the background; their space returns to the
+     * filesystem only after the database is compacted.
+     */
+    var `legacyBytes`: kotlin.ULong, 
+    /**
+     * Attachments that read locally now.
+     */
+    var `attachmentCount`: kotlin.ULong, 
+    /**
+     * The account database file, and the part of it that is free pages.
+     */
+    var `databaseBytes`: kotlin.ULong, 
+    var `databaseFreeBytes`: kotlin.ULong, 
+    /**
+     * Moving legacy bodies into the media store.
+     */
+    var `migration`: AttachmentMigrationStateFfi, 
+    /**
+     * With `Running`, the legacy bytes still to move; with `Paused`, how
+     * many more bytes must be free before the move resumes. Otherwise 0.
+     */
+    var `migrationBytes`: kotlin.ULong, 
+    /**
+     * The avatar and group-image cache, each stored image once. Unlike
+     * attachments it can be cleared (`clear_avatar_cache`) and is fetched
+     * again on demand.
+     */
+    var `cacheBytes`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAttachmentStorageUsageFfi: FfiConverterRustBuffer<AttachmentStorageUsageFfi> {
+    override fun read(buf: ByteBuffer): AttachmentStorageUsageFfi {
+        return AttachmentStorageUsageFfi(
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterTypeAttachmentMigrationStateFfi.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: AttachmentStorageUsageFfi) = (
+            FfiConverterULong.allocationSize(value.`mediaBytes`) +
+            FfiConverterULong.allocationSize(value.`legacyBytes`) +
+            FfiConverterULong.allocationSize(value.`attachmentCount`) +
+            FfiConverterULong.allocationSize(value.`databaseBytes`) +
+            FfiConverterULong.allocationSize(value.`databaseFreeBytes`) +
+            FfiConverterTypeAttachmentMigrationStateFfi.allocationSize(value.`migration`) +
+            FfiConverterULong.allocationSize(value.`migrationBytes`) +
+            FfiConverterULong.allocationSize(value.`cacheBytes`)
+    )
+
+    override fun write(value: AttachmentStorageUsageFfi, buf: ByteBuffer) {
+            FfiConverterULong.write(value.`mediaBytes`, buf)
+            FfiConverterULong.write(value.`legacyBytes`, buf)
+            FfiConverterULong.write(value.`attachmentCount`, buf)
+            FfiConverterULong.write(value.`databaseBytes`, buf)
+            FfiConverterULong.write(value.`databaseFreeBytes`, buf)
+            FfiConverterTypeAttachmentMigrationStateFfi.write(value.`migration`, buf)
+            FfiConverterULong.write(value.`migrationBytes`, buf)
+            FfiConverterULong.write(value.`cacheBytes`, buf)
     }
 }
 
@@ -21783,6 +25188,47 @@ public object FfiConverterTypeCachedIdentityProjectionFfi: FfiConverterRustBuffe
 
 
 /**
+ * One chat's retained attachment storage. A stored file counts once per
+ * chat however many of its attachments share it; content shared with other
+ * chats counts in each.
+ */
+data class ChatAttachmentUsageFfi (
+    var `groupIdHex`: kotlin.String, 
+    var `bytes`: kotlin.ULong, 
+    var `attachmentCount`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChatAttachmentUsageFfi: FfiConverterRustBuffer<ChatAttachmentUsageFfi> {
+    override fun read(buf: ByteBuffer): ChatAttachmentUsageFfi {
+        return ChatAttachmentUsageFfi(
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ChatAttachmentUsageFfi) = (
+            FfiConverterString.allocationSize(value.`groupIdHex`) +
+            FfiConverterULong.allocationSize(value.`bytes`) +
+            FfiConverterULong.allocationSize(value.`attachmentCount`)
+    )
+
+    override fun write(value: ChatAttachmentUsageFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`groupIdHex`, buf)
+            FfiConverterULong.write(value.`bytes`, buf)
+            FfiConverterULong.write(value.`attachmentCount`, buf)
+    }
+}
+
+
+
+/**
  * Group avatar reference. `image_key_hex` is the symmetric key that decrypts
  * the avatar blob and `image_upload_key_hex` is the Blossom upload secret;
  * the hand-written `Debug` impl below redacts both so a Rust-side `{:?}`
@@ -22242,7 +25688,21 @@ data class ChatListWindowSnapshotFfi (
     var `hasMoreBefore`: kotlin.Boolean, 
     var `hasMoreAfter`: kotlin.Boolean, 
     var `anchor`: ChatListAnchorOutcomeFfi
-) {
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`subscriptionGeneration`,
+        this.`sequence`,
+        this.`view`,
+        this.`rows`,
+        this.`hasMoreBefore`,
+        this.`hasMoreAfter`,
+        this.`anchor`
+    )
+    }
     
     companion object
 }
@@ -22363,6 +25823,51 @@ public object FfiConverterTypeChatPinStateFfi: FfiConverterRustBuffer<ChatPinSta
 
     override fun write(value: ChatPinStateFfi, buf: ByteBuffer) {
             FfiConverterSequenceString.write(value.`orderedGroupIds`, buf)
+    }
+}
+
+
+
+/**
+ * Chats by storage, largest first. Continue while `next_cursor` is present;
+ * the last page may be empty.
+ */
+data class ChatStoragePageFfi (
+    var `chats`: List<ChatAttachmentUsageFfi>, 
+    var `nextCursor`: ChatStorageCursor?
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`chats`,
+        this.`nextCursor`
+    )
+    }
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChatStoragePageFfi: FfiConverterRustBuffer<ChatStoragePageFfi> {
+    override fun read(buf: ByteBuffer): ChatStoragePageFfi {
+        return ChatStoragePageFfi(
+            FfiConverterSequenceTypeChatAttachmentUsageFfi.read(buf),
+            FfiConverterOptionalTypeChatStorageCursor.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ChatStoragePageFfi) = (
+            FfiConverterSequenceTypeChatAttachmentUsageFfi.allocationSize(value.`chats`) +
+            FfiConverterOptionalTypeChatStorageCursor.allocationSize(value.`nextCursor`)
+    )
+
+    override fun write(value: ChatStoragePageFfi, buf: ByteBuffer) {
+            FfiConverterSequenceTypeChatAttachmentUsageFfi.write(value.`chats`, buf)
+            FfiConverterOptionalTypeChatStorageCursor.write(value.`nextCursor`, buf)
     }
 }
 
@@ -22658,7 +26163,8 @@ public object FfiConverterTypeConversationIdentityFfi: FfiConverterRustBuffer<Co
 
 /**
  * Timeline content plus bounded display references. Use references.reactions for UI;
- * custom-event tags are preserved; typed rows use structured fields and reactions use references.
+ * custom-event tags and NIP-30 `emoji` tags on chats are preserved; other typed-row tags use
+ * structured fields and reactions use references.
  */
 data class ConversationMessageFfi (
     var `timeline`: TimelineMessageRecordFfi, 
@@ -22859,7 +26365,12 @@ data class ConversationReactionFfi (
     /**
      * Active reaction by the viewing account; independent of reactor previews.
      */
-    var `viewerReacted`: kotlin.Boolean
+    var `viewerReacted`: kotlin.Boolean, 
+    /**
+     * Earliest active kind-7 with this emoji. For a NIP-30 `:shortcode:`
+     * reaction, `list_media` returns its image under this message id.
+     */
+    var `reactionMessageIdHex`: kotlin.String?
 ) {
     
     companion object
@@ -22875,6 +26386,7 @@ public object FfiConverterTypeConversationReactionFfi: FfiConverterRustBuffer<Co
             FfiConverterULong.read(buf),
             FfiConverterSequenceString.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterOptionalString.read(buf),
         )
     }
 
@@ -22882,7 +26394,8 @@ public object FfiConverterTypeConversationReactionFfi: FfiConverterRustBuffer<Co
             FfiConverterString.allocationSize(value.`emoji`) +
             FfiConverterULong.allocationSize(value.`count`) +
             FfiConverterSequenceString.allocationSize(value.`reactors`) +
-            FfiConverterBoolean.allocationSize(value.`viewerReacted`)
+            FfiConverterBoolean.allocationSize(value.`viewerReacted`) +
+            FfiConverterOptionalString.allocationSize(value.`reactionMessageIdHex`)
     )
 
     override fun write(value: ConversationReactionFfi, buf: ByteBuffer) {
@@ -22890,6 +26403,7 @@ public object FfiConverterTypeConversationReactionFfi: FfiConverterRustBuffer<Co
             FfiConverterULong.write(value.`count`, buf)
             FfiConverterSequenceString.write(value.`reactors`, buf)
             FfiConverterBoolean.write(value.`viewerReacted`, buf)
+            FfiConverterOptionalString.write(value.`reactionMessageIdHex`, buf)
     }
 }
 
@@ -23314,6 +26828,96 @@ public object FfiConverterTypeExistingDirectConversationFfi: FfiConverterRustBuf
             FfiConverterBoolean.write(value.`disbanding`, buf)
             FfiConverterBoolean.write(value.`archived`, buf)
             FfiConverterULong.write(value.`activitySortAt`, buf)
+    }
+}
+
+
+
+/**
+ * Opaque application-owned state. Empty data is present state.
+ */
+data class GroupAppComponentFfi (
+    var `componentId`: kotlin.UShort, 
+    var `data`: kotlin.ByteArray
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeGroupAppComponentFfi: FfiConverterRustBuffer<GroupAppComponentFfi> {
+    override fun read(buf: ByteBuffer): GroupAppComponentFfi {
+        return GroupAppComponentFfi(
+            FfiConverterUShort.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: GroupAppComponentFfi) = (
+            FfiConverterUShort.allocationSize(value.`componentId`) +
+            FfiConverterByteArray.allocationSize(value.`data`)
+    )
+
+    override fun write(value: GroupAppComponentFfi, buf: ByteBuffer) {
+            FfiConverterUShort.write(value.`componentId`, buf)
+            FfiConverterByteArray.write(value.`data`, buf)
+    }
+}
+
+
+
+/**
+ * The group's oldest change that some group relays have not accepted yet
+ * (mdk#2255). Members who read only those relays cannot follow the group until
+ * they do; MDK keeps retrying them with the exact event. A newer change can be
+ * owed to other relays as well.
+ */
+data class GroupCommitDeliveryFfi (
+    var `groupIdHex`: kotlin.String, 
+    /**
+     * Relays that have not accepted the change yet.
+     */
+    var `owedRelayUrls`: List<kotlin.String>, 
+    /**
+     * Relays the change was published to.
+     */
+    var `relayCount`: kotlin.UInt, 
+    /**
+     * When the first relay accepted the change, in Unix seconds.
+     */
+    var `since`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeGroupCommitDeliveryFfi: FfiConverterRustBuffer<GroupCommitDeliveryFfi> {
+    override fun read(buf: ByteBuffer): GroupCommitDeliveryFfi {
+        return GroupCommitDeliveryFfi(
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: GroupCommitDeliveryFfi) = (
+            FfiConverterString.allocationSize(value.`groupIdHex`) +
+            FfiConverterSequenceString.allocationSize(value.`owedRelayUrls`) +
+            FfiConverterUInt.allocationSize(value.`relayCount`) +
+            FfiConverterULong.allocationSize(value.`since`)
+    )
+
+    override fun write(value: GroupCommitDeliveryFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`groupIdHex`, buf)
+            FfiConverterSequenceString.write(value.`owedRelayUrls`, buf)
+            FfiConverterUInt.write(value.`relayCount`, buf)
+            FfiConverterULong.write(value.`since`, buf)
     }
 }
 
@@ -24792,16 +28396,139 @@ public object FfiConverterTypeMarkdownTableCellFfi: FfiConverterRustBuffer<Markd
 
 
 /**
- * Composable runtime construction options. Omitted policies use public-only
- * endpoints and an advancing cursor. Omitted labels stay untagged; omitted
- * secret storage uses the platform keychain.
+ * The services and identifiers one deployment's users rely on. Start from
+ * [`marmot_deployment_white_noise`] or [`marmot_deployment_neutral`] and
+ * change what differs. Blank values count as unset.
+ */
+data class MarmotDeploymentFfi (
+    /**
+     * Relays this deployment operates. A route's history certifies once its
+     * operated relays finish a full comparison; a route with none requires
+     * all of its relays. Changing the set rebuilds pending recovery scopes.
+     */
+    var `recoveryOperatedRelays`: List<kotlin.String>, 
+    /**
+     * Public relays onboarding and account setup also search for an
+     * account's relay list and profile. Never adopted as messaging relays.
+     */
+    var `discoveryIndexerRelays`: List<kotlin.String>, 
+    /**
+     * Blossom servers signed into a new group's encrypted-media component.
+     * Each must accept opaque `application/octet-stream` blobs.
+     */
+    var `newGroupMediaEndpoints`: List<kotlin.String>, 
+    /**
+     * Blossom server for encrypted group images. Group state records no
+     * server, so every client sharing a group must use the same one.
+     */
+    var `groupImageEndpoint`: kotlin.String?, 
+    /**
+     * Public profile-image upload server. Peers' avatars load from the URL
+     * in their own profile, never from here.
+     */
+    var `profileImageEndpoint`: kotlin.String?, 
+    /**
+     * Optional Open Ranking discovery tier for directory search.
+     */
+    var `openRanking`: OpenRankingProviderFfi?, 
+    /**
+     * KeyPackage `client` tags ranked first, case-insensitively.
+     */
+    var `keyPackagePreferredClients`: List<kotlin.String>, 
+    /**
+     * KeyPackage `client` tags ranked last, case-insensitively.
+     */
+    var `keyPackageLastClients`: List<kotlin.String>, 
+    /**
+     * NIP-32 namespace on moderation report labels. The operator's report
+     * parser matches it; reporting refuses a destination while it is unset.
+     */
+    var `moderationLabelNamespace`: kotlin.String?, 
+    /**
+     * Platform keychain service for account secrets when no `SecretStore`
+     * is supplied. Changing it for an existing install strands the secrets
+     * stored under the old name.
+     */
+    var `keychainService`: kotlin.String
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMarmotDeploymentFfi: FfiConverterRustBuffer<MarmotDeploymentFfi> {
+    override fun read(buf: ByteBuffer): MarmotDeploymentFfi {
+        return MarmotDeploymentFfi(
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalTypeOpenRankingProviderFfi.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: MarmotDeploymentFfi) = (
+            FfiConverterSequenceString.allocationSize(value.`recoveryOperatedRelays`) +
+            FfiConverterSequenceString.allocationSize(value.`discoveryIndexerRelays`) +
+            FfiConverterSequenceString.allocationSize(value.`newGroupMediaEndpoints`) +
+            FfiConverterOptionalString.allocationSize(value.`groupImageEndpoint`) +
+            FfiConverterOptionalString.allocationSize(value.`profileImageEndpoint`) +
+            FfiConverterOptionalTypeOpenRankingProviderFfi.allocationSize(value.`openRanking`) +
+            FfiConverterSequenceString.allocationSize(value.`keyPackagePreferredClients`) +
+            FfiConverterSequenceString.allocationSize(value.`keyPackageLastClients`) +
+            FfiConverterOptionalString.allocationSize(value.`moderationLabelNamespace`) +
+            FfiConverterString.allocationSize(value.`keychainService`)
+    )
+
+    override fun write(value: MarmotDeploymentFfi, buf: ByteBuffer) {
+            FfiConverterSequenceString.write(value.`recoveryOperatedRelays`, buf)
+            FfiConverterSequenceString.write(value.`discoveryIndexerRelays`, buf)
+            FfiConverterSequenceString.write(value.`newGroupMediaEndpoints`, buf)
+            FfiConverterOptionalString.write(value.`groupImageEndpoint`, buf)
+            FfiConverterOptionalString.write(value.`profileImageEndpoint`, buf)
+            FfiConverterOptionalTypeOpenRankingProviderFfi.write(value.`openRanking`, buf)
+            FfiConverterSequenceString.write(value.`keyPackagePreferredClients`, buf)
+            FfiConverterSequenceString.write(value.`keyPackageLastClients`, buf)
+            FfiConverterOptionalString.write(value.`moderationLabelNamespace`, buf)
+            FfiConverterString.write(value.`keychainService`, buf)
+    }
+}
+
+
+
+/**
+ * Composable runtime construction options. The deployment is required.
+ * Omitted policies use public-only endpoints and an advancing cursor.
+ * Omitted labels stay untagged; omitted secret storage uses the platform
+ * keychain under the deployment's keychain service.
  */
 data class MarmotOptions (
     var `relayPolicy`: RelayPolicyFfi? = null, 
     var `cursorPersistence`: CursorPersistenceFfi? = null, 
     var `clientName`: kotlin.String? = null, 
     var `secretStore`: SecretStore? = null, 
-    var `attachmentAcquisitionMode`: AttachmentAcquisitionModeFfi? = null
+    var `attachmentAcquisitionMode`: AttachmentAcquisitionModeFfi? = null, 
+    /**
+     * Destination for private moderation reports (`submit_moderation_report`). Set per
+     * build flavor. Invalid values leave reporting unconfigured; `configure_moderation_reporting`
+     * reports why.
+     */
+    var `moderationReportConfig`: ModerationReportConfigFfi? = null, 
+    /**
+     * Deployment services: recovery relays, discovery indexers, media and
+     * image servers, Open Ranking, KeyPackage client preference, moderation
+     * label namespace and keychain service. Required, with no default, so a
+     * host can't silently open a different keychain service: White Noise
+     * apps pass `marmot_deployment_white_noise()`.
+     */
+    var `deployment`: MarmotDeploymentFfi
 ) : Disposable {
     
     @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
@@ -24812,7 +28539,9 @@ data class MarmotOptions (
         this.`cursorPersistence`,
         this.`clientName`,
         this.`secretStore`,
-        this.`attachmentAcquisitionMode`
+        this.`attachmentAcquisitionMode`,
+        this.`moderationReportConfig`,
+        this.`deployment`
     )
     }
     
@@ -24830,6 +28559,8 @@ public object FfiConverterTypeMarmotOptions: FfiConverterRustBuffer<MarmotOption
             FfiConverterOptionalString.read(buf),
             FfiConverterOptionalTypeSecretStore.read(buf),
             FfiConverterOptionalTypeAttachmentAcquisitionModeFfi.read(buf),
+            FfiConverterOptionalTypeModerationReportConfigFfi.read(buf),
+            FfiConverterTypeMarmotDeploymentFfi.read(buf),
         )
     }
 
@@ -24838,7 +28569,9 @@ public object FfiConverterTypeMarmotOptions: FfiConverterRustBuffer<MarmotOption
             FfiConverterOptionalTypeCursorPersistenceFfi.allocationSize(value.`cursorPersistence`) +
             FfiConverterOptionalString.allocationSize(value.`clientName`) +
             FfiConverterOptionalTypeSecretStore.allocationSize(value.`secretStore`) +
-            FfiConverterOptionalTypeAttachmentAcquisitionModeFfi.allocationSize(value.`attachmentAcquisitionMode`)
+            FfiConverterOptionalTypeAttachmentAcquisitionModeFfi.allocationSize(value.`attachmentAcquisitionMode`) +
+            FfiConverterOptionalTypeModerationReportConfigFfi.allocationSize(value.`moderationReportConfig`) +
+            FfiConverterTypeMarmotDeploymentFfi.allocationSize(value.`deployment`)
     )
 
     override fun write(value: MarmotOptions, buf: ByteBuffer) {
@@ -24847,6 +28580,8 @@ public object FfiConverterTypeMarmotOptions: FfiConverterRustBuffer<MarmotOption
             FfiConverterOptionalString.write(value.`clientName`, buf)
             FfiConverterOptionalTypeSecretStore.write(value.`secretStore`, buf)
             FfiConverterOptionalTypeAttachmentAcquisitionModeFfi.write(value.`attachmentAcquisitionMode`, buf)
+            FfiConverterOptionalTypeModerationReportConfigFfi.write(value.`moderationReportConfig`, buf)
+            FfiConverterTypeMarmotDeploymentFfi.write(value.`deployment`, buf)
     }
 }
 
@@ -24987,6 +28722,111 @@ public object FfiConverterTypeMediaDownloadResultFfi: FfiConverterRustBuffer<Med
             FfiConverterString.write(value.`fileName`, buf)
             FfiConverterString.write(value.`mediaType`, buf)
             FfiConverterULong.write(value.`sizeBytes`, buf)
+    }
+}
+
+
+
+/**
+ * One host-local file attachment. `source_path` names a regular file the
+ * process can open (not a symlink); it is copied into the account's encrypted
+ * media store before any upload and never enters message tags. `expected_size`, when set, must equal
+ * the opened file's length. Debug output omits every field.
+ */
+data class MediaFileUploadAttachmentRequestFfi (
+    var `sourcePath`: kotlin.String, 
+    var `expectedSize`: kotlin.ULong?, 
+    var `fileName`: kotlin.String, 
+    var `mediaType`: kotlin.String, 
+    var `dim`: kotlin.String?, 
+    var `thumbhash`: kotlin.String?
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMediaFileUploadAttachmentRequestFfi: FfiConverterRustBuffer<MediaFileUploadAttachmentRequestFfi> {
+    override fun read(buf: ByteBuffer): MediaFileUploadAttachmentRequestFfi {
+        return MediaFileUploadAttachmentRequestFfi(
+            FfiConverterString.read(buf),
+            FfiConverterOptionalULong.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: MediaFileUploadAttachmentRequestFfi) = (
+            FfiConverterString.allocationSize(value.`sourcePath`) +
+            FfiConverterOptionalULong.allocationSize(value.`expectedSize`) +
+            FfiConverterString.allocationSize(value.`fileName`) +
+            FfiConverterString.allocationSize(value.`mediaType`) +
+            FfiConverterOptionalString.allocationSize(value.`dim`) +
+            FfiConverterOptionalString.allocationSize(value.`thumbhash`)
+    )
+
+    override fun write(value: MediaFileUploadAttachmentRequestFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`sourcePath`, buf)
+            FfiConverterOptionalULong.write(value.`expectedSize`, buf)
+            FfiConverterString.write(value.`fileName`, buf)
+            FfiConverterString.write(value.`mediaType`, buf)
+            FfiConverterOptionalString.write(value.`dim`, buf)
+            FfiConverterOptionalString.write(value.`thumbhash`, buf)
+    }
+}
+
+
+
+/**
+ * File-backed counterpart of `MediaUploadRequestFfi`, bounded by
+ * `max_file_media_ciphertext_bytes()` per batch.
+ */
+data class MediaFileUploadRequestFfi (
+    var `attachments`: List<MediaFileUploadAttachmentRequestFfi>, 
+    var `caption`: kotlin.String?, 
+    var `send`: kotlin.Boolean, 
+    var `blossomServer`: kotlin.String?, 
+    /**
+     * Extra tags on the sent kind-9, e.g. NIP-30 `emoji`. `imeta` is rejected.
+     */
+    var `messageTags`: List<List<kotlin.String>> = listOf()
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMediaFileUploadRequestFfi: FfiConverterRustBuffer<MediaFileUploadRequestFfi> {
+    override fun read(buf: ByteBuffer): MediaFileUploadRequestFfi {
+        return MediaFileUploadRequestFfi(
+            FfiConverterSequenceTypeMediaFileUploadAttachmentRequestFfi.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterSequenceSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: MediaFileUploadRequestFfi) = (
+            FfiConverterSequenceTypeMediaFileUploadAttachmentRequestFfi.allocationSize(value.`attachments`) +
+            FfiConverterOptionalString.allocationSize(value.`caption`) +
+            FfiConverterBoolean.allocationSize(value.`send`) +
+            FfiConverterOptionalString.allocationSize(value.`blossomServer`) +
+            FfiConverterSequenceSequenceString.allocationSize(value.`messageTags`)
+    )
+
+    override fun write(value: MediaFileUploadRequestFfi, buf: ByteBuffer) {
+            FfiConverterSequenceTypeMediaFileUploadAttachmentRequestFfi.write(value.`attachments`, buf)
+            FfiConverterOptionalString.write(value.`caption`, buf)
+            FfiConverterBoolean.write(value.`send`, buf)
+            FfiConverterOptionalString.write(value.`blossomServer`, buf)
+            FfiConverterSequenceSequenceString.write(value.`messageTags`, buf)
     }
 }
 
@@ -25170,7 +29010,11 @@ data class MediaUploadRequestFfi (
     var `attachments`: List<MediaUploadAttachmentRequestFfi>, 
     var `caption`: kotlin.String?, 
     var `send`: kotlin.Boolean, 
-    var `blossomServer`: kotlin.String?
+    var `blossomServer`: kotlin.String?, 
+    /**
+     * Extra tags on the sent kind-9, e.g. NIP-30 `emoji`. `imeta` is rejected.
+     */
+    var `messageTags`: List<List<kotlin.String>> = listOf()
 ) {
     
     companion object
@@ -25186,6 +29030,7 @@ public object FfiConverterTypeMediaUploadRequestFfi: FfiConverterRustBuffer<Medi
             FfiConverterOptionalString.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterOptionalString.read(buf),
+            FfiConverterSequenceSequenceString.read(buf),
         )
     }
 
@@ -25193,7 +29038,8 @@ public object FfiConverterTypeMediaUploadRequestFfi: FfiConverterRustBuffer<Medi
             FfiConverterSequenceTypeMediaUploadAttachmentRequestFfi.allocationSize(value.`attachments`) +
             FfiConverterOptionalString.allocationSize(value.`caption`) +
             FfiConverterBoolean.allocationSize(value.`send`) +
-            FfiConverterOptionalString.allocationSize(value.`blossomServer`)
+            FfiConverterOptionalString.allocationSize(value.`blossomServer`) +
+            FfiConverterSequenceSequenceString.allocationSize(value.`messageTags`)
     )
 
     override fun write(value: MediaUploadRequestFfi, buf: ByteBuffer) {
@@ -25201,6 +29047,7 @@ public object FfiConverterTypeMediaUploadRequestFfi: FfiConverterRustBuffer<Medi
             FfiConverterOptionalString.write(value.`caption`, buf)
             FfiConverterBoolean.write(value.`send`, buf)
             FfiConverterOptionalString.write(value.`blossomServer`, buf)
+            FfiConverterSequenceSequenceString.write(value.`messageTags`, buf)
     }
 }
 
@@ -25584,6 +29431,188 @@ public object FfiConverterTypeMessageTagFfi: FfiConverterRustBuffer<MessageTagFf
 
 
 
+/**
+ * Destination for private moderation reports to the deployment's moderation team.
+ */
+data class ModerationReportConfigFfi (
+    /**
+     * The moderation team's reports key: 64-character hex or `npub`.
+     */
+    var `recipientPubkey`: kotlin.String, 
+    /**
+     * Relays to publish to; every entry must pass the relay safety policy.
+     */
+    var `relays`: List<kotlin.String>
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeModerationReportConfigFfi: FfiConverterRustBuffer<ModerationReportConfigFfi> {
+    override fun read(buf: ByteBuffer): ModerationReportConfigFfi {
+        return ModerationReportConfigFfi(
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ModerationReportConfigFfi) = (
+            FfiConverterString.allocationSize(value.`recipientPubkey`) +
+            FfiConverterSequenceString.allocationSize(value.`relays`)
+    )
+
+    override fun write(value: ModerationReportConfigFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`recipientPubkey`, buf)
+            FfiConverterSequenceString.write(value.`relays`, buf)
+    }
+}
+
+
+
+/**
+ * Result of one moderation report. `AcceptedPending` and `CompletionUnknown` are queued and
+ * retried on catch-up; neither is a failure, and hosts must not resubmit to "fix" them.
+ */
+data class ModerationReportOutcomeFfi (
+    /**
+     * Stable local id; a repeat inside the idempotency window returns the same id.
+     */
+    var `reportId`: kotlin.String, 
+    var `acceptDisposition`: SendAcceptDispositionFfi
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeModerationReportOutcomeFfi: FfiConverterRustBuffer<ModerationReportOutcomeFfi> {
+    override fun read(buf: ByteBuffer): ModerationReportOutcomeFfi {
+        return ModerationReportOutcomeFfi(
+            FfiConverterString.read(buf),
+            FfiConverterTypeSendAcceptDispositionFfi.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ModerationReportOutcomeFfi) = (
+            FfiConverterString.allocationSize(value.`reportId`) +
+            FfiConverterTypeSendAcceptDispositionFfi.allocationSize(value.`acceptDisposition`)
+    )
+
+    override fun write(value: ModerationReportOutcomeFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`reportId`, buf)
+            FfiConverterTypeSendAcceptDispositionFfi.write(value.`acceptDisposition`, buf)
+    }
+}
+
+
+
+/**
+ * Bounded anonymous progress for one operation, including its current migration number.
+ */
+data class NativeStartupObservationFfi (
+    var `token`: kotlin.ULong, 
+    var `stage`: NativeStartupStageFfi, 
+    var `elapsedMs`: kotlin.ULong, 
+    var `stageElapsedMs`: kotlin.ULong, 
+    var `migrationVersion`: kotlin.UInt?, 
+    var `migrationsCompleted`: kotlin.UInt, 
+    var `outcome`: NativeStartupOutcomeFfi
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeStartupObservationFfi: FfiConverterRustBuffer<NativeStartupObservationFfi> {
+    override fun read(buf: ByteBuffer): NativeStartupObservationFfi {
+        return NativeStartupObservationFfi(
+            FfiConverterULong.read(buf),
+            FfiConverterTypeNativeStartupStageFfi.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterOptionalUInt.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterTypeNativeStartupOutcomeFfi.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeStartupObservationFfi) = (
+            FfiConverterULong.allocationSize(value.`token`) +
+            FfiConverterTypeNativeStartupStageFfi.allocationSize(value.`stage`) +
+            FfiConverterULong.allocationSize(value.`elapsedMs`) +
+            FfiConverterULong.allocationSize(value.`stageElapsedMs`) +
+            FfiConverterOptionalUInt.allocationSize(value.`migrationVersion`) +
+            FfiConverterUInt.allocationSize(value.`migrationsCompleted`) +
+            FfiConverterTypeNativeStartupOutcomeFfi.allocationSize(value.`outcome`)
+    )
+
+    override fun write(value: NativeStartupObservationFfi, buf: ByteBuffer) {
+            FfiConverterULong.write(value.`token`, buf)
+            FfiConverterTypeNativeStartupStageFfi.write(value.`stage`, buf)
+            FfiConverterULong.write(value.`elapsedMs`, buf)
+            FfiConverterULong.write(value.`stageElapsedMs`, buf)
+            FfiConverterOptionalUInt.write(value.`migrationVersion`, buf)
+            FfiConverterUInt.write(value.`migrationsCompleted`, buf)
+            FfiConverterTypeNativeStartupOutcomeFfi.write(value.`outcome`, buf)
+    }
+}
+
+
+
+/**
+ * At most 16 active observations and 96 historical entries, independent of database locks.
+ */
+data class NativeStartupSnapshotFfi (
+    var `enabled`: kotlin.Boolean, 
+    var `active`: List<NativeStartupObservationFfi>, 
+    var `events`: List<NativeStartupObservationFfi>, 
+    var `droppedEvents`: kotlin.ULong, 
+    var `droppedScopes`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeStartupSnapshotFfi: FfiConverterRustBuffer<NativeStartupSnapshotFfi> {
+    override fun read(buf: ByteBuffer): NativeStartupSnapshotFfi {
+        return NativeStartupSnapshotFfi(
+            FfiConverterBoolean.read(buf),
+            FfiConverterSequenceTypeNativeStartupObservationFfi.read(buf),
+            FfiConverterSequenceTypeNativeStartupObservationFfi.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeStartupSnapshotFfi) = (
+            FfiConverterBoolean.allocationSize(value.`enabled`) +
+            FfiConverterSequenceTypeNativeStartupObservationFfi.allocationSize(value.`active`) +
+            FfiConverterSequenceTypeNativeStartupObservationFfi.allocationSize(value.`events`) +
+            FfiConverterULong.allocationSize(value.`droppedEvents`) +
+            FfiConverterULong.allocationSize(value.`droppedScopes`)
+    )
+
+    override fun write(value: NativeStartupSnapshotFfi, buf: ByteBuffer) {
+            FfiConverterBoolean.write(value.`enabled`, buf)
+            FfiConverterSequenceTypeNativeStartupObservationFfi.write(value.`active`, buf)
+            FfiConverterSequenceTypeNativeStartupObservationFfi.write(value.`events`, buf)
+            FfiConverterULong.write(value.`droppedEvents`, buf)
+            FfiConverterULong.write(value.`droppedScopes`, buf)
+    }
+}
+
+
+
 data class NotificationSettingsFfi (
     var `accountRef`: kotlin.String, 
     var `accountIdHex`: kotlin.String, 
@@ -25806,7 +29835,13 @@ public object FfiConverterTypeOnboardingDevicePackageFfi: FfiConverterRustBuffer
 
 data class OnboardingFindingFfi (
     var `issue`: OnboardingIssueFfi, 
-    var `endpoint`: kotlin.String?
+    var `endpoint`: kotlin.String?, 
+    var `context`: OnboardingFindingContextFfi, 
+    var `purpose`: OnboardingCheckPurposeFfi, 
+    var `outcome`: OnboardingCheckOutcomeFfi, 
+    var `declaredCapability`: OnboardingRelayCapabilityFfi, 
+    var `actions`: List<OnboardingActionFfi>, 
+    var `observedRevision`: kotlin.ULong?
 ) {
     
     companion object
@@ -25820,17 +29855,35 @@ public object FfiConverterTypeOnboardingFindingFfi: FfiConverterRustBuffer<Onboa
         return OnboardingFindingFfi(
             FfiConverterTypeOnboardingIssueFfi.read(buf),
             FfiConverterOptionalString.read(buf),
+            FfiConverterTypeOnboardingFindingContextFfi.read(buf),
+            FfiConverterTypeOnboardingCheckPurposeFfi.read(buf),
+            FfiConverterTypeOnboardingCheckOutcomeFfi.read(buf),
+            FfiConverterTypeOnboardingRelayCapabilityFfi.read(buf),
+            FfiConverterSequenceTypeOnboardingActionFfi.read(buf),
+            FfiConverterOptionalULong.read(buf),
         )
     }
 
     override fun allocationSize(value: OnboardingFindingFfi) = (
             FfiConverterTypeOnboardingIssueFfi.allocationSize(value.`issue`) +
-            FfiConverterOptionalString.allocationSize(value.`endpoint`)
+            FfiConverterOptionalString.allocationSize(value.`endpoint`) +
+            FfiConverterTypeOnboardingFindingContextFfi.allocationSize(value.`context`) +
+            FfiConverterTypeOnboardingCheckPurposeFfi.allocationSize(value.`purpose`) +
+            FfiConverterTypeOnboardingCheckOutcomeFfi.allocationSize(value.`outcome`) +
+            FfiConverterTypeOnboardingRelayCapabilityFfi.allocationSize(value.`declaredCapability`) +
+            FfiConverterSequenceTypeOnboardingActionFfi.allocationSize(value.`actions`) +
+            FfiConverterOptionalULong.allocationSize(value.`observedRevision`)
     )
 
     override fun write(value: OnboardingFindingFfi, buf: ByteBuffer) {
             FfiConverterTypeOnboardingIssueFfi.write(value.`issue`, buf)
             FfiConverterOptionalString.write(value.`endpoint`, buf)
+            FfiConverterTypeOnboardingFindingContextFfi.write(value.`context`, buf)
+            FfiConverterTypeOnboardingCheckPurposeFfi.write(value.`purpose`, buf)
+            FfiConverterTypeOnboardingCheckOutcomeFfi.write(value.`outcome`, buf)
+            FfiConverterTypeOnboardingRelayCapabilityFfi.write(value.`declaredCapability`, buf)
+            FfiConverterSequenceTypeOnboardingActionFfi.write(value.`actions`, buf)
+            FfiConverterOptionalULong.write(value.`observedRevision`, buf)
     }
 }
 
@@ -25838,7 +29891,11 @@ public object FfiConverterTypeOnboardingFindingFfi: FfiConverterRustBuffer<Onboa
 
 data class OnboardingOptionsFfi (
     var `defaultRelays`: List<kotlin.String>, 
-    var `discoveryRelays`: List<kotlin.String>
+    var `discoveryRelays`: List<kotlin.String>, 
+    /**
+     * Recommended kind-10050 inbox relays. Empty uses `default_relays`.
+     */
+    var `inboxRelays`: List<kotlin.String> = listOf()
 ) {
     
     companion object
@@ -25852,17 +29909,160 @@ public object FfiConverterTypeOnboardingOptionsFfi: FfiConverterRustBuffer<Onboa
         return OnboardingOptionsFfi(
             FfiConverterSequenceString.read(buf),
             FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
         )
     }
 
     override fun allocationSize(value: OnboardingOptionsFfi) = (
             FfiConverterSequenceString.allocationSize(value.`defaultRelays`) +
-            FfiConverterSequenceString.allocationSize(value.`discoveryRelays`)
+            FfiConverterSequenceString.allocationSize(value.`discoveryRelays`) +
+            FfiConverterSequenceString.allocationSize(value.`inboxRelays`)
     )
 
     override fun write(value: OnboardingOptionsFfi, buf: ByteBuffer) {
             FfiConverterSequenceString.write(value.`defaultRelays`, buf)
             FfiConverterSequenceString.write(value.`discoveryRelays`, buf)
+            FfiConverterSequenceString.write(value.`inboxRelays`, buf)
+    }
+}
+
+
+
+data class OnboardingRelayRepairFfi (
+    var `mode`: OnboardingRelayRepairModeFfi, 
+    var `originalEventId`: kotlin.String?, 
+    var `originalContent`: kotlin.String, 
+    var `proposedContent`: kotlin.String, 
+    var `beforeTags`: List<OnboardingRelayTagFfi>, 
+    var `afterTags`: List<OnboardingRelayTagFfi>, 
+    var `changes`: List<OnboardingRelayTagChangeFfi>
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayRepairFfi: FfiConverterRustBuffer<OnboardingRelayRepairFfi> {
+    override fun read(buf: ByteBuffer): OnboardingRelayRepairFfi {
+        return OnboardingRelayRepairFfi(
+            FfiConverterTypeOnboardingRelayRepairModeFfi.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceTypeOnboardingRelayTagFfi.read(buf),
+            FfiConverterSequenceTypeOnboardingRelayTagFfi.read(buf),
+            FfiConverterSequenceTypeOnboardingRelayTagChangeFfi.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: OnboardingRelayRepairFfi) = (
+            FfiConverterTypeOnboardingRelayRepairModeFfi.allocationSize(value.`mode`) +
+            FfiConverterOptionalString.allocationSize(value.`originalEventId`) +
+            FfiConverterString.allocationSize(value.`originalContent`) +
+            FfiConverterString.allocationSize(value.`proposedContent`) +
+            FfiConverterSequenceTypeOnboardingRelayTagFfi.allocationSize(value.`beforeTags`) +
+            FfiConverterSequenceTypeOnboardingRelayTagFfi.allocationSize(value.`afterTags`) +
+            FfiConverterSequenceTypeOnboardingRelayTagChangeFfi.allocationSize(value.`changes`)
+    )
+
+    override fun write(value: OnboardingRelayRepairFfi, buf: ByteBuffer) {
+            FfiConverterTypeOnboardingRelayRepairModeFfi.write(value.`mode`, buf)
+            FfiConverterOptionalString.write(value.`originalEventId`, buf)
+            FfiConverterString.write(value.`originalContent`, buf)
+            FfiConverterString.write(value.`proposedContent`, buf)
+            FfiConverterSequenceTypeOnboardingRelayTagFfi.write(value.`beforeTags`, buf)
+            FfiConverterSequenceTypeOnboardingRelayTagFfi.write(value.`afterTags`, buf)
+            FfiConverterSequenceTypeOnboardingRelayTagChangeFfi.write(value.`changes`, buf)
+    }
+}
+
+
+
+data class OnboardingRelayTagChangeFfi (
+    var `disposition`: OnboardingRelayTagDispositionFfi, 
+    var `beforeIndex`: kotlin.ULong?, 
+    var `afterIndex`: kotlin.ULong?, 
+    var `fields`: List<kotlin.String>, 
+    var `endpoint`: kotlin.String?, 
+    var `role`: OnboardingRelayTagRoleFfi, 
+    var `restores`: OnboardingRelayCapabilityFfi
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayTagChangeFfi: FfiConverterRustBuffer<OnboardingRelayTagChangeFfi> {
+    override fun read(buf: ByteBuffer): OnboardingRelayTagChangeFfi {
+        return OnboardingRelayTagChangeFfi(
+            FfiConverterTypeOnboardingRelayTagDispositionFfi.read(buf),
+            FfiConverterOptionalULong.read(buf),
+            FfiConverterOptionalULong.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterTypeOnboardingRelayTagRoleFfi.read(buf),
+            FfiConverterTypeOnboardingRelayCapabilityFfi.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: OnboardingRelayTagChangeFfi) = (
+            FfiConverterTypeOnboardingRelayTagDispositionFfi.allocationSize(value.`disposition`) +
+            FfiConverterOptionalULong.allocationSize(value.`beforeIndex`) +
+            FfiConverterOptionalULong.allocationSize(value.`afterIndex`) +
+            FfiConverterSequenceString.allocationSize(value.`fields`) +
+            FfiConverterOptionalString.allocationSize(value.`endpoint`) +
+            FfiConverterTypeOnboardingRelayTagRoleFfi.allocationSize(value.`role`) +
+            FfiConverterTypeOnboardingRelayCapabilityFfi.allocationSize(value.`restores`)
+    )
+
+    override fun write(value: OnboardingRelayTagChangeFfi, buf: ByteBuffer) {
+            FfiConverterTypeOnboardingRelayTagDispositionFfi.write(value.`disposition`, buf)
+            FfiConverterOptionalULong.write(value.`beforeIndex`, buf)
+            FfiConverterOptionalULong.write(value.`afterIndex`, buf)
+            FfiConverterSequenceString.write(value.`fields`, buf)
+            FfiConverterOptionalString.write(value.`endpoint`, buf)
+            FfiConverterTypeOnboardingRelayTagRoleFfi.write(value.`role`, buf)
+            FfiConverterTypeOnboardingRelayCapabilityFfi.write(value.`restores`, buf)
+    }
+}
+
+
+
+data class OnboardingRelayTagFfi (
+    var `fields`: List<kotlin.String>, 
+    var `endpoint`: kotlin.String?, 
+    var `role`: OnboardingRelayTagRoleFfi
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayTagFfi: FfiConverterRustBuffer<OnboardingRelayTagFfi> {
+    override fun read(buf: ByteBuffer): OnboardingRelayTagFfi {
+        return OnboardingRelayTagFfi(
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterTypeOnboardingRelayTagRoleFfi.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: OnboardingRelayTagFfi) = (
+            FfiConverterSequenceString.allocationSize(value.`fields`) +
+            FfiConverterOptionalString.allocationSize(value.`endpoint`) +
+            FfiConverterTypeOnboardingRelayTagRoleFfi.allocationSize(value.`role`)
+    )
+
+    override fun write(value: OnboardingRelayTagFfi, buf: ByteBuffer) {
+            FfiConverterSequenceString.write(value.`fields`, buf)
+            FfiConverterOptionalString.write(value.`endpoint`, buf)
+            FfiConverterTypeOnboardingRelayTagRoleFfi.write(value.`role`, buf)
     }
 }
 
@@ -25875,7 +30075,8 @@ data class OnboardingRepairProposalFfi (
     var `readRelays`: List<kotlin.String>, 
     var `writeRelays`: List<kotlin.String>, 
     var `profile`: UserProfileMetadataFfi?, 
-    var `follows`: List<kotlin.String>?
+    var `follows`: List<kotlin.String>?, 
+    var `relayRepair`: OnboardingRelayRepairFfi?
 ) {
     
     companion object
@@ -25894,6 +30095,7 @@ public object FfiConverterTypeOnboardingRepairProposalFfi: FfiConverterRustBuffe
             FfiConverterSequenceString.read(buf),
             FfiConverterOptionalTypeUserProfileMetadataFfi.read(buf),
             FfiConverterOptionalSequenceString.read(buf),
+            FfiConverterOptionalTypeOnboardingRelayRepairFfi.read(buf),
         )
     }
 
@@ -25904,7 +30106,8 @@ public object FfiConverterTypeOnboardingRepairProposalFfi: FfiConverterRustBuffe
             FfiConverterSequenceString.allocationSize(value.`readRelays`) +
             FfiConverterSequenceString.allocationSize(value.`writeRelays`) +
             FfiConverterOptionalTypeUserProfileMetadataFfi.allocationSize(value.`profile`) +
-            FfiConverterOptionalSequenceString.allocationSize(value.`follows`)
+            FfiConverterOptionalSequenceString.allocationSize(value.`follows`) +
+            FfiConverterOptionalTypeOnboardingRelayRepairFfi.allocationSize(value.`relayRepair`)
     )
 
     override fun write(value: OnboardingRepairProposalFfi, buf: ByteBuffer) {
@@ -25915,6 +30118,7 @@ public object FfiConverterTypeOnboardingRepairProposalFfi: FfiConverterRustBuffe
             FfiConverterSequenceString.write(value.`writeRelays`, buf)
             FfiConverterOptionalTypeUserProfileMetadataFfi.write(value.`profile`, buf)
             FfiConverterOptionalSequenceString.write(value.`follows`, buf)
+            FfiConverterOptionalTypeOnboardingRelayRepairFfi.write(value.`relayRepair`, buf)
     }
 }
 
@@ -26060,6 +30264,42 @@ public object FfiConverterTypeOnboardingStepStateFfi: FfiConverterRustBuffer<Onb
 
 
 
+/**
+ * An Open Ranking pubkey-search endpoint and the relays that hydrate its
+ * results into signed kind-0 profiles. With no profile relay the tier is off.
+ */
+data class OpenRankingProviderFfi (
+    var `searchEndpoint`: kotlin.String, 
+    var `profileRelays`: List<kotlin.String>
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOpenRankingProviderFfi: FfiConverterRustBuffer<OpenRankingProviderFfi> {
+    override fun read(buf: ByteBuffer): OpenRankingProviderFfi {
+        return OpenRankingProviderFfi(
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: OpenRankingProviderFfi) = (
+            FfiConverterString.allocationSize(value.`searchEndpoint`) +
+            FfiConverterSequenceString.allocationSize(value.`profileRelays`)
+    )
+
+    override fun write(value: OpenRankingProviderFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`searchEndpoint`, buf)
+            FfiConverterSequenceString.write(value.`profileRelays`, buf)
+    }
+}
+
+
+
 data class PollOptionResultFfi (
     var `id`: kotlin.String, 
     var `label`: kotlin.String, 
@@ -26152,6 +30392,88 @@ public object FfiConverterTypePollProjectionFfi: FfiConverterRustBuffer<PollProj
 
 
 
+/**
+ * One voter's effective (latest valid) poll selection; the list sums to the
+ * row's `PollProjectionFfi` tally.
+ */
+data class PollVoteFfi (
+    var `voterAccountIdHex`: kotlin.String, 
+    var `optionIds`: List<kotlin.String>, 
+    /**
+     * Authenticated time of the effective response.
+     */
+    var `votedAt`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePollVoteFfi: FfiConverterRustBuffer<PollVoteFfi> {
+    override fun read(buf: ByteBuffer): PollVoteFfi {
+        return PollVoteFfi(
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: PollVoteFfi) = (
+            FfiConverterString.allocationSize(value.`voterAccountIdHex`) +
+            FfiConverterSequenceString.allocationSize(value.`optionIds`) +
+            FfiConverterULong.allocationSize(value.`votedAt`)
+    )
+
+    override fun write(value: PollVoteFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`voterAccountIdHex`, buf)
+            FfiConverterSequenceString.write(value.`optionIds`, buf)
+            FfiConverterULong.write(value.`votedAt`, buf)
+    }
+}
+
+
+
+/**
+ * One page of poll votes ordered by `(voted_at, voter_account_id_hex)`.
+ */
+data class PollVotePageFfi (
+    var `votes`: List<PollVoteFfi>, 
+    /**
+     * More votes follow; pass the last vote's `voted_at` and
+     * `voter_account_id_hex` as the next cursor.
+     */
+    var `hasMoreAfter`: kotlin.Boolean
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePollVotePageFfi: FfiConverterRustBuffer<PollVotePageFfi> {
+    override fun read(buf: ByteBuffer): PollVotePageFfi {
+        return PollVotePageFfi(
+            FfiConverterSequenceTypePollVoteFfi.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: PollVotePageFfi) = (
+            FfiConverterSequenceTypePollVoteFfi.allocationSize(value.`votes`) +
+            FfiConverterBoolean.allocationSize(value.`hasMoreAfter`)
+    )
+
+    override fun write(value: PollVotePageFfi, buf: ByteBuffer) {
+            FfiConverterSequenceTypePollVoteFfi.write(value.`votes`, buf)
+            FfiConverterBoolean.write(value.`hasMoreAfter`, buf)
+    }
+}
+
+
+
 data class PreparedGroupImageUploadFfi (
     var `uploadId`: kotlin.String, 
     var `state`: PreparedGroupImageUploadStateFfi, 
@@ -26231,7 +30553,16 @@ public object FfiConverterTypePresentationVersionFfi: FfiConverterRustBuffer<Pre
 data class PresentedChatListSnapshotFfi (
     var `rows`: List<PresentedChatRowFfi>, 
     var `presentationVersion`: PresentationVersionFfi
-) {
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`rows`,
+        this.`presentationVersion`
+    )
+    }
     
     companion object
 }
@@ -26264,7 +30595,17 @@ data class PresentedChatListUpdateFfi (
     var `subscriptionGeneration`: kotlin.String, 
     var `sequence`: kotlin.ULong, 
     var `snapshot`: PresentedChatListSnapshotFfi
-) {
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`subscriptionGeneration`,
+        this.`sequence`,
+        this.`snapshot`
+    )
+    }
     
     companion object
 }
@@ -26297,12 +30638,26 @@ public object FfiConverterTypePresentedChatListUpdateFfi: FfiConverterRustBuffer
 
 
 data class PresentedChatRowFfi (
+    var `draftVersion`: ChatListDraftVersionFfi?, 
     var `preview`: SelectedChatPreviewFfi, 
     var `actions`: ChatListRowActionsFfi, 
     var `row`: ChatListRowFfi, 
     var `presentation`: ConversationPresentationFfi, 
     var `avatarAsset`: AvatarAssetFfi?
-) {
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`draftVersion`,
+        this.`preview`,
+        this.`actions`,
+        this.`row`,
+        this.`presentation`,
+        this.`avatarAsset`
+    )
+    }
     
     companion object
 }
@@ -26313,6 +30668,7 @@ data class PresentedChatRowFfi (
 public object FfiConverterTypePresentedChatRowFfi: FfiConverterRustBuffer<PresentedChatRowFfi> {
     override fun read(buf: ByteBuffer): PresentedChatRowFfi {
         return PresentedChatRowFfi(
+            FfiConverterOptionalTypeChatListDraftVersionFfi.read(buf),
             FfiConverterTypeSelectedChatPreviewFfi.read(buf),
             FfiConverterTypeChatListRowActionsFfi.read(buf),
             FfiConverterTypeChatListRowFfi.read(buf),
@@ -26322,6 +30678,7 @@ public object FfiConverterTypePresentedChatRowFfi: FfiConverterRustBuffer<Presen
     }
 
     override fun allocationSize(value: PresentedChatRowFfi) = (
+            FfiConverterOptionalTypeChatListDraftVersionFfi.allocationSize(value.`draftVersion`) +
             FfiConverterTypeSelectedChatPreviewFfi.allocationSize(value.`preview`) +
             FfiConverterTypeChatListRowActionsFfi.allocationSize(value.`actions`) +
             FfiConverterTypeChatListRowFfi.allocationSize(value.`row`) +
@@ -26330,6 +30687,7 @@ public object FfiConverterTypePresentedChatRowFfi: FfiConverterRustBuffer<Presen
     )
 
     override fun write(value: PresentedChatRowFfi, buf: ByteBuffer) {
+            FfiConverterOptionalTypeChatListDraftVersionFfi.write(value.`draftVersion`, buf)
             FfiConverterTypeSelectedChatPreviewFfi.write(value.`preview`, buf)
             FfiConverterTypeChatListRowActionsFfi.write(value.`actions`, buf)
             FfiConverterTypeChatListRowFfi.write(value.`row`, buf)
@@ -26571,6 +30929,59 @@ public object FfiConverterTypeProductPropertySchemaFfi: FfiConverterRustBuffer<P
             FfiConverterString.write(value.`name`, buf)
             FfiConverterTypeProductPropertyKindFfi.write(value.`kind`, buf)
             FfiConverterSequenceString.write(value.`choices`, buf)
+    }
+}
+
+
+
+/**
+ * One result per requested reference. `event_json` and `fetched_at` are set
+ * exactly when `state` is `Present`.
+ */
+data class PublicEventPreviewFfi (
+    /**
+     * The reference exactly as the caller passed it.
+     */
+    var `reference`: kotlin.String, 
+    var `state`: PublicEventPreviewStateFfi, 
+    /**
+     * The signature-verified event as NIP-01 JSON.
+     */
+    var `eventJson`: kotlin.String?, 
+    /**
+     * When a relay last confirmed the event, in Unix seconds.
+     */
+    var `fetchedAt`: kotlin.ULong?
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePublicEventPreviewFfi: FfiConverterRustBuffer<PublicEventPreviewFfi> {
+    override fun read(buf: ByteBuffer): PublicEventPreviewFfi {
+        return PublicEventPreviewFfi(
+            FfiConverterString.read(buf),
+            FfiConverterTypePublicEventPreviewStateFfi.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: PublicEventPreviewFfi) = (
+            FfiConverterString.allocationSize(value.`reference`) +
+            FfiConverterTypePublicEventPreviewStateFfi.allocationSize(value.`state`) +
+            FfiConverterOptionalString.allocationSize(value.`eventJson`) +
+            FfiConverterOptionalULong.allocationSize(value.`fetchedAt`)
+    )
+
+    override fun write(value: PublicEventPreviewFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`reference`, buf)
+            FfiConverterTypePublicEventPreviewStateFfi.write(value.`state`, buf)
+            FfiConverterOptionalString.write(value.`eventJson`, buf)
+            FfiConverterOptionalULong.write(value.`fetchedAt`, buf)
     }
 }
 
@@ -27300,6 +31711,109 @@ public object FfiConverterTypeReportDismissalPageFfi: FfiConverterRustBuffer<Rep
     override fun write(value: ReportDismissalPageFfi, buf: ByteBuffer) {
             FfiConverterSequenceTypeReportDismissalFfi.write(value.`labels`, buf)
             FfiConverterOptionalString.write(value.`nextCursor`, buf)
+    }
+}
+
+
+
+/**
+ * One retained attachment. `target` works with `attachment_local_assets`,
+ * `open_attachment_handoff` and removal.
+ */
+data class RetainedAttachmentSummaryFfi (
+    var `groupIdHex`: kotlin.String, 
+    var `target`: AttachmentLocalTargetFfi, 
+    var `byteCount`: kotlin.ULong, 
+    /**
+     * From the published descriptor; empty when it does not parse.
+     */
+    var `mediaType`: kotlin.String, 
+    var `fileName`: kotlin.String, 
+    /**
+     * When the message was received, Unix seconds.
+     */
+    var `receivedAt`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRetainedAttachmentSummaryFfi: FfiConverterRustBuffer<RetainedAttachmentSummaryFfi> {
+    override fun read(buf: ByteBuffer): RetainedAttachmentSummaryFfi {
+        return RetainedAttachmentSummaryFfi(
+            FfiConverterString.read(buf),
+            FfiConverterTypeAttachmentLocalTargetFfi.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RetainedAttachmentSummaryFfi) = (
+            FfiConverterString.allocationSize(value.`groupIdHex`) +
+            FfiConverterTypeAttachmentLocalTargetFfi.allocationSize(value.`target`) +
+            FfiConverterULong.allocationSize(value.`byteCount`) +
+            FfiConverterString.allocationSize(value.`mediaType`) +
+            FfiConverterString.allocationSize(value.`fileName`) +
+            FfiConverterULong.allocationSize(value.`receivedAt`)
+    )
+
+    override fun write(value: RetainedAttachmentSummaryFfi, buf: ByteBuffer) {
+            FfiConverterString.write(value.`groupIdHex`, buf)
+            FfiConverterTypeAttachmentLocalTargetFfi.write(value.`target`, buf)
+            FfiConverterULong.write(value.`byteCount`, buf)
+            FfiConverterString.write(value.`mediaType`, buf)
+            FfiConverterString.write(value.`fileName`, buf)
+            FfiConverterULong.write(value.`receivedAt`, buf)
+    }
+}
+
+
+
+/**
+ * Retained attachments, largest first. Continue while `next_cursor` is
+ * present; the last page may be empty.
+ */
+data class RetainedAttachmentsPageFfi (
+    var `attachments`: List<RetainedAttachmentSummaryFfi>, 
+    var `nextCursor`: RetainedAttachmentsCursor?
+) : Disposable {
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        
+    Disposable.destroy(
+        this.`attachments`,
+        this.`nextCursor`
+    )
+    }
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRetainedAttachmentsPageFfi: FfiConverterRustBuffer<RetainedAttachmentsPageFfi> {
+    override fun read(buf: ByteBuffer): RetainedAttachmentsPageFfi {
+        return RetainedAttachmentsPageFfi(
+            FfiConverterSequenceTypeRetainedAttachmentSummaryFfi.read(buf),
+            FfiConverterOptionalTypeRetainedAttachmentsCursor.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RetainedAttachmentsPageFfi) = (
+            FfiConverterSequenceTypeRetainedAttachmentSummaryFfi.allocationSize(value.`attachments`) +
+            FfiConverterOptionalTypeRetainedAttachmentsCursor.allocationSize(value.`nextCursor`)
+    )
+
+    override fun write(value: RetainedAttachmentsPageFfi, buf: ByteBuffer) {
+            FfiConverterSequenceTypeRetainedAttachmentSummaryFfi.write(value.`attachments`, buf)
+            FfiConverterOptionalTypeRetainedAttachmentsCursor.write(value.`nextCursor`, buf)
     }
 }
 
@@ -28834,6 +33348,133 @@ public object FfiConverterTypeWipeOutcomeFfi: FfiConverterRustBuffer<WipeOutcome
 
 
 
+sealed class AccountAttachmentPageReadFfi: Disposable  {
+    
+    data class Page(
+        val `page`: AccountAttachmentPageFfi) : AccountAttachmentPageReadFfi() {
+        companion object
+    }
+    
+    object RestartRequired : AccountAttachmentPageReadFfi()
+    
+    
+    object CursorMismatch : AccountAttachmentPageReadFfi()
+    
+    
+    object InvalidQuery : AccountAttachmentPageReadFfi()
+    
+    
+    object InvalidLimit : AccountAttachmentPageReadFfi()
+    
+    
+
+    
+    @Suppress("UNNECESSARY_SAFE_CALL") // codegen is much simpler if we unconditionally emit safe calls here
+    override fun destroy() {
+        when(this) {
+            is AccountAttachmentPageReadFfi.Page -> {
+                
+    Disposable.destroy(
+        this.`page`
+    )
+                
+            }
+            is AccountAttachmentPageReadFfi.RestartRequired -> {// Nothing to destroy
+            }
+            is AccountAttachmentPageReadFfi.CursorMismatch -> {// Nothing to destroy
+            }
+            is AccountAttachmentPageReadFfi.InvalidQuery -> {// Nothing to destroy
+            }
+            is AccountAttachmentPageReadFfi.InvalidLimit -> {// Nothing to destroy
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAccountAttachmentPageReadFfi : FfiConverterRustBuffer<AccountAttachmentPageReadFfi>{
+    override fun read(buf: ByteBuffer): AccountAttachmentPageReadFfi {
+        return when(buf.getInt()) {
+            1 -> AccountAttachmentPageReadFfi.Page(
+                FfiConverterTypeAccountAttachmentPageFfi.read(buf),
+                )
+            2 -> AccountAttachmentPageReadFfi.RestartRequired
+            3 -> AccountAttachmentPageReadFfi.CursorMismatch
+            4 -> AccountAttachmentPageReadFfi.InvalidQuery
+            5 -> AccountAttachmentPageReadFfi.InvalidLimit
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: AccountAttachmentPageReadFfi) = when(value) {
+        is AccountAttachmentPageReadFfi.Page -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeAccountAttachmentPageFfi.allocationSize(value.`page`)
+            )
+        }
+        is AccountAttachmentPageReadFfi.RestartRequired -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AccountAttachmentPageReadFfi.CursorMismatch -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AccountAttachmentPageReadFfi.InvalidQuery -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AccountAttachmentPageReadFfi.InvalidLimit -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: AccountAttachmentPageReadFfi, buf: ByteBuffer) {
+        when(value) {
+            is AccountAttachmentPageReadFfi.Page -> {
+                buf.putInt(1)
+                FfiConverterTypeAccountAttachmentPageFfi.write(value.`page`, buf)
+                Unit
+            }
+            is AccountAttachmentPageReadFfi.RestartRequired -> {
+                buf.putInt(2)
+                Unit
+            }
+            is AccountAttachmentPageReadFfi.CursorMismatch -> {
+                buf.putInt(3)
+                Unit
+            }
+            is AccountAttachmentPageReadFfi.InvalidQuery -> {
+                buf.putInt(4)
+                Unit
+            }
+            is AccountAttachmentPageReadFfi.InvalidLimit -> {
+                buf.putInt(5)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
 sealed class AccountAttentionStateFfi {
     
     data class Ready(
@@ -29420,6 +34061,118 @@ public object FfiConverterTypeAttachmentHistoryChangeFfi: FfiConverterRustBuffer
 
 
 
+/**
+ * How long retained attachments are kept on this device, per account
+ * ("Keep media"). Attachments of messages older than the window are
+ * removed automatically and show as `CleanedBySetting`; download again
+ * stays allowed and keeps that attachment for the whole window from the
+ * request.
+ */
+
+enum class AttachmentKeepMediaFfi {
+    
+    /**
+     * Nothing is removed automatically. The default.
+     */
+    FOREVER,
+    /**
+     * 365 days.
+     */
+    ONE_YEAR,
+    /**
+     * 183 days.
+     */
+    SIX_MONTHS,
+    /**
+     * 30 days.
+     */
+    THIRTY_DAYS;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAttachmentKeepMediaFfi: FfiConverterRustBuffer<AttachmentKeepMediaFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        AttachmentKeepMediaFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: AttachmentKeepMediaFfi) = 4UL
+
+    override fun write(value: AttachmentKeepMediaFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Where moving legacy attachment bodies out of the account database into
+ * the media store stands. It runs in the background; nothing is deleted to
+ * make room for it.
+ */
+
+enum class AttachmentMigrationStateFfi {
+    
+    /**
+     * No legacy bodies remain, and this runtime moved none.
+     */
+    NOT_NEEDED,
+    /**
+     * Legacy bodies are moving; `migration_bytes` remain.
+     */
+    RUNNING,
+    /**
+     * The smallest remaining body does not fit: the move resumes once
+     * `migration_bytes` more are free. Removing attachments frees space
+     * (file-backed ones at once) or shrinks what is left to move.
+     */
+    PAUSED,
+    /**
+     * This runtime moved the last legacy body.
+     */
+    COMPLETE,
+    /**
+     * The account database is being compacted to return its free pages to
+     * the filesystem; the other figures are from just before it started.
+     * Account reads and writes wait until it finishes.
+     */
+    COMPACTING;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAttachmentMigrationStateFfi: FfiConverterRustBuffer<AttachmentMigrationStateFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        AttachmentMigrationStateFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: AttachmentMigrationStateFfi) = 4UL
+
+    override fun write(value: AttachmentMigrationStateFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
 sealed class AttachmentPageReadFfi: Disposable  {
     
     data class Page(
@@ -29531,6 +34284,41 @@ public object FfiConverterTypeAttachmentPageReadFfi : FfiConverterRustBuffer<Att
 
 
 
+/**
+ * Shared-library presentation eligibility; does not gate artwork acquisition.
+ */
+
+enum class AttachmentRoleFfi {
+    
+    SHARED,
+    INLINE_EMOJI;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAttachmentRoleFfi: FfiConverterRustBuffer<AttachmentRoleFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        AttachmentRoleFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: AttachmentRoleFfi) = 4UL
+
+    override fun write(value: AttachmentRoleFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
 
 enum class AttachmentTransferStateFfi {
     
@@ -29550,7 +34338,18 @@ enum class AttachmentTransferStateFfi {
     POLICY_BLOCKED,
     PREVIOUSLY_ACQUIRED_UNAVAILABLE,
     COMPLETED_UNRETAINED,
-    RETRY_EXHAUSTED;
+    RETRY_EXHAUSTED,
+    /**
+     * Free disk cannot cover the publication reserve; checkpoints are kept and
+     * the job readmits once space frees or on explicit Retry.
+     */
+    STORAGE_BLOCKED,
+    /**
+     * The account's "Keep media" setting removed the body because the
+     * message is older than its window. Download again is allowed, as for
+     * `Removed`.
+     */
+    CLEANED_BY_SETTING;
     companion object
 }
 
@@ -30584,6 +35383,19 @@ sealed class GroupEventKindFfi {
         companion object
     }
     
+    data class LocalGroupCopyTerminated(
+        val `voluntary`: kotlin.Boolean) : GroupEventKindFfi() {
+        companion object
+    }
+    
+    object LocalGroupCopyRestored : GroupEventKindFfi()
+    
+    
+    data class GroupMemberLeavesRemoved(
+        val `epoch`: kotlin.ULong) : GroupEventKindFfi() {
+        companion object
+    }
+    
 
     
     companion object
@@ -30644,6 +35456,13 @@ public object FfiConverterTypeGroupEventKindFfi : FfiConverterRustBuffer<GroupEv
                 FfiConverterULong.read(buf),
                 )
             14 -> GroupEventKindFfi.GroupHydrationRecovered(
+                FfiConverterULong.read(buf),
+                )
+            15 -> GroupEventKindFfi.LocalGroupCopyTerminated(
+                FfiConverterBoolean.read(buf),
+                )
+            16 -> GroupEventKindFfi.LocalGroupCopyRestored
+            17 -> GroupEventKindFfi.GroupMemberLeavesRemoved(
                 FfiConverterULong.read(buf),
                 )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
@@ -30760,6 +35579,26 @@ public object FfiConverterTypeGroupEventKindFfi : FfiConverterRustBuffer<GroupEv
                 + FfiConverterULong.allocationSize(value.`recoveredEpoch`)
             )
         }
+        is GroupEventKindFfi.LocalGroupCopyTerminated -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterBoolean.allocationSize(value.`voluntary`)
+            )
+        }
+        is GroupEventKindFfi.LocalGroupCopyRestored -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is GroupEventKindFfi.GroupMemberLeavesRemoved -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterULong.allocationSize(value.`epoch`)
+            )
+        }
     }
 
     override fun write(value: GroupEventKindFfi, buf: ByteBuffer) {
@@ -30843,6 +35682,20 @@ public object FfiConverterTypeGroupEventKindFfi : FfiConverterRustBuffer<GroupEv
             is GroupEventKindFfi.GroupHydrationRecovered -> {
                 buf.putInt(14)
                 FfiConverterULong.write(value.`recoveredEpoch`, buf)
+                Unit
+            }
+            is GroupEventKindFfi.LocalGroupCopyTerminated -> {
+                buf.putInt(15)
+                FfiConverterBoolean.write(value.`voluntary`, buf)
+                Unit
+            }
+            is GroupEventKindFfi.LocalGroupCopyRestored -> {
+                buf.putInt(16)
+                Unit
+            }
+            is GroupEventKindFfi.GroupMemberLeavesRemoved -> {
+                buf.putInt(17)
+                FfiConverterULong.write(value.`epoch`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -31732,6 +36585,15 @@ sealed class MarkdownInlineFfi {
         companion object
     }
     
+    /**
+     * Signed Unix seconds and a display style, formatted by the host at render time.
+     */
+    data class Timestamp(
+        val `unixSeconds`: kotlin.Long, 
+        val `style`: MarkdownTimestampStyleFfi) : MarkdownInlineFfi() {
+        companion object
+    }
+    
 
     
     companion object
@@ -31785,6 +36647,10 @@ public object FfiConverterTypeMarkdownInlineFfi : FfiConverterRustBuffer<Markdow
                 )
             13 -> MarkdownInlineFfi.NostrUri(
                 FfiConverterTypeMarkdownNostrEntityFfi.read(buf),
+                )
+            14 -> MarkdownInlineFfi.Timestamp(
+                FfiConverterLong.read(buf),
+                FfiConverterTypeMarkdownTimestampStyleFfi.read(buf),
                 )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
@@ -31888,6 +36754,14 @@ public object FfiConverterTypeMarkdownInlineFfi : FfiConverterRustBuffer<Markdow
                 + FfiConverterTypeMarkdownNostrEntityFfi.allocationSize(value.`entity`)
             )
         }
+        is MarkdownInlineFfi.Timestamp -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterLong.allocationSize(value.`unixSeconds`)
+                + FfiConverterTypeMarkdownTimestampStyleFfi.allocationSize(value.`style`)
+            )
+        }
     }
 
     override fun write(value: MarkdownInlineFfi, buf: ByteBuffer) {
@@ -31961,6 +36835,12 @@ public object FfiConverterTypeMarkdownInlineFfi : FfiConverterRustBuffer<Markdow
             is MarkdownInlineFfi.NostrUri -> {
                 buf.putInt(13)
                 FfiConverterTypeMarkdownNostrEntityFfi.write(value.`entity`, buf)
+                Unit
+            }
+            is MarkdownInlineFfi.Timestamp -> {
+                buf.putInt(14)
+                FfiConverterLong.write(value.`unixSeconds`, buf)
+                FfiConverterTypeMarkdownTimestampStyleFfi.write(value.`style`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -32117,6 +36997,75 @@ public object FfiConverterTypeMarkdownNostrHrpFfi: FfiConverterRustBuffer<Markdo
     override fun allocationSize(value: MarkdownNostrHrpFfi) = 4UL
 
     override fun write(value: MarkdownNostrHrpFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Timestamp display styles, using the device locale and timezone.
+ */
+
+enum class MarkdownTimestampStyleFfi {
+    
+    /**
+     * `t`: time without seconds.
+     */
+    SHORT_TIME,
+    /**
+     * `T`: time including seconds.
+     */
+    LONG_TIME,
+    /**
+     * `d`: short date.
+     */
+    SHORT_DATE,
+    /**
+     * `D`: long date.
+     */
+    LONG_DATE,
+    /**
+     * `f` or omitted: long date and time without seconds.
+     */
+    SHORT_DATE_TIME,
+    /**
+     * `F`: weekday, long date and time without seconds.
+     */
+    LONG_DATE_TIME,
+    /**
+     * `s`: short date and time without seconds.
+     */
+    COMPACT_DATE_TIME,
+    /**
+     * `S`: short date and time including seconds.
+     */
+    COMPACT_DATE_TIME_SECONDS,
+    /**
+     * `R`: time relative to the host's current clock; refresh while visible.
+     */
+    RELATIVE;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMarkdownTimestampStyleFfi: FfiConverterRustBuffer<MarkdownTimestampStyleFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        MarkdownTimestampStyleFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: MarkdownTimestampStyleFfi) = 4UL
+
+    override fun write(value: MarkdownTimestampStyleFfi, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
     }
 }
@@ -32530,6 +37479,57 @@ sealed class MarmotKitException: kotlin.Exception() {
             get() = ""
     }
     
+    /**
+     * No valid moderation-report destination is installed; nothing was published.
+     */
+    class ModerationReportingNotConfigured(
+        ) : MarmotKitException() {
+        override val message
+            get() = ""
+    }
+    
+    /**
+     * The moderation-report destination was rejected as a whole.
+     */
+    class InvalidModerationReportConfig(
+        
+        val `details`: kotlin.String
+        ) : MarmotKitException() {
+        override val message
+            get() = "details=${ `details` }"
+    }
+    
+    class InvalidReportedPublicKey(
+        ) : MarmotKitException() {
+        override val message
+            get() = ""
+    }
+    
+    class CannotReportSelf(
+        ) : MarmotKitException() {
+        override val message
+            get() = ""
+    }
+    
+    /**
+     * Local per-account cap against runaway clients; retry later.
+     */
+    class ModerationReportRateLimited(
+        ) : MarmotKitException() {
+        override val message
+            get() = ""
+    }
+    
+    /**
+     * The edit target is missing, not a chat message, sent by another
+     * account, deleted, or withdrawn by convergence; nothing was published.
+     */
+    class InvalidEditTarget(
+        ) : MarmotKitException() {
+        override val message
+            get() = ""
+    }
+    
     class ConsentRequired(
         ) : MarmotKitException() {
         override val message
@@ -32608,6 +37608,14 @@ sealed class MarmotKitException: kotlin.Exception() {
         ) : MarmotKitException() {
         override val message
             get() = "maxAccounts=${ `maxAccounts` }"
+    }
+    
+    class InvalidPublicEventReferences(
+        
+        val `maxReferences`: kotlin.ULong
+        ) : MarmotKitException() {
+        override val message
+            get() = "maxReferences=${ `maxReferences` }"
     }
     
     /**
@@ -32753,12 +37761,19 @@ sealed class MarmotKitException: kotlin.Exception() {
             get() = "details=${ `details` }"
     }
     
+    /**
+     * A completed lookup found no KeyPackage this device may invite. Branch on
+     * `reason`: `ObsoleteOnly` means the recipient must update their app and
+     * publish a current KeyPackage; `NotFound` means none was published.
+     */
     class MissingKeyPackage(
         
-        val `account`: kotlin.String
+        val `account`: kotlin.String, 
+        
+        val `reason`: MissingKeyPackageReasonFfi
         ) : MarmotKitException() {
         override val message
-            get() = "account=${ `account` }"
+            get() = "account=${ `account` }, reason=${ `reason` }"
     }
     
     /**
@@ -32767,6 +37782,19 @@ sealed class MarmotKitException: kotlin.Exception() {
      * without parsing display text.
      */
     class MissingMemberInboxRoute(
+        
+        val `account`: kotlin.String
+        ) : MarmotKitException() {
+        override val message
+            get() = "account=${ `account` }"
+    }
+    
+    /**
+     * Relay-list or KeyPackage lookup for `account` ran out of time or relay
+     * coverage. Nothing is known to be missing; offer retry. Display omits
+     * the account; read it from the field.
+     */
+    class DirectoryLookupIncomplete(
         
         val `account`: kotlin.String
         ) : MarmotKitException() {
@@ -32788,6 +37816,17 @@ sealed class MarmotKitException: kotlin.Exception() {
      * an assumed empty list is not.
      */
     class FollowListUnavailable(
+        ) : MarmotKitException() {
+        override val message
+            get() = ""
+    }
+    
+    /**
+     * The current kind-3 list has at least 2,048 follows, more than MDK reads
+     * from one list, so a follow or unfollow could drop follows. Nothing was
+     * published; manage this list in a client that edits it whole.
+     */
+    class FollowListTooLarge(
         ) : MarmotKitException() {
         override val message
             get() = ""
@@ -32977,6 +38016,31 @@ sealed class MarmotKitException: kotlin.Exception() {
             get() = "groupIdHex=${ `groupIdHex` }"
     }
     
+    /**
+     * The group moved past this device and recovery has not caught it up.
+     * Group changes would fork it, so they wait; retry once it has synced.
+     */
+    class GroupCatchingUp(
+        
+        val `groupIdHex`: kotlin.String
+        ) : MarmotKitException() {
+        override val message
+            get() = "groupIdHex=${ `groupIdHex` }"
+    }
+    
+    /**
+     * The group's last change has not reached every group relay yet, so
+     * members who read only those relays cannot follow it. MDK keeps retrying
+     * them; retry once they accept, or after `acknowledge_group_commit_undelivered`.
+     */
+    class GroupCommitUndelivered(
+        
+        val `groupIdHex`: kotlin.String
+        ) : MarmotKitException() {
+        override val message
+            get() = "groupIdHex=${ `groupIdHex` }"
+    }
+    
     class MemberNotInGroup(
         
         val `groupIdHex`: kotlin.String, 
@@ -33035,6 +38099,22 @@ sealed class MarmotKitException: kotlin.Exception() {
      * new `Marmot` when the app resumes.
      */
     class StorageClosed(
+        
+        val `details`: kotlin.String
+        ) : MarmotKitException() {
+        override val message
+            get() = "details=${ `details` }"
+    }
+    
+    /**
+     * The device has no room for this operation: free space would fall
+     * below the configured disk reserve, or the volume or database is full.
+     * A send refuses an attachment its disk cannot stage, before anything
+     * is uploaded or published (mdk#2314). Typed so hosts can tell the user
+     * to free space instead of reporting a generic failure; retry once
+     * space is available.
+     */
+    class StorageFull(
         
         val `details`: kotlin.String
         ) : MarmotKitException() {
@@ -33321,6 +38401,14 @@ sealed class MarmotKitException: kotlin.Exception() {
             get() = ""
     }
     
+    class InvalidAppComponent(
+        
+        val `details`: kotlin.String
+        ) : MarmotKitException() {
+        override val message
+            get() = "details=${ `details` }"
+    }
+    
 
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<MarmotKitException> {
         override fun lift(error_buf: RustBuffer.ByValue): MarmotKitException = FfiConverterTypeMarmotKitError.lift(error_buf)
@@ -33340,181 +38428,209 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
             1 -> MarmotKitException.UserBlocked()
             2 -> MarmotKitException.BlockListUnavailable()
             3 -> MarmotKitException.BlockPublicationUncertain()
-            4 -> MarmotKitException.ConsentRequired()
-            5 -> MarmotKitException.InvalidProductAnalyticsConfiguration()
-            6 -> MarmotKitException.InvalidProductObservation()
-            7 -> MarmotKitException.DuplicateIdentity(
+            4 -> MarmotKitException.ModerationReportingNotConfigured()
+            5 -> MarmotKitException.InvalidModerationReportConfig(
                 FfiConverterString.read(buf),
                 )
-            8 -> MarmotKitException.UnknownAccount(
+            6 -> MarmotKitException.InvalidReportedPublicKey()
+            7 -> MarmotKitException.CannotReportSelf()
+            8 -> MarmotKitException.ModerationReportRateLimited()
+            9 -> MarmotKitException.InvalidEditTarget()
+            10 -> MarmotKitException.ConsentRequired()
+            11 -> MarmotKitException.InvalidProductAnalyticsConfiguration()
+            12 -> MarmotKitException.InvalidProductObservation()
+            13 -> MarmotKitException.DuplicateIdentity(
                 FfiConverterString.read(buf),
                 )
-            9 -> MarmotKitException.UnknownGroup(
+            14 -> MarmotKitException.UnknownAccount(
                 FfiConverterString.read(buf),
                 )
-            10 -> MarmotKitException.GroupInviteNotPending()
-            11 -> MarmotKitException.CreatedGroupProjectionUnavailable(
+            15 -> MarmotKitException.UnknownGroup(
                 FfiConverterString.read(buf),
                 )
-            12 -> MarmotKitException.InvalidGroupMembershipPage(
+            16 -> MarmotKitException.GroupInviteNotPending()
+            17 -> MarmotKitException.CreatedGroupProjectionUnavailable(
+                FfiConverterString.read(buf),
+                )
+            18 -> MarmotKitException.InvalidGroupMembershipPage(
                 FfiConverterULong.read(buf),
                 )
-            13 -> MarmotKitException.InvalidCachedIdentityPage(
+            19 -> MarmotKitException.InvalidCachedIdentityPage(
                 FfiConverterULong.read(buf),
                 )
-            14 -> MarmotKitException.GroupHydrationPending(
+            20 -> MarmotKitException.InvalidPublicEventReferences(
+                FfiConverterULong.read(buf),
+                )
+            21 -> MarmotKitException.GroupHydrationPending(
                 FfiConverterString.read(buf),
                 )
-            15 -> MarmotKitException.DirectConversationIndexNotReady()
-            16 -> MarmotKitException.ChatPresentationNotReady()
-            17 -> MarmotKitException.InvalidChatPin(
+            22 -> MarmotKitException.DirectConversationIndexNotReady()
+            23 -> MarmotKitException.ChatPresentationNotReady()
+            24 -> MarmotKitException.InvalidChatPin(
                 FfiConverterString.read(buf),
                 )
-            18 -> MarmotKitException.InvalidMessageDraft(
+            25 -> MarmotKitException.InvalidMessageDraft(
                 FfiConverterString.read(buf),
                 )
-            19 -> MarmotKitException.InvalidMediaReference(
+            26 -> MarmotKitException.InvalidMediaReference(
                 FfiConverterString.read(buf),
                 )
-            20 -> MarmotKitException.MediaAttachmentRejected(
+            27 -> MarmotKitException.MediaAttachmentRejected(
                 FfiConverterTypeMediaAttachmentRejectionKindFfi.read(buf),
                 FfiConverterString.read(buf),
                 )
-            21 -> MarmotKitException.MediaUnfetchable(
+            28 -> MarmotKitException.MediaUnfetchable(
                 FfiConverterString.read(buf),
                 )
-            22 -> MarmotKitException.MediaDownloadFailed(
+            29 -> MarmotKitException.MediaDownloadFailed(
                 FfiConverterString.read(buf),
                 )
-            23 -> MarmotKitException.InvalidHex(
+            30 -> MarmotKitException.InvalidHex(
                 FfiConverterString.read(buf),
                 )
-            24 -> MarmotKitException.InvalidIdentity(
+            31 -> MarmotKitException.InvalidIdentity(
                 FfiConverterString.read(buf),
                 )
-            25 -> MarmotKitException.InvalidKeyPackageEvent(
+            32 -> MarmotKitException.InvalidKeyPackageEvent(
                 FfiConverterString.read(buf),
                 )
-            26 -> MarmotKitException.MissingKeyPackage(
+            33 -> MarmotKitException.MissingKeyPackage(
+                FfiConverterString.read(buf),
+                FfiConverterTypeMissingKeyPackageReasonFfi.read(buf),
+                )
+            34 -> MarmotKitException.MissingMemberInboxRoute(
                 FfiConverterString.read(buf),
                 )
-            27 -> MarmotKitException.MissingMemberInboxRoute(
+            35 -> MarmotKitException.DirectoryLookupIncomplete(
                 FfiConverterString.read(buf),
                 )
-            28 -> MarmotKitException.Publish(
+            36 -> MarmotKitException.Publish(
                 FfiConverterString.read(buf),
                 )
-            29 -> MarmotKitException.FollowListUnavailable()
-            30 -> MarmotKitException.TransportClosed()
-            31 -> MarmotKitException.RuntimeBusy()
-            32 -> MarmotKitException.AccountSessionBusy()
-            33 -> MarmotKitException.AccountSetupRecoveryRequired()
-            34 -> MarmotKitException.AccountSetupRetryRequired()
-            35 -> MarmotKitException.OnboardingActionUnavailable()
-            36 -> MarmotKitException.OnboardingRequired()
-            37 -> MarmotKitException.AccountSetupResetNotApplicable()
-            38 -> MarmotKitException.AccountSetupKeyPackageRecoveryAvailable()
-            39 -> MarmotKitException.RuntimeStopping()
-            40 -> MarmotKitException.AttachmentModeRequired()
-            41 -> MarmotKitException.AttachmentAccountSignedOut()
-            42 -> MarmotKitException.AccountCatchUp(
+            37 -> MarmotKitException.FollowListUnavailable()
+            38 -> MarmotKitException.FollowListTooLarge()
+            39 -> MarmotKitException.TransportClosed()
+            40 -> MarmotKitException.RuntimeBusy()
+            41 -> MarmotKitException.AccountSessionBusy()
+            42 -> MarmotKitException.AccountSetupRecoveryRequired()
+            43 -> MarmotKitException.AccountSetupRetryRequired()
+            44 -> MarmotKitException.OnboardingActionUnavailable()
+            45 -> MarmotKitException.OnboardingRequired()
+            46 -> MarmotKitException.AccountSetupResetNotApplicable()
+            47 -> MarmotKitException.AccountSetupKeyPackageRecoveryAvailable()
+            48 -> MarmotKitException.RuntimeStopping()
+            49 -> MarmotKitException.AttachmentModeRequired()
+            50 -> MarmotKitException.AttachmentAccountSignedOut()
+            51 -> MarmotKitException.AccountCatchUp(
                 FfiConverterString.read(buf),
                 )
-            43 -> MarmotKitException.NotGroupAdmin(
+            52 -> MarmotKitException.NotGroupAdmin(
                 FfiConverterString.read(buf),
                 )
-            44 -> MarmotKitException.AdminCannotSelfRemove(
+            53 -> MarmotKitException.AdminCannotSelfRemove(
                 FfiConverterString.read(buf),
                 )
-            45 -> MarmotKitException.LeaveAlreadyRequested(
+            54 -> MarmotKitException.LeaveAlreadyRequested(
                 FfiConverterString.read(buf),
                 )
-            46 -> MarmotKitException.WouldRemoveLastAdmin(
+            55 -> MarmotKitException.WouldRemoveLastAdmin(
                 FfiConverterString.read(buf),
                 )
-            47 -> MarmotKitException.DisbandingUnsupportedMembers(
+            56 -> MarmotKitException.DisbandingUnsupportedMembers(
                 FfiConverterString.read(buf),
                 FfiConverterSequenceString.read(buf),
                 )
-            48 -> MarmotKitException.DisbandingNotEnabled(
+            57 -> MarmotKitException.DisbandingNotEnabled(
                 FfiConverterString.read(buf),
                 )
-            49 -> MarmotKitException.GroupDisbanding(
+            58 -> MarmotKitException.GroupDisbanding(
                 FfiConverterString.read(buf),
                 )
-            50 -> MarmotKitException.GroupRemoved(
+            59 -> MarmotKitException.GroupRemoved(
                 FfiConverterString.read(buf),
                 )
-            51 -> MarmotKitException.MemberNotInGroup(
-                FfiConverterString.read(buf),
-                FfiConverterString.read(buf),
-                )
-            52 -> MarmotKitException.AlreadyAdmin(
-                FfiConverterString.read(buf),
+            60 -> MarmotKitException.GroupCatchingUp(
                 FfiConverterString.read(buf),
                 )
-            53 -> MarmotKitException.NotAdmin(
+            61 -> MarmotKitException.GroupCommitUndelivered(
+                FfiConverterString.read(buf),
+                )
+            62 -> MarmotKitException.MemberNotInGroup(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            54 -> MarmotKitException.StorageBusy(
+            63 -> MarmotKitException.AlreadyAdmin(
+                FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            55 -> MarmotKitException.StorageClosed(
+            64 -> MarmotKitException.NotAdmin(
+                FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            56 -> MarmotKitException.SecretNotFound(
+            65 -> MarmotKitException.StorageBusy(
                 FfiConverterString.read(buf),
                 )
-            57 -> MarmotKitException.KeystoreUnavailable(
+            66 -> MarmotKitException.StorageClosed(
                 FfiConverterString.read(buf),
                 )
-            58 -> MarmotKitException.EmptyPassphrase()
-            59 -> MarmotKitException.EncryptionFailed(
+            67 -> MarmotKitException.StorageFull(
                 FfiConverterString.read(buf),
                 )
-            60 -> MarmotKitException.Io(
+            68 -> MarmotKitException.SecretNotFound(
                 FfiConverterString.read(buf),
                 )
-            61 -> MarmotKitException.ExternalSignerUnavailable(
+            69 -> MarmotKitException.KeystoreUnavailable(
                 FfiConverterString.read(buf),
                 )
-            62 -> MarmotKitException.ExternalSignerMismatch()
-            63 -> MarmotKitException.ExternalSignerRejected()
-            64 -> MarmotKitException.GroupSendQueueFull(
+            70 -> MarmotKitException.EmptyPassphrase()
+            71 -> MarmotKitException.EncryptionFailed(
                 FfiConverterString.read(buf),
                 )
-            65 -> MarmotKitException.GroupUnrecoverableRepairRequired(
+            72 -> MarmotKitException.Io(
                 FfiConverterString.read(buf),
                 )
-            66 -> MarmotKitException.Runtime(
+            73 -> MarmotKitException.ExternalSignerUnavailable(
                 FfiConverterString.read(buf),
                 )
-            67 -> MarmotKitException.AccountWorkerBusy()
-            68 -> MarmotKitException.AccountWorkerResponseTimedOut()
-            69 -> MarmotKitException.ChatWindowInvalidLimit()
-            70 -> MarmotKitException.ChatWindowStale()
-            71 -> MarmotKitException.ChatWindowAnchorOutside()
-            72 -> MarmotKitException.ChatWindowClosed()
-            73 -> MarmotKitException.ChatWindowQuery(
+            74 -> MarmotKitException.ExternalSignerMismatch()
+            75 -> MarmotKitException.ExternalSignerRejected()
+            76 -> MarmotKitException.GroupSendQueueFull(
                 FfiConverterString.read(buf),
                 )
-            74 -> MarmotKitException.ConversationWindowInvalidLimit()
-            75 -> MarmotKitException.MessageDraftRevisionConflict()
-            76 -> MarmotKitException.ConversationWindowStale()
-            77 -> MarmotKitException.ConversationWindowWrongGeneration()
-            78 -> MarmotKitException.ConversationWindowAnchorOutside()
-            79 -> MarmotKitException.ConversationWindowClosed()
-            80 -> MarmotKitException.ConversationWindowNotReady()
-            81 -> MarmotKitException.ConversationWindowTimedOut()
-            82 -> MarmotKitException.ConversationWindowInvalidTarget()
-            83 -> MarmotKitException.ConversationWindowQuery(
+            77 -> MarmotKitException.GroupUnrecoverableRepairRequired(
                 FfiConverterString.read(buf),
                 )
-            84 -> MarmotKitException.ConversationWindowPresentation(
+            78 -> MarmotKitException.Runtime(
                 FfiConverterString.read(buf),
                 )
-            85 -> MarmotKitException.ConversationWindowMessageNotRetained()
+            79 -> MarmotKitException.AccountWorkerBusy()
+            80 -> MarmotKitException.AccountWorkerResponseTimedOut()
+            81 -> MarmotKitException.ChatWindowInvalidLimit()
+            82 -> MarmotKitException.ChatWindowStale()
+            83 -> MarmotKitException.ChatWindowAnchorOutside()
+            84 -> MarmotKitException.ChatWindowClosed()
+            85 -> MarmotKitException.ChatWindowQuery(
+                FfiConverterString.read(buf),
+                )
+            86 -> MarmotKitException.ConversationWindowInvalidLimit()
+            87 -> MarmotKitException.MessageDraftRevisionConflict()
+            88 -> MarmotKitException.ConversationWindowStale()
+            89 -> MarmotKitException.ConversationWindowWrongGeneration()
+            90 -> MarmotKitException.ConversationWindowAnchorOutside()
+            91 -> MarmotKitException.ConversationWindowClosed()
+            92 -> MarmotKitException.ConversationWindowNotReady()
+            93 -> MarmotKitException.ConversationWindowTimedOut()
+            94 -> MarmotKitException.ConversationWindowInvalidTarget()
+            95 -> MarmotKitException.ConversationWindowQuery(
+                FfiConverterString.read(buf),
+                )
+            96 -> MarmotKitException.ConversationWindowPresentation(
+                FfiConverterString.read(buf),
+                )
+            97 -> MarmotKitException.ConversationWindowMessageNotRetained()
+            98 -> MarmotKitException.InvalidAppComponent(
+                FfiConverterString.read(buf),
+                )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -33530,6 +38646,31 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 4UL
             )
             is MarmotKitException.BlockPublicationUncertain -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MarmotKitException.ModerationReportingNotConfigured -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MarmotKitException.InvalidModerationReportConfig -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`details`)
+            )
+            is MarmotKitException.InvalidReportedPublicKey -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MarmotKitException.CannotReportSelf -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MarmotKitException.ModerationReportRateLimited -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MarmotKitException.InvalidEditTarget -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
@@ -33578,6 +38719,11 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
                 + FfiConverterULong.allocationSize(value.`maxAccounts`)
+            )
+            is MarmotKitException.InvalidPublicEventReferences -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterULong.allocationSize(value.`maxReferences`)
             )
             is MarmotKitException.GroupHydrationPending -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
@@ -33642,8 +38788,14 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
                 + FfiConverterString.allocationSize(value.`account`)
+                + FfiConverterTypeMissingKeyPackageReasonFfi.allocationSize(value.`reason`)
             )
             is MarmotKitException.MissingMemberInboxRoute -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`account`)
+            )
+            is MarmotKitException.DirectoryLookupIncomplete -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
                 + FfiConverterString.allocationSize(value.`account`)
@@ -33654,6 +38806,10 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 + FfiConverterString.allocationSize(value.`details`)
             )
             is MarmotKitException.FollowListUnavailable -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is MarmotKitException.FollowListTooLarge -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
@@ -33751,6 +38907,16 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 4UL
                 + FfiConverterString.allocationSize(value.`groupIdHex`)
             )
+            is MarmotKitException.GroupCatchingUp -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`groupIdHex`)
+            )
+            is MarmotKitException.GroupCommitUndelivered -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`groupIdHex`)
+            )
             is MarmotKitException.MemberNotInGroup -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
@@ -33775,6 +38941,11 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 + FfiConverterString.allocationSize(value.`details`)
             )
             is MarmotKitException.StorageClosed -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`details`)
+            )
+            is MarmotKitException.StorageFull -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
                 + FfiConverterString.allocationSize(value.`details`)
@@ -33910,6 +39081,11 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
+            is MarmotKitException.InvalidAppComponent -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`details`)
+            )
         }
     }
 
@@ -33927,381 +39103,441 @@ public object FfiConverterTypeMarmotKitError : FfiConverterRustBuffer<MarmotKitE
                 buf.putInt(3)
                 Unit
             }
-            is MarmotKitException.ConsentRequired -> {
+            is MarmotKitException.ModerationReportingNotConfigured -> {
                 buf.putInt(4)
                 Unit
             }
-            is MarmotKitException.InvalidProductAnalyticsConfiguration -> {
+            is MarmotKitException.InvalidModerationReportConfig -> {
                 buf.putInt(5)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.InvalidProductObservation -> {
+            is MarmotKitException.InvalidReportedPublicKey -> {
                 buf.putInt(6)
                 Unit
             }
-            is MarmotKitException.DuplicateIdentity -> {
+            is MarmotKitException.CannotReportSelf -> {
                 buf.putInt(7)
+                Unit
+            }
+            is MarmotKitException.ModerationReportRateLimited -> {
+                buf.putInt(8)
+                Unit
+            }
+            is MarmotKitException.InvalidEditTarget -> {
+                buf.putInt(9)
+                Unit
+            }
+            is MarmotKitException.ConsentRequired -> {
+                buf.putInt(10)
+                Unit
+            }
+            is MarmotKitException.InvalidProductAnalyticsConfiguration -> {
+                buf.putInt(11)
+                Unit
+            }
+            is MarmotKitException.InvalidProductObservation -> {
+                buf.putInt(12)
+                Unit
+            }
+            is MarmotKitException.DuplicateIdentity -> {
+                buf.putInt(13)
                 FfiConverterString.write(value.`account`, buf)
                 Unit
             }
             is MarmotKitException.UnknownAccount -> {
-                buf.putInt(8)
+                buf.putInt(14)
                 FfiConverterString.write(value.`accountRef`, buf)
                 Unit
             }
             is MarmotKitException.UnknownGroup -> {
-                buf.putInt(9)
+                buf.putInt(15)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.GroupInviteNotPending -> {
-                buf.putInt(10)
+                buf.putInt(16)
                 Unit
             }
             is MarmotKitException.CreatedGroupProjectionUnavailable -> {
-                buf.putInt(11)
+                buf.putInt(17)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.InvalidGroupMembershipPage -> {
-                buf.putInt(12)
+                buf.putInt(18)
                 FfiConverterULong.write(value.`maxGroups`, buf)
                 Unit
             }
             is MarmotKitException.InvalidCachedIdentityPage -> {
-                buf.putInt(13)
+                buf.putInt(19)
                 FfiConverterULong.write(value.`maxAccounts`, buf)
                 Unit
             }
+            is MarmotKitException.InvalidPublicEventReferences -> {
+                buf.putInt(20)
+                FfiConverterULong.write(value.`maxReferences`, buf)
+                Unit
+            }
             is MarmotKitException.GroupHydrationPending -> {
-                buf.putInt(14)
+                buf.putInt(21)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.DirectConversationIndexNotReady -> {
-                buf.putInt(15)
+                buf.putInt(22)
                 Unit
             }
             is MarmotKitException.ChatPresentationNotReady -> {
-                buf.putInt(16)
+                buf.putInt(23)
                 Unit
             }
             is MarmotKitException.InvalidChatPin -> {
-                buf.putInt(17)
+                buf.putInt(24)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.InvalidMessageDraft -> {
-                buf.putInt(18)
+                buf.putInt(25)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.InvalidMediaReference -> {
-                buf.putInt(19)
+                buf.putInt(26)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.MediaAttachmentRejected -> {
-                buf.putInt(20)
+                buf.putInt(27)
                 FfiConverterTypeMediaAttachmentRejectionKindFfi.write(value.`kind`, buf)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.MediaUnfetchable -> {
-                buf.putInt(21)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.MediaDownloadFailed -> {
-                buf.putInt(22)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.InvalidHex -> {
-                buf.putInt(23)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.InvalidIdentity -> {
-                buf.putInt(24)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.InvalidKeyPackageEvent -> {
-                buf.putInt(25)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.MissingKeyPackage -> {
-                buf.putInt(26)
-                FfiConverterString.write(value.`account`, buf)
-                Unit
-            }
-            is MarmotKitException.MissingMemberInboxRoute -> {
-                buf.putInt(27)
-                FfiConverterString.write(value.`account`, buf)
-                Unit
-            }
-            is MarmotKitException.Publish -> {
                 buf.putInt(28)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.FollowListUnavailable -> {
+            is MarmotKitException.MediaDownloadFailed -> {
                 buf.putInt(29)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.TransportClosed -> {
+            is MarmotKitException.InvalidHex -> {
                 buf.putInt(30)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.RuntimeBusy -> {
+            is MarmotKitException.InvalidIdentity -> {
                 buf.putInt(31)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.AccountSessionBusy -> {
+            is MarmotKitException.InvalidKeyPackageEvent -> {
                 buf.putInt(32)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.AccountSetupRecoveryRequired -> {
+            is MarmotKitException.MissingKeyPackage -> {
                 buf.putInt(33)
+                FfiConverterString.write(value.`account`, buf)
+                FfiConverterTypeMissingKeyPackageReasonFfi.write(value.`reason`, buf)
                 Unit
             }
-            is MarmotKitException.AccountSetupRetryRequired -> {
+            is MarmotKitException.MissingMemberInboxRoute -> {
                 buf.putInt(34)
+                FfiConverterString.write(value.`account`, buf)
                 Unit
             }
-            is MarmotKitException.OnboardingActionUnavailable -> {
+            is MarmotKitException.DirectoryLookupIncomplete -> {
                 buf.putInt(35)
+                FfiConverterString.write(value.`account`, buf)
                 Unit
             }
-            is MarmotKitException.OnboardingRequired -> {
+            is MarmotKitException.Publish -> {
                 buf.putInt(36)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.AccountSetupResetNotApplicable -> {
+            is MarmotKitException.FollowListUnavailable -> {
                 buf.putInt(37)
                 Unit
             }
-            is MarmotKitException.AccountSetupKeyPackageRecoveryAvailable -> {
+            is MarmotKitException.FollowListTooLarge -> {
                 buf.putInt(38)
                 Unit
             }
-            is MarmotKitException.RuntimeStopping -> {
+            is MarmotKitException.TransportClosed -> {
                 buf.putInt(39)
                 Unit
             }
-            is MarmotKitException.AttachmentModeRequired -> {
+            is MarmotKitException.RuntimeBusy -> {
                 buf.putInt(40)
                 Unit
             }
-            is MarmotKitException.AttachmentAccountSignedOut -> {
+            is MarmotKitException.AccountSessionBusy -> {
                 buf.putInt(41)
                 Unit
             }
-            is MarmotKitException.AccountCatchUp -> {
+            is MarmotKitException.AccountSetupRecoveryRequired -> {
                 buf.putInt(42)
+                Unit
+            }
+            is MarmotKitException.AccountSetupRetryRequired -> {
+                buf.putInt(43)
+                Unit
+            }
+            is MarmotKitException.OnboardingActionUnavailable -> {
+                buf.putInt(44)
+                Unit
+            }
+            is MarmotKitException.OnboardingRequired -> {
+                buf.putInt(45)
+                Unit
+            }
+            is MarmotKitException.AccountSetupResetNotApplicable -> {
+                buf.putInt(46)
+                Unit
+            }
+            is MarmotKitException.AccountSetupKeyPackageRecoveryAvailable -> {
+                buf.putInt(47)
+                Unit
+            }
+            is MarmotKitException.RuntimeStopping -> {
+                buf.putInt(48)
+                Unit
+            }
+            is MarmotKitException.AttachmentModeRequired -> {
+                buf.putInt(49)
+                Unit
+            }
+            is MarmotKitException.AttachmentAccountSignedOut -> {
+                buf.putInt(50)
+                Unit
+            }
+            is MarmotKitException.AccountCatchUp -> {
+                buf.putInt(51)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.NotGroupAdmin -> {
-                buf.putInt(43)
+                buf.putInt(52)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.AdminCannotSelfRemove -> {
-                buf.putInt(44)
+                buf.putInt(53)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.LeaveAlreadyRequested -> {
-                buf.putInt(45)
+                buf.putInt(54)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.WouldRemoveLastAdmin -> {
-                buf.putInt(46)
+                buf.putInt(55)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.DisbandingUnsupportedMembers -> {
-                buf.putInt(47)
+                buf.putInt(56)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 FfiConverterSequenceString.write(value.`memberIdsHex`, buf)
                 Unit
             }
             is MarmotKitException.DisbandingNotEnabled -> {
-                buf.putInt(48)
+                buf.putInt(57)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.GroupDisbanding -> {
-                buf.putInt(49)
+                buf.putInt(58)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.GroupRemoved -> {
-                buf.putInt(50)
+                buf.putInt(59)
+                FfiConverterString.write(value.`groupIdHex`, buf)
+                Unit
+            }
+            is MarmotKitException.GroupCatchingUp -> {
+                buf.putInt(60)
+                FfiConverterString.write(value.`groupIdHex`, buf)
+                Unit
+            }
+            is MarmotKitException.GroupCommitUndelivered -> {
+                buf.putInt(61)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 Unit
             }
             is MarmotKitException.MemberNotInGroup -> {
-                buf.putInt(51)
+                buf.putInt(62)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 FfiConverterString.write(value.`memberIdHex`, buf)
                 Unit
             }
             is MarmotKitException.AlreadyAdmin -> {
-                buf.putInt(52)
+                buf.putInt(63)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 FfiConverterString.write(value.`memberIdHex`, buf)
                 Unit
             }
             is MarmotKitException.NotAdmin -> {
-                buf.putInt(53)
+                buf.putInt(64)
                 FfiConverterString.write(value.`groupIdHex`, buf)
                 FfiConverterString.write(value.`memberIdHex`, buf)
                 Unit
             }
             is MarmotKitException.StorageBusy -> {
-                buf.putInt(54)
+                buf.putInt(65)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.StorageClosed -> {
-                buf.putInt(55)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.SecretNotFound -> {
-                buf.putInt(56)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.KeystoreUnavailable -> {
-                buf.putInt(57)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.EmptyPassphrase -> {
-                buf.putInt(58)
-                Unit
-            }
-            is MarmotKitException.EncryptionFailed -> {
-                buf.putInt(59)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.Io -> {
-                buf.putInt(60)
-                FfiConverterString.write(value.`details`, buf)
-                Unit
-            }
-            is MarmotKitException.ExternalSignerUnavailable -> {
-                buf.putInt(61)
-                FfiConverterString.write(value.`account`, buf)
-                Unit
-            }
-            is MarmotKitException.ExternalSignerMismatch -> {
-                buf.putInt(62)
-                Unit
-            }
-            is MarmotKitException.ExternalSignerRejected -> {
-                buf.putInt(63)
-                Unit
-            }
-            is MarmotKitException.GroupSendQueueFull -> {
-                buf.putInt(64)
-                FfiConverterString.write(value.`groupIdHex`, buf)
-                Unit
-            }
-            is MarmotKitException.GroupUnrecoverableRepairRequired -> {
-                buf.putInt(65)
-                FfiConverterString.write(value.`groupIdHex`, buf)
-                Unit
-            }
-            is MarmotKitException.Runtime -> {
                 buf.putInt(66)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.AccountWorkerBusy -> {
+            is MarmotKitException.StorageFull -> {
                 buf.putInt(67)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.AccountWorkerResponseTimedOut -> {
+            is MarmotKitException.SecretNotFound -> {
                 buf.putInt(68)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.ChatWindowInvalidLimit -> {
+            is MarmotKitException.KeystoreUnavailable -> {
                 buf.putInt(69)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
-            is MarmotKitException.ChatWindowStale -> {
+            is MarmotKitException.EmptyPassphrase -> {
                 buf.putInt(70)
                 Unit
             }
-            is MarmotKitException.ChatWindowAnchorOutside -> {
+            is MarmotKitException.EncryptionFailed -> {
                 buf.putInt(71)
+                FfiConverterString.write(value.`details`, buf)
+                Unit
+            }
+            is MarmotKitException.Io -> {
+                buf.putInt(72)
+                FfiConverterString.write(value.`details`, buf)
+                Unit
+            }
+            is MarmotKitException.ExternalSignerUnavailable -> {
+                buf.putInt(73)
+                FfiConverterString.write(value.`account`, buf)
+                Unit
+            }
+            is MarmotKitException.ExternalSignerMismatch -> {
+                buf.putInt(74)
+                Unit
+            }
+            is MarmotKitException.ExternalSignerRejected -> {
+                buf.putInt(75)
+                Unit
+            }
+            is MarmotKitException.GroupSendQueueFull -> {
+                buf.putInt(76)
+                FfiConverterString.write(value.`groupIdHex`, buf)
+                Unit
+            }
+            is MarmotKitException.GroupUnrecoverableRepairRequired -> {
+                buf.putInt(77)
+                FfiConverterString.write(value.`groupIdHex`, buf)
+                Unit
+            }
+            is MarmotKitException.Runtime -> {
+                buf.putInt(78)
+                FfiConverterString.write(value.`details`, buf)
+                Unit
+            }
+            is MarmotKitException.AccountWorkerBusy -> {
+                buf.putInt(79)
+                Unit
+            }
+            is MarmotKitException.AccountWorkerResponseTimedOut -> {
+                buf.putInt(80)
+                Unit
+            }
+            is MarmotKitException.ChatWindowInvalidLimit -> {
+                buf.putInt(81)
+                Unit
+            }
+            is MarmotKitException.ChatWindowStale -> {
+                buf.putInt(82)
+                Unit
+            }
+            is MarmotKitException.ChatWindowAnchorOutside -> {
+                buf.putInt(83)
                 Unit
             }
             is MarmotKitException.ChatWindowClosed -> {
-                buf.putInt(72)
+                buf.putInt(84)
                 Unit
             }
             is MarmotKitException.ChatWindowQuery -> {
-                buf.putInt(73)
+                buf.putInt(85)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.ConversationWindowInvalidLimit -> {
-                buf.putInt(74)
+                buf.putInt(86)
                 Unit
             }
             is MarmotKitException.MessageDraftRevisionConflict -> {
-                buf.putInt(75)
+                buf.putInt(87)
                 Unit
             }
             is MarmotKitException.ConversationWindowStale -> {
-                buf.putInt(76)
+                buf.putInt(88)
                 Unit
             }
             is MarmotKitException.ConversationWindowWrongGeneration -> {
-                buf.putInt(77)
+                buf.putInt(89)
                 Unit
             }
             is MarmotKitException.ConversationWindowAnchorOutside -> {
-                buf.putInt(78)
+                buf.putInt(90)
                 Unit
             }
             is MarmotKitException.ConversationWindowClosed -> {
-                buf.putInt(79)
+                buf.putInt(91)
                 Unit
             }
             is MarmotKitException.ConversationWindowNotReady -> {
-                buf.putInt(80)
+                buf.putInt(92)
                 Unit
             }
             is MarmotKitException.ConversationWindowTimedOut -> {
-                buf.putInt(81)
+                buf.putInt(93)
                 Unit
             }
             is MarmotKitException.ConversationWindowInvalidTarget -> {
-                buf.putInt(82)
+                buf.putInt(94)
                 Unit
             }
             is MarmotKitException.ConversationWindowQuery -> {
-                buf.putInt(83)
+                buf.putInt(95)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.ConversationWindowPresentation -> {
-                buf.putInt(84)
+                buf.putInt(96)
                 FfiConverterString.write(value.`details`, buf)
                 Unit
             }
             is MarmotKitException.ConversationWindowMessageNotRetained -> {
-                buf.putInt(85)
+                buf.putInt(97)
+                Unit
+            }
+            is MarmotKitException.InvalidAppComponent -> {
+                buf.putInt(98)
+                FfiConverterString.write(value.`details`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -34616,6 +39852,49 @@ public object FfiConverterTypeMessageUpdateFfi : FfiConverterRustBuffer<MessageU
 
 
 /**
+ * Why a completed KeyPackage lookup found nothing to invite. Describes the
+ * searched relays only; the set only grows.
+ */
+
+enum class MissingKeyPackageReasonFfi {
+    
+    /**
+     * No KeyPackage publication was found.
+     */
+    NOT_FOUND,
+    /**
+     * Only legacy-profile KeyPackages were found: the recipient must update
+     * their app and publish a current KeyPackage.
+     */
+    OBSOLETE_ONLY;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeMissingKeyPackageReasonFfi: FfiConverterRustBuffer<MissingKeyPackageReasonFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        MissingKeyPackageReasonFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: MissingKeyPackageReasonFfi) = 4UL
+
+    override fun write(value: MissingKeyPackageReasonFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
  * A relay list the account is missing, as a stable typed variant clients
  * localize without parsing strings (mdk#565).
  */
@@ -34649,6 +39928,134 @@ public object FfiConverterTypeMissingRelayListKindFfi: FfiConverterRustBuffer<Mi
     override fun allocationSize(value: MissingRelayListKindFfi) = 4UL
 
     override fun write(value: MissingRelayListKindFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Which user action produced a moderation report.
+ */
+
+enum class ModerationReportOriginFfi {
+    
+    REPORT,
+    /**
+     * "Block and Report". Blocking itself is a separate `block_user` call.
+     */
+    BLOCK_AND_REPORT;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeModerationReportOriginFfi: FfiConverterRustBuffer<ModerationReportOriginFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        ModerationReportOriginFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: ModerationReportOriginFfi) = 4UL
+
+    override fun write(value: ModerationReportOriginFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Fixed outcome labels for opt-in native startup capture.
+ */
+
+enum class NativeStartupOutcomeFfi {
+    
+    ACTIVE,
+    SUCCESS,
+    FAILURE,
+    ABANDONED;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeStartupOutcomeFfi: FfiConverterRustBuffer<NativeStartupOutcomeFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        NativeStartupOutcomeFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeStartupOutcomeFfi) = 4UL
+
+    override fun write(value: NativeStartupOutcomeFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Fixed stage labels for opt-in native startup capture.
+ */
+
+enum class NativeStartupStageFfi {
+    
+    ATTACHMENT_TASK_QUEUED,
+    ACCOUNT_RESOLUTION,
+    ACCOUNT_STORAGE_CACHE,
+    STORAGE_ADMISSION,
+    DATABASE_OPEN_LOCK,
+    SIGNING_KEYS,
+    EXTERNAL_DATABASE_SECRET,
+    KEY_DERIVATION,
+    SALT_READ,
+    RECOVERY_PROBE,
+    RECOVERY_REKEY,
+    ENCRYPTED_STORE_OPEN,
+    CIPHER_CONFIGURATION,
+    CIPHER_KEY_APPLICATION,
+    OPERATIONAL_PRAGMAS,
+    MIGRATION_INSPECTION,
+    MIGRATION_APPLY,
+    ATTACHMENT_LOCAL_READ,
+    ATTACHMENT_FUTURE_WAIT,
+    PRODUCT_ANALYTICS_ADMISSION;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeStartupStageFfi: FfiConverterRustBuffer<NativeStartupStageFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        NativeStartupStageFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeStartupStageFfi) = 4UL
+
+    override fun write(value: NativeStartupStageFfi, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
     }
 }
@@ -34834,6 +40241,75 @@ public object FfiConverterTypeOnboardingActionFfi: FfiConverterRustBuffer<Onboar
 
 
 
+enum class OnboardingCheckOutcomeFfi {
+    
+    UNKNOWN,
+    SUCCESS,
+    FAILURE;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingCheckOutcomeFfi: FfiConverterRustBuffer<OnboardingCheckOutcomeFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingCheckOutcomeFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingCheckOutcomeFfi) = 4UL
+
+    override fun write(value: OnboardingCheckOutcomeFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class OnboardingCheckPurposeFfi {
+    
+    UNKNOWN,
+    RECORD_LOOKUP,
+    DECLARATION_VALIDATION,
+    DIRECTORY_QUERY,
+    SOURCE_FRESHNESS,
+    EVENT_PUBLICATION;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingCheckPurposeFfi: FfiConverterRustBuffer<OnboardingCheckPurposeFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingCheckPurposeFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingCheckPurposeFfi) = 4UL
+
+    override fun write(value: OnboardingCheckPurposeFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
 enum class OnboardingDeviceDiscoveryFfi {
     
     NONE_FOUND,
@@ -34867,6 +40343,42 @@ public object FfiConverterTypeOnboardingDeviceDiscoveryFfi: FfiConverterRustBuff
 
 
 
+enum class OnboardingFindingContextFfi {
+    
+    UNKNOWN,
+    RECORD_DISCOVERY,
+    PUBLISHED_DECLARATION,
+    DECLARED_ROUTE,
+    REPAIR_APPROVAL,
+    REPAIR_PUBLICATION;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingFindingContextFfi: FfiConverterRustBuffer<OnboardingFindingContextFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingFindingContextFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingFindingContextFfi) = 4UL
+
+    override fun write(value: OnboardingFindingContextFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
 enum class OnboardingIssueFfi {
     
     MISSING,
@@ -34889,7 +40401,8 @@ enum class OnboardingIssueFfi {
     TOO_MANY_RELAYS,
     MULTI_DEVICE_UNSUPPORTED,
     OTHER_INSTALLATION_POSSIBLE,
-    DISCOVERY_INCOMPLETE;
+    DISCOVERY_INCOMPLETE,
+    INSPECTION_COMPLETED;
     companion object
 }
 
@@ -34909,6 +40422,143 @@ public object FfiConverterTypeOnboardingIssueFfi: FfiConverterRustBuffer<Onboard
     override fun allocationSize(value: OnboardingIssueFfi) = 4UL
 
     override fun write(value: OnboardingIssueFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class OnboardingRelayCapabilityFfi {
+    
+    NONE,
+    READ,
+    WRITE,
+    READ_AND_WRITE,
+    INBOX;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayCapabilityFfi: FfiConverterRustBuffer<OnboardingRelayCapabilityFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingRelayCapabilityFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingRelayCapabilityFfi) = 4UL
+
+    override fun write(value: OnboardingRelayCapabilityFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class OnboardingRelayRepairModeFfi {
+    
+    MANUAL_REVIEW,
+    REMOVAL_ONLY,
+    ADDITIVE,
+    REMOVAL_AND_ADDITIVE;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayRepairModeFfi: FfiConverterRustBuffer<OnboardingRelayRepairModeFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingRelayRepairModeFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingRelayRepairModeFfi) = 4UL
+
+    override fun write(value: OnboardingRelayRepairModeFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class OnboardingRelayTagDispositionFfi {
+    
+    RETAINED,
+    REMOVED,
+    ADDED;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayTagDispositionFfi: FfiConverterRustBuffer<OnboardingRelayTagDispositionFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingRelayTagDispositionFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingRelayTagDispositionFfi) = 4UL
+
+    override fun write(value: OnboardingRelayTagDispositionFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class OnboardingRelayTagRoleFfi {
+    
+    OTHER,
+    UNMARKED,
+    READ,
+    WRITE,
+    INBOX;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOnboardingRelayTagRoleFfi: FfiConverterRustBuffer<OnboardingRelayTagRoleFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        OnboardingRelayTagRoleFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: OnboardingRelayTagRoleFfi) = 4UL
+
+    override fun write(value: OnboardingRelayTagRoleFfi, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
     }
 }
@@ -35377,6 +41027,55 @@ public object FfiConverterTypeProductRecordResultFfi: FfiConverterRustBuffer<Pro
 
 
 
+/**
+ * Local state of one referenced public event.
+ */
+
+enum class PublicEventPreviewStateFfi {
+    
+    /**
+     * `event_json` and `fetched_at` are set.
+     */
+    PRESENT,
+    /**
+     * The author published a NIP-09 deletion request for the event.
+     */
+    DELETED,
+    /**
+     * Nothing is cached. Not durable: a refresh may still find it.
+     */
+    MISSING,
+    /**
+     * Not a `note`, `nevent`, `naddr` or hex event ID.
+     */
+    UNSUPPORTED;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePublicEventPreviewStateFfi: FfiConverterRustBuffer<PublicEventPreviewStateFfi> {
+    override fun read(buf: ByteBuffer) = try {
+        
+        PublicEventPreviewStateFfi.entries[buf.getInt() - 1]
+        
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: PublicEventPreviewStateFfi) = 4UL
+
+    override fun write(value: PublicEventPreviewStateFfi, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
 
 enum class PublisherRecordFfi {
     
@@ -35627,7 +41326,6 @@ enum class RetentionSweepStatusFfi {
     PRUNED,
     DEFERRED_CLOCK_SKEW,
     DEFERRED_UNREAD,
-    DEFERRED_SCAN_EXHAUSTED,
     FAILED;
     companion object
 }
@@ -36669,6 +42367,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeAccountAttachmentCursor: FfiConverterRustBuffer<AccountAttachmentCursor?> {
+    override fun read(buf: ByteBuffer): AccountAttachmentCursor? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeAccountAttachmentCursor.read(buf)
+    }
+
+    override fun allocationSize(value: AccountAttachmentCursor?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeAccountAttachmentCursor.allocationSize(value)
+        }
+    }
+
+    override fun write(value: AccountAttachmentCursor?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeAccountAttachmentCursor.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeAttachmentHistoryCursor: FfiConverterRustBuffer<AttachmentHistoryCursor?> {
     override fun read(buf: ByteBuffer): AttachmentHistoryCursor? {
         if (buf.get().toInt() == 0) {
@@ -36691,6 +42421,134 @@ public object FfiConverterOptionalTypeAttachmentHistoryCursor: FfiConverterRustB
         } else {
             buf.put(1)
             FfiConverterTypeAttachmentHistoryCursor.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeChatListDraftVersionFfi: FfiConverterRustBuffer<ChatListDraftVersionFfi?> {
+    override fun read(buf: ByteBuffer): ChatListDraftVersionFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeChatListDraftVersionFfi.read(buf)
+    }
+
+    override fun allocationSize(value: ChatListDraftVersionFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeChatListDraftVersionFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: ChatListDraftVersionFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeChatListDraftVersionFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeChatStorageCursor: FfiConverterRustBuffer<ChatStorageCursor?> {
+    override fun read(buf: ByteBuffer): ChatStorageCursor? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeChatStorageCursor.read(buf)
+    }
+
+    override fun allocationSize(value: ChatStorageCursor?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeChatStorageCursor.allocationSize(value)
+        }
+    }
+
+    override fun write(value: ChatStorageCursor?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeChatStorageCursor.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeMessageDraftRevisionFfi: FfiConverterRustBuffer<MessageDraftRevisionFfi?> {
+    override fun read(buf: ByteBuffer): MessageDraftRevisionFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeMessageDraftRevisionFfi.read(buf)
+    }
+
+    override fun allocationSize(value: MessageDraftRevisionFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeMessageDraftRevisionFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: MessageDraftRevisionFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeMessageDraftRevisionFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeRetainedAttachmentsCursor: FfiConverterRustBuffer<RetainedAttachmentsCursor?> {
+    override fun read(buf: ByteBuffer): RetainedAttachmentsCursor? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeRetainedAttachmentsCursor.read(buf)
+    }
+
+    override fun allocationSize(value: RetainedAttachmentsCursor?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeRetainedAttachmentsCursor.allocationSize(value)
+        }
+    }
+
+    override fun write(value: RetainedAttachmentsCursor?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeRetainedAttachmentsCursor.write(value, buf)
         }
     }
 }
@@ -36787,6 +42645,38 @@ public object FfiConverterOptionalTypeAppGroupRecordFfi: FfiConverterRustBuffer<
         } else {
             buf.put(1)
             FfiConverterTypeAppGroupRecordFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeAttachmentHandoffFfi: FfiConverterRustBuffer<AttachmentHandoffFfi?> {
+    override fun read(buf: ByteBuffer): AttachmentHandoffFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeAttachmentHandoffFfi.read(buf)
+    }
+
+    override fun allocationSize(value: AttachmentHandoffFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeAttachmentHandoffFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: AttachmentHandoffFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeAttachmentHandoffFfi.write(value, buf)
         }
     }
 }
@@ -37149,6 +43039,70 @@ public object FfiConverterOptionalTypeExistingDirectConversationFfi: FfiConverte
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeGroupAppComponentFfi: FfiConverterRustBuffer<GroupAppComponentFfi?> {
+    override fun read(buf: ByteBuffer): GroupAppComponentFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeGroupAppComponentFfi.read(buf)
+    }
+
+    override fun allocationSize(value: GroupAppComponentFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeGroupAppComponentFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: GroupAppComponentFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeGroupAppComponentFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeGroupCommitDeliveryFfi: FfiConverterRustBuffer<GroupCommitDeliveryFfi?> {
+    override fun read(buf: ByteBuffer): GroupCommitDeliveryFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeGroupCommitDeliveryFfi.read(buf)
+    }
+
+    override fun allocationSize(value: GroupCommitDeliveryFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeGroupCommitDeliveryFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: GroupCommitDeliveryFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeGroupCommitDeliveryFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeGroupSystemEventFfi: FfiConverterRustBuffer<GroupSystemEventFfi?> {
     override fun read(buf: ByteBuffer): GroupSystemEventFfi? {
         if (buf.get().toInt() == 0) {
@@ -37309,6 +43263,38 @@ public object FfiConverterOptionalTypeMessageDraftFfi: FfiConverterRustBuffer<Me
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeModerationReportConfigFfi: FfiConverterRustBuffer<ModerationReportConfigFfi?> {
+    override fun read(buf: ByteBuffer): ModerationReportConfigFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeModerationReportConfigFfi.read(buf)
+    }
+
+    override fun allocationSize(value: ModerationReportConfigFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeModerationReportConfigFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: ModerationReportConfigFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeModerationReportConfigFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeNotificationUpdateFfi: FfiConverterRustBuffer<NotificationUpdateFfi?> {
     override fun read(buf: ByteBuffer): NotificationUpdateFfi? {
         if (buf.get().toInt() == 0) {
@@ -37331,6 +43317,38 @@ public object FfiConverterOptionalTypeNotificationUpdateFfi: FfiConverterRustBuf
         } else {
             buf.put(1)
             FfiConverterTypeNotificationUpdateFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeOnboardingRelayRepairFfi: FfiConverterRustBuffer<OnboardingRelayRepairFfi?> {
+    override fun read(buf: ByteBuffer): OnboardingRelayRepairFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeOnboardingRelayRepairFfi.read(buf)
+    }
+
+    override fun allocationSize(value: OnboardingRelayRepairFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeOnboardingRelayRepairFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: OnboardingRelayRepairFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeOnboardingRelayRepairFfi.write(value, buf)
         }
     }
 }
@@ -37427,6 +43445,38 @@ public object FfiConverterOptionalTypeOnboardingSnapshotFfi: FfiConverterRustBuf
         } else {
             buf.put(1)
             FfiConverterTypeOnboardingSnapshotFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeOpenRankingProviderFfi: FfiConverterRustBuffer<OpenRankingProviderFfi?> {
+    override fun read(buf: ByteBuffer): OpenRankingProviderFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeOpenRankingProviderFfi.read(buf)
+    }
+
+    override fun allocationSize(value: OpenRankingProviderFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeOpenRankingProviderFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: OpenRankingProviderFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeOpenRankingProviderFfi.write(value, buf)
         }
     }
 }
@@ -38445,6 +44495,34 @@ public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.Str
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeAccountAttachmentEntryFfi: FfiConverterRustBuffer<List<AccountAttachmentEntryFfi>> {
+    override fun read(buf: ByteBuffer): List<AccountAttachmentEntryFfi> {
+        val len = buf.getInt()
+        return List<AccountAttachmentEntryFfi>(len) {
+            FfiConverterTypeAccountAttachmentEntryFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<AccountAttachmentEntryFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeAccountAttachmentEntryFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<AccountAttachmentEntryFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeAccountAttachmentEntryFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeAccountAttentionEntryFfi: FfiConverterRustBuffer<List<AccountAttentionEntryFfi>> {
     override fun read(buf: ByteBuffer): List<AccountAttentionEntryFfi> {
         val len = buf.getInt()
@@ -39061,6 +45139,34 @@ public object FfiConverterSequenceTypeCachedIdentityProjectionFfi: FfiConverterR
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeChatAttachmentUsageFfi: FfiConverterRustBuffer<List<ChatAttachmentUsageFfi>> {
+    override fun read(buf: ByteBuffer): List<ChatAttachmentUsageFfi> {
+        val len = buf.getInt()
+        return List<ChatAttachmentUsageFfi>(len) {
+            FfiConverterTypeChatAttachmentUsageFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<ChatAttachmentUsageFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeChatAttachmentUsageFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<ChatAttachmentUsageFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeChatAttachmentUsageFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeChatListRowFfi: FfiConverterRustBuffer<List<ChatListRowFfi>> {
     override fun read(buf: ByteBuffer): List<ChatListRowFfi> {
         val len = buf.getInt()
@@ -39537,6 +45643,34 @@ public object FfiConverterSequenceTypeMediaAttachmentReferenceFfi: FfiConverterR
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeMediaFileUploadAttachmentRequestFfi: FfiConverterRustBuffer<List<MediaFileUploadAttachmentRequestFfi>> {
+    override fun read(buf: ByteBuffer): List<MediaFileUploadAttachmentRequestFfi> {
+        val len = buf.getInt()
+        return List<MediaFileUploadAttachmentRequestFfi>(len) {
+            FfiConverterTypeMediaFileUploadAttachmentRequestFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<MediaFileUploadAttachmentRequestFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeMediaFileUploadAttachmentRequestFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<MediaFileUploadAttachmentRequestFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeMediaFileUploadAttachmentRequestFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeMediaLocatorFfi: FfiConverterRustBuffer<List<MediaLocatorFfi>> {
     override fun read(buf: ByteBuffer): List<MediaLocatorFfi> {
         val len = buf.getInt()
@@ -39761,6 +45895,34 @@ public object FfiConverterSequenceTypeMessageTagFfi: FfiConverterRustBuffer<List
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeNativeStartupObservationFfi: FfiConverterRustBuffer<List<NativeStartupObservationFfi>> {
+    override fun read(buf: ByteBuffer): List<NativeStartupObservationFfi> {
+        val len = buf.getInt()
+        return List<NativeStartupObservationFfi>(len) {
+            FfiConverterTypeNativeStartupObservationFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<NativeStartupObservationFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeNativeStartupObservationFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<NativeStartupObservationFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeNativeStartupObservationFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeNotificationUpdateFfi: FfiConverterRustBuffer<List<NotificationUpdateFfi>> {
     override fun read(buf: ByteBuffer): List<NotificationUpdateFfi> {
         val len = buf.getInt()
@@ -39845,6 +46007,62 @@ public object FfiConverterSequenceTypeOnboardingFindingFfi: FfiConverterRustBuff
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeOnboardingRelayTagChangeFfi: FfiConverterRustBuffer<List<OnboardingRelayTagChangeFfi>> {
+    override fun read(buf: ByteBuffer): List<OnboardingRelayTagChangeFfi> {
+        val len = buf.getInt()
+        return List<OnboardingRelayTagChangeFfi>(len) {
+            FfiConverterTypeOnboardingRelayTagChangeFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<OnboardingRelayTagChangeFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeOnboardingRelayTagChangeFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<OnboardingRelayTagChangeFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeOnboardingRelayTagChangeFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeOnboardingRelayTagFfi: FfiConverterRustBuffer<List<OnboardingRelayTagFfi>> {
+    override fun read(buf: ByteBuffer): List<OnboardingRelayTagFfi> {
+        val len = buf.getInt()
+        return List<OnboardingRelayTagFfi>(len) {
+            FfiConverterTypeOnboardingRelayTagFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<OnboardingRelayTagFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeOnboardingRelayTagFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<OnboardingRelayTagFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeOnboardingRelayTagFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeOnboardingStepStateFfi: FfiConverterRustBuffer<List<OnboardingStepStateFfi>> {
     override fun read(buf: ByteBuffer): List<OnboardingStepStateFfi> {
         val len = buf.getInt()
@@ -39891,6 +46109,34 @@ public object FfiConverterSequenceTypePollOptionResultFfi: FfiConverterRustBuffe
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypePollOptionResultFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypePollVoteFfi: FfiConverterRustBuffer<List<PollVoteFfi>> {
+    override fun read(buf: ByteBuffer): List<PollVoteFfi> {
+        val len = buf.getInt()
+        return List<PollVoteFfi>(len) {
+            FfiConverterTypePollVoteFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<PollVoteFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypePollVoteFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<PollVoteFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypePollVoteFfi.write(it, buf)
         }
     }
 }
@@ -40041,6 +46287,34 @@ public object FfiConverterSequenceTypeProductPropertySchemaFfi: FfiConverterRust
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypePublicEventPreviewFfi: FfiConverterRustBuffer<List<PublicEventPreviewFfi>> {
+    override fun read(buf: ByteBuffer): List<PublicEventPreviewFfi> {
+        val len = buf.getInt()
+        return List<PublicEventPreviewFfi>(len) {
+            FfiConverterTypePublicEventPreviewFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<PublicEventPreviewFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypePublicEventPreviewFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<PublicEventPreviewFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypePublicEventPreviewFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeRelayEndpointClassificationFfi: FfiConverterRustBuffer<List<RelayEndpointClassificationFfi>> {
     override fun read(buf: ByteBuffer): List<RelayEndpointClassificationFfi> {
         val len = buf.getInt()
@@ -40115,6 +46389,34 @@ public object FfiConverterSequenceTypeReportDismissalFfi: FfiConverterRustBuffer
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeReportDismissalFfi.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeRetainedAttachmentSummaryFfi: FfiConverterRustBuffer<List<RetainedAttachmentSummaryFfi>> {
+    override fun read(buf: ByteBuffer): List<RetainedAttachmentSummaryFfi> {
+        val len = buf.getInt()
+        return List<RetainedAttachmentSummaryFfi>(len) {
+            FfiConverterTypeRetainedAttachmentSummaryFfi.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<RetainedAttachmentSummaryFfi>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeRetainedAttachmentSummaryFfi.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<RetainedAttachmentSummaryFfi>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeRetainedAttachmentSummaryFfi.write(it, buf)
         }
     }
 }
@@ -40629,6 +46931,49 @@ public object FfiConverterSequenceSequenceTypeMarkdownTableCellFfi: FfiConverter
 
 
 
+
+        /**
+         * No deployment services: every list empty, every option unset, and the
+         * neutral keychain service `org.marmot-protocol.mdk`. With no media servers
+         * new groups are text-only; with no image servers group images can't load
+         * and profile images can't be uploaded.
+         */ fun `marmotDeploymentNeutral`(): MarmotDeploymentFfi {
+            return FfiConverterTypeMarmotDeploymentFfi.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_func_marmot_deployment_neutral(
+        _status)
+}
+    )
+    }
+    
+
+        /**
+         * White Noise's deployment: its recovery relays, discovery indexers, media
+         * and image servers, Vertex Open Ranking, KeyPackage client preference,
+         * moderation label namespace and keychain service `com.marmot.whitenoise`.
+         * White Noise apps pass it to every constructor.
+         */ fun `marmotDeploymentWhiteNoise`(): MarmotDeploymentFfi {
+            return FfiConverterTypeMarmotDeploymentFfi.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_func_marmot_deployment_white_noise(
+        _status)
+}
+    )
+    }
+    
+
+        /**
+         * Per-batch ciphertext ceiling for file-backed uploads. Larger files are
+         * refused before preparation; this is an implementation bound, not protocol.
+         */ fun `maxFileMediaCiphertextBytes`(): kotlin.ULong {
+            return FfiConverterULong.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_marmot_uniffi_fn_func_max_file_media_ciphertext_bytes(
+        _status)
+}
+    )
+    }
+    
 
         /**
          * Parse one authenticated encrypted-media `imeta` tag using MDK's frozen V1

@@ -940,12 +940,17 @@ final class MarmotKitRelayPolicyTests: XCTestCase {
         )
     }
 
-    func testRetiredHostIsFilteredOut() {
-        let mixed = ["wss://relay.damus.io"] + AppDefaults.defaultRelays
+    func testUnusableHostIsFilteredOut() {
+        // A loopback address is refused under the public-only policy whatever
+        // MarmotKit's retired list says. This used `wss://relay.damus.io`, which
+        // 0.11.0 retired and 0.13.0 un-retired, so the test failed on the
+        // upgrade for a reason unrelated to the filter it exists to check.
+        let unusable = "ws://127.0.0.1:7777"
+        let mixed = [unusable] + AppDefaults.defaultRelays
         let allowed = MarmotKitService.allowedRelayEndpoints(from: mixed)
         XCTAssertFalse(
-            allowed.contains { $0.contains("relay.damus.io") },
-            "retired host survived filtering — this is what fails the relay directory fetch"
+            allowed.contains { $0.contains("127.0.0.1") },
+            "unusable host survived filtering — a relay-list declaration naming one fails the whole directory fetch"
         )
         // The usable ones must come through untouched: dropping a retired host
         // must not cost the account every other relay it had.
