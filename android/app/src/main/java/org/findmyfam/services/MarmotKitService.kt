@@ -27,8 +27,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -243,8 +246,22 @@ class MarmotKitService(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    private val _lastChatMessageGroupId = MutableStateFlow<String?>(null)
-    val lastChatMessageGroupId: StateFlow<String?> = _lastChatMessageGroupId.asStateFlow()
+    /**
+     * One emission per arriving chat message, carrying its group id.
+     *
+     * Deliberately a [SharedFlow], not a `StateFlow`. This was a
+     * `StateFlow<String?>` holding "the last group a message arrived in", and
+     * a `StateFlow` drops a value equal to the current one: every message after
+     * the first in the same group was swallowed, so an open chat (and the
+     * group list's unread marker) stopped updating until the screen was left
+     * and re-entered, when a fresh collector received the stale value and
+     * reloaded. iOS's `@Published` fires on every assignment, which is why only
+     * Android showed it. Events, not state: no replay, so a collector only
+     * sees messages that arrive while it is listening and does its own initial
+     * load (the chat screen's `LaunchedEffect` already does).
+     */
+    private val _chatMessageGroupIds = MutableSharedFlow<String>(extraBufferCapacity = 64)
+    val chatMessageGroupIds: SharedFlow<String> = _chatMessageGroupIds.asSharedFlow()
 
     private val _lastJoinedGroupId = MutableStateFlow<String?>(null)
     val lastJoinedGroupId: StateFlow<String?> = _lastJoinedGroupId.asStateFlow()
@@ -1526,7 +1543,8 @@ class MarmotKitService(
         }
     }
 
-    private suspend fun route(message: WhistleMessage) {
+    // `internal` so tests can drive it directly; nothing outside this module calls it.
+    internal suspend fun route(message: WhistleMessage) {
         when (message.kind) {
             MarmotKind.ProtocolV2.LOCATION.toInt() -> {
                 runCatching { LocationPayload.fromJson(message.content) }
@@ -1543,7 +1561,7 @@ class MarmotKitService(
                 reconcileLocationsWithMembership()
                 _lastGroupMembershipChangeId.value =
                     message.mlsGroupId to System.currentTimeMillis()
-                _lastChatMessageGroupId.value = message.mlsGroupId
+                _chatMessageGroupIds.emit(message.mlsGroupId)
             }
 
             else -> Timber.d("Ignoring unknown inner kind ${message.kind}")
@@ -1554,7 +1572,7 @@ class MarmotKitService(
         when (message.payloadType) {
             // A null type is plain text from an older client; v1 treated it as
             // chat and dropping it would silently lose messages.
-            "chat", null -> _lastChatMessageGroupId.value = message.mlsGroupId
+            "chat", null -> _chatMessageGroupIds.emit(message.mlsGroupId)
             "nickname" -> runCatching { NicknamePayload.fromJson(message.content) }
                 .onSuccess { nicknameStore?.set(name = it.name, pubkeyHex = message.senderPubkey) }
                 .onFailure { Timber.w(it, "Failed to decode nickname payload") }
