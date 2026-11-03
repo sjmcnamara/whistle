@@ -60,12 +60,10 @@ class GroupListViewModel @Inject constructor(
 
         // When a new chat message arrives, persist the timestamp and mark unread immediately.
         viewModelScope.launch {
-            marmot.lastChatMessageGroupId.collect { groupId ->
-                if (groupId != null) {
-                    settings.recordChatMessage(groupId)
-                    _groups.value = _groups.value.map {
-                        if (it.id == groupId) it.copy(hasUnread = true) else it
-                    }
+            marmot.chatMessageGroupIds.collect { groupId ->
+                settings.recordChatMessage(groupId)
+                _groups.value = _groups.value.map {
+                    if (it.id == groupId) it.copy(hasUnread = true) else it
                 }
             }
         }
