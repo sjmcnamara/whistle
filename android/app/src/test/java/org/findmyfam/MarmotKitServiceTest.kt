@@ -290,6 +290,59 @@ class MarmotKitServiceTest {
         coVerify(exactly = 0) { marmot.`runOnboarding`(any()) }
     }
 
+    /**
+     * The "Still publishing your account" banner showed on every cold start of
+     * an account published long ago, because readiness only became true when
+     * `completeAccountSetup()` ran, late in startup. An already-published
+     * account is ready the moment it signs in.
+     */
+    @Test
+    fun `an already-published account is ready as soon as it signs in`() = runTest {
+        every { marmot.`accountIdHex`("npub-alice") } returns "alice-hex"
+        every { marmot.`listAccounts`() } returns listOf(account("alice-hex"))
+        coEvery { marmot.`signInAccount`("alice-hex") } returns account("alice-hex")
+        every { marmot.`accountSetupReadiness`("alice-hex") } returns
+            AccountSetupReadinessFfi.NETWORK_READY
+        val sut = service()
+
+        sut.start(adoptingNsec = "nsec-alice", expectedReference = "npub-alice")
+
+        assertTrue(sut.accountIsReady.value)
+        assertTrue(!sut.accountSetupStalled.value)
+    }
+
+    @Test
+    fun `an account that is not yet published is not reported ready at sign-in`() = runTest {
+        every { marmot.`accountIdHex`("npub-alice") } returns "alice-hex"
+        every { marmot.`listAccounts`() } returns listOf(account("alice-hex"))
+        coEvery { marmot.`signInAccount`("alice-hex") } returns account("alice-hex")
+        every { marmot.`accountSetupReadiness`("alice-hex") } returns
+            AccountSetupReadinessFfi.LOCAL_READY
+        val sut = service()
+
+        sut.start(adoptingNsec = "nsec-alice", expectedReference = "npub-alice")
+
+        assertTrue(!sut.accountIsReady.value)
+        // Not ready is not the same as broken: that is what the banner keys on.
+        assertTrue(!sut.accountSetupStalled.value)
+    }
+
+    @Test
+    fun `setup that throws is marked stalled, and a later success clears it`() = runTest {
+        val sut = startedService()
+        every { marmot.`accountSetupReadiness`(any()) } throws RuntimeException("relays unreachable")
+
+        runCatching { sut.completeAccountSetup() }
+        assertTrue(sut.accountSetupStalled.value)
+
+        every { marmot.`accountSetupReadiness`(any()) } returns
+            AccountSetupReadinessFfi.NETWORK_READY
+        sut.completeAccountSetup()
+
+        assertTrue(!sut.accountSetupStalled.value)
+        assertTrue(sut.accountIsReady.value)
+    }
+
     // MARK: - Member code
 
     @Test

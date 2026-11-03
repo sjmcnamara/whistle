@@ -150,9 +150,15 @@ struct GroupListView: View {
                 // looks broken on first launch, while publication is still in
                 // flight.
                 if !viewModel.isAccountReady {
-                    Label("Publishing your account…", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    // A quiet spinner, not a warning: this is the normal state
+                    // for the first few seconds of every launch.
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Starting…")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
             }

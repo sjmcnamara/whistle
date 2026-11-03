@@ -279,6 +279,17 @@ class MarmotKitService(
      * Whether the account is published and usable for anything touching
      * relays. Observed by the UI; see `isAccountReady`.
      */
+    /**
+     * True only when account setup finished *without* reaching network-ready,
+     * or threw. Distinct from "not ready yet": the app starts with
+     * `accountIsReady == false` on every launch, and treating that as a problem
+     * showed an alarming "Still publishing your account" banner on every cold
+     * start of an account published long ago. Only this flag means something
+     * actually went wrong.
+     */
+    private val _accountSetupStalled = MutableStateFlow(false)
+    val accountSetupStalled: StateFlow<Boolean> = _accountSetupStalled.asStateFlow()
+
     private val _accountIsReady = MutableStateFlow(false)
     val accountIsReady: StateFlow<Boolean> = _accountIsReady.asStateFlow()
 
@@ -490,6 +501,7 @@ class MarmotKitService(
             if (match != null) {
                 val summary = marmot.`signInAccount`(match.`accountIdHex`)
                 accountRef = summary.`accountIdHex`
+                seedReadiness(summary.`accountIdHex`)
                 return@run summary.`accountIdHex`
             }
 
@@ -626,6 +638,21 @@ class MarmotKitService(
 
     // MARK: - Account setup
 
+    /**
+     * Take an already-published account's readiness from the local state as
+     * soon as it signs in, instead of waiting for `completeAccountSetup()`
+     * (which runs late in startup). Only ever sets `true`: readiness is
+     * monotonic, and a failed or negative read here must not flip it back.
+     */
+    private fun seedReadiness(account: String) {
+        val ready = runCatching { marmot.`accountSetupReadiness`(account) }.getOrNull() ==
+            AccountSetupReadinessFfi.NETWORK_READY
+        if (ready) {
+            _accountIsReady.value = true
+            _accountSetupStalled.value = false
+        }
+    }
+
     fun setupReadiness(): AccountSetupReadinessFfi =
         runSync { marmot.`accountSetupReadiness`(requireAccount()) }
 
@@ -672,6 +699,18 @@ class MarmotKitService(
      */
     suspend fun completeAccountSetup(): AccountSetupReadinessFfi {
         val account = requireAccount()
+        _accountSetupStalled.value = false
+        return try {
+            completeAccountSetupLocked(account)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            _accountSetupStalled.value = true
+            throw error
+        }
+    }
+
+    private suspend fun completeAccountSetupLocked(account: String): AccountSetupReadinessFfi {
         return run {
             if (marmot.`accountSetupReadiness`(account) == AccountSetupReadinessFfi.NETWORK_READY) {
                 _accountIsReady.value = true
@@ -713,6 +752,7 @@ class MarmotKitService(
             val readiness = marmot.`accountSetupReadiness`(account)
             _accountIsReady.value = readiness == AccountSetupReadinessFfi.NETWORK_READY
             if (readiness != AccountSetupReadinessFfi.NETWORK_READY) {
+                _accountSetupStalled.value = true
                 Timber.e("Account setup stalled at $readiness")
                 onboardingDiagnostics().forEach { Timber.e("  $it") }
             }

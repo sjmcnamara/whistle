@@ -469,6 +469,7 @@ final class MarmotKitService: ObservableObject {
             if let expectedId, let match = existing.first(where: { $0.accountIdHex == expectedId }) {
                 let summary = try await marmot.signInAccount(accountRef: match.accountIdHex)
                 accountRef = summary.accountIdHex
+                seedReadiness(account: summary.accountIdHex)
                 return summary.accountIdHex
             }
 
@@ -568,8 +569,19 @@ final class MarmotKitService: ObservableObject {
             }
             let summary = try await marmot.signInAccount(accountRef: existing.accountIdHex)
             accountRef = summary.accountIdHex
+            seedReadiness(account: summary.accountIdHex)
             return summary.accountIdHex
         }
+    }
+
+    /// Take an already-published account's readiness from the local state as
+    /// soon as it signs in, instead of waiting for `completeAccountSetup()`
+    /// (which runs late in startup). Only ever sets `true`: readiness is
+    /// monotonic, and a failed or negative read here must not flip it back.
+    private func seedReadiness(account: String) {
+        guard (try? marmot.accountSetupReadiness(accountRef: account)) == .networkReady else { return }
+        accountIsReady = true
+        accountSetupStalled = false
     }
 
     /// Stop the runtime.
@@ -806,7 +818,17 @@ final class MarmotKitService: ObservableObject {
     @discardableResult
     func completeAccountSetup() async throws -> AccountSetupReadinessFfi {
         let account = try requireAccount()
-        return try await Self.run {
+        accountSetupStalled = false
+        do {
+            return try await completeAccountSetupLocked(account: account)
+        } catch {
+            accountSetupStalled = true
+            throw error
+        }
+    }
+
+    private func completeAccountSetupLocked(account: String) async throws -> AccountSetupReadinessFfi {
+        try await Self.run {
             if try marmot.accountSetupReadiness(accountRef: account) == .networkReady {
                 accountIsReady = true
                 return .networkReady
@@ -859,6 +881,7 @@ final class MarmotKitService: ObservableObject {
             let readiness = try marmot.accountSetupReadiness(accountRef: account)
             accountIsReady = readiness == .networkReady
             if readiness != .networkReady {
+                accountSetupStalled = true
                 // Dump the whole picture rather than just the end state: the
                 // step findings name the failing relay and the reason, which
                 // is the only thing that distinguishes "relay unreachable"
@@ -1241,6 +1264,13 @@ final class MarmotKitService: ObservableObject {
     /// Create Group button stayed disabled for the rest of the session even
     /// though the account had published. Readiness is monotonic, so observing
     /// it is both simpler and correct.
+    /// True only when account setup finished *without* reaching network-ready,
+    /// or threw. Distinct from "not ready yet": `accountIsReady` is `false` at
+    /// the start of every launch, and treating that as a problem showed an
+    /// alarming "Still publishing your account" banner on each cold start of an
+    /// account published long ago. Only this flag means something went wrong.
+    @Published private(set) var accountSetupStalled = false
+
     @Published private(set) var accountIsReady = false
 
     func isReadyToBeInvited() -> Bool { isAccountReady() }
