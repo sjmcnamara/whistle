@@ -27,8 +27,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -191,7 +194,12 @@ class MarmotKitService(
             is MarmotKitException.LeaveAlreadyRequested -> ServiceError.LeaveAlreadyRequested
             is MarmotKitException.GroupUnrecoverableRepairRequired -> ServiceError.GroupNeedsRepair
             is MarmotKitException.GroupSendQueueFull -> ServiceError.SendQueueFull
-            else -> ServiceError.Underlying(error.message ?: error.toString())
+            // Several MarmotKit errors carry no message (`TransportClosed`,
+            // for one), which surfaced as `Underlying("")` and left nothing to
+            // diagnose from. Name the type when there is no text.
+            else -> ServiceError.Underlying(
+                error.message?.takeIf { it.isNotBlank() } ?: error::class.java.simpleName
+            )
         }
     }
 
@@ -243,8 +251,22 @@ class MarmotKitService(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    private val _lastChatMessageGroupId = MutableStateFlow<String?>(null)
-    val lastChatMessageGroupId: StateFlow<String?> = _lastChatMessageGroupId.asStateFlow()
+    /**
+     * One emission per arriving chat message, carrying its group id.
+     *
+     * Deliberately a [SharedFlow], not a `StateFlow`. This was a
+     * `StateFlow<String?>` holding "the last group a message arrived in", and
+     * a `StateFlow` drops a value equal to the current one: every message after
+     * the first in the same group was swallowed, so an open chat (and the
+     * group list's unread marker) stopped updating until the screen was left
+     * and re-entered, when a fresh collector received the stale value and
+     * reloaded. iOS's `@Published` fires on every assignment, which is why only
+     * Android showed it. Events, not state: no replay, so a collector only
+     * sees messages that arrive while it is listening and does its own initial
+     * load (the chat screen's `LaunchedEffect` already does).
+     */
+    private val _chatMessageGroupIds = MutableSharedFlow<String>(extraBufferCapacity = 64)
+    val chatMessageGroupIds: SharedFlow<String> = _chatMessageGroupIds.asSharedFlow()
 
     private val _lastJoinedGroupId = MutableStateFlow<String?>(null)
     val lastJoinedGroupId: StateFlow<String?> = _lastJoinedGroupId.asStateFlow()
@@ -257,6 +279,17 @@ class MarmotKitService(
      * Whether the account is published and usable for anything touching
      * relays. Observed by the UI; see `isAccountReady`.
      */
+    /**
+     * True only when account setup finished *without* reaching network-ready,
+     * or threw. Distinct from "not ready yet": the app starts with
+     * `accountIsReady == false` on every launch, and treating that as a problem
+     * showed an alarming "Still publishing your account" banner on every cold
+     * start of an account published long ago. Only this flag means something
+     * actually went wrong.
+     */
+    private val _accountSetupStalled = MutableStateFlow(false)
+    val accountSetupStalled: StateFlow<Boolean> = _accountSetupStalled.asStateFlow()
+
     private val _accountIsReady = MutableStateFlow(false)
     val accountIsReady: StateFlow<Boolean> = _accountIsReady.asStateFlow()
 
@@ -468,6 +501,7 @@ class MarmotKitService(
             if (match != null) {
                 val summary = marmot.`signInAccount`(match.`accountIdHex`)
                 accountRef = summary.`accountIdHex`
+                seedReadiness(summary.`accountIdHex`)
                 return@run summary.`accountIdHex`
             }
 
@@ -604,6 +638,21 @@ class MarmotKitService(
 
     // MARK: - Account setup
 
+    /**
+     * Take an already-published account's readiness from the local state as
+     * soon as it signs in, instead of waiting for `completeAccountSetup()`
+     * (which runs late in startup). Only ever sets `true`: readiness is
+     * monotonic, and a failed or negative read here must not flip it back.
+     */
+    private fun seedReadiness(account: String) {
+        val ready = runCatching { marmot.`accountSetupReadiness`(account) }.getOrNull() ==
+            AccountSetupReadinessFfi.NETWORK_READY
+        if (ready) {
+            _accountIsReady.value = true
+            _accountSetupStalled.value = false
+        }
+    }
+
     fun setupReadiness(): AccountSetupReadinessFfi =
         runSync { marmot.`accountSetupReadiness`(requireAccount()) }
 
@@ -650,6 +699,18 @@ class MarmotKitService(
      */
     suspend fun completeAccountSetup(): AccountSetupReadinessFfi {
         val account = requireAccount()
+        _accountSetupStalled.value = false
+        return try {
+            completeAccountSetupLocked(account)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            _accountSetupStalled.value = true
+            throw error
+        }
+    }
+
+    private suspend fun completeAccountSetupLocked(account: String): AccountSetupReadinessFfi {
         return run {
             if (marmot.`accountSetupReadiness`(account) == AccountSetupReadinessFfi.NETWORK_READY) {
                 _accountIsReady.value = true
@@ -691,6 +752,7 @@ class MarmotKitService(
             val readiness = marmot.`accountSetupReadiness`(account)
             _accountIsReady.value = readiness == AccountSetupReadinessFfi.NETWORK_READY
             if (readiness != AccountSetupReadinessFfi.NETWORK_READY) {
+                _accountSetupStalled.value = true
                 Timber.e("Account setup stalled at $readiness")
                 onboardingDiagnostics().forEach { Timber.e("  $it") }
             }
@@ -985,6 +1047,13 @@ class MarmotKitService(
         return run {
             marmot.`chatList`(account, false).map { row ->
                 val details = runCatching { marmot.`groupDetails`(account, row.`groupIdHex`) }
+                    .onFailure {
+                        // Falling back to no admins / epoch 0 is deliberate (a
+                        // group we cannot read details for still has to be
+                        // listed), but doing it silently made a group read as
+                        // "0 members" with nothing in the log.
+                        Timber.w(it, "groupDetails failed for ${row.`groupIdHex`.take(8)}; listing without admins")
+                    }
                     .getOrNull()
                 mapGroup(row, details)
             }
@@ -1541,7 +1610,8 @@ class MarmotKitService(
         }
     }
 
-    private suspend fun route(message: WhistleMessage) {
+    // `internal` so tests can drive it directly; nothing outside this module calls it.
+    internal suspend fun route(message: WhistleMessage) {
         when (message.kind) {
             MarmotKind.ProtocolV2.LOCATION.toInt() -> {
                 runCatching { LocationPayload.fromJson(message.content) }
@@ -1558,7 +1628,7 @@ class MarmotKitService(
                 reconcileLocationsWithMembership()
                 _lastGroupMembershipChangeId.value =
                     message.mlsGroupId to System.currentTimeMillis()
-                _lastChatMessageGroupId.value = message.mlsGroupId
+                _chatMessageGroupIds.emit(message.mlsGroupId)
             }
 
             else -> Timber.d("Ignoring unknown inner kind ${message.kind}")
@@ -1569,7 +1639,7 @@ class MarmotKitService(
         when (message.payloadType) {
             // A null type is plain text from an older client; v1 treated it as
             // chat and dropping it would silently lose messages.
-            "chat", null -> _lastChatMessageGroupId.value = message.mlsGroupId
+            "chat", null -> _chatMessageGroupIds.emit(message.mlsGroupId)
             "nickname" -> runCatching { NicknamePayload.fromJson(message.content) }
                 .onSuccess { nicknameStore?.set(name = it.name, pubkeyHex = message.senderPubkey) }
                 .onFailure { Timber.w(it, "Failed to decode nickname payload") }

@@ -469,6 +469,7 @@ final class MarmotKitService: ObservableObject {
             if let expectedId, let match = existing.first(where: { $0.accountIdHex == expectedId }) {
                 let summary = try await marmot.signInAccount(accountRef: match.accountIdHex)
                 accountRef = summary.accountIdHex
+                seedReadiness(account: summary.accountIdHex)
                 return summary.accountIdHex
             }
 
@@ -568,8 +569,19 @@ final class MarmotKitService: ObservableObject {
             }
             let summary = try await marmot.signInAccount(accountRef: existing.accountIdHex)
             accountRef = summary.accountIdHex
+            seedReadiness(account: summary.accountIdHex)
             return summary.accountIdHex
         }
+    }
+
+    /// Take an already-published account's readiness from the local state as
+    /// soon as it signs in, instead of waiting for `completeAccountSetup()`
+    /// (which runs late in startup). Only ever sets `true`: readiness is
+    /// monotonic, and a failed or negative read here must not flip it back.
+    private func seedReadiness(account: String) {
+        guard (try? marmot.accountSetupReadiness(accountRef: account)) == .networkReady else { return }
+        accountIsReady = true
+        accountSetupStalled = false
     }
 
     /// Stop the runtime.
@@ -589,8 +601,16 @@ final class MarmotKitService: ObservableObject {
     /// days of kind-445 events by hand. Whether this covers the same ground
     /// is what step 3c has to establish before that code is deleted.
     func catchUpAccounts() async throws {
-        try await Self.run {
-            try await marmot.catchUpAccounts()
+        do {
+            try await Self.run {
+                try await marmot.catchUpAccounts()
+            }
+        } catch {
+            // Callers use `try?` (pull-to-refresh) so a failure here was
+            // invisible. Android hit `AccountCatchUp("… failed: backend")` on
+            // the same call, which is why this is logged.
+            WhistleLogger.marmot.warning("catchUpAccounts failed: \(String(describing: error), privacy: .public)")
+            throw error
         }
     }
 
@@ -798,7 +818,17 @@ final class MarmotKitService: ObservableObject {
     @discardableResult
     func completeAccountSetup() async throws -> AccountSetupReadinessFfi {
         let account = try requireAccount()
-        return try await Self.run {
+        accountSetupStalled = false
+        do {
+            return try await completeAccountSetupLocked(account: account)
+        } catch {
+            accountSetupStalled = true
+            throw error
+        }
+    }
+
+    private func completeAccountSetupLocked(account: String) async throws -> AccountSetupReadinessFfi {
+        try await Self.run {
             if try marmot.accountSetupReadiness(accountRef: account) == .networkReady {
                 accountIsReady = true
                 return .networkReady
@@ -851,6 +881,7 @@ final class MarmotKitService: ObservableObject {
             let readiness = try marmot.accountSetupReadiness(accountRef: account)
             accountIsReady = readiness == .networkReady
             if readiness != .networkReady {
+                accountSetupStalled = true
                 // Dump the whole picture rather than just the end state: the
                 // step findings name the failing relay and the reason, which
                 // is the only thing that distinguishes "relay unreachable"
@@ -1061,13 +1092,25 @@ final class MarmotKitService: ObservableObject {
             let rows = try marmot.chatList(accountRef: account, includeArchived: false)
             var result: [WhistleGroup] = []
             for row in rows {
-                let details = try? await marmot.groupDetails(
-                    accountRef: account,
-                    groupIdHex: row.groupIdHex
-                )
+                let details = await readGroupDetails(account: account, groupIdHex: row.groupIdHex)
                 result.append(Self.map(row: row, details: details))
             }
             return result
+        }
+    }
+
+    /// `groupDetails`, or nil when it fails. Falling back to "no admins,
+    /// epoch 0" is deliberate (a group whose details cannot be read must
+    /// still be listed), but done silently it made a group read as having no
+    /// members on Android with nothing in the log — so the failure is logged.
+    private func readGroupDetails(account: String, groupIdHex: String) async -> GroupDetailsFfi? {
+        do {
+            return try await marmot.groupDetails(accountRef: account, groupIdHex: groupIdHex)
+        } catch {
+            WhistleLogger.marmot.warning(
+                "groupDetails failed for \(groupIdHex.prefix(8), privacy: .public): \(String(describing: error), privacy: .public); listing without admins"
+            )
+            return nil
         }
     }
 
@@ -1077,7 +1120,7 @@ final class MarmotKitService: ObservableObject {
             guard let row = try marmot.chatListRow(accountRef: account, groupIdHex: groupIdHex) else {
                 return nil
             }
-            let details = try? await marmot.groupDetails(accountRef: account, groupIdHex: groupIdHex)
+            let details = await readGroupDetails(account: account, groupIdHex: groupIdHex)
             return Self.map(row: row, details: details)
         }
     }
@@ -1221,6 +1264,13 @@ final class MarmotKitService: ObservableObject {
     /// Create Group button stayed disabled for the rest of the session even
     /// though the account had published. Readiness is monotonic, so observing
     /// it is both simpler and correct.
+    /// True only when account setup finished *without* reaching network-ready,
+    /// or threw. Distinct from "not ready yet": `accountIsReady` is `false` at
+    /// the start of every launch, and treating that as a problem showed an
+    /// alarming "Still publishing your account" banner on each cold start of an
+    /// account published long ago. Only this flag means something went wrong.
+    @Published private(set) var accountSetupStalled = false
+
     @Published private(set) var accountIsReady = false
 
     func isReadyToBeInvited() -> Bool { isAccountReady() }
@@ -1769,8 +1819,49 @@ final class MarmotKitService: ObservableObject {
     ///
     /// Subscribes account-wide (`toGroup: nil`) rather than per group, so a
     /// group joined while running needs no re-subscribe.
+#if DEBUG
+    private var healthProbeTask: Task<Void, Never>?
+
+    /// Debug-only: once a minute, read relay health and one group's details
+    /// and log the outcome. Android's runtime lost its transport minutes after
+    /// start with every health signal still reading normal; this is the same
+    /// check on iOS, so the two can be compared over time. Reads only.
+    func startHealthProbe() {
+        guard healthProbeTask == nil else { return }
+        healthProbeTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                await self?.probeOnce()
+            }
+        }
+    }
+
+    private func probeOnce() async {
+        let relays = await relayDiagnostics()
+        guard let account = accountRef else {
+            WhistleLogger.marmot.notice("probe: no account; relays \(relays, privacy: .public)")
+            return
+        }
+        do {
+            let rows = try marmot.chatList(accountRef: account, includeArchived: false)
+            guard let row = rows.first else {
+                WhistleLogger.marmot.notice("probe: no groups; relays \(relays, privacy: .public)")
+                return
+            }
+            let members = try await marmot.groupMembers(accountRef: account, groupIdHex: row.groupIdHex)
+            _ = try await marmot.groupDetails(accountRef: account, groupIdHex: row.groupIdHex)
+            WhistleLogger.marmot.notice("probe OK: members=\(members.count) relays \(relays, privacy: .public)")
+        } catch {
+            WhistleLogger.marmot.warning("probe FAILED: \(String(describing: error), privacy: .public); relays \(relays, privacy: .public)")
+        }
+    }
+#endif
+
     func startSubscriptions() {
         guard receiveTask == nil else { return }
+#if DEBUG
+        startHealthProbe()
+#endif
         receiveTask = Task { [weak self] in
             guard let stream = await self?.openStream() else { return }
             while !Task.isCancelled, let message = await stream.next() {

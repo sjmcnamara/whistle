@@ -15,9 +15,14 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.findmyfam.services.MarmotKitService
+import org.findmyfam.shared.MarmotKind
+import org.findmyfam.shared.models.WhistleMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -200,6 +205,32 @@ class MarmotKitServiceTest {
         assertEquals(listOf("m3", "m2", "m1"), sut.messages("group-1").first.map { it.id })
     }
 
+    // MARK: - Live chat updates
+
+    @Test
+    fun `every chat message in a group notifies collectors, not only the first`() = runTest {
+        val sut = service()
+        val received = mutableListOf<String>()
+        // Unconfined, so each emission is delivered the moment it is made.
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            sut.chatMessageGroupIds.toList(received)
+        }
+        fun chat(id: String) = WhistleMessage(
+            id = id, mlsGroupId = "group-1", senderPubkey = "sender",
+            kind = MarmotKind.ProtocolV2.CHAT.toInt(), content = "hello", createdAt = 1L,
+        )
+
+        sut.route(chat("m1"))
+        sut.route(chat("m2"))
+        sut.route(chat("m3"))
+        collector.cancel()
+
+        // This was a StateFlow<String?> holding the last group id, which drops
+        // a value equal to the current one: an open chat updated for the first
+        // message only, until it was left and re-entered.
+        assertEquals(listOf("group-1", "group-1", "group-1"), received)
+    }
+
     // MARK: - Relay policy
 
     @Test
@@ -310,6 +341,59 @@ class MarmotKitServiceTest {
 
         assertEquals(AccountSetupReadinessFfi.NETWORK_READY, readiness)
         coVerify(exactly = 0) { marmot.`runOnboarding`(any()) }
+    }
+
+    /**
+     * The "Still publishing your account" banner showed on every cold start of
+     * an account published long ago, because readiness only became true when
+     * `completeAccountSetup()` ran, late in startup. An already-published
+     * account is ready the moment it signs in.
+     */
+    @Test
+    fun `an already-published account is ready as soon as it signs in`() = runTest {
+        every { marmot.`accountIdHex`("npub-alice") } returns "alice-hex"
+        every { marmot.`listAccounts`() } returns listOf(account("alice-hex"))
+        coEvery { marmot.`signInAccount`("alice-hex") } returns account("alice-hex")
+        every { marmot.`accountSetupReadiness`("alice-hex") } returns
+            AccountSetupReadinessFfi.NETWORK_READY
+        val sut = service()
+
+        sut.start(adoptingNsec = "nsec-alice", expectedReference = "npub-alice")
+
+        assertTrue(sut.accountIsReady.value)
+        assertTrue(!sut.accountSetupStalled.value)
+    }
+
+    @Test
+    fun `an account that is not yet published is not reported ready at sign-in`() = runTest {
+        every { marmot.`accountIdHex`("npub-alice") } returns "alice-hex"
+        every { marmot.`listAccounts`() } returns listOf(account("alice-hex"))
+        coEvery { marmot.`signInAccount`("alice-hex") } returns account("alice-hex")
+        every { marmot.`accountSetupReadiness`("alice-hex") } returns
+            AccountSetupReadinessFfi.LOCAL_READY
+        val sut = service()
+
+        sut.start(adoptingNsec = "nsec-alice", expectedReference = "npub-alice")
+
+        assertTrue(!sut.accountIsReady.value)
+        // Not ready is not the same as broken: that is what the banner keys on.
+        assertTrue(!sut.accountSetupStalled.value)
+    }
+
+    @Test
+    fun `setup that throws is marked stalled, and a later success clears it`() = runTest {
+        val sut = startedService()
+        every { marmot.`accountSetupReadiness`(any()) } throws RuntimeException("relays unreachable")
+
+        runCatching { sut.completeAccountSetup() }
+        assertTrue(sut.accountSetupStalled.value)
+
+        every { marmot.`accountSetupReadiness`(any()) } returns
+            AccountSetupReadinessFfi.NETWORK_READY
+        sut.completeAccountSetup()
+
+        assertTrue(!sut.accountSetupStalled.value)
+        assertTrue(sut.accountIsReady.value)
     }
 
     // MARK: - Member code

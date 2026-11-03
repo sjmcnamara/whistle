@@ -33,6 +33,10 @@ final class AppViewModel: ObservableObject {
     /// Marmot orchestration layer — bridges MLS ↔ Relay (v0.3).
     @Published private(set) var marmot: MarmotKitService?
 
+    /// How long account setup may be merely "in progress" before the banner is
+    /// shown anyway. Informational: nothing waits on it.
+    private static let setupSlowAfterNanoseconds: UInt64 = 60_000_000_000
+
     // MARK: - Location (v0.4)
 
     /// CoreLocation wrapper — publishes via callback.
@@ -549,15 +553,32 @@ final class AppViewModel: ObservableObject {
         // Account setup is a *state*, so it gets a banner rather than a toast:
         // until it completes, groups cannot be created and nobody can invite
         // this device, and a toast would vanish while that stayed true.
-        service.$accountIsReady
-            .removeDuplicates()
+        //
+        // Only when something is actually wrong, though. `accountIsReady` is
+        // false at the start of *every* launch until setup is observed, so
+        // keying the banner on `!ready` showed "Still publishing your account.
+        // You can't create or join groups…" on each cold start of an account
+        // published long ago — an alarm for a normal timing gap. While setup is
+        // merely in progress the group list shows a quiet "Starting…" spinner
+        // instead. The banner appears when setup stalled or threw, or when it
+        // is still unfinished after a generous grace period (informational
+        // only — nothing waits on this timer; readiness itself is observed,
+        // never polled against a deadline).
+        let setupSlow = CurrentValueSubject<Bool, Never>(false)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.setupSlowAfterNanoseconds)
+            setupSlow.send(true)
+        }
+        Publishers.CombineLatest3(service.$accountIsReady, service.$accountSetupStalled, setupSlow)
+            .map { ready, stalled, slow in (ready, stalled, slow) }
+            .removeDuplicates { $0 == $1 }
             .receive(on: DispatchQueue.main)
-            .sink { [weak self, weak service] ready in
+            .sink { [weak self, weak service] ready, stalled, slow in
                 guard let self else { return }
                 self.accountIsReady = ready
                 self.notices.setBanner(
                     .accountSetupIncomplete,
-                    active: !ready,
+                    active: !ready && (stalled || slow),
                     message: NoticeCenter.Banner(
                         cause: .accountSetupIncomplete,
                         message: "Still publishing your account. You can't create or join groups until this finishes.",

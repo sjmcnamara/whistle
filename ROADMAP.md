@@ -644,6 +644,11 @@ Deferred for the full plan and the step-by-step findings.
   publishes until the tag, and the Android tag waits on the remaining device
   checks (QR scan, 16KB-page `.so` load).
 
+### v2.0.1 — Bugfixes found while device-testing v2.0.0 _(planned, not started)_
+
+- **(iOS & Android) "Still publishing your account" shows as an alarming banner on every cold start.** `accountIsReady` starts `false` on each launch and only flips once `completeAccountSetup()` finishes, which waits on relays. Until then the app shows the `accountSetupIncomplete` banner ("Still publishing your account. You can't create or join groups until this finishes.") and the group list's "Publishing your account…" row — even for an account published long ago, so a normal network-setup and timing gap reads like an error. Replace it with a quiet in-progress state (a spinner / "starting…"), not a banner or error popup. Reserve the banner for a genuine stall: setup threw, or is still not ready after a generous timeout. Also try seeding readiness right after sign-in from `accountSetupReadiness(accountRef:)` (a synchronous call; **unverified** that it answers before relays connect), which would remove the flash for established accounts. iOS: `AppViewModel.swift:551`, `MarmotKitService.swift:1244`, `GroupListView.swift:153`. Android shows the same readiness log shortly after launch; check it uses the same banner path.
+- **(Android; check iOS) After Burn Identity, the UI keeps a chat screen for the deleted group.** `ChatViewModel` repeatedly fails with "Failed to load member names" for the old group id for as long as the screen stays up. Tear down navigation (or clear the chat view model) when the identity is replaced.
+
 ### Deferred
 
 - **v2.0 release sequencing** _(agreed 2026-10-02)_: **1** merge #263 → ~~**2** perf PR~~ (dropped, see below) → **4** error-UX PR (iOS) → **3** Android port → **5** version bumps once device-tested interop confirms. UX and perf deliberately land *before* Android: both are design work, and doing them first means porting once rather than porting Android and then retrofitting both platforms.
