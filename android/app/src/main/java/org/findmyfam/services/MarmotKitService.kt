@@ -1309,7 +1309,22 @@ class MarmotKitService(
             // The backend treats `before` as *inclusive* and returns the cursor
             // row again, so consecutive pages overlap by one. Dropped here
             // rather than left to callers.
-            val mapped = page.`messages`.map(::mapTimelineRecord).filter { it.id != before?.id }
+            //
+            // Newest first, enforced here rather than trusted. This file, both
+            // chat view models and the "load earlier" cursor (`page.last()` is
+            // taken to be the *oldest* row) all assume the page arrives newest
+            // first, but `timelineMessages` returns it oldest first — measured
+            // on a Pixel: row 0 was the group's creation, the last row the
+            // newest message. Reversed, a cold chat load showed the thread
+            // upside down (newest at the top, the oldest — "Member added" — where
+            // the screen scrolls to), so freshly delivered messages looked
+            // missing until the chat was left and re-entered and the merge path's
+            // sort fixed it; and the cursor pointed at the newest row, so "Load
+            // earlier messages" re-fetched the same page and did nothing.
+            val mapped = page.`messages`
+                .map(::mapTimelineRecord)
+                .filter { it.id != before?.id }
+                .sortedWith(compareByDescending<WhistleMessage> { it.createdAt }.thenByDescending { it.id })
             mapped to page.`hasMoreBefore`
         }
     }
