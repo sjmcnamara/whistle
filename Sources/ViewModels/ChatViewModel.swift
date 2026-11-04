@@ -334,10 +334,16 @@ final class ChatViewModel: ObservableObject {
             // A send that reached no relay still succeeds and still appears in
             // the timeline, so without this the message looks delivered when
             // nobody else has it — which is what happened in airplane mode.
+            // Deliberately no "Retry" action: the only retry available to the app
+            // is sending the text again, which is a second message, and
+            // MarmotKit's docs warn that re-sending a pending message duplicates
+            // the bubble (Android measured two bubbles, neither delivered). The
+            // library keeps the original and publishes it when it can.
             if outcome == .queued {
-                notices.postToast("Saved, but not sent yet — no relay reachable.") { [weak self] in
-                    await self?.resendQueued(text: text)
-                }
+                notices.postToast(
+                    "Saved, but not sent yet — no relay reachable. "
+                        + "It will go out when you're back online, but may arrive late."
+                )
             }
         } catch {
             WhistleLogger.chat.error("Failed to send message: \(error)")
@@ -346,24 +352,6 @@ final class ChatViewModel: ObservableObject {
             notices.report(error, fallback: "Message not sent.") { [weak self] in
                 await self?.sendMessage()
             }
-        }
-    }
-
-    /// Retry for a message that was stored but never published.
-    ///
-    /// Re-sends the same text rather than re-running `sendMessage`, whose
-    /// draft has already been cleared. A duplicate is possible if the original
-    /// drains from the queue at the same moment — preferred to the message
-    /// silently never arriving, which is the failure this is here to fix.
-    private func resendQueued(text: String) async {
-        do {
-            let outcome = try await marmot.sendChat(ChatPayload(text: text), toGroup: groupId)
-            await loadMessages()
-            if outcome == .queued {
-                notices.postToast("Still no relay reachable.")
-            }
-        } catch {
-            notices.report(error, fallback: "Message not sent.")
         }
     }
 

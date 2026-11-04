@@ -1264,8 +1264,19 @@ class MarmotKitService(
 
     suspend fun send(content: String, kind: UShort, groupIdHex: String): SendOutcome {
         val account = requireAccount()
+        val startedAt = System.nanoTime()
         val summary = run {
             marmot.`sendCustomEvent`(account, groupIdHex, kind.toULong(), emptyList(), content)
+        }
+        // Debug builds only: how long the call took and what the library said, for
+        // kinds other than location (one every ~10 s would drown it). Without it
+        // "the send button stayed disabled" and "the message never arrived" cannot
+        // be told apart from a slow or a lost publish.
+        if (receiveHealthLogging && kind != MarmotKind.ProtocolV2.LOCATION) {
+            Timber.i(
+                "send kind=$kind took ${(System.nanoTime() - startedAt) / 1_000_000} ms " +
+                    "published=${summary.`published`} accept=${summary.`acceptDisposition`}"
+            )
         }
         return if (summary.`published` > 0u) {
             SendOutcome.Published(summary.`published`.toInt())
