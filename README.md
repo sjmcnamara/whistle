@@ -109,7 +109,7 @@ whistle/
 
 ## Status
 
-v2.0.0 (iOS & Android, pre-release) — both platforms are on Marmot protocol v2, which is not wire-compatible with v1, so existing groups do not carry over (identity does). See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
+v2.0.1 (iOS & Android, pre-release) — both platforms are on Marmot protocol v2, which is not wire-compatible with v1, so existing groups do not carry over (identity does). See [ROADMAP.md](ROADMAP.md) for full history and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Wiki
 
