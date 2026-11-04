@@ -1450,6 +1450,9 @@ final class MarmotKitService: ObservableObject {
     @discardableResult
     func send(content: String, kind: UInt16, toGroup groupIdHex: String) async throws -> SendOutcome {
         let account = try requireAccount()
+#if DEBUG
+        let startedAt = ContinuousClock.now
+#endif
         let summary = try await Self.run {
             try await marmot.sendCustomEvent(
                 accountRef: account,
@@ -1459,6 +1462,16 @@ final class MarmotKitService: ObservableObject {
                 content: content
             )
         }
+#if DEBUG
+        // How long the call took and what the library said, for kinds other than
+        // location (one every ~10 s would drown it). With no relay reachable the
+        // chat send button stays disabled for as long as this call is in flight.
+        if kind != MarmotKind.ProtocolV2.location {
+            let elapsed = startedAt.duration(to: .now)
+            let ms = Int(elapsed.components.seconds) * 1000 + Int(elapsed.components.attoseconds / 1_000_000_000_000_000)
+            WhistleLogger.marmot.notice("send kind=\(kind) took \(ms) ms published=\(summary.published) accept=\(String(describing: summary.acceptDisposition), privacy: .public)")
+        }
+#endif
         // `published` counts relays. `acceptDisposition` says whether the
         // runtime considers publication done; treat anything short of
         // `.published` with no relays as queued, since that is what the user

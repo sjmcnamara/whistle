@@ -278,11 +278,17 @@ class ChatViewModel(
                 loadMessages()
                 // A send that reached no relay still succeeds and still appears
                 // in the timeline, so without this it looks delivered when
-                // nobody else has it.
+                // nobody else has it. Deliberately no "Retry" action: the only
+                // retry available to the app is sending the text again, which is a
+                // second message, and MarmotKit's own docs warn that re-sending a
+                // pending message duplicates the bubble. (Measured: tapping it
+                // produced two bubbles, neither delivered.) The library keeps the
+                // original and publishes it when it can.
                 if (outcome is MarmotKitService.SendOutcome.Queued) {
-                    notices.postToast("Saved, but not sent yet — no relay reachable.") {
-                        resendQueued(text)
-                    }
+                    notices.postToast(
+                        "Saved, but not sent yet — no relay reachable. " +
+                            "It will go out when you're back online, but may arrive late."
+                    )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to send message")
@@ -291,24 +297,6 @@ class ChatViewModel(
             } finally {
                 _isSending.value = false
             }
-        }
-    }
-
-    /**
-     * Retry for a message that was stored but never published. Re-sends the
-     * same text rather than re-running [sendMessage], whose draft is already
-     * cleared. A duplicate is possible if the original drains from the queue at
-     * the same moment — preferred to the message silently never arriving.
-     */
-    private suspend fun resendQueued(text: String) {
-        try {
-            val outcome = marmot.sendChat(ChatPayload(text = text), groupId)
-            loadMessages()
-            if (outcome is MarmotKitService.SendOutcome.Queued) {
-                notices.postToast("Still no relay reachable.")
-            }
-        } catch (e: Exception) {
-            notices.report(e, "Message not sent")
         }
     }
 
