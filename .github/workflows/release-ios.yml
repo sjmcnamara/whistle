@@ -9,6 +9,9 @@ on:
       tag:
         description: 'Existing tag to release (e.g. v1.2.0)'
         required: true
+      ref:
+        description: 'Optional source ref to build instead of the tag (e.g. a branch carrying a CI fix). The IPA is still attached to the tag.'
+        required: false
 
 # Least privilege at the top level; the release job opts into contents:write
 # to attach the .ipa to the GitHub release.
@@ -32,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.event.inputs.ref || github.event.inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
