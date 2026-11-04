@@ -646,13 +646,14 @@ Deferred for the full plan and the step-by-step findings.
 
 ### v2.0.1 — First public v2 release (MarmotKit 0.14.0) _(unreleased)_
 
-2.0.0 was never tagged; this is the first public v2 release. iOS `MARKETING_VERSION` 2.0.1 / build 77; Android 2.0.1 / versionCode 72.
+2.0.0 was never tagged; this is the first public v2 release. iOS `MARKETING_VERSION` 2.0.1 / build 78; Android 2.0.1 / versionCode 73 (build numbers bumped after the offline-send toast fix, so a build can be told apart from the first 2.0.1 candidates: 77 / 72).
 
 - **MarmotKit 0.11.0 → 0.14.0** (#283), iOS and Android. New required `deployment` record: `WhistleDeployment` uses White Noise's preset with Whistle's own keychain/keystore service `org.getwhistle.whistle.marmotkit` (permanent — see CLAUDE.md). Moving off White Noise's relays/servers is a separate, reversible follow-up, **not done and untested**.
 - **Fixed: chat thread shown upside down on a cold open, and "Load earlier messages" doing nothing** (#282, both platforms). `timelineMessages` returns oldest-first; callers assumed newest-first.
 - **Fixed: Android open chat updated only for the first message** (#280). A `StateFlow` dropped repeated equal values.
 - **Fixed: alarming "Still publishing your account" banner on every launch** (#281, both platforms). Readiness is seeded at sign-in; the banner needs a stall or 60 s.
 - **Fixed: Android toasts and banners were never shown** (#285), which also resolves "Starting…" with no error when MarmotKit fails to start: Android already raised a "Whistle couldn't start securely" banner (with Retry) for that, it just was never visible. `NoticeOverlay` was written in the Android port and never mounted in `RootScreen`; confirmed on a Pixel (the offline-send toast now appears).
+- **Fixed: "Retry" on the offline-send toast sent the message a second time** (both platforms). The action is gone; the library keeps and publishes the original.
 - **Debug-build diagnostics** (#277, #278, #283): named errors, subscription open/delivered/ended, relay and per-group health. Release builds unaffected.
 
 **Not in this release (known, still open):**

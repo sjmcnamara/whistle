@@ -64,8 +64,8 @@ groups interoperate. A 1.x client on either platform cannot join a v2 group.
 - **(Android) An open chat now updates for every new message,** not just the first one; you no longer have to leave the chat and return to see more. The group list's unread marker had the same flaw.
 - **(iOS & Android) No more alarming "Still publishing your account" banner on every launch.** A normal moment of network setup now shows a small "Starting…" spinner; the banner appears only if setup actually stalls or runs long.
 - **(Android) Notices are now actually shown.** Toasts and banners were posted but never displayed on Android, so a message saved while offline ("Saved, but not sent yet"), action failures, a stalled account setup, a failed start ("Whistle couldn't start securely", with Retry) and MarmotKit's "Some earlier messages or locations may be missing" notice (with its Dismiss button) were all invisible. They now appear, as on iOS.
+- **(iOS & Android) Sending while offline no longer offers a "Retry" that sent the message twice.** The "Saved, but not sent yet" notice now simply tells you the message is saved; the original goes out when a relay is reachable, and re-sending it only produced a second copy.
 - **(iOS & Android) Resyncing an admin no longer demotes them.** Resync removes and re-adds a member, and the re-add produced an ordinary member, so repairing an admin silently took their admin role. They now come back an admin. If the role cannot be restored you are told, separately from a failed re-add.
-
 - **(iOS) A group you are alone in can be left.** It previously reported
   "promote another member to admin before leaving" with nobody to promote,
   leaving identity burn as the only way out.
@@ -81,7 +81,7 @@ groups interoperate. A 1.x client on either platform cannot join a v2 group.
 
 ### Known issues
 
-- **(iOS & Android) A chat message sent while you are offline can arrive late, or not at all.** It is saved and shown as sent, may wait minutes to publish after you reconnect, and when it does publish it carries its original timestamp, which another member's sync can already have moved past. Location sharing is not affected: a fresh position is sent every few seconds. This comes from MarmotKit 0.14.0 (upstream issues #2762, fixed after 0.14.0, and #2256); it should improve with MarmotKit 0.15.
+- **(iOS & Android) A chat message sent while you are offline can arrive late, or not at all.** It is saved and shown as sent, may wait many minutes to publish after you reconnect, and when it does publish it carries its original timestamp, which another member's sync can already have moved past. Once one message is stuck, later offline messages in the same group may not go out either until MarmotKit is updated. Messages sent while online, and location sharing, are not affected (a fresh position goes out every few seconds). This comes from MarmotKit 0.14.0 (upstream issues #2762 and #2256); the fix is on MarmotKit's main branch but not yet in a stable release, and we will pick it up with the next MarmotKit.
 - **(Android) After Burn Identity, the app can keep showing a chat screen for the deleted group** until you leave it.
 
 ---

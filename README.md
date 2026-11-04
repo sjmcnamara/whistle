@@ -36,12 +36,11 @@ Share your location when it matters, with the people who need it. Stop when it d
 
 Create or join an encrypted group, share a live map with your people, and chat — all end-to-end encrypted. No relay ever sees plaintext location data or group membership.
 
-- **Family groups** — create or join with a shareable invite code
+- **Family groups** — create a group and add people by scanning their member code
 - **Live map** — see everyone's location, updated on a configurable interval
 - **Group chat** — built-in encrypted messaging for the whole group
 - **Photos** — set a personal avatar (shown on your map pin) and, as an admin, a shared group photo; both travel inline, end-to-end encrypted, with no blob server
-- **Tap-to-join** — share invites via QR code, NFC tap, or AirDrop
-- **Request & approve** — joiners send an encrypted join request; an admin approves them into the group, no manual key exchange
+- **Scan to join** — a new member shows their member code (a QR code, or their npub); an admin scans or pastes it to add them
 - **Whistle** — force an instant location update to your group on demand, ignoring the timer and battery backoff
 - **Pause/resume** — stop sharing your location anytime without leaving the group
 - **Movement aware** — automatically backs off location updates when a device is stationary, resumes normal rate on movement
@@ -62,28 +61,23 @@ Location and chat payloads are encrypted using MLS (RFC 9420):
 - **Member roster** — tracked cryptographically, not by relay policy
 - **Proper join/leave/rejoin handling** — via MLS Add/Remove Proposals and Commits
 
-Group traffic is published as Marmot-compatible Nostr events:
-
-| Kind | Purpose |
-|------|---------|
-| 30443 | MLS KeyPackage — used to add members to the group (addressable, MDK 0.8.0+) |
-| 444 | Welcome — bootstraps a new member's group state (gift-wrapped) |
-| 445 | Group Event — all in-group traffic: Commits, location updates, chat |
-| 10051 | KeyPackage relay list |
+Group traffic is published as Marmot Nostr events. Kind **445** carries all in-group traffic — commits, location updates and chat — encrypted so a relay sees only ciphertext. Key packages, welcomes and relay lists use other kinds; the [Marmot Protocol](https://github.com/marmot-protocol/marmot) specification is the reference for the current list.
 
 ## Requirements
 
 ### iOS
 - Xcode 16+ (tested on Xcode 26)
-- iOS 17.0+
+- iOS 18.0+ (required by MarmotKit)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+
+Build with `./scripts/build.sh`: it fetches and checks MarmotKit's native library, generates the Xcode project and builds for the simulator. Opening the project in Xcode directly needs `./scripts/build.sh xcode` first (and `restore` afterwards); see `CLAUDE.md`.
 
 ### Android
 - Android Studio — latest stable recommended (AGP 9.2)
 - Android SDK 36+
 - Java 17
 
-Pre-built native libraries (MDK, NostrSDK) are checked into `android/app/src/main/jniLibs/`. No Rust toolchain needed for development.
+MarmotKit's native library (`arm64-v8a` only) is not committed. Run `python3 scripts/vendor_marmotkit_android.py` before building; it downloads the pinned release and verifies its checksum, and the Gradle build fails with a clear message if it is missing. No Rust toolchain is needed.
 
 ## Project Structure
 
