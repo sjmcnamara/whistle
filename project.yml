@@ -57,6 +57,13 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_ENTITLEMENTS: Resources/Whistle.entitlements
+      configs:
+        # Release-only, and only on the app target: the CI archive passes the
+        # profile name as WHISTLE_PROFILE. Passing PROVISIONING_PROFILE_SPECIFIER
+        # on the xcodebuild command line applies it to every target, and SwiftPM
+        # resource bundles (MarmotKitBindings_MarmotKit) reject profiles outright.
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: "$(WHISTLE_PROFILE)"
     info:
       path: Resources/Info.plist
       properties:

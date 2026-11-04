@@ -113,7 +113,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM=3V55494FNM \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ steps.signing.outputs.profile_name }}"
+            WHISTLE_PROFILE="${{ steps.signing.outputs.profile_name }}"
 
       - name: Export IPA
         run: |
