@@ -8,6 +8,9 @@ hide:
 
 <div class="w-home-wrap" markdown>
 
+!!! warning "Whistle 2.0 is not compatible with earlier versions"
+    Whistle 2.0.1 moves to Marmot protocol v2. **Groups created with Whistle 1.x do not carry over and cannot be recovered**, and a 1.x app cannot join a 2.x group. After updating you will need to **create your groups again and re-add everyone**, who must also update. Your identity (npub) is kept. iOS and Android 2.x groups work with each other. iOS now requires **iOS 18**, and Android runs on **64-bit ARM (arm64-v8a)** only. See the [release notes](https://github.com/sjmcnamara/whistle/releases/tag/v2.0.1).
+
 ## §01 · A different shape { .w-section-title }
 
 Whistle is built on three open primitives nobody owns. Your phone holds the
@@ -92,8 +95,8 @@ Make a group, share it, dissolve it when you're done.
 ciphertext — never the plaintext contents of your group.</span></li>
   <li><strong>Encrypted photos, inline</strong><span>Member avatars and the admin-set
 group image ride inside the same E2E-encrypted messages — no photo server, no plaintext exception.</span></li>
-  <li><strong>Invite or request to join</strong><span>Share a group directly, or let people
-request to join and have an admin approve them.</span></li>
+  <li><strong>Scan to join</strong><span>A new member shows a code; a group admin scans it
+to add them. Nothing is sent outside the group.</span></li>
   <li><strong>No accounts</strong><span>Identity is a keypair on your phone,
 held in the secure enclave. No email, no phone number, no signup.</span></li>
   <li><strong>Multiple groups</strong><span>Family, festival, walk-home circles that

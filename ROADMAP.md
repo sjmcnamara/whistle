@@ -644,7 +644,7 @@ Deferred for the full plan and the step-by-step findings.
   publishes until the tag, and the Android tag waits on the remaining device
   checks (QR scan, 16KB-page `.so` load).
 
-### v2.0.1 — First public v2 release (MarmotKit 0.14.0) _(unreleased)_
+### v2.0.1 — First public v2 release (MarmotKit 0.14.0) ✅ _(released 2026-11-04)_
 
 2.0.0 was never tagged; this is the first public v2 release. iOS `MARKETING_VERSION` 2.0.1 / build 78; Android 2.0.1 / versionCode 73 (build numbers bumped after the offline-send toast fix, so a build can be told apart from the first 2.0.1 candidates: 77 / 72).
 

@@ -190,4 +190,4 @@ Keep a Changelog style (`### Added / Changed / Fixed / Security / Improved`). Ne
 
 ## Roadmap
 
-Current version: **v2.0.1 — Marmot protocol v2 (MarmotKit 0.14.0)** (unreleased, iOS & Android; 2.0.0 was never released). See ROADMAP.md for next steps.
+Current version: **v2.0.1 — Marmot protocol v2 (MarmotKit 0.14.0)** (released 2026-11-04, iOS & Android; 2.0.0 was never released). See ROADMAP.md for next steps.

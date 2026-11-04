@@ -6,7 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.0.1] — unreleased
+## [2.0.1] — 2026-11-04
 
 **2.0.0 was never released.** This is the first public v2 release, so it covers
 everything since 1.x.
