@@ -1,5 +1,8 @@
 # Join and Invite Flow
 
+!!! warning "This page describes Whistle 1.x (protocol v1)"
+    Whistle 2.0 moved to Marmot protocol v2 (MarmotKit), which changed the wire format, event kinds and the join flow (scan-to-join replaces invite codes, join requests and `whistle://` links). Parts of this page no longer apply. See the [Marmot Protocol](https://github.com/marmot-protocol/marmot) for the current specification.
+
 Whistle has no central directory of users, so getting someone into a group is always an explicit, out-of-band handshake between the inviter (a group admin) and the invitee. The actual cryptography is the same regardless of which UI path was used; what differs is how the invite code travels from one phone to the other.
 
 ## The shared backbone

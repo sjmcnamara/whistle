@@ -1,5 +1,8 @@
 # Whistle Protocol Specification
 
+!!! warning "This page describes Whistle 1.x (protocol v1)"
+    Whistle 2.0 moved to Marmot protocol v2 (MarmotKit), which changed the wire format, event kinds and the join flow (scan-to-join replaces invite codes, join requests and `whistle://` links). Parts of this page no longer apply. See the [Marmot Protocol](https://github.com/marmot-protocol/marmot) for the current specification.
+
 This is the wire-level reference for Whistle: the Nostr event kinds we use, the JSON payloads carried inside them, the defaults baked into the app, and the URL schemes that bootstrap a join.
 
 Whistle sits on top of the [Marmot Protocol](https://github.com/marmot-protocol/marmot) (MIP-00 → 03) for MLS-over-Nostr. If you're reading this to build an interoperating client, you want to read the MIPs alongside this document — they define the cryptographic guarantees; this page tells you what bytes Whistle puts on the wire.
